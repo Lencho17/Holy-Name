@@ -30,13 +30,6 @@ function Home() {
 
   return (
     <div className="bg-surface relative">
-      {/* Social Media Links Floating Bar */}
-      <div className="fixed z-40 top-[50%] right-4 bg-white/80 backdrop-blur-md p-3 shadow-xl rounded-2xl border border-primary/10 flex flex-col items-center">
-        <FaWhatsapp className="w-8 h-8 mb-4 text-green-500 hover:scale-110 transition-transform cursor-pointer" />
-        <FaInstagram className="w-8 h-8 mb-4 text-pink-500 hover:scale-110 transition-transform cursor-pointer" />
-        <FaFacebook className="w-8 h-8 text-blue-600 hover:scale-110 transition-transform cursor-pointer" />
-      </div>
-
       <main className="relative">
         {/* Development Banner */}
         <div className="w-full flex justify-center py-2 px-5 bg-secondary-container text-on-secondary-container rounded-b-xl shadow-sm mb-4">
@@ -69,7 +62,7 @@ function Home() {
                 }`}
               />
             ))}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1E40AF]/95 via-[#1E40AF]/60 to-[#1E40AF]/20"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1E40AF]/75 via-[#1E40AF]/40 to-transparent"></div>
           </div>
           <div className="relative z-10 max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
             <motion.div
@@ -83,10 +76,10 @@ function Home() {
                   stars
                 </span>
                 <span className="text-xs font-bold tracking-[0.2em] uppercase text-white">
-                  Established 1985
+                  Established 1986
                 </span>
               </div>
-              <h2 className="font-['Noto_Serif'] text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter">
+              <h2 className="font-['Prata'] text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter">
                 Nurturing the{" "}
                 <span className="text-canva-cyan drop-shadow-md italic">
                   Leaders
@@ -94,7 +87,7 @@ function Home() {
                 of Tomorrow.
               </h2>
               <p className="text-primary-fixed text-base md:text-lg max-w-xl font-medium leading-relaxed">
-                Holy Name Senior Secondary School offers a transformative
+                Holy Name Higher Secondary School offers a transformative
                 academic journey that bridges traditional values with futuristic
                 learning architectures.
               </p>
@@ -135,7 +128,7 @@ function Home() {
                   Equipped with the latest research technologies.
                 </p>
               </div>
-              <div className="bg-secondary-container rounded-3xl p-6 flex flex-col justify-between hover:scale-[1.02] transition-all">
+              <div className="bg-white/80 backdrop-blur-md rounded-3xl p-6 flex flex-col justify-between hover:scale-[1.02] shadow-xl shadow-primary/20 transition-all">
                 <div className="flex justify-between items-center">
                   <span className="material-symbols-outlined text-primary text-4xl">
                     workspace_premium
@@ -210,28 +203,30 @@ function Home() {
         </section>
 
         {/* Values Section */}
-        <section className="max-w-7xl mx-auto px-4 md:px-6 my-10">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="bg-gradient-to-br from-surface-container-high to-surface-container-highest rounded-3xl shadow-lg p-12 md:p-20 text-center relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary via-secondary to-primary"></div>
-            <span className="material-symbols-outlined text-primary/10 text-9xl absolute -bottom-10 -right-10 pointer-events-none">
-              school
-            </span>
-            <h3 className="academic-serif text-3xl md:text-4xl font-black mb-6 text-on-surface">
-              Why Holy Name?
-            </h3>
-            <p className="text-lg md:text-2xl text-on-surface-variant leading-relaxed max-w-4xl mx-auto font-medium">
-              "Because at Holy Name, we foster curiosity, creativity, and a love
-              for learning, nurturing students to become confident,
-              compassionate leaders of tomorrow. Empowering young minds to
-              dream, discover, and achieve."
-            </p>
-          </motion.div>
+        <section className="w-full py-16 my-10 bg-gradient-to-b from-[#dfc8ff] to-[#f8f5ff] relative">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-2xl shadow-purple-900/10 rounded-3xl p-12 md:p-20 text-center relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-canva-cyan to-canva-purple"></div>
+              <span className="material-symbols-outlined text-purple-900/5 text-9xl absolute -bottom-10 -right-10 pointer-events-none">
+                school
+              </span>
+              <h3 className="font-['Prata'] text-3xl md:text-5xl font-black mb-6 text-slate-800">
+                Why Holy Name?
+              </h3>
+              <p className="text-lg md:text-2xl text-slate-700 leading-relaxed max-w-4xl mx-auto font-medium">
+                "Because at Holy Name, we foster curiosity, creativity, and a love
+                for learning, nurturing students to become confident,
+                compassionate leaders of tomorrow. Empowering young minds to
+                dream, discover, and achieve."
+              </p>
+            </motion.div>
+          </div>
         </section>
 
         {/* Existing Component Grid */}

@@ -29,7 +29,7 @@ function Contact() {
             </div>
             <h3 className="text-xl font-bold text-[#4C1A57] mb-3">Our Campus</h3>
             <p className="text-gray-600">
-              Holy Name Senior Secondary School<br />
+              Holy Name Higher Secondary School<br />
               Cherekapar, Nazira Ali Rd, Hatimuria<br />
               Dist: Sivasagar, Assam - 785697
             </p>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Prata&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -14,11 +14,11 @@
     vertical-align: middle;
 }
 body { 
-    font-family: 'Inter', sans-serif; 
+    font-family: 'Outfit', sans-serif; 
     background: linear-gradient(135deg, #e0edff 0%, #eaddff 50%, #f3e1f5 100%);
     min-height: 100vh;
 }
-.academic-serif { font-family: 'Outfit', sans-serif; }
+.academic-serif { font-family: 'Prata', serif; }
 .glass-nav {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);

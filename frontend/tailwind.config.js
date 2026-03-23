@@ -67,10 +67,10 @@ export default {
         "surface-container-highest": "#94A3B8" // Slate 400
       },
       fontFamily: {
-        "sans": ["Inter", "sans-serif"],
-        "headline": ["Outfit", "sans-serif"],
-        "body": ["Inter", "sans-serif"],
-        "label": ["Inter", "sans-serif"]
+        "sans": ["Outfit", "sans-serif"],
+        "headline": ["Prata", "serif"],
+        "body": ["Outfit", "sans-serif"],
+        "label": ["Outfit", "sans-serif"]
       },
       borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
     },

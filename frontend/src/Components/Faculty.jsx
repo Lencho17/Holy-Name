@@ -95,7 +95,7 @@ function Faculty() {
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
-      <section className="relative w-full h-[50vh] min-h-[400px] overflow-hidden bg-[#4C1A57]">
+      <section className="relative w-full h-[50vh] min-h-[400px] overflow-hidden bg-gradient-to-r from-canva-cyan to-canva-purple">
         {slides.map((slide, index) => (
           <div
             key={slide.id}
@@ -104,10 +104,10 @@ function Faculty() {
             }`}
           >
             <div
-              className="absolute inset-0 bg-cover bg-center transform scale-105 transition-transform duration-[10000ms] ease-linear"
+              className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-overlay transform scale-105 transition-transform duration-[10000ms] ease-linear"
               style={{ backgroundImage: `url(${slide.imageUrl})` }}
             ></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-[#4C1A57] via-[#4C1A57]/60 to-transparent"></div>
+            <div className="absolute inset-0 bg-black/10"></div>
           </div>
         ))}
         

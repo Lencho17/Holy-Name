@@ -5,9 +5,9 @@ function Contact() {
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
       {/* Hero Section */}
-      <section className="relative w-full h-[35vh] min-h-[250px] flex items-center justify-center bg-[#4C1A57] overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1596522354195-e41cdab60538?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center opacity-10"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-[#4C1A57] to-transparent opacity-80"></div>
+      <section className="relative w-full h-[35vh] min-h-[250px] flex items-center justify-center bg-gradient-to-r from-canva-cyan to-canva-purple overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1596522354195-e41cdab60538?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center px-4 w-full max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 tracking-tight flex items-center justify-center">
             <FaGlobe className="text-amber-500 mr-4 drop-shadow-lg" />

@@ -8,24 +8,24 @@ function Header() {
 
   // Helper for NavLink
   const navLinkClass = ({ isActive }) =>
-    `block px-3 py-2 ${
+    `block px-5 py-2.5 ${
       isActive
-        ? "text-[#500088] border-b-2 border-[#735c00] pb-1 font-bold"
-        : "text-slate-600 dark:text-slate-400 font-medium hover:text-[#500088] hover:bg-purple-50"
-    } rounded-lg transition-all text-sm whitespace-nowrap`;
+        ? "bg-gradient-to-r from-canva-cyan to-canva-purple text-white font-bold shadow-md rounded-full"
+        : "text-slate-700 font-medium hover:bg-slate-100 hover:text-slate-900 rounded-full"
+    } transition-all duration-300 text-sm whitespace-nowrap`;
 
   // Helper for Sub NavLink
   const subNavLinkClass = ({ isActive }) =>
-    `hover:text-primary transition-colors flex items-center gap-1 ${isActive ? "text-primary" : ""}`;
+    `hover:text-canva-purple transition-colors flex items-center gap-1 ${isActive ? "text-canva-purple" : ""}`;
 
   return (
-    <header className="sticky top-0 z-50 w-full shadow-sm transition-all duration-300">
+    <header className="sticky top-0 z-50 w-full transition-all duration-300">
       {/* Top Utility Bar */}
-      <div className="w-full bg-primary-container text-on-primary py-2 px-4 md:px-6">
+      <div className="w-full bg-slate-900 text-white py-2 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-xs font-semibold tracking-widest uppercase">
           <div className="flex items-center gap-6">
             <a
-              className="flex items-center gap-2 hover:text-secondary-container transition-colors duration-300"
+              className="flex items-center gap-2 hover:text-canva-cyan transition-colors duration-300"
               href="tel:6901055733"
             >
               <span className="material-symbols-outlined text-[16px]">call</span>
@@ -37,34 +37,33 @@ function Header() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {/* The Admin Login button previously wrapped in a link */}
             <AdminLoginBtn />
           </div>
         </div>
       </div>
 
       {/* Main Navigation Header */}
-      <div className="bg-[#fcf8ff] dark:bg-slate-950/80 backdrop-blur-xl border-b border-primary/10">
-        <div className="max-w-7xl mx-auto flex justify-between items-center w-full px-4 md:px-6 py-4">
+      <div className="bg-transparent pt-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center w-full px-4 md:px-6 mb-2">
           {/* Branding */}
-          <Link to="/" className="flex items-center gap-3 group cursor-pointer">
+          <Link to="/" className="flex items-center gap-3 group cursor-pointer bg-white/70 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-white/50">
             <img
               src="/Pictures/Logo.jpg"
-              className="w-12 h-12 md:w-14 md:h-14 rounded-xl shadow-lg border border-primary/20 group-hover:scale-105 transition-transform duration-300 object-cover"
+              className="w-10 h-10 md:w-12 md:h-12 rounded-xl shadow-md group-hover:scale-105 transition-transform duration-300 object-cover"
               alt="Holy Name School Logo"
             />
             <div className="flex flex-col">
-              <h1 className="font-['Noto_Serif'] font-black text-[#500088] dark:text-purple-300 tracking-tighter text-sm sm:text-lg md:text-xl leading-tight">
+              <h1 className="font-['Noto_Serif'] font-black text-slate-900 tracking-tighter text-sm sm:text-lg md:text-xl leading-tight">
                 Holy Name Senior Secondary School
               </h1>
-              <span className="text-[9px] sm:text-[10px] tracking-[0.2em] uppercase font-bold text-secondary">
+              <span className="text-[9px] sm:text-[10px] tracking-[0.2em] uppercase font-bold text-canva-purple">
                 Excellence in Education
               </span>
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden xl:flex items-center gap-1">
+          {/* Desktop Navigation - Pill Form */}
+          <nav className="hidden xl:flex items-center p-1.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg border border-white/80 gap-1">
             <NavLink to="/" className={navLinkClass}>Home</NavLink>
             <NavLink to="/principal" className={navLinkClass}>Principal</NavLink>
             <NavLink to="/about" className={navLinkClass}>About</NavLink>

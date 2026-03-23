@@ -7,58 +7,70 @@ export default {
   theme: {
     extend: {
       colors: {
-        "primary-fixed-dim": "#dfb7ff",
-        "outline-variant": "#cfc2d4",
-        "surface-container": "#efebff",
-        "on-secondary-fixed-variant": "#574500",
-        "tertiary-fixed": "#ffe083",
-        "surface-tint": "#803abd",
-        "on-tertiary": "#ffffff",
-        "secondary-container": "#fed65b",
-        "surface": "#fcf8ff",
-        "inverse-on-surface": "#f3eeff",
-        "error": "#ba1a1a",
-        "on-primary": "#ffffff",
-        "on-tertiary-fixed-variant": "#574500",
-        "on-tertiary-container": "#4e3e00",
-        "inverse-surface": "#2d2a5b",
-        "on-error": "#ffffff",
-        "on-secondary-container": "#745c00",
-        "on-secondary-fixed": "#241a00",
-        "secondary-fixed": "#ffe088",
-        "surface-container-high": "#e9e5ff",
-        "primary": "#500088",
-        "background": "#fcf8ff",
-        "on-primary-fixed-variant": "#661aa3",
-        "on-secondary": "#ffffff",
-        "surface-dim": "#dad6ff",
-        "error-container": "#ffdad6",
-        "secondary-fixed-dim": "#e9c349",
-        "surface-variant": "#e3dfff",
-        "tertiary-container": "#cea700",
-        "on-error-container": "#93000a",
-        "inverse-primary": "#dfb7ff",
-        "surface-container-lowest": "#ffffff",
-        "on-background": "#181445",
-        "secondary": "#735c00",
-        "on-surface-variant": "#4c4452",
-        "tertiary": "#735c00",
-        "on-tertiary-fixed": "#231b00",
-        "on-primary-container": "#d7a8ff",
-        "primary-fixed": "#f1dbff",
-        "surface-bright": "#fcf8ff",
-        "on-surface": "#181445",
-        "primary-container": "#6b21a8",
-        "on-primary-fixed": "#2d0050",
-        "surface-container-highest": "#e3dfff",
-        "surface-container-low": "#f6f2ff",
-        "tertiary-fixed-dim": "#eec200",
-        "outline": "#7e7383"
+        "primary": "#1E40AF", // Blue 800
+        "on-primary": "#FFFFFF",
+        "primary-container": "#1E3A8A", // Blue 900
+        "on-primary-container": "#FFFFFF",
+        "primary-fixed": "#DBEAFE",
+        "on-primary-fixed": "#1E3A8A",
+        "primary-fixed-dim": "#BFDBFE",
+        "on-primary-fixed-variant": "#1D4ED8",
+        
+        "secondary": "#0284C7", // Light Blue / Sky 600
+        "on-secondary": "#FFFFFF",
+        "secondary-container": "#E0F2FE", // Sky 100
+        "on-secondary-container": "#0C4A6E", // Sky 900
+        "secondary-fixed": "#E0F2FE",
+        "on-secondary-fixed": "#0C4A6E",
+        "secondary-fixed-dim": "#BAE6FD",
+        "on-secondary-fixed-variant": "#0284C7",
+
+        "tertiary": "#F59E0B", // Amber 500 (Professional contrasting accent)
+        "on-tertiary": "#FFFFFF",
+        "tertiary-container": "#FFFBEB",
+        "on-tertiary-container": "#78350F",
+        "tertiary-fixed": "#FEF3C7",
+        "on-tertiary-fixed": "#78350F",
+        "tertiary-fixed-dim": "#FDE68A",
+        "on-tertiary-fixed-variant": "#D97706",
+
+        "error": "#BA1A1A",
+        "on-error": "#FFFFFF",
+        "error-container": "#FFDAD6",
+        "on-error-container": "#93000A",
+
+        "background": "#F8FAFC", // Slate 50
+        "on-background": "#0F172A", // Slate 900
+        "surface": "#F8FAFC",
+        "on-surface": "#0F172A",
+        "surface-variant": "#E2E8F0", // Slate 200
+        "on-surface-variant": "#475569", // Slate 600
+        "outline": "#94A3B8", // Slate 400
+        "outline-variant": "#CBD5E1", // Slate 300
+        
+        "inverse-on-surface": "#F1F5F9",
+        "inverse-surface": "#1E293B",
+        "inverse-primary": "#60A5FA",
+        
+        "canva-cyan": "#00c4cc",
+        "canva-purple": "#7d2ae8",
+        "canva-bg-start": "#e0edff",
+        "canva-bg-mid": "#eaddff",
+        "canva-bg-end": "#f3e1f5",
+        
+        "surface-dim": "#CBD5E1",
+        "surface-bright": "#F8FAFC",
+        "surface-container-lowest": "#FFFFFF",
+        "surface-container-low": "#F1F5F9", // Slate 100
+        "surface-container": "#E2E8F0", // Slate 200
+        "surface-container-high": "#CBD5E1", // Slate 300
+        "surface-container-highest": "#94A3B8" // Slate 400
       },
       fontFamily: {
-        "headline": ["Noto Serif"],
-        "body": ["Manrope"],
-        "label": ["Manrope"]
+        "sans": ["Inter", "sans-serif"],
+        "headline": ["Outfit", "sans-serif"],
+        "body": ["Inter", "sans-serif"],
+        "label": ["Inter", "sans-serif"]
       },
       borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
     },

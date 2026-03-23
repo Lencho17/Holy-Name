@@ -80,9 +80,9 @@ function Gallery() {
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
       {/* Hero Section */}
-      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-[#4C1A57] overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 transform scale-105 hover:scale-100 transition-transform duration-1000"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-[#4C1A57] via-[#4C1A57]/80 to-transparent"></div>
+      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-canva-cyan to-canva-purple overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay transform scale-105 hover:scale-100 transition-transform duration-1000"></div>
+        <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center px-4">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-6 tracking-tight flex items-center justify-center">
             <FaImages className="text-amber-500 mr-4 drop-shadow-lg" />
@@ -113,32 +113,28 @@ function Gallery() {
           ))}
         </div>
 
-        {/* Masonry-style Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-[250px]">
+        {/* Grid matching reference image */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 bg-black p-4 lg:p-6 rounded-xl">
           {filteredItems.map((item) => (
             <div 
               key={item.id} 
-              className={`relative overflow-hidden rounded-3xl shadow-md group cursor-pointer border border-gray-100 bg-white ${
-                item.featured ? 'md:col-span-2 md:row-span-2' : 'col-span-1 row-span-1'
-              }`}
+              className="relative overflow-hidden group cursor-pointer aspect-video bg-black"
               onClick={() => setSelectedImage(item)}
             >
               <img 
                 src={item.src} 
                 alt={item.title} 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-60"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#4C1A57]/90 via-[#4C1A57]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors duration-500"></div>
               
-              <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-8 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-                <span className="inline-block px-3 py-1 bg-amber-500 text-[#4C1A57] text-xs font-bold rounded-full mb-2 shadow-sm">
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 transition-transform duration-500 group-hover:scale-105">
+                <h3 className="text-white text-2xl md:text-3xl font-serif font-bold mb-2 shadow-black drop-shadow-xl tracking-wide">
+                  {item.title}
+                </h3>
+                <p className="text-gray-300 text-sm tracking-widest shadow-black drop-shadow-md">
                   {item.category}
-                </span>
-                <h3 className="text-white text-xl font-bold">{item.title}</h3>
-              </div>
-              
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm w-16 h-16 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
-                <FaSearchPlus className="text-white text-2xl" />
+                </p>
               </div>
             </div>
           ))}

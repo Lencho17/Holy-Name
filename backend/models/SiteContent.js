@@ -58,7 +58,11 @@ const siteContentSchema = new mongoose.Schema({
     message: String,
     closingQuote: String,
     photo: String,
-    signature: String,
+    signature: { type: String, default: "https://via.placeholder.com/150x50" },
+  },
+  notificationEmail: {
+    type: String,
+    default: "office@lenchosolutions.com"
   },
 }, { timestamps: true });
 

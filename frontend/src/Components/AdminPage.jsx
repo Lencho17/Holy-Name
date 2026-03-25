@@ -1,12 +1,12 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaCalendarAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope } from 'react-icons/fa';
 import { SiteDataContext } from '../context/SiteDataContext';
 
 function AdminPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, uploadImage, API_URL } = useContext(SiteDataContext);
+  const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, uploadImage, API_URL } = useContext(SiteDataContext);
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
@@ -15,8 +15,15 @@ function AdminPage() {
   useEffect(() => {
     const data = localStorage.getItem('adminData');
     const token = localStorage.getItem('adminToken');
-    if (data && token) {
-      setAdminUser(JSON.parse(data));
+    if (data && token && data !== "undefined" && data !== "null") {
+      try {
+        setAdminUser(JSON.parse(data));
+      } catch (err) {
+        console.error("Session data corrupted:", err);
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminData');
+        window.location.href = '/adminLogin';
+      }
       // Optional: Verify token with backend
       fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => {
@@ -677,6 +684,71 @@ function AdminPage() {
     </div>
   );
 
+  const renderSettingsTab = () => {
+    const [tempEmail, setTempEmail] = useState(notificationEmail);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSaveEmail = async () => {
+      setIsSaving(true);
+      await setNotificationEmail(tempEmail);
+      setIsSaving(false);
+      alert('Notification email updated successfully!');
+    };
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 max-w-2xl">
+        <h3 className="text-xl font-bold text-gray-800 mb-6 font-serif flex items-center gap-2">
+          <FaCog className="text-primary" /> System Settings
+        </h3>
+        
+        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+              <FaEnvelope />
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-800">Admission Notifications</h4>
+              <p className="text-xs text-gray-500">This email will receive all new admission alerts.</p>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Receiver Email Address</label>
+              <div className="flex gap-2">
+                <input 
+                  type="email" 
+                  value={tempEmail} 
+                  onChange={e => setTempEmail(e.target.value)} 
+                  className="flex-1 p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20 outline-none" 
+                  placeholder="office@school.com"
+                />
+                <button 
+                  onClick={handleSaveEmail}
+                  disabled={isSaving || tempEmail === notificationEmail}
+                  className="bg-primary text-white px-6 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:bg-gray-300"
+                >
+                  {isSaving ? 'Saving...' : 'Update'}
+                </button>
+              </div>
+              <p className="text-[10px] text-amber-600 mt-2 font-medium">
+                * Ensure this email is valid to avoid missing important student applications.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+          <h4 className="text-blue-800 font-bold text-sm mb-1">System Information</h4>
+          <p className="text-blue-600 text-xs">
+            Role: <span className="font-bold uppercase">{adminUser?.role}</span><br />
+            API Endpoint: <span className="font-mono text-[10px]">{API_URL}</span>
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   const renderDashboard = () => (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
@@ -829,6 +901,12 @@ function AdminPage() {
               >
                 <FaUsers className="mr-3 text-lg text-tertiary" /> Manage Admins
               </button>
+              <button 
+                onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
+                className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'settings' ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
+              >
+                <FaCog className="mr-3 text-lg text-tertiary" /> Settings
+              </button>
             </>
           )}
         </div>
@@ -882,6 +960,7 @@ function AdminPage() {
           {activeTab === 'faculty' && renderFacultyTab()}
           {activeTab === 'principal' && renderPrincipalTab()}
           {activeTab === 'admins' && adminUser?.role === 'superadmin' && renderAdminsTab()}
+          {activeTab === 'settings' && adminUser?.role === 'superadmin' && renderSettingsTab()}
           {activeTab === 'applications' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Admission Applications</h3>

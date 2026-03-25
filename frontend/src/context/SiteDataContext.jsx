@@ -46,6 +46,7 @@ export const SiteDataProvider = ({ children }) => {
   const [principal, setPrincipal] = useState(defaultPrincipal);
   const [faculty, setFaculty] = useState(defaultFaculty);
   const [notices, setNotices] = useState(defaultNotices);
+  const [notificationEmail, setNotificationEmail] = useState('office@lenchosolutions.com');
   const [loading, setLoading] = useState(true);
 
   // Fetch content from backend on mount and via polling
@@ -60,6 +61,7 @@ export const SiteDataProvider = ({ children }) => {
         if (data.notices?.length) setNotices(data.notices);
         if (data.faculty && Object.keys(data.faculty).length) setFaculty(data.faculty);
         if (data.principal?.name) setPrincipal(data.principal);
+        if (data.notificationEmail) setNotificationEmail(data.notificationEmail);
       } catch (error) {
         console.warn('Backend polling error or using local defaults:', error.message);
       } finally {
@@ -95,6 +97,7 @@ export const SiteDataProvider = ({ children }) => {
   const updateFaculty = (val) => { setFaculty(val); saveToBackend('faculty', val); };
   const updatePrincipal = (val) => { setPrincipal(val); saveToBackend('principal', val); };
   const updateNotices = (val) => { setNotices(val); saveToBackend('notices', val); };
+  const updateNotificationEmail = (val) => { setNotificationEmail(val); saveToBackend('notificationEmail', val); };
 
   // Upload image via API, returns the URL
   const uploadImage = async (file) => {
@@ -126,6 +129,7 @@ export const SiteDataProvider = ({ children }) => {
       faculty, setFaculty: updateFaculty,
       principal, setPrincipal: updatePrincipal,
       notices, setNotices: updateNotices,
+      notificationEmail, setNotificationEmail: updateNotificationEmail,
       loading,
       uploadImage,
       API_URL,

@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const Admission = require('../models/Admission');
+const SiteContent = require('../models/SiteContent');
 const { protect } = require('../middleware/auth');
 const nodemailer = require('nodemailer');
 
@@ -18,9 +19,13 @@ const transporter = nodemailer.createTransport({
 
 const sendSubmissionEmail = async (admissionData) => {
   try {
+    // Fetch dynamic receiver email from SiteContent
+    const siteContent = await SiteContent.findOne();
+    const receiverEmail = siteContent?.notificationEmail || process.env.EMAIL_RECEIVER || 'office@lenchosolutions.com';
+
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_RECEIVER || 'office@lenchosolutions.com',
+      to: receiverEmail,
       subject: 'New Student Admission Application - Holy Name School',
       html: `
         <h2>New Admission Application Received</h2>

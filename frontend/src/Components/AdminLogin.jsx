@@ -25,9 +25,13 @@ function AdminLogin() {
     const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
     axios.post(`${apiBase}/auth/login`, { email: username, password })
       .then((res) => {
-        localStorage.setItem('adminToken', res.data.token);
-        localStorage.setItem('adminData', JSON.stringify(res.data.admin));
-        setToken(res.data.token);
+        if (res.data.token && res.data.admin) {
+          localStorage.setItem('adminToken', res.data.token);
+          localStorage.setItem('adminData', JSON.stringify(res.data.admin));
+          setToken(res.data.token);
+        } else {
+          throw new Error('Invalid server response: Missing user data');
+        }
         setLoading(false);
       })
       .catch((err) => {

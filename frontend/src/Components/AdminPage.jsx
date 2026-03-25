@@ -8,6 +8,28 @@ function AdminPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, uploadImage, API_URL } = useContext(SiteDataContext);
 
+  // --- Auth & Role ---
+  const [adminUser, setAdminUser] = useState(null);
+  const [admins, setAdmins] = useState([]);
+
+  useEffect(() => {
+    const data = localStorage.getItem('adminData');
+    const token = localStorage.getItem('adminToken');
+    if (data && token) {
+      setAdminUser(JSON.parse(data));
+      // Optional: Verify token with backend
+      fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => {
+          if (!res.ok) {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminData');
+            window.location.href = '/adminLogin';
+          }
+        })
+        .catch(() => console.warn('Auth verification failed, using offline session'));
+    }
+  }, [API_URL]);
+
   // --- Fetch real admission applications ---
   const [applications, setApplications] = useState([]);
   const [selectedApp, setSelectedApp] = useState(null); // For "View" modal
@@ -20,12 +42,62 @@ function AdminPage() {
     } catch (e) { console.warn('Could not fetch applications'); }
   };
 
+  const fetchAdmins = async () => {
+    if (adminUser?.role !== 'superadmin') return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/auth/admins`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setAdmins(await res.json());
+    } catch (e) { console.warn('Could not fetch admins'); }
+  };
+
   useEffect(() => {
     fetchApps();
+    if (adminUser?.role === 'superadmin') fetchAdmins();
     // Live changes: poll every 30 seconds
-    const interval = setInterval(fetchApps, 30000);
+    const interval = setInterval(() => {
+        fetchApps();
+        if (adminUser?.role === 'superadmin') fetchAdmins();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [API_URL]);
+  }, [API_URL, adminUser?.role]);
+
+  const handleCreateAdmin = async (newAdmin) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(newAdmin)
+      });
+      if (res.ok) {
+        fetchAdmins();
+        return true;
+      } else {
+        const error = await res.json();
+        alert(error.message || 'Failed to create admin');
+        return false;
+      }
+    } catch (e) {
+      alert('Error creating admin');
+      return false;
+    }
+  };
+
+  const handleDeleteAdmin = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this admin?')) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/auth/admins/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) fetchAdmins();
+    } catch (e) { alert('Error deleting admin'); }
+  };
 
   const handleStatusUpdate = async (id, newStatus) => {
     try {
@@ -408,6 +480,135 @@ function AdminPage() {
     </div>
   );
 
+  // --- Admins Tab (Super Admin Only) ---
+  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', password: '', role: 'admin' });
+  const [isAdminFormLoading, setIsAdminFormLoading] = useState(false);
+
+  const onAddAdmin = async (e) => {
+    e.preventDefault();
+    setIsAdminFormLoading(true);
+    const success = await handleCreateAdmin(newAdmin);
+    if (success) {
+      setNewAdmin({ name: '', email: '', password: '', role: 'admin' });
+    }
+    setIsAdminFormLoading(false);
+  };
+
+  const renderAdminsTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h3 className="text-xl font-bold text-gray-800 mb-6 font-serif">Administrative Staff Management</h3>
+      
+      {/* Create New Admin Form */}
+      <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8">
+        <h4 className="font-bold text-gray-700 mb-4 flex items-center">
+          <FaPlus className="mr-2 text-tertiary" /> Register New Administrator
+        </h4>
+        <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+            <input 
+              required
+              type="text" 
+              value={newAdmin.name} 
+              onChange={e => setNewAdmin({...newAdmin, name: e.target.value})} 
+              className="w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20" 
+              placeholder="e.g. John Doe"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email / Username</label>
+            <input 
+              required
+              type="email" 
+              value={newAdmin.email} 
+              onChange={e => setNewAdmin({...newAdmin, email: e.target.value})} 
+              className="w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20" 
+              placeholder="admin@school.com"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+            <input 
+              required
+              type="password" 
+              value={newAdmin.password} 
+              onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} 
+              className="w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20" 
+              placeholder="••••••••"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Role</label>
+            <div className="flex gap-2">
+              <select 
+                value={newAdmin.role} 
+                onChange={e => setNewAdmin({...newAdmin, role: e.target.value})} 
+                className="flex-1 p-2.5 border rounded-lg bg-white"
+              >
+                <option value="admin">Admin</option>
+                <option value="superadmin">Super Admin</option>
+              </select>
+              <button 
+                type="submit" 
+                disabled={isAdminFormLoading}
+                className="bg-primary text-white px-6 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition-all disabled:opacity-50"
+              >
+                {isAdminFormLoading ? '...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {/* Admin List */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-xs text-gray-400 uppercase tracking-widest border-b border-gray-100">
+              <th className="py-4 font-black">Name</th>
+              <th className="py-4 font-black">Email</th>
+              <th className="py-4 font-black">Role</th>
+              <th className="py-4 font-black text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {admins.map(admin => (
+              <tr key={admin._id} className="hover:bg-gray-50/50 transition-colors">
+                <td className="py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                      {admin.name.charAt(0)}
+                    </div>
+                    <span className="font-bold text-gray-700">{admin.name}</span>
+                  </div>
+                </td>
+                <td className="py-4 text-gray-500 text-sm">{admin.email}</td>
+                <td className="py-4">
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                    admin.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {admin.role}
+                  </span>
+                </td>
+                <td className="py-4 text-right">
+                  {admin._id !== adminUser?.id && (
+                    <button 
+                      onClick={() => handleDeleteAdmin(admin._id)} 
+                      className="text-red-400 hover:text-red-600 p-2 transition-colors"
+                      title="Delete Admin"
+                    >
+                      <FaTrash size={14} />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   const renderDashboard = () => (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
@@ -549,11 +750,33 @@ function AdminPage() {
           >
             <FaUsers className="mr-3 text-lg" /> Students
           </button>
+
+          {adminUser?.role === 'superadmin' && (
+            <>
+              <div className="text-[10px] text-white/30 uppercase tracking-widest font-black mt-6 mb-2 px-4">System Control</div>
+              <button 
+                onClick={() => { setActiveTab('admins'); setIsSidebarOpen(false); }}
+                className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'admins' ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
+              >
+                <FaUsers className="mr-3 text-lg text-tertiary" /> Manage Admins
+              </button>
+            </>
+          )}
         </div>
-        <div className="p-4 border-t border-white/10">
-          <NavLink to="/" className="flex items-center w-full px-4 py-3 rounded-xl hover:bg-white/10 transition-colors text-white/60 hover:text-white text-sm">
+        <div className="p-4 border-t border-white/10 space-y-2">
+          <NavLink to="/" className="flex items-center w-full px-4 py-2 rounded-xl hover:bg-white/10 transition-colors text-white/60 hover:text-white text-sm">
             <FaSignOutAlt className="mr-3 text-lg" /> Return to Website
           </NavLink>
+          <button 
+            onClick={() => {
+              localStorage.removeItem('adminToken');
+              localStorage.removeItem('adminData');
+              window.location.reload();
+            }}
+            className="flex items-center w-full px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors text-sm font-bold"
+          >
+            <FaSignOutAlt className="mr-3 text-lg" /> Logout Session
+          </button>
         </div>
       </div>
 
@@ -571,11 +794,11 @@ function AdminPage() {
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="hidden sm:block text-right">
-              <p className="text-sm font-bold text-gray-800">Admin User</p>
-              <p className="text-[10px] text-gray-500 uppercase font-black tracking-tighter">School Management</p>
+              <p className="text-sm font-bold text-gray-800">{adminUser?.name || 'Admin User'}</p>
+              <p className="text-[10px] text-gray-500 uppercase font-black tracking-tighter">{adminUser?.role === 'superadmin' ? 'Super Administrator' : 'Administrator'}</p>
             </div>
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold shadow-md border-2 border-primary-fixed">
-              AD
+              {adminUser?.name?.charAt(0) || 'A'}
             </div>
           </div>
         </header>
@@ -588,6 +811,7 @@ function AdminPage() {
           {activeTab === 'events' && renderEventsTab()}
           {activeTab === 'faculty' && renderFacultyTab()}
           {activeTab === 'principal' && renderPrincipalTab()}
+          {activeTab === 'admins' && adminUser?.role === 'superadmin' && renderAdminsTab()}
           {activeTab === 'applications' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Admission Applications</h3>

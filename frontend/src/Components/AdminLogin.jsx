@@ -26,6 +26,7 @@ function AdminLogin() {
     axios.post(`${apiBase}/auth/login`, { email: username, password })
       .then((res) => {
         localStorage.setItem('adminToken', res.data.token);
+        localStorage.setItem('adminData', JSON.stringify(res.data.admin));
         setToken(res.data.token);
         setLoading(false);
       })
@@ -36,8 +37,9 @@ function AdminLogin() {
   };
 
   useEffect(() => {
-    if (token) {
-      console.log("Login successful");
+    const existingToken = localStorage.getItem('adminToken');
+    if (existingToken || token) {
+      console.log("Session active, redirecting...");
       navigate('/admin');
     }
   }, [token, navigate]);

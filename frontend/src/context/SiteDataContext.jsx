@@ -42,7 +42,7 @@ export const SiteDataProvider = ({ children }) => {
   const [faculty, setFaculty] = useState(defaultFaculty);
   const [loading, setLoading] = useState(true);
 
-  // Fetch content from backend on mount
+  // Fetch content from backend on mount and via polling
   useEffect(() => {
     const fetchContent = async () => {
       try {
@@ -54,12 +54,15 @@ export const SiteDataProvider = ({ children }) => {
         if (data.faculty && Object.keys(data.faculty).length) setFaculty(data.faculty);
         if (data.principal?.name) setPrincipal(data.principal);
       } catch (error) {
-        console.warn('Backend not available, using local defaults:', error.message);
+        console.warn('Backend polling error or using local defaults:', error.message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchContent();
+    const interval = setInterval(fetchContent, 30000); // Poll every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
   // Save content to backend (called from admin panel)

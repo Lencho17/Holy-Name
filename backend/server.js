@@ -103,20 +103,12 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================
-// SERVE FRONTEND IN PRODUCTION
+// API ROOT
 // ============================================
 
-if (isProduction) {
-  const frontendBuild = path.join(__dirname, '..', 'frontend', 'dist');
-  app.use(express.static(frontendBuild, { maxAge: '30d' }));
-
-  // All non-API routes serve the React app (SPA support)
-  app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
-      res.sendFile(path.join(frontendBuild, 'index.html'));
-    }
-  });
-}
+app.get('/', (req, res) => {
+  res.send('Holy Name School API is running successfully. Please visit the frontend via Vercel.');
+});
 
 // ============================================
 // GLOBAL ERROR HANDLER

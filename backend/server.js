@@ -195,8 +195,9 @@ const startServer = async () => {
       email: 'admin@holynameschool.edu',
       password: 'admin123',
       name: 'School Admin',
+      role: 'superadmin'
     });
-    console.log('🔐 Default admin created: admin@holynameschool.edu / admin123');
+    console.log('🔐 Default Super Admin created: admin@holynameschool.edu / admin123');
   }
 
   // Seed default site content

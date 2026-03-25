@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Items from "./Items";
@@ -6,8 +6,10 @@ import EventsSection from "./EventsSection";
 import VideoBlogSection from "./VideoBlogSection";
 import HighlightsSection from "./HighlightsSection";
 import { FaWhatsapp, FaInstagram, FaFacebook, FaYoutube } from "react-icons/fa";
+import { SiteDataContext } from "../context/SiteDataContext";
 
 function Home() {
+  const { videos } = useContext(SiteDataContext);
   const [currentIndex, setCurrentIndex] = useState(0);
   const images = [
     "/Pictures/1.JPG",
@@ -253,15 +255,17 @@ function Home() {
             <EventsSection />
           </motion.section>
 
-          <motion.section
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.7 }}
-            className="bg-primary-container text-on-primary rounded-3xl p-8 md:p-12 overflow-hidden shadow-2xl"
-          >
-            <VideoBlogSection />
-          </motion.section>
+          {videos && videos.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.7 }}
+              className="bg-primary-container text-on-primary rounded-3xl p-8 md:p-12 overflow-hidden shadow-2xl"
+            >
+              <VideoBlogSection />
+            </motion.section>
+          )}
 
 
 

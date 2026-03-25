@@ -25,9 +25,16 @@ function AdminLogin() {
     const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
     axios.post(`${apiBase}/auth/login`, { email: username, password })
       .then((res) => {
-        if (res.data.token && res.data.admin) {
-          // Robustly handle cases where res.data.admin might be "undefined" or null
-          const adminDataStr = JSON.stringify(res.data.admin);
+        if (res.data.token && res.data._id) {
+          // The backend returns user properties directly on res.data, not inside 'admin'
+          const adminInfo = {
+            _id: res.data._id,
+            name: res.data.name,
+            email: res.data.email,
+            role: res.data.role
+          };
+          const adminDataStr = JSON.stringify(adminInfo);
+          
           if (adminDataStr && adminDataStr !== "undefined") {
             localStorage.setItem('adminToken', res.data.token);
             localStorage.setItem('adminData', adminDataStr);

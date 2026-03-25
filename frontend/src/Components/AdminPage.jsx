@@ -87,41 +87,97 @@ function AdminPage() {
     return () => clearInterval(interval);
   }, [API_URL, adminUser?.role]);
 
-  const handleCreateAdmin = async (newAdmin) => {
+  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', password: '', role: 'admin' });
+  const [isAdminFormLoading, setIsAdminFormLoading] = useState(false);
+  
+  // OTP and Admin Edit State
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otpString, setOtpString] = useState('');
+  const [newAdminOtpString, setNewAdminOtpString] = useState('');
+  const [pendingAdminAction, setPendingAdminAction] = useState(null);
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [editingAdminId, setEditingAdminId] = useState(null);
+  const [editAdminData, setEditAdminData] = useState({});
+
+  const requestOtp = async (actionType, adminData) => {
+    setIsAdminFormLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/auth/register`, {
+      
+      const body = { actionType };
+      if (adminData?.email) {
+        body.targetEmail = adminData.email;
+      }
+      
+      const res = await fetch(`${API_URL}/auth/request-otp`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify(newAdmin)
+        body: JSON.stringify(body)
       });
       if (res.ok) {
-        fetchAdmins();
-        return true;
+        setPendingAdminAction({ type: actionType, data: adminData });
+        setOtpModalVisible(true);
       } else {
         const error = await res.json();
-        alert(error.message || 'Failed to create admin');
-        return false;
+        alert(error.message || 'Failed to request OTP');
       }
     } catch (e) {
-      alert('Error creating admin');
-      return false;
+      alert('Error requesting OTP');
     }
+    setIsAdminFormLoading(false);
   };
 
-  const handleDeleteAdmin = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this admin?')) return;
+  const verifyOtpAndComplete = async (e) => {
+    e?.preventDefault();
+    if (!otpString || !newAdminOtpString) return;
+    setIsOtpLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/auth/admins/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+      const endpoint = pendingAdminAction.type === 'create' 
+        ? `${API_URL}/auth/register` 
+        : `${API_URL}/auth/admins/${pendingAdminAction.data._id}`;
+      
+      let method = 'POST';
+      if (pendingAdminAction.type === 'edit') method = 'PUT';
+      if (pendingAdminAction.type === 'delete') method = 'DELETE';
+
+      const payload = { ...pendingAdminAction.data, otp: otpString, newAdminOtp: newAdminOtpString };
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
       });
-      if (res.ok) fetchAdmins();
-    } catch (e) { alert('Error deleting admin'); }
+
+      if (res.ok) {
+        setOtpModalVisible(false);
+        setOtpString('');
+        setNewAdminOtpString('');
+        setPendingAdminAction(null);
+        setNewAdmin({ name: '', email: '', password: '', role: 'admin' });
+        setEditingAdminId(null);
+        setEditingAdminId(null);
+        fetchAdmins();
+        let actionWord = 'created';
+        if (pendingAdminAction.type === 'edit') actionWord = 'updated';
+        if (pendingAdminAction.type === 'delete') actionWord = 'deleted';
+        alert(`Admin successfully ${actionWord}!`);
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Verification failed');
+      }
+    } catch (e) {
+      alert('Error during verification');
+    }
+    setIsOtpLoading(false);
+  };
+
+  const handleDeleteAdmin = async (admin) => {
+    if (!window.confirm('Are you sure you want to delete this admin? Dual-OTP verification will be required.')) return;
+    await requestOtp('delete', admin);
   };
 
   const handleStatusUpdate = async (id, newStatus) => {
@@ -574,17 +630,18 @@ function AdminPage() {
   );
 
   // --- Admins Tab (Super Admin Only) ---
-  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', password: '', role: 'admin' });
-  const [isAdminFormLoading, setIsAdminFormLoading] = useState(false);
-
   const onAddAdmin = async (e) => {
     e.preventDefault();
-    setIsAdminFormLoading(true);
-    const success = await handleCreateAdmin(newAdmin);
-    if (success) {
-      setNewAdmin({ name: '', email: '', password: '', role: 'admin' });
-    }
-    setIsAdminFormLoading(false);
+    await requestOtp('create', newAdmin);
+  };
+
+  const startEditAdmin = (admin) => {
+    setEditingAdminId(admin._id);
+    setEditAdminData({ _id: admin._id, name: admin.name || '', email: admin.email, role: admin.role, password: '' });
+  };
+
+  const saveEditAdmin = async () => {
+    await requestOtp('edit', editAdminData);
   };
 
   const renderAdminsTab = () => (
@@ -666,35 +723,72 @@ function AdminPage() {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {admins.map(admin => (
-              <tr key={admin._id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                      {admin.name.charAt(0)}
-                    </div>
-                    <span className="font-bold text-gray-700">{admin.name}</span>
-                  </div>
-                </td>
-                <td className="py-4 text-gray-500 text-sm">{admin.email}</td>
-                <td className="py-4">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                    admin.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                  }`}>
-                    {admin.role}
-                  </span>
-                </td>
-                <td className="py-4 text-right">
-                  {admin._id !== adminUser?.id && (
-                    <button 
-                      onClick={() => handleDeleteAdmin(admin._id)} 
-                      className="text-red-400 hover:text-red-600 p-2 transition-colors"
-                      title="Delete Admin"
-                    >
-                      <FaTrash size={14} />
-                    </button>
-                  )}
-                </td>
-              </tr>
+              <React.Fragment key={admin._id}>
+                {editingAdminId === admin._id ? (
+                  <tr className="bg-blue-50/50">
+                    <td colSpan="4" className="py-4 px-6 border-b border-blue-100">
+                      <div className="flex flex-col md:flex-row gap-4 items-end">
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Name</label>
+                          <input type="text" value={editAdminData.name} onChange={e => setEditAdminData({...editAdminData, name: e.target.value})} className="w-full p-2 border rounded bg-white text-sm focus:ring-1 focus:ring-primary" placeholder="Full Name" />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
+                          <input type="email" value={editAdminData.email} onChange={e => setEditAdminData({...editAdminData, email: e.target.value})} className="w-full p-2 border rounded bg-white text-sm focus:ring-1 focus:ring-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Pass (blank to keep)</label>
+                          <input type="password" value={editAdminData.password} onChange={e => setEditAdminData({...editAdminData, password: e.target.value})} className="w-full p-2 border rounded bg-white text-sm focus:ring-1 focus:ring-primary" placeholder="••••••••" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Role</label>
+                          <select value={editAdminData.role} onChange={e => setEditAdminData({...editAdminData, role: e.target.value})} className="w-full p-2 border rounded bg-white text-sm">
+                            <option value="admin">Admin</option>
+                            <option value="superadmin">Super Admin</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={saveEditAdmin} disabled={isAdminFormLoading} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm shadow hover:bg-green-700 disabled:opacity-50">Save</button>
+                          <button onClick={() => setEditingAdminId(null)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-bold text-sm hover:bg-gray-300">Cancel</button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr className="hover:bg-gray-50/50 transition-colors">
+                    <td className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase">
+                          {admin.name ? admin.name.charAt(0) : admin.email?.charAt(0) || 'A'}
+                        </div>
+                        <span className="font-bold text-gray-700">{admin.name || 'Unnamed Admin'}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 text-gray-500 text-sm">{admin.email}</td>
+                    <td className="py-4">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                        admin.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {admin.role}
+                      </span>
+                    </td>
+                    <td className="py-4">
+                      <div className="flex justify-end gap-2 pr-6">
+                        <button onClick={() => startEditAdmin(admin)} className="text-blue-500 hover:text-blue-700 text-xs font-bold uppercase transition-colors mr-2">Edit</button>
+                        {admin._id !== adminUser?.id && (
+                          <button 
+                            onClick={() => handleDeleteAdmin(admin)} 
+                            className="text-red-400 hover:text-red-600 text-[10px] font-bold uppercase tracking-wider p-1 transition-colors flex items-center"
+                            title="Delete Admin"
+                          >
+                            <FaTrash className="mr-1" size={10} /> Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -702,10 +796,17 @@ function AdminPage() {
     </div>
   );
 
-  const renderSettingsTab = () => {
-    const [tempEmail, setTempEmail] = useState(notificationEmail);
-    const [isSaving, setIsSaving] = useState(false);
+  // --- Settings Tab ---
+  const [tempEmail, setTempEmail] = useState(notificationEmail);
+  const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    if (notificationEmail) {
+      setTempEmail(notificationEmail);
+    }
+  }, [notificationEmail]);
+
+  const renderSettingsTab = () => {
     const handleSaveEmail = async () => {
       setIsSaving(true);
       await setNotificationEmail(tempEmail);
@@ -846,7 +947,7 @@ function AdminPage() {
       {/* Sidebar Overlay for Mobile */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -854,9 +955,9 @@ function AdminPage() {
       {/* Sidebar */}
       <div className={`
         fixed lg:relative z-50 lg:z-auto
-        w-64 h-full bg-primary text-white flex flex-col shadow-xl
-        transition-transform duration-300 ease-in-out
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        w-64 h-[100dvh] bg-primary text-white flex flex-col shadow-2xl
+        transition-transform duration-300 ease-in-out lg:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-6 border-b border-white/10 flex items-center justify-between">
           <h2 className="text-xl md:text-2xl font-headline font-bold text-tertiary tracking-wider">
@@ -1133,6 +1234,75 @@ function AdminPage() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- OTP Verification Modal --- */}
+        {otpModalVisible && pendingAdminAction && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Security Verification</h2>
+              <p className="text-sm text-gray-500 mb-6">
+                A dual-OTP verification is required. OTPs have been sent to your Super Admin email and the target admin email.
+              </p>
+              
+              <form onSubmit={verifyOtpAndComplete} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                    Super Admin OTP
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={otpString}
+                    onChange={(e) => setOtpString(e.target.value)}
+                    className="w-full p-3 border rounded-xl font-mono text-center tracking-widest text-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="Enter 6 digit OTP"
+                    maxLength={6}
+                  />
+                  {pendingAdminAction.type === 'create' && (
+                    <p className="text-[10px] text-gray-400 mt-1 italic">Sent to your active session email.</p>
+                  )}
+                </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 mt-4">
+                      Target Admin OTP
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newAdminOtpString}
+                      onChange={(e) => setNewAdminOtpString(e.target.value)}
+                      className="w-full p-3 border rounded-xl font-mono text-center tracking-widest text-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                      placeholder="Enter 6 digit OTP"
+                      maxLength={6}
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1 italic">Sent to {pendingAdminAction.data.email}</p>
+                  </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpModalVisible(false);
+                      setOtpString('');
+                      setNewAdminOtpString('');
+                    }}
+                    className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isOtpLoading || !otpString || !newAdminOtpString}
+                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all transform hover:-translate-y-0.5 shadow-lg shadow-primary/30 disabled:opacity-50 disabled:transform-none disabled:shadow-none"
+                  >
+                    {isOtpLoading ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -16,9 +16,9 @@ const VideoCard = ({ src, title }) => {
       } else if (url.includes('youtube.com/embed/')) {
         videoId = url.split('youtube.com/embed/')[1].split('?')[0];
       } else {
-         return url;
+           return url;
       }
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}`;
+      return `https://www.youtube.com/embed/${videoId}?rel=0`;
     } catch (e) {
       return url;
     }

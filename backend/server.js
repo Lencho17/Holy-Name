@@ -93,7 +93,10 @@ app.use('/uploads', express.static(uploadsDir, {
 // API ROUTES
 // ============================================
 
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/request-otp', authLimiter);
+app.use('/api/auth', apiLimiter, authRoutes);
+
 app.use('/api/content', apiLimiter, contentRoutes);
 app.use('/api/admissions', apiLimiter, admissionsRoutes);
 
@@ -190,7 +193,7 @@ const startServer = async () => {
 
   // Seed default admin
   // Seed default superadmin if no admins or if this specific account is missing/not superadmin
-  const defaultEmail = 'superadmin@1.com';
+  const defaultEmail = 'narayanphukan30@gmail.com';
   let defaultAdmin = await Admin.findOne({ email: defaultEmail });
   
   if (!defaultAdmin) {
@@ -202,8 +205,10 @@ const startServer = async () => {
     });
     console.log(`🔐 Default Super Admin created: ${defaultEmail} / admin123`);
   } else if (defaultAdmin.role !== 'superadmin') {
-    defaultAdmin.role = 'superadmin';
-    await defaultAdmin.save();
+    await Admin.updateOne(
+      { email: defaultEmail },
+      { $set: { role: 'superadmin' } }
+    );
     console.log(`🔐 Elevated ${defaultEmail} to Super Admin`);
   }
 

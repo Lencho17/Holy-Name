@@ -1,10 +1,11 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaCalendarAlt } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaCalendarAlt, FaBars, FaTimes } from 'react-icons/fa';
 import { SiteDataContext } from '../context/SiteDataContext';
 
 function AdminPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, uploadImage, API_URL } = useContext(SiteDataContext);
 
   // --- Fetch real admission applications ---
@@ -57,9 +58,9 @@ function AdminPage() {
   const pendingApps = applications.filter(a => a.status === 'pending').length;
 
   const stats = [
-    { label: 'Total Applications', value: totalApps.toString(), icon: <FaClipboardList className="text-blue-500" />, bg: 'bg-blue-50' },
+    { label: 'Total Applications', value: totalApps.toString(), icon: <FaClipboardList className="text-primary" />, bg: 'bg-primary/10' },
     { label: 'Approved', value: approvedApps.toString(), icon: <FaCheckCircle className="text-green-500" />, bg: 'bg-green-50' },
-    { label: 'Pending Review', value: pendingApps.toString(), icon: <FaChartLine className="text-amber-500" />, bg: 'bg-amber-50' },
+    { label: 'Pending Review', value: pendingApps.toString(), icon: <FaChartLine className="text-tertiary" />, bg: 'bg-tertiary/10' },
     { label: 'Total Students', value: approvedApps.toString(), icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
   ];
 
@@ -107,7 +108,7 @@ function AdminPage() {
   const renderGalleryTab = () => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Gallery</h3>
-      <div className="flex gap-4 mb-6 items-end bg-gray-50 p-4 rounded-xl border border-gray-100">
+      <div className="flex flex-col md:flex-row gap-4 mb-6 items-stretch md:items-end bg-gray-50 p-4 rounded-xl border border-gray-100">
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
           <input type="text" value={newGalleryItem.title} onChange={e => setNewGalleryItem({...newGalleryItem, title: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="Image Title" />
@@ -126,9 +127,9 @@ function AdminPage() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Small Description</label>
           <input type="text" value={newGalleryItem.description} onChange={e => setNewGalleryItem({...newGalleryItem, description: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="Short description..." />
         </div>
-        <button onClick={handleAddGallery} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-amber-600 flex items-center h-[42px]"><FaPlus className="mr-2"/> Add</button>
+        <button onClick={handleAddGallery} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 flex items-center h-[42px]"><FaPlus className="mr-2"/> Add</button>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {gallery.map(item => (
           <div key={item.id} className="relative group rounded-xl overflow-hidden border">
             <img src={item.src} alt={item.title} className="w-full h-32 object-cover" />
@@ -167,7 +168,7 @@ function AdminPage() {
           <option>Academic</option><option>Sports</option><option>Cultural</option>
         </select>
         <textarea placeholder="Description" value={newHighlight.description} onChange={e => setNewHighlight({...newHighlight, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="2"></textarea>
-        <button onClick={handleAddHighlight} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-amber-600 md:col-span-2"><FaPlus className="inline mr-2"/> Add Highlight</button>
+        <button onClick={handleAddHighlight} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2"><FaPlus className="inline mr-2"/> Add Highlight</button>
       </div>
       <div className="space-y-4">
         {highlights.map(item => (
@@ -207,7 +208,7 @@ function AdminPage() {
           <input type="file" accept="image/*" onChange={e => handleImageUpload(e, setNewEvent, 'image')} className="w-full text-sm" />
         </div>
         <textarea placeholder="Event Description" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="3"></textarea>
-        <button onClick={handleAddEvent} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-amber-600 md:col-span-2"><FaPlus className="inline mr-2"/> Add Event</button>
+        <button onClick={handleAddEvent} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2"><FaPlus className="inline mr-2"/> Add Event</button>
       </div>
       <div className="space-y-4">
         {events.map(item => (
@@ -239,12 +240,12 @@ function AdminPage() {
   const renderVideosTab = () => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Video Blog</h3>
-      <div className="flex gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 items-center">
+      <div className="flex flex-col sm:flex-row gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 items-center">
         <input type="text" placeholder="Video Title" value={newVideo.title} onChange={e => setNewVideo({...newVideo, title: e.target.value})} className="flex-1 p-2 border rounded-lg" />
         <input type="text" placeholder="Video Source URL" value={newVideo.src} onChange={e => setNewVideo({...newVideo, src: e.target.value})} className="flex-1 p-2 border rounded-lg" />
-        <button onClick={handleAddVideo} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-amber-600 h-[42px]"><FaPlus className="inline mr-2"/> Add Video</button>
+        <button onClick={handleAddVideo} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 h-[42px]"><FaPlus className="inline mr-2"/> Add Video</button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {videos.map((vid, idx) => (
           <div key={idx} className="border rounded-xl p-4 flex flex-col items-center">
             <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
@@ -291,13 +292,13 @@ function AdminPage() {
           <span className="text-gray-400 text-sm mr-2 whitespace-nowrap">Photo:</span>
           <input type="file" accept="image/*" onChange={e => handleImageUpload(e, setNewFaculty, 'photo')} className="w-full text-sm" />
         </div>
-        <button onClick={handleAddFaculty} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-amber-600 md:col-span-3"><FaPlus className="inline mr-2"/> Add Faculty Member</button>
+        <button onClick={handleAddFaculty} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-3"><FaPlus className="inline mr-2"/> Add Faculty Member</button>
       </div>
 
       {Object.keys(faculty).map(dept => (
         <div key={dept} className="mb-8 border-t pt-4">
-          <h4 className="font-bold text-lg mb-3 text-[#4C1A57]">{dept} Department</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <h4 className="font-bold text-lg mb-3 text-primary">{dept} Department</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {faculty[dept].map((f, idx) => (
               <div key={f.id || idx} className="flex gap-4 p-3 border rounded-xl items-center bg-gray-50">
                 <img src={f.photo || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150"} className="w-12 h-12 rounded-full object-cover bg-gray-200" alt="" />
@@ -356,7 +357,7 @@ function AdminPage() {
       <div className="flex justify-between flex-wrap items-center mb-6">
         <h3 className="text-xl font-bold text-gray-800">Manage Principal's Desk</h3>
         {!isEditingPrincipal ? (
-          <button onClick={startEditingPrincipal} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-amber-600 transition-colors">Edit Info</button>
+          <button onClick={startEditingPrincipal} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Info</button>
         ) : (
           <div className="flex gap-2 mt-2 sm:mt-0">
             <button onClick={cancelPrincipal} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
@@ -409,14 +410,14 @@ function AdminPage() {
 
   const renderDashboard = () => (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
         {stats.map((stat, idx) => (
           <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-bold text-gray-800">{stat.value}</h3>
+              <h3 className="text-2xl md:text-3xl font-bold text-gray-800">{stat.value}</h3>
             </div>
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl ${stat.bg}`}>
+            <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl ${stat.bg}`}>
               {stat.icon}
             </div>
           </div>
@@ -424,21 +425,21 @@ function AdminPage() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+        <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h3 className="text-xl font-bold text-gray-800">Recent Applications</h3>
-          <div className="relative">
+          <div className="relative w-full sm:w-64">
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input 
               type="text" 
               placeholder="Search applications..." 
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
-              <tr className="bg-gray-50 text-gray-500 text-sm uppercase tracking-wider">
+              <tr className="bg-gray-50 text-gray-500 text-xs md:text-sm uppercase tracking-wider">
                 <th className="px-6 py-4 font-medium">App ID</th>
                 <th className="px-6 py-4 font-medium">Student Name</th>
                 <th className="px-6 py-4 font-medium">Grade Applied</th>
@@ -450,12 +451,12 @@ function AdminPage() {
             <tbody className="divide-y divide-gray-100">
               {recentApps.map((app, idx) => (
                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900">{app.id}</td>
-                  <td className="px-6 py-4 text-gray-700">{app.name}</td>
-                  <td className="px-6 py-4 text-gray-700">{app.grade}</td>
-                  <td className="px-6 py-4 text-gray-500">{app.date}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900 text-sm">{app.id}</td>
+                  <td className="px-6 py-4 text-gray-700 text-sm">{app.name}</td>
+                  <td className="px-6 py-4 text-gray-700 text-sm">{app.grade}</td>
+                  <td className="px-6 py-4 text-gray-500 text-xs md:text-sm">{app.date}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    <span className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold ${
                       app.status === 'Approved' ? 'bg-green-100 text-green-700' :
                       app.status === 'Rejected' ? 'bg-red-100 text-red-700' :
                       'bg-amber-100 text-amber-700'
@@ -464,11 +465,11 @@ function AdminPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => setSelectedApp(app.originalApp)} className="text-blue-600 hover:text-blue-800 font-medium text-sm mr-3">View</button>
+                    <button onClick={() => setSelectedApp(app.originalApp)} className="text-primary hover:underline font-medium text-sm mr-3">View</button>
                     {app.status === 'Pending' && (
                       <>
-                        <button onClick={() => handleStatusUpdate(app.originalApp._id, 'accepted')} className="text-green-600 hover:text-green-800 font-medium text-sm mr-3">Approve</button>
-                        <button onClick={() => handleStatusUpdate(app.originalApp._id, 'rejected')} className="text-red-600 hover:text-red-800 font-medium text-sm">Reject</button>
+                        <button onClick={() => handleStatusUpdate(app.originalApp._id, 'accepted')} className="text-green-600 hover:underline font-medium text-sm mr-3">Approve</button>
+                        <button onClick={() => handleStatusUpdate(app.originalApp._id, 'rejected')} className="text-red-600 hover:underline font-medium text-sm">Reject</button>
                       </>
                     )}
                   </td>
@@ -482,95 +483,104 @@ function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans">
+    <div className="min-h-screen bg-surface flex font-sans relative overflow-x-hidden">
+      {/* Sidebar Overlay for Mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 bg-[#4C1A57] text-white flex flex-col shadow-xl">
-        <div className="p-6 border-b border-white/10 flex items-center justify-center">
-          <h2 className="text-2xl font-serif font-bold text-amber-400 tracking-wider">Holy Name<span className="text-white text-sm block tracking-normal text-center mt-1">Admin Panel</span></h2>
+      <div className={`
+        fixed lg:relative z-50 lg:z-auto
+        w-64 h-full bg-primary text-white flex flex-col shadow-xl
+        transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <h2 className="text-xl md:text-2xl font-headline font-bold text-tertiary tracking-wider">
+            Holy Name
+            <span className="text-white text-[10px] md:text-sm block tracking-normal mt-1 opacity-80 text-center">Admin Panel</span>
+          </h2>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white hover:text-tertiary transition-colors">
+            <FaTimes size={20} />
+          </button>
         </div>
-        <div className="flex-1 py-6 flex flex-col gap-2 px-4">
+        <div className="flex-1 py-6 flex flex-col gap-1 px-3 overflow-y-auto">
           <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
+            onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
+            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
           >
             <FaChartLine className="mr-3 text-lg" /> Dashboard
           </button>
           
-          <div className="text-xs text-white/50 uppercase tracking-wider font-bold mt-4 mb-1 px-2">Content</div>
-          <button 
-            onClick={() => setActiveTab('gallery')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'gallery' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
-          >
-            <FaImage className="mr-3 text-lg" /> Gallery
-          </button>
-          <button 
-            onClick={() => setActiveTab('videos')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'videos' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
-          >
-            <FaVideo className="mr-3 text-lg" /> Video Blog
-          </button>
-          <button 
-            onClick={() => setActiveTab('highlights')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'highlights' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
-          >
-            <FaStar className="mr-3 text-lg" /> Highlights
-          </button>
-          <button 
-            onClick={() => setActiveTab('events')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'events' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
-          >
-            <FaCalendarAlt className="mr-3 text-lg" /> Events
-          </button>
-          <button 
-            onClick={() => setActiveTab('faculty')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'faculty' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
-          >
-            <FaChalkboardTeacher className="mr-3 text-lg" /> Faculty
-          </button>
-          <button 
-            onClick={() => setActiveTab('principal')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'principal' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
-          >
-            <FaClipboardList className="mr-3 text-lg" /> Principal Desk
-          </button>
+          <div className="text-[10px] text-white/30 uppercase tracking-widest font-black mt-6 mb-2 px-4">Content Management</div>
+          
+          {[
+            { id: 'gallery', label: 'Gallery', icon: <FaImage /> },
+            { id: 'videos', label: 'Video Blog', icon: <FaVideo /> },
+            { id: 'highlights', label: 'Highlights', icon: <FaStar /> },
+            { id: 'events', label: 'Events', icon: <FaCalendarAlt /> },
+            { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher /> },
+            { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList /> }
+          ].map(item => (
+            <button 
+              key={item.id}
+              onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
+              className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
+            >
+              <span className="mr-3 text-lg">{item.icon}</span>
+              <span className="text-sm">{item.label}</span>
+            </button>
+          ))}
 
-          <div className="text-xs text-white/50 uppercase tracking-wider font-bold mt-4 mb-1 px-2">Data</div>
+          <div className="text-[10px] text-white/30 uppercase tracking-widest font-black mt-6 mb-2 px-4">School Data</div>
           <button 
-            onClick={() => setActiveTab('applications')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'applications' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
+            onClick={() => { setActiveTab('applications'); setIsSidebarOpen(false); }}
+            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'applications' ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
           >
             <FaClipboardList className="mr-3 text-lg" /> Applications
           </button>
           <button 
-            onClick={() => setActiveTab('students')}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'students' ? 'bg-amber-500 text-[#4C1A57] font-bold shadow-md' : 'hover:bg-white/10'}`}
+            onClick={() => { setActiveTab('students'); setIsSidebarOpen(false); }}
+            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'students' ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
           >
             <FaUsers className="mr-3 text-lg" /> Students
           </button>
         </div>
         <div className="p-4 border-t border-white/10">
-          <NavLink to="/" className="flex items-center w-full px-4 py-3 rounded-xl hover:bg-white/10 transition-colors text-white/80 hover:text-white">
-            <FaSignOutAlt className="mr-3 text-lg" /> Return to Site
+          <NavLink to="/" className="flex items-center w-full px-4 py-3 rounded-xl hover:bg-white/10 transition-colors text-white/60 hover:text-white text-sm">
+            <FaSignOutAlt className="mr-3 text-lg" /> Return to Website
           </NavLink>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <header className="bg-white shadow-sm px-8 py-5 flex justify-between items-center border-b border-gray-100">
-          <h1 className="text-2xl font-bold text-gray-800 capitalize">{activeTab}</h1>
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="bg-white shadow-sm px-4 md:px-8 py-4 flex justify-between items-center border-b border-gray-100 z-30">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold shadow-sm">
-              AD
-            </div>
-            <div>
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+            >
+              <FaBars size={20} />
+            </button>
+            <h1 className="text-lg md:text-2xl font-bold text-gray-800 capitalize tracking-tight">{activeTab}</h1>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="hidden sm:block text-right">
               <p className="text-sm font-bold text-gray-800">Admin User</p>
-              <p className="text-xs text-gray-500">Super Admin</p>
+              <p className="text-[10px] text-gray-500 uppercase font-black tracking-tighter">School Management</p>
+            </div>
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold shadow-md border-2 border-primary-fixed">
+              AD
             </div>
           </div>
         </header>
 
-        <main className="p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-surface">
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'gallery' && renderGalleryTab()}
           {activeTab === 'videos' && renderVideosTab()}
@@ -607,11 +617,11 @@ function AdminPage() {
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                               app.status === 'accepted' ? 'bg-green-100 text-green-700' :
                               app.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                              'bg-amber-100 text-amber-700'
+                              'bg-tertiary/10 text-tertiary'
                             }`}>{app.status}</span>
                           </td>
                           <td className="py-3 text-right">
-                            <button onClick={() => setSelectedApp(app)} className="text-blue-600 hover:text-blue-800 font-medium text-sm mr-3">View</button>
+                            <button onClick={() => setSelectedApp(app)} className="text-primary hover:underline font-medium text-sm mr-3">View</button>
                             {app.status === 'pending' && (
                               <>
                                 <button onClick={() => handleStatusUpdate(app._id, 'accepted')} className="text-green-600 hover:text-green-800 font-medium text-sm mr-3">Approve</button>
@@ -639,7 +649,7 @@ function AdminPage() {
         {selectedApp && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
-              <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+              <div className="p-4 sm:p-6 border-b flex justify-between items-center bg-gray-50">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-800">Student Application Details</h2>
                   <p className="text-sm text-gray-500">App ID: {selectedApp._id.slice(-6).toUpperCase()}</p>
@@ -649,12 +659,12 @@ function AdminPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
                   <div className="col-span-1 border-r border-gray-100 pr-4">
                     <h4 className="text-xs uppercase font-bold text-gray-400 mb-3 tracking-widest">Personal Information</h4>
                     <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Name:</span> <span className="text-gray-900 font-medium block text-lg">{selectedApp.studentName}</span></p>
-                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Grade Applied:</span> <span className="font-medium uppercase text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded inline-block mt-1">{selectedApp.gradeApplied}</span></p>
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Grade Applied:</span> <span className="font-medium uppercase text-sm bg-primary/10 text-primary px-2 py-1 rounded inline-block mt-1">{selectedApp.gradeApplied}</span></p>
                     <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">DOB:</span> <span className="text-gray-900 block">{selectedApp.dateOfBirth}</span></p>
                     <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Gender:</span> <span className="text-gray-900 block">{selectedApp.gender}</span></p>
                   </div>

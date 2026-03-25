@@ -98,10 +98,8 @@ export const SiteDataProvider = ({ children }) => {
         },
       });
       // If VITE_API_URL is a full URL, use it; otherwise use origin in prod or local host in dev
-      const baseUrl = import.meta.env.VITE_API_URL 
-        ? import.meta.env.VITE_API_URL.replace('/api', '')
-        : (import.meta.env.PROD ? '' : 'http://localhost:5000');
-      return `${baseUrl}${data.url}`;
+      // Cloudinary returns the full absolute URL directly
+      return data.url;
     } catch (error) {
       console.error('Image upload failed:', error.message);
       return null;

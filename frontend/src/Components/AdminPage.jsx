@@ -20,19 +20,50 @@ function AdminPage() {
     fetchApps();
   }, [API_URL]);
 
+  const handleStatusUpdate = async (id, newStatus) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/admissions/${id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        setApplications(apps => apps.map(app => app._id === id ? { ...app, status: newStatus } : app));
+      } else {
+        alert('Failed to update status');
+      }
+    } catch (e) {
+      console.warn('Could not update status', e);
+      alert('Error updating status');
+    }
+  };
+
+  const totalApps = applications.length;
+  const approvedApps = applications.filter(a => a.status === 'accepted').length;
+  const pendingApps = applications.filter(a => a.status === 'pending').length;
+
   const stats = [
-    { label: 'Total Applications', value: '142', icon: <FaClipboardList className="text-blue-500" />, bg: 'bg-blue-50' },
-    { label: 'Approved', value: '85', icon: <FaCheckCircle className="text-green-500" />, bg: 'bg-green-50' },
-    { label: 'Pending Review', value: '45', icon: <FaChartLine className="text-amber-500" />, bg: 'bg-amber-50' },
-    { label: 'Total Students', value: '1,204', icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
+    { label: 'Total Applications', value: totalApps.toString(), icon: <FaClipboardList className="text-blue-500" />, bg: 'bg-blue-50' },
+    { label: 'Approved', value: approvedApps.toString(), icon: <FaCheckCircle className="text-green-500" />, bg: 'bg-green-50' },
+    { label: 'Pending Review', value: pendingApps.toString(), icon: <FaChartLine className="text-amber-500" />, bg: 'bg-amber-50' },
+    { label: 'Total Students', value: approvedApps.toString(), icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
   ];
 
-  const recentApps = [
-    { id: 'APP001', name: 'John Doe', grade: 'Class I', date: '2026-03-24', status: 'Pending' },
-    { id: 'APP002', name: 'Jane Smith', grade: 'LKG', date: '2026-03-23', status: 'Approved' },
-    { id: 'APP003', name: 'Alice Johnson', grade: 'Class V', date: '2026-03-22', status: 'Rejected' },
-    { id: 'APP004', name: 'Bob Brown', grade: 'Class X', date: '2026-03-21', status: 'Pending' },
-  ];
+  const recentApps = [...applications]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 4)
+    .map(app => ({
+      id: app._id.slice(-6).toUpperCase(),
+      name: app.studentName,
+      grade: app.gradeApplied,
+      date: new Date(app.createdAt).toLocaleDateString(),
+      status: app.status === 'accepted' ? 'Approved' : app.status === 'rejected' ? 'Rejected' : 'Pending',
+      originalApp: app
+    }));
 
   // Helper for image upload via API (falls back to Base64 if no backend)
   const handleImageUpload = async (e, setter, fieldName) => {
@@ -426,8 +457,8 @@ function AdminPage() {
                     <button className="text-blue-600 hover:text-blue-800 font-medium text-sm mr-3">View</button>
                     {app.status === 'Pending' && (
                       <>
-                        <button className="text-green-600 hover:text-green-800 font-medium text-sm mr-3">Approve</button>
-                        <button className="text-red-600 hover:text-red-800 font-medium text-sm">Reject</button>
+                        <button onClick={() => handleStatusUpdate(app.originalApp._id, 'accepted')} className="text-green-600 hover:text-green-800 font-medium text-sm mr-3">Approve</button>
+                        <button onClick={() => handleStatusUpdate(app.originalApp._id, 'rejected')} className="text-red-600 hover:text-red-800 font-medium text-sm">Reject</button>
                       </>
                     )}
                   </td>
@@ -552,6 +583,7 @@ function AdminPage() {
                         <th className="pb-3 font-semibold">Contact</th>
                         <th className="pb-3 font-semibold">Date</th>
                         <th className="pb-3 font-semibold">Status</th>
+                        <th className="pb-3 font-semibold text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -567,6 +599,14 @@ function AdminPage() {
                               app.status === 'rejected' ? 'bg-red-100 text-red-700' :
                               'bg-amber-100 text-amber-700'
                             }`}>{app.status}</span>
+                          </td>
+                          <td className="py-3 text-right">
+                            {app.status === 'pending' && (
+                              <>
+                                <button onClick={() => handleStatusUpdate(app._id, 'accepted')} className="text-green-600 hover:text-green-800 font-medium text-sm mr-3">Approve</button>
+                                <button onClick={() => handleStatusUpdate(app._id, 'rejected')} className="text-red-600 hover:text-red-800 font-medium text-sm">Reject</button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       ))}

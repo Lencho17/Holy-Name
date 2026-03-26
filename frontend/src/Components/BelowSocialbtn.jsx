@@ -27,29 +27,36 @@ const BelowSocialbtn = () => {
   }, [showIcons]); // Depend on showIcons to trigger the effect
 
   return (
-    <div className="fixed bottom-0 left-0 p-4 flex flex-col items-center">
-      <div style={style} className="flex flex-col items-center mb-4 space-y-2">
+    <div className="fixed bottom-0 left-0 p-4 md:p-6 flex flex-col items-center z-50">
+      <div style={style} className="flex flex-col items-center mb-4 space-y-3">
         <a
           href="whatsapp://send?text=Hello"
-          className="text-green-600 text-2xl"
+          className="bg-white text-primary p-3 rounded-full shadow-md hover:bg-primary hover:text-white transition-all hover:scale-110"
+          title="WhatsApp Us"
         >
-          <FaWhatsapp />
+          <FaWhatsapp className="text-xl md:text-2xl" />
         </a>
         <a
           href="mailto:bambinabreeze@gmail.com"
-          className="text-red-600 text-2xl"
+          className="bg-white text-primary p-3 rounded-full shadow-md hover:bg-primary hover:text-white transition-all hover:scale-110"
+          title="Email Us"
         >
-          <FaEnvelope />
+          <FaEnvelope className="text-xl md:text-2xl" />
         </a>
-        <a href="tel:+1234567890" className="text-blue-600 text-2xl">
-          <FaPhone />
+        <a 
+          href="tel:+1234567890" 
+          className="bg-white text-primary p-3 rounded-full shadow-md hover:bg-primary hover:text-white transition-all hover:scale-110"
+          title="Call Us"
+        >
+          <FaPhone className="text-xl md:text-2xl" />
         </a>
       </div>
       <button
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full flex items-center justify-center"
+        className="bg-primary hover:bg-primary-container text-white p-3 md:p-4 rounded-full shadow-lg transition-transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-primary/30"
         onClick={() => setShowIcons(!showIcons)}
+        aria-label="Toggle contact options"
       >
-        <TiMessages className="text-2xl" />
+        <TiMessages className="text-2xl md:text-3xl" />
       </button>
     </div>
   );

@@ -48,7 +48,7 @@ function Courses() {
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800">
       {/* Hero Section */}
-      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-canva-cyan to-canva-purple overflow-hidden">
+      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-primary to-primary-container overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center px-4">

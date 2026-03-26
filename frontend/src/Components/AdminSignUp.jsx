@@ -43,9 +43,9 @@ function AdminSignUp() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] font-sans relative overflow-hidden py-12">
       {/* Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-[50vh] bg-[#4C1A57]">
+      <div className="absolute top-0 left-0 w-full h-[50vh] bg-primary">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#4C1A57]"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-primary"></div>
       </div>
       
       <div className="relative z-10 w-full max-w-xl px-6">
@@ -53,7 +53,7 @@ function AdminSignUp() {
         {/* Header Area */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-amber-500 rounded-2xl shadow-lg flex items-center justify-center mx-auto mb-6 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
-            <FaUserPlus className="text-4xl text-[#4C1A57]" />
+            <FaUserPlus className="text-4xl text-primary" />
           </div>
           <h1 className="text-3xl font-serif font-bold text-white mb-2">Create Admin Account</h1>
           <p className="text-white/80 font-medium">Holy Name School Portal</p>
@@ -78,10 +78,10 @@ function AdminSignUp() {
                 </label>
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <FaUser className="text-gray-400 group-focus-within:text-[#4C1A57] transition-colors" />
+                    <FaUser className="text-gray-400 group-focus-within:text-primary transition-colors" />
                     </div>
                     <input
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#4C1A57]/20 focus:border-[#4C1A57] transition-all text-gray-800"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800"
                     id="name"
                     type="text"
                     value={name}
@@ -97,10 +97,10 @@ function AdminSignUp() {
                 </label>
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <FaEnvelope className="text-gray-400 group-focus-within:text-[#4C1A57] transition-colors" />
+                    <FaEnvelope className="text-gray-400 group-focus-within:text-primary transition-colors" />
                     </div>
                     <input
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#4C1A57]/20 focus:border-[#4C1A57] transition-all text-gray-800"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800"
                     id="username"
                     type="text"
                     value={username}
@@ -117,10 +117,10 @@ function AdminSignUp() {
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaPhone className="text-gray-400 group-focus-within:text-[#4C1A57] transition-colors" />
+                  <FaPhone className="text-gray-400 group-focus-within:text-primary transition-colors" />
                 </div>
                 <input
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#4C1A57]/20 focus:border-[#4C1A57] transition-all text-gray-800"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800"
                   id="contact"
                   type="text"
                   value={contact}
@@ -137,10 +137,10 @@ function AdminSignUp() {
                 </label>
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <FaLock className="text-gray-400 group-focus-within:text-[#4C1A57] transition-colors" />
+                    <FaLock className="text-gray-400 group-focus-within:text-primary transition-colors" />
                     </div>
                     <input
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#4C1A57]/20 focus:border-[#4C1A57] transition-all text-gray-800"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800"
                     id="password"
                     type="password"
                     value={password}
@@ -156,10 +156,10 @@ function AdminSignUp() {
                 </label>
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <FaLock className="text-gray-400 group-focus-within:text-[#4C1A57] transition-colors" />
+                    <FaLock className="text-gray-400 group-focus-within:text-primary transition-colors" />
                     </div>
                     <input
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#4C1A57]/20 focus:border-[#4C1A57] transition-all text-gray-800"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800"
                     id="confirm-password"
                     type="password"
                     value={confirmPassword}
@@ -171,7 +171,7 @@ function AdminSignUp() {
             </div>
 
             <button
-              className="w-full mt-6 bg-[#4C1A57] hover:bg-[#3a1343] text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center transform hover:-translate-y-1 relative overflow-hidden"
+              className="w-full mt-6 bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center transform hover:-translate-y-1 relative overflow-hidden"
               type="submit"
               disabled={loading}
             >
@@ -192,7 +192,7 @@ function AdminSignUp() {
           <div className="mt-8 text-center pt-6 border-t border-gray-100">
             <p className="text-gray-500 text-sm">
               Already have an account?{" "}
-              <Link to="/adminLogin" className="text-[#4C1A57] font-bold hover:text-amber-600 transition-colors">
+              <Link to="/adminLogin" className="text-primary font-bold hover:text-amber-600 transition-colors">
                 Sign In Instead
               </Link>
             </p>

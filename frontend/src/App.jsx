@@ -31,9 +31,10 @@ import { SiteDataProvider } from "./context/SiteDataContext";
 function App() {
   const router = createBrowserRouter(
     createRoutesFromElements(
-      <Route 
-        path="/" 
-        element={<Layout />}
+      <Route>
+        <Route 
+          path="/" 
+          element={<Layout />}
         errorElement={
           <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
             <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-gray-100">
@@ -47,7 +48,7 @@ function App() {
               <div className="space-y-3">
                 <button 
                   onClick={() => window.location.href = '/'}
-                  className="w-full bg-[#4C1A57] text-white font-bold py-3 rounded-xl hover:bg-[#3a1343] transition-all shadow-lg"
+                  className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary/90 transition-all shadow-lg"
                 >
                   Return Home
                 </button>
@@ -80,10 +81,13 @@ function App() {
         <Route path="notice" element={<Notice />} />
         <Route path="studentportal" element={<StudentPortal />} />
         <Route path="belowsocialbtn" element={<BelowSocialbtn />} />
-        <Route path="adminLogin" element={<AdminLogin />} />
-        <Route path="signup" element={<AdminSignUp />} />
-        <Route path="admin" element={<AdminPage />} />
-      </Route>,
+      </Route>
+
+      {/* Admin routes without Header/Footer layout */}
+      <Route path="adminLogin" element={<AdminLogin />} />
+      <Route path="signup" element={<AdminSignUp />} />
+      <Route path="admin" element={<AdminPage />} />
+    </Route>
     ),
   );
   return (

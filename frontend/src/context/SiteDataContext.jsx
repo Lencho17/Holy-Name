@@ -7,10 +7,7 @@ export const SiteDataContext = createContext();
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
 
 // Fallback defaults (used while API loads or if offline)
-const defaultVideos = [
-  { id: 1, src: 'src/assets/video.mp4', title: 'Aerial View' },
-  { id: 2, src: 'video2.mp4', title: 'School Overview' },
-];
+// Removed default videos to hide VideoBlog when empty
 const defaultEvents = [
   { id: 1, title: "Teachers Day Celebration", date: "Sept 5, 2025", image: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600", description: "A day dedicated to honoring our mentors with heartfelt performances." },
   { id: 2, title: "Independence Day", date: "Aug 15, 2025", image: "https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=600", description: "The tricolor flies high as we celebrate our nation's freedom." },
@@ -39,7 +36,7 @@ const defaultNotices = [
 ];
 
 export const SiteDataProvider = ({ children }) => {
-  const [videos, setVideos] = useState(defaultVideos);
+  const [videos, setVideos] = useState([]);
   const [highlights, setHighlights] = useState(defaultHighlights);
   const [gallery, setGallery] = useState(defaultGallery);
   const [events, setEvents] = useState(defaultEvents);

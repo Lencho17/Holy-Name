@@ -27,13 +27,13 @@ const Footer = () => {
           <Link to="/contact" className="text-slate-500 dark:text-slate-400 text-sm font-['Outfit'] tracking-wide hover:text-[#500088] dark:hover:text-purple-300 transition-colors">Contact</Link>
         </div>
         <div className="flex gap-4">
-          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-green-500 shadow-sm hover:scale-110 transition-transform cursor-pointer">
+          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
             <FaWhatsapp size={20} />
           </a>
-          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-pink-500 shadow-sm hover:scale-110 transition-transform cursor-pointer">
+          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
             <FaInstagram size={20} />
           </a>
-          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-blue-600 shadow-sm hover:scale-110 transition-transform cursor-pointer">
+          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
             <FaFacebook size={20} />
           </a>
         </div>

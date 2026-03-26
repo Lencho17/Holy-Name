@@ -15,9 +15,9 @@ function Gallery() {
     : galleryItems.filter(item => item.category === activeCategory);
 
   return (
-    <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
+    <div className="bg-gradient-to-b from-[#141414] to-black min-h-screen font-sans text-gray-200 pb-20">
       {/* Hero Section */}
-      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-canva-cyan to-canva-purple overflow-hidden">
+      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-primary to-primary-container overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay transform scale-105 hover:scale-100 transition-transform duration-1000"></div>
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center px-4">
@@ -50,37 +50,40 @@ function Gallery() {
           ))}
         </div>
 
-        {/* Grid matching reference image */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 bg-black p-4 lg:p-6 rounded-xl">
+        {/* Mobile Horizontal Scroll / Desktop Grid */}
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-6 p-2 lg:p-4 rounded-xl snap-x snap-mandatory pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {filteredItems.map((item) => (
             <div 
               key={item.id} 
-              className="relative overflow-hidden group cursor-pointer aspect-video bg-black"
+              className="relative flex items-center justify-center shrink-0 snap-start w-[40vw] sm:w-auto h-auto transition-transform"
               onClick={() => setSelectedImage(item)}
             >
-              <img 
-                src={item.src} 
-                alt={item.title} 
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-60"
-              />
-              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors duration-500"></div>
-              
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 transition-transform duration-500 group-hover:scale-105">
-                <h3 className="text-white text-2xl md:text-3xl font-serif font-bold mb-2 shadow-black drop-shadow-xl tracking-wide">
-                  {item.title}
-                </h3>
-                <p className="text-gray-300 text-sm tracking-widest shadow-black drop-shadow-md">
-                  {item.category}
-                </p>
+              {/* Card Container */ }
+              <div className="relative overflow-hidden group cursor-pointer w-full aspect-[2/3] bg-black rounded-xl border border-red-600/70 shadow-2xl transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0">
+                <img 
+                  src={item.src} 
+                  alt={item.title} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500"></div>
+                
+                <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end p-2 md:p-6 text-center z-20 transition-transform duration-500 translate-y-1 group-hover:translate-y-0">
+                  <h3 className="text-white text-xs md:text-xl font-sans font-bold mb-1 shadow-black drop-shadow-2xl tracking-wide leading-tight px-1">
+                    {item.title}
+                  </h3>
+                  <p className="text-red-500 text-[9px] md:text-sm font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
+                    {item.category}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
         </div>
 
         {filteredItems.length === 0 && (
-          <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-gray-100">
-            <FaImages className="text-6xl text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-500">No images found in this category.</h3>
+          <div className="text-center py-20 bg-[#1c1c1c] rounded-3xl shadow-sm border border-red-900/30">
+            <FaImages className="text-6xl text-gray-700 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-400">No images found in this category.</h3>
           </div>
         )}
       </div>

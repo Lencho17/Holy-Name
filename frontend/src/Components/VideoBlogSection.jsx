@@ -59,22 +59,41 @@ const VideoCard = ({ src, title }) => {
     color: '#333',
   };
 
+  const isYouTube = (url) => {
+    if (!url) return false;
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  };
+
   return (
     <div
       style={cardStyle}
       className="hover:scale-105 transition-transform duration-200"
     >
-      <div style={videoStyle}>
-        <iframe 
-          src={embedUrl}
-          width="100%" 
-          height="200px" 
-          frameBorder="0" 
-          allow="autoplay; encrypted-media" 
-          allowFullScreen 
-          title={title}
-          style={{ borderRadius: '4px' }}
-        ></iframe>
+      <div style={videoStyle} className="bg-gray-100 flex items-center justify-center">
+        {isYouTube(src) ? (
+          <iframe 
+            src={embedUrl}
+            width="100%" 
+            height="200px" 
+            frameBorder="0" 
+            allow="autoplay; encrypted-media" 
+            allowFullScreen 
+            title={title}
+            style={{ borderRadius: '4px' }}
+          ></iframe>
+        ) : (
+          <video 
+            src={src}
+            width="100%" 
+            height="200px" 
+            controls
+            title={title}
+            style={{ borderRadius: '4px', objectFit: 'cover' }}
+            className="bg-black"
+          >
+            Your browser does not support the video tag.
+          </video>
+        )}
       </div>
       <div style={titleStyle}>{title}</div>
     </div>
@@ -83,6 +102,11 @@ const VideoCard = ({ src, title }) => {
 
 const VideoBlogSection = () => {
   const { videos } = useContext(SiteDataContext);
+
+  if (!videos || videos.length === 0) {
+    return null;
+  }
+
   const sectionStyle = {
     textAlign: 'center',
     padding: '40px 20px',

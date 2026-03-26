@@ -29,11 +29,12 @@ const sendSubmissionEmail = async (admissionData) => {
       subject: 'New Student Admission Application - Holy Name School',
       html: `
         <h2>New Admission Application Received</h2>
-        <p><strong>Student Name:</strong> ${admissionData.firstName} ${admissionData.lastName}</p>
-        <p><strong>Class:</strong> ${admissionData.classApplied}</p>
+        <p><strong>Reference Number:</strong> ${admissionData.referenceNumber}</p>
+        <p><strong>Student Name:</strong> ${admissionData.studentName}</p>
+        <p><strong>Class:</strong> ${admissionData.gradeApplied}</p>
         <p><strong>Guardian Name:</strong> ${admissionData.guardianName}</p>
         <p><strong>Contact Email:</strong> ${admissionData.email}</p>
-        <p><strong>Phone:</strong> ${admissionData.phone}</p>
+        <p><strong>Phone:</strong> ${admissionData.contactNumber}</p>
         <p>You can view the full application in the Admin Panel.</p>
         <p><a href="${process.env.CLIENT_URL}/admin">Go to Admin Dashboard</a></p>
       `,
@@ -85,12 +86,24 @@ router.post(
         }
       }
 
+      // Generate unique reference number
+      const generateRef = () => {
+        const year = new Date().getFullYear();
+        const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
+        return `HNS-${year}-${rand}`;
+      };
+      data.referenceNumber = generateRef();
+
       const admission = await Admission.create(data);
       
       // Send background email notification
       sendSubmissionEmail(admission);
 
-      res.status(201).json({ message: 'Application submitted successfully', id: admission._id });
+      res.status(201).json({ 
+        message: 'Application submitted successfully', 
+        id: admission._id,
+        referenceNumber: admission.referenceNumber 
+      });
     } catch (error) {
       res.status(500).json({ message: 'Submission failed', error: error.message });
     }

@@ -81,7 +81,7 @@ function Home() {
               </div>
               <h2 className="font-['Prata'] text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter">
                 Nurturing the{" "}
-                <span className="text-canva-cyan drop-shadow-md italic">
+                <span className="text-secondary drop-shadow-md italic">
                   Leaders
                 </span>{" "}
                 of Tomorrow.
@@ -212,7 +212,7 @@ function Home() {
               transition={{ duration: 0.8 }}
               className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-2xl shadow-purple-900/10 rounded-3xl p-12 md:p-20 text-center relative overflow-hidden"
             >
-              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-canva-cyan to-canva-purple"></div>
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-primary-container"></div>
               <span className="material-symbols-outlined text-purple-900/5 text-9xl absolute -bottom-10 -right-10 pointer-events-none">
                 school
               </span>

@@ -22,6 +22,7 @@ const admissionSchema = new mongoose.Schema({
   transferCertificate: String, // file path
   marksheet: String, // file path
   status: { type: String, enum: ['pending', 'reviewed', 'accepted', 'rejected'], default: 'pending' },
+  referenceNumber: { type: String, required: true, unique: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Admission', admissionSchema);

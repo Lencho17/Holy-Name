@@ -14,14 +14,14 @@ function StudentPortalBtn() {
           <a
             href="http://vidyabarta.in/"
             target='_blank'
-            className="bg-blue-500 hover:bg-purple-700 text-white text-center text-xl py-5 px-10 w-[70%] h-24 rounded-md duration-200 mr-5"
+            className="bg-primary hover:bg-primary text-white text-center text-xl py-5 px-10 w-[70%] h-24 rounded-md duration-200 mr-5"
           >
             Student Login
           </a>
           <a
             href="http://result.vidyabarta.in/"
             target='_blank'
-            className="bg-blue-500 hover:bg-purple-700 text-white text-center text-xl py-5 px-10 w-[70%] h-24 rounded-md duration-200"
+            className="bg-primary hover:bg-primary text-white text-center text-xl py-5 px-10 w-[70%] h-24 rounded-md duration-200"
           >
             Results
           </a>
@@ -29,7 +29,7 @@ function StudentPortalBtn() {
       ) : (
         <a
           onClick={handlePortalClick}
-          className="bg-blue-500 hover:bg-purple-700 text-white text-center text-xl py-2 px-4 w-[80%] h-12 rounded-md duration-200"
+          className="bg-primary hover:bg-primary cursor-pointer text-white text-center text-xl py-2 px-4 w-[80%] h-12 rounded-md duration-200"
         >
           Student Portal
         </a>

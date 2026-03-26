@@ -158,10 +158,7 @@ const defaultSiteContent = {
     { id: 2, title: "State Level Sports Championship", date: "February 28, 2026", category: "Sports", image: "/Pictures/2.JPG", description: "Our school team won the overall championship trophy with 15 gold medals." },
     { id: 3, title: "Cultural Fest 'Symphony'", date: "January 20, 2026", category: "Cultural", image: "/Pictures/3.JPG", description: "A mesmerizing evening of classical dance, music, and theatrical performances." },
   ],
-  videos: [
-    { id: 1, src: "src/assets/video.mp4", title: "Aerial View" },
-    { id: 2, src: "video2.mp4", title: "School Overview" },
-  ],
+  videos: [],
   faculty: {
     Guest: [
       { id: 1, name: "John Doe", title: "Visiting Professor", EduQua: "PhD", Subject: "Guest Lectures", photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&auto=format&fit=crop" },

@@ -12,7 +12,7 @@ function Admission() {
     { title: "Admission Confirmation", desc: "Submit the required documents and complete the fee payment." },
   ];
 
-  const [submitted, setSubmitted] = useState(false);
+  const [submittedData, setSubmittedData] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
@@ -48,10 +48,14 @@ function Admission() {
 
     try {
       const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
-      await axios.post(`${apiBase}/admissions`, formData, {
+      const res = await axios.post(`${apiBase}/admissions`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setSubmitted(true);
+      setSubmittedData({
+        referenceNumber: res.data.referenceNumber,
+        studentName: formData.get('studentName'),
+        gradeApplied: formData.get('gradeApplied'),
+      });
       window.scrollTo({ top: document.getElementById('apply').offsetTop - 100, behavior: 'smooth' });
     } catch (err) {
       setSubmitError(err.response?.data?.message || 'Submission failed. Please try again.');
@@ -63,7 +67,7 @@ function Admission() {
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
       {/* Hero Section */}
-      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-canva-cyan to-canva-purple overflow-hidden">
+      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-primary to-primary-container overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center px-4">
@@ -175,7 +179,7 @@ function Admission() {
             <p className="mt-4 text-gray-600">Fill out the form below to initiate the admission process.</p>
           </div>
 
-          {!submitted ? (
+          {!submittedData ? (
             <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -302,27 +306,91 @@ function Admission() {
             </div>
 
             <div className="text-center pt-6">
-              <button type="submit" className="bg-[#4C1A57] text-white font-bold px-10 py-4 rounded-full hover:bg-opacity-90 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 text-lg">
-                Submit Application
+              <button 
+                type="submit" 
+                disabled={submitting}
+                className={`text-white font-bold px-10 py-4 rounded-full transition-all duration-300 transform hover:-translate-y-1 text-lg flex items-center justify-center mx-auto ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-opacity-90 hover:shadow-lg'}`}
+              >
+                {submitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Submitting Application...
+                  </>
+                ) : (
+                  "Submit Application"
+                )}
               </button>
             </div>
           </form>
           ) : (
-            <div className="max-w-2xl mx-auto text-center py-10 animate-fade-in">
-              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
+            <div className="max-w-2xl mx-auto text-center py-10 animate-fade-in" id="receipt-area">
+              <style>{`
+                @media print {
+                  body * { visibility: hidden; }
+                  #receipt-area, #receipt-area * { visibility: visible; }
+                  #receipt-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; }
+                }
+              `}</style>
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 print:hidden">
                 <FaCheckCircle />
               </div>
-              <h3 className="text-3xl font-serif font-bold text-[#4C1A57] mb-4">Application Submitted!</h3>
-              <p className="text-gray-600 mb-8 leading-relaxed">
-                Thank you for applying to Holy Name School. Your application has been successfully received. 
-                Our admissions team will review your details and contact you via email regarding the next steps and entrance assessment schedule.
-              </p>
-              <button 
-                onClick={() => setSubmitted(false)}
-                className="text-[#4C1A57] font-bold hover:underline"
-              >
-                Submit another application
-              </button>
+              <h3 className="text-3xl font-serif font-bold text-primary mb-4 print:mb-2">Application Submitted!</h3>
+              
+              <div className="bg-gray-50 p-8 rounded-2xl mb-8 border border-gray-200 text-left relative shadow-sm">
+                <div className="absolute top-0 left-0 w-full h-2 bg-amber-500 rounded-t-2xl"></div>
+                <div className="flex items-center justify-between border-b pb-4 mb-4">
+                  <h4 className="font-bold text-2xl text-primary">Acknowledgment Receipt</h4>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-gray-500">{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4 text-lg">
+                  <p className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-600 font-medium">Institution:</span>
+                    <span className="font-bold text-gray-800">Holy Name School</span>
+                  </p>
+                  <p className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-600 font-medium">Reference Number:</span>
+                    <span className="font-mono font-bold text-primary bg-primary/10 px-3 py-1 rounded inline-block">
+                      {submittedData.referenceNumber}
+                    </span>
+                  </p>
+                  <p className="flex justify-between border-b border-gray-100 pb-2">
+                    <span className="text-gray-600 font-medium">Student Name:</span>
+                    <span className="font-bold text-gray-800">{submittedData.studentName}</span>
+                  </p>
+                  <p className="flex justify-between pb-2">
+                    <span className="text-gray-600 font-medium">Grade Applied For:</span>
+                    <span className="font-bold text-gray-800 uppercase">{submittedData.gradeApplied}</span>
+                  </p>
+                </div>
+                
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-500 text-center italic">
+                    Please save this reference number for future communication regarding your admission status.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center print:hidden mt-8">
+                <button 
+                  onClick={() => window.print()}
+                  className="bg-primary text-white font-bold px-8 py-4 rounded-full hover:bg-opacity-90 transition-all shadow-md flex items-center justify-center transform hover:-translate-y-1"
+                >
+                  <FaClipboardList className="mr-2" />
+                  Print / Save as PDF
+                </button>
+                <button 
+                  onClick={() => setSubmittedData(null)}
+                  className="bg-gray-100 text-gray-700 font-bold px-8 py-4 rounded-full hover:bg-gray-200 transition-all shadow-sm flex items-center justify-center"
+                >
+                  Submit Another Application
+                </button>
+              </div>
             </div>
           )}
         </div>

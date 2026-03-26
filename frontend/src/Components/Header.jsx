@@ -11,7 +11,7 @@ function Header() {
   const navLinkClass = ({ isActive }) =>
     `px-4 py-2 font-semibold transition-all duration-300 rounded-full text-sm ${
       isActive
-        ? "bg-canva-purple/10 text-canva-purple"
+        ? "bg-primary/10 text-primary"
         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
     }`;
 
@@ -19,8 +19,8 @@ function Header() {
   const dropdownLinkClass = ({ isActive }) =>
     `flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
       isActive
-        ? "bg-canva-purple/10 text-canva-purple"
-        : "text-slate-600 hover:bg-slate-50 hover:text-canva-purple"
+        ? "bg-primary/10 text-primary"
+        : "text-slate-600 hover:bg-slate-50 hover:text-primary"
     }`;
 
   return (
@@ -38,7 +38,7 @@ function Header() {
               Holy Name Higher Secondary School
             </h1>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[9px] sm:text-[10px] tracking-widest uppercase font-bold text-canva-purple">
+              <span className="text-[9px] sm:text-[10px] tracking-widest uppercase font-bold text-primary">
                 Let Your Light Shine
               </span>
               <span className="hidden md:flex items-center text-[10px] text-slate-400 gap-1 border-l border-slate-300 pl-2">
@@ -135,7 +135,7 @@ function Header() {
           </div>
           <a
             href="tel:6901055733"
-            className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 bg-primary text-white rounded-full hover:bg-canva-cyan hover:scale-105 transition-all shadow-md group"
+            className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 bg-primary text-white rounded-full hover:bg-primary-container hover:scale-105 transition-all shadow-md group"
             title="Call Us Now"
           >
             <span className="material-symbols-outlined text-[18px] md:text-[20px] group-hover:animate-pulse">
@@ -153,8 +153,8 @@ function Header() {
 
       {/* Mobile Dropdown Menu */}
       <div
-        className={`xl:hidden flex flex-col bg-white overflow-hidden transition-all duration-300 ease-in-out border-t border-slate-100 ${
-          showMediaIcons ? "max-h-[800px] shadow-xl" : "max-h-0"
+        className={`xl:hidden flex flex-col bg-white transition-all duration-300 ease-in-out border-t border-slate-100 ${
+          showMediaIcons ? "max-h-[calc(100dvh-70px)] overflow-y-auto shadow-xl" : "max-h-0 overflow-hidden"
         }`}
       >
         <ul className="flex flex-col font-medium py-4 px-6 gap-2">
@@ -263,7 +263,7 @@ function Header() {
           </li>
           <div className="h-px bg-slate-100 my-2 w-full"></div>
           <li className="mt-2 text-center flex justify-center w-full pb-4">
-            <AdminLoginBtn />
+            <AdminLoginBtn onClick={() => setShowMediaIcons(false)} />
           </li>
         </ul>
       </div>

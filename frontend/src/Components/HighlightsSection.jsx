@@ -38,7 +38,7 @@ export default function HighlightsSection() {
                 alt={item.title} 
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               />
-              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-canva-purple uppercase tracking-wider">
+              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-primary uppercase tracking-wider">
                 {item.category}
               </div>
             </div>
@@ -47,13 +47,13 @@ export default function HighlightsSection() {
                 <span className="material-symbols-outlined text-sm">calendar_month</span>
                 {item.date}
               </div>
-              <h4 className="text-xl font-bold text-on-surface mb-3 group-hover:text-canva-purple transition-colors">
+              <h4 className="text-xl font-bold text-on-surface mb-3 group-hover:text-primary transition-colors">
                 {item.title}
               </h4>
               <p className="text-on-surface-variant line-clamp-3 mb-6 flex-1">
                 {item.description}
               </p>
-              <button className="text-canva-cyan font-bold flex items-center gap-2 group-hover:gap-3 transition-all mt-auto w-fit">
+              <button className="text-secondary font-bold flex items-center gap-2 group-hover:gap-3 transition-all mt-auto w-fit">
                 Read More <span className="material-symbols-outlined text-sm">arrow_forward</span>
               </button>
             </div>

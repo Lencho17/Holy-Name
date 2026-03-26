@@ -57,6 +57,7 @@ function AdminPage() {
 
   // --- Fetch real admission applications ---
   const [applications, setApplications] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedApp, setSelectedApp] = useState(null); // For "View" modal
 
   const fetchApps = async () => {
@@ -206,9 +207,19 @@ function AdminPage() {
     }
   };
 
-  const totalApps = applications.length;
-  const approvedApps = applications.filter(a => a.status === 'accepted').length;
-  const pendingApps = applications.filter(a => a.status === 'pending').length;
+  const filteredApps = applications.filter(app => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    const ref = app.referenceNumber || app._id.slice(-6).toUpperCase();
+    return (
+      (app.studentName && app.studentName.toLowerCase().includes(q)) ||
+      (ref.toLowerCase().includes(q))
+    );
+  });
+
+  const totalApps = filteredApps.length;
+  const approvedApps = filteredApps.filter(a => a.status === 'accepted').length;
+  const pendingApps = filteredApps.filter(a => a.status === 'pending').length;
 
   const stats = [
     { label: 'Total Applications', value: totalApps.toString(), icon: <FaClipboardList className="text-primary" />, bg: 'bg-primary/10' },
@@ -217,11 +228,11 @@ function AdminPage() {
     { label: 'Total Students', value: approvedApps.toString(), icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
   ];
 
-  const recentApps = [...applications]
+  const recentApps = [...filteredApps]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 4)
     .map(app => ({
-      id: app._id.slice(-6).toUpperCase(),
+      id: app.referenceNumber || app._id.slice(-6).toUpperCase(),
       name: app.studentName,
       grade: app.gradeApplied,
       date: new Date(app.createdAt).toLocaleDateString(),
@@ -891,7 +902,9 @@ function AdminPage() {
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input 
               type="text" 
-              placeholder="Search applications..." 
+              placeholder="Search by name or reference..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -954,12 +967,12 @@ function AdminPage() {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:relative z-50 lg:z-auto
-        w-64 h-[100dvh] bg-primary text-white flex flex-col shadow-2xl
+        fixed inset-y-0 left-0 lg:relative z-50 lg:z-auto
+        w-64 lg:h-[100dvh] bg-primary text-white flex flex-col shadow-2xl overflow-y-auto
         transition-transform duration-300 ease-in-out lg:translate-x-0
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
           <h2 className="text-xl md:text-2xl font-headline font-bold text-tertiary tracking-wider">
             Holy Name
             <span className="text-white text-[10px] md:text-sm block tracking-normal mt-1 opacity-80 text-center">Admin Panel</span>
@@ -968,7 +981,7 @@ function AdminPage() {
             <FaTimes size={20} />
           </button>
         </div>
-        <div className="flex-1 py-6 flex flex-col gap-1 px-3 overflow-y-auto">
+        <div className="flex-1 py-6 flex flex-col gap-1 px-3">
           <button 
             onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
             className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
@@ -1029,7 +1042,7 @@ function AdminPage() {
             </>
           )}
         </div>
-        <div className="p-4 border-t border-white/10 space-y-2">
+        <div className="p-4 pb-8 border-t border-white/10 space-y-2 shrink-0">
           <NavLink to="/" className="flex items-center w-full px-4 py-2 rounded-xl hover:bg-white/10 transition-colors text-white/60 hover:text-white text-sm">
             <FaSignOutAlt className="mr-3 text-lg" /> Return to Website
           </NavLink>
@@ -1078,14 +1091,27 @@ function AdminPage() {
           {activeTab === 'settings' && adminUser?.role === 'superadmin' && renderSettingsTab()}
           {activeTab === 'applications' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Admission Applications</h3>
-              {applications.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No applications received yet.</p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h3 className="text-xl font-bold text-gray-800">Admission Applications</h3>
+                <div className="relative w-full sm:w-64">
+                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Search by name or reference..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              {filteredApps.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No applications found.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
                       <tr className="border-b border-gray-200 text-sm text-gray-500">
+                        <th className="pb-3 font-semibold">Ref No.</th>
                         <th className="pb-3 font-semibold">Name</th>
                         <th className="pb-3 font-semibold">Grade</th>
                         <th className="pb-3 font-semibold">Contact</th>
@@ -1095,8 +1121,9 @@ function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {applications.map(app => (
+                      {filteredApps.map(app => (
                         <tr key={app._id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 font-medium text-sm text-gray-900">{app.referenceNumber || app._id.slice(-6).toUpperCase()}</td>
                           <td className="py-3 font-medium">{app.studentName}</td>
                           <td className="py-3 text-gray-600">{app.gradeApplied}</td>
                           <td className="py-3 text-gray-600">{app.contactNumber}</td>
@@ -1140,7 +1167,7 @@ function AdminPage() {
               <div className="p-4 sm:p-6 border-b flex justify-between items-center bg-gray-50">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-800">Student Application Details</h2>
-                  <p className="text-sm text-gray-500">App ID: {selectedApp._id.slice(-6).toUpperCase()}</p>
+                  <p className="text-sm text-gray-500">App ID: {selectedApp.referenceNumber || selectedApp._id.slice(-6).toUpperCase()}</p>
                 </div>
                 <button onClick={() => setSelectedApp(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500">
                   <FaPlus className="rotate-45 text-2xl" />

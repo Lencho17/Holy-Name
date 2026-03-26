@@ -71,7 +71,7 @@ function Faculty() {
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
-      <section className="relative w-full h-[50vh] min-h-[400px] overflow-hidden bg-gradient-to-r from-canva-cyan to-canva-purple">
+      <section className="relative w-full h-[50vh] min-h-[400px] overflow-hidden bg-gradient-to-r from-primary to-primary-container">
         {slides.map((slide, index) => (
           <div
             key={slide.id}

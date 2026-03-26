@@ -122,48 +122,54 @@ function Faculty() {
 
       <div className="max-w-7xl mx-auto px-6 mt-16 space-y-24">
         
-        <section>
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Science Department</h2>
-            <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
-            <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Nurturing analytical minds and scientific inquiry through experienced mentorship.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {facultyData.Science.map((faculty, index) => (
-              <FacultyCard key={`science-${index}`} member={faculty} />
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Arts & Humanities</h2>
-            <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
-            <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Cultivating creativity, critical thinking, and a deeper understanding of human culture.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {facultyData.Arts.map((faculty, index) => (
-              <FacultyCard key={`arts-${index}`} member={faculty} />
-            ))}
-          </div>
-        </section>
-
-        <section className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#F3E8F5] rounded-bl-full -mr-20 -mt-20 opacity-50"></div>
-          <div className="relative z-10">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Guest & Visiting Faculty</h2>
+        {facultyData.Science.length > 0 && (
+          <section>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Science Department</h2>
               <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Nurturing analytical minds and scientific inquiry through experienced mentorship.</p>
             </div>
-            <div className="flex justify-center">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-4xl">
-                {facultyData.Guest.map((faculty, index) => (
-                  <FacultyCard key={`guest-${index}`} member={faculty} />
-                ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {facultyData.Science.map((faculty, index) => (
+                <FacultyCard key={`science-${index}`} member={faculty} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {facultyData.Arts.length > 0 && (
+          <section>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Arts & Humanities</h2>
+              <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Cultivating creativity, critical thinking, and a deeper understanding of human culture.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {facultyData.Arts.map((faculty, index) => (
+                <FacultyCard key={`arts-${index}`} member={faculty} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {facultyData.Guest.length > 0 && (
+          <section className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#F3E8F5] rounded-bl-full -mr-20 -mt-20 opacity-50"></div>
+            <div className="relative z-10">
+              <div className="text-center mb-10">
+                <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Guest & Visiting Faculty</h2>
+                <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              </div>
+              <div className="flex justify-center">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-4xl">
+                  {facultyData.Guest.map((faculty, index) => (
+                    <FacultyCard key={`guest-${index}`} member={faculty} />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
       </div>
     </div>

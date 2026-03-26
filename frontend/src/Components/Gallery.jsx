@@ -1,77 +1,172 @@
-import React, { useState, useContext } from "react";
-import { FaImages, FaPlay, FaSearchPlus } from "react-icons/fa";
+import React, { useState, useContext, useEffect, useMemo } from "react";
+import { FaImages, FaSearchPlus, FaArrowLeft } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
+import { useSearchParams, useNavigate } from "react-router-dom";
 
 function Gallery() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedImage, setSelectedImage] = useState(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const categories = ["All", "Campus Life", "Academic Events", "Sports", "Cultural Programs"];
 
-  const { gallery: galleryItems } = useContext(SiteDataContext);
+  const { gallery: galleryItems, events } = useContext(SiteDataContext);
 
-  const filteredItems = activeCategory === "All" 
-    ? galleryItems 
-    : galleryItems.filter(item => item.category === activeCategory);
+  // Check if we're filtering by a specific event
+  const eventId = searchParams.get("event") || null;
+
+  // Find the event details for the heading
+  const currentEvent = eventId ? events.find(e => e._id === eventId) : null;
+
+
+  // Build the display items — if filtered by event, show only that event's gallery images
+  let displayItems = galleryItems;
+
+  if (eventId && currentEvent) {
+    // Filter gallery items that belong to this event
+    const eventGalleryItems = galleryItems.filter(item => item.eventId === eventId);
+    
+    // Also include galleryImages from the event itself (auto-generated entries)
+    const eventExtraImages = (currentEvent.galleryImages || []).map((src, idx) => ({
+      _id: `event-${eventId}-${idx}`,
+      src,
+      title: `${currentEvent.title}`,
+      category: "Events",
+      description: currentEvent.description || "",
+      eventId: eventId,
+    }));
+
+    // Combine, removing duplicates by src
+    const allSrcs = new Set(eventGalleryItems.map(item => item.src));
+    const combined = [...eventGalleryItems];
+    eventExtraImages.forEach(img => {
+      if (!allSrcs.has(img.src)) {
+        combined.push(img);
+        allSrcs.add(img.src);
+      }
+    });
+
+    displayItems = combined;
+  } else {
+    displayItems = activeCategory === "All"
+      ? galleryItems
+      : galleryItems.filter(item => item.category === activeCategory);
+  }
+
+  // Ensure current image's collection is used for lightbox navigation
+  const lightboxItems = useMemo(() => {
+    if (!selectedImage) return [];
+    if (eventId) return displayItems; // Stay in the event
+    return galleryItems.filter(i => i.category === selectedImage.category);
+  }, [selectedImage, galleryItems, eventId, displayItems]);
+
+  const handleNext = (e) => {
+    if (e) e.stopPropagation();
+    if (!selectedImage) return;
+    const currentIndex = lightboxItems.findIndex(i => (i._id && i._id === selectedImage._id) || i.src === selectedImage.src);
+    if (currentIndex === -1) return;
+    const nextIndex = (currentIndex + 1) % lightboxItems.length;
+    setSelectedImage(lightboxItems[nextIndex]);
+  };
+
+  const handlePrev = (e) => {
+    if (e) e.stopPropagation();
+    if (!selectedImage) return;
+    const currentIndex = lightboxItems.findIndex(i => (i._id && i._id === selectedImage._id) || i.src === selectedImage.src);
+    if (currentIndex === -1) return;
+    const prevIndex = (currentIndex - 1 + lightboxItems.length) % lightboxItems.length;
+    setSelectedImage(lightboxItems[prevIndex]);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!selectedImage) return;
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+      if (e.key === "Escape") setSelectedImage(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedImage, displayItems]);
+
+  // Reset category filter when event filter changes
+  useEffect(() => {
+    if (eventId) setActiveCategory("All");
+  }, [eventId]);
 
   return (
-    <div className="bg-gradient-to-b from-[#141414] to-black min-h-screen font-sans text-gray-200 pb-20">
+    <div className="bg-gradient-to-br from-[#1a1a2e] via-[#15152a] to-[#0d0d1a] min-h-screen font-sans text-gray-200 pb-20">
       {/* Hero Section */}
-      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-primary to-primary-container overflow-hidden">
+      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-br from-[#1e40af] to-[#1e3a8a] overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay transform scale-105 hover:scale-100 transition-transform duration-1000"></div>
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center px-4">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-6 tracking-tight flex items-center justify-center">
-            <FaImages className="text-amber-500 mr-4 drop-shadow-lg" />
-            Photo Gallery
+            <FaImages className="text-amber-400 mr-4 drop-shadow-lg" />
+            {currentEvent ? currentEvent.title : "Photo Gallery"}
           </h1>
           <p className="text-lg md:text-xl text-white/90 max-w-3xl mx-auto font-light mb-8">
-            Glimpses of academic excellence, vibrant campus life, and memorable events at Holy Name School.
+            {currentEvent
+              ? currentEvent.description || "Photos from this event at Holy Name School."
+              : "Glimpses of academic excellence, vibrant campus life, and memorable events at Holy Name School."}
           </p>
         </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-20">
+
+        {/* Back button when viewing event photos */}
+        {eventId && (
+          <button
+            onClick={() => navigate("/gallery")}
+            className="mb-6 px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-bold rounded-xl transition-all duration-300 flex items-center gap-2 border border-amber-500/20"
+          >
+            <FaArrowLeft /> Back to All Photos
+          </button>
+        )}
         
-        {/* Filter Navigation */}
-        <div className="bg-white rounded-2xl shadow-xl p-2 mb-12 flex flex-wrap justify-center border border-gray-100">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`px-6 py-3 m-1 rounded-xl text-sm font-bold transition-all duration-300 ${
-                activeCategory === category
-                  ? "bg-[#4C1A57] text-white shadow-md transform scale-105"
-                  : "bg-transparent text-gray-600 hover:bg-gray-100 hover:text-[#4C1A57]"
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
+        {/* Filter Navigation — hidden when viewing event-specific gallery */}
+        {!eventId && (
+          <div className="bg-slate-900 rounded-2xl shadow-xl p-2 mb-12 flex flex-wrap justify-center border border-slate-800">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setActiveCategory(category)}
+                className={`px-6 py-3 m-1 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  activeCategory === category
+                    ? "bg-amber-500 text-[#1e3a8a] shadow-md transform scale-105"
+                    : "bg-transparent text-slate-400 hover:bg-slate-800 hover:text-amber-400"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Mobile Horizontal Scroll / Desktop Grid */}
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-6 p-2 lg:p-4 rounded-xl snap-x snap-mandatory pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {filteredItems.map((item) => (
+          {displayItems.map((item) => (
             <div 
-              key={item.id} 
+              key={item._id} 
               className="relative flex items-center justify-center shrink-0 snap-start w-[40vw] sm:w-auto h-auto transition-transform"
               onClick={() => setSelectedImage(item)}
             >
               {/* Card Container */ }
-              <div className="relative overflow-hidden group cursor-pointer w-full aspect-[2/3] bg-black rounded-xl border border-red-600/70 shadow-2xl transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0">
+              <div className="relative overflow-hidden group cursor-pointer w-full aspect-[2/3] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl border border-amber-500/10 shadow-2xl transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0 hover:border-amber-500/40">
                 <img 
                   src={item.src} 
                   alt={item.title} 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500"></div>
                 
                 <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end p-2 md:p-6 text-center z-20 transition-transform duration-500 translate-y-1 group-hover:translate-y-0">
-                  <h3 className="text-white text-xs md:text-xl font-sans font-bold mb-1 shadow-black drop-shadow-2xl tracking-wide leading-tight px-1">
+                  <h3 className="text-white text-xs md:text-xl font-sans font-bold mb-1 shadow-black drop-shadow-2xl tracking-wide leading-tight px-1 line-clamp-2">
                     {item.title}
                   </h3>
-                  <p className="text-red-500 text-[9px] md:text-sm font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
+                  <p className="text-amber-400 text-[9px] md:text-sm font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
                     {item.category}
                   </p>
                 </div>
@@ -80,42 +175,78 @@ function Gallery() {
           ))}
         </div>
 
-        {filteredItems.length === 0 && (
-          <div className="text-center py-20 bg-[#1c1c1c] rounded-3xl shadow-sm border border-red-900/30">
-            <FaImages className="text-6xl text-gray-700 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-400">No images found in this category.</h3>
+        {displayItems.length === 0 && (
+          <div className="text-center py-20 bg-slate-900 rounded-3xl shadow-sm border border-amber-900/10">
+            <FaImages className="text-6xl text-slate-700 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-slate-400">
+              {eventId ? "No photos found for this event yet." : "No images found in this category."}
+            </h3>
           </div>
         )}
       </div>
 
-      {/* Lightbox Modal */}
       {selectedImage && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-10" onClick={() => setSelectedImage(null)}>
-          <div className="relative max-w-5xl w-full" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-2 md:p-10" onClick={() => setSelectedImage(null)}>
+          <div className="relative max-w-5xl w-full h-full flex flex-col items-center justify-center px-4" onClick={e => e.stopPropagation()}>
             <button 
-              className="absolute -top-12 right-0 text-white hover:text-amber-400 text-3xl transition-colors"
+              className="absolute top-4 right-4 z-[60] text-white/50 hover:text-white text-4xl transition-colors bg-white/10 w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md border border-white/20"
               onClick={() => setSelectedImage(null)}
             >
               &times;
             </button>
-            <div className="bg-white p-2 rounded-2xl shadow-2xl relative">
+
+            {/* Main Image Area */}
+            <div className="relative w-full h-[65vh] flex items-center justify-center group/lightbox">
+              {/* Navigation Arrows */}
+              {displayItems.length > 1 && (
+                <>
+                  <button 
+                    onClick={handlePrev}
+                    className="absolute left-0 z-[60] text-white/50 hover:text-white bg-black/20 hover:bg-black/40 p-4 rounded-full transition-all border border-white/10 opacity-0 group-hover/lightbox:opacity-100 hidden md:flex"
+                  >
+                    <span className="material-symbols-outlined text-4xl">chevron_left</span>
+                  </button>
+                  <button 
+                    onClick={handleNext}
+                    className="absolute right-0 z-[60] text-white/50 hover:text-white bg-black/20 hover:bg-black/40 p-4 rounded-full transition-all border border-white/10 opacity-0 group-hover/lightbox:opacity-100 hidden md:flex"
+                  >
+                    <span className="material-symbols-outlined text-4xl">chevron_right</span>
+                  </button>
+                </>
+              )}
+
               <img 
                 src={selectedImage.src} 
                 alt={selectedImage.title} 
-                className="w-full max-h-[75vh] object-contain rounded-xl"
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-all duration-300"
               />
-              <div className="absolute bottom-6 left-6 right-6 p-4 md:p-6 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            </div>
+
+            {/* Sub-panel */}
+            <div className="mt-6 w-full max-w-4xl bg-white/5 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="px-2 py-0.5 bg-[#4C1A57] text-white text-[10px] font-bold rounded uppercase tracking-wider">{selectedImage.category}</span>
-                    <h3 className="text-xl md:text-2xl font-serif font-bold text-[#4C1A57]">{selectedImage.title}</h3>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded uppercase tracking-wider border border-amber-500/20">{selectedImage.category}</span>
+                    <h3 className="text-xl md:text-3xl font-serif font-bold text-white tracking-tight">{selectedImage.title}</h3>
                   </div>
-                  <p className="text-gray-600 text-sm md:text-base leading-relaxed">{selectedImage.description || "Captured moment at Holy Name School."}</p>
+                  <p className="text-slate-400 text-sm md:text-base leading-relaxed">{selectedImage.description || "Captured moment at Holy Name School."}</p>
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
-                  <button className="flex-1 md:flex-none px-6 py-3 bg-amber-500 text-[#4C1A57] font-bold rounded-xl hover:bg-amber-400 transition-all shadow-sm flex items-center justify-center gap-2">
-                    <FaSearchPlus /> Zoom
-                  </button>
+
+                <div className="flex items-center gap-6 bg-white/5 px-6 py-4 rounded-2xl border border-white/5 self-end md:self-center">
+                  <span className="text-white font-mono text-lg font-black tracking-widest text-center px-4">
+                    <span className="text-amber-500">
+                      {Math.max(1, lightboxItems.findIndex(i => (i._id && i._id === selectedImage._id) || i.src === selectedImage.src) + 1)}
+                    </span>
+                    <span className="text-white/20 mx-2">/</span>
+                    <span className="text-white/40">{lightboxItems.length}</span>
+                  </span>
+                  
+                  {/* Mobile Nav */}
+                  <div className="flex md:hidden gap-2">
+                    <button onClick={handlePrev} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_left</span></button>
+                    <button onClick={handleNext} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_right</span></button>
+                  </div>
                 </div>
               </div>
             </div>

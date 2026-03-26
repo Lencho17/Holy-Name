@@ -89,7 +89,7 @@ function Notice() {
                 <tbody>
                   {previousNotices.map((notice, index) => (
                     <tr 
-                      key={notice.id || index} 
+                      key={notice._id || index} 
                       className="border-b last:border-0 border-gray-100 hover:bg-[#F3E8F5]/30 transition-colors group"
                     >
                       <td className="py-5 px-6 text-gray-400 font-medium">#{index + 2}</td>

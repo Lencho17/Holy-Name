@@ -15,6 +15,7 @@ const SiteContent = require('./models/SiteContent');
 const authRoutes = require('./routes/auth');
 const contentRoutes = require('./routes/content');
 const admissionsRoutes = require('./routes/admissions');
+const studentsRoutes = require('./routes/students');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -99,6 +100,7 @@ app.use('/api/auth', apiLimiter, authRoutes);
 
 app.use('/api/content', apiLimiter, contentRoutes);
 app.use('/api/admissions', apiLimiter, admissionsRoutes);
+app.use('/api/students', apiLimiter, studentsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

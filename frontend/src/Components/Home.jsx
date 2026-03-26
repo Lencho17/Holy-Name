@@ -5,6 +5,7 @@ import Items from "./Items";
 import EventsSection from "./EventsSection";
 import VideoBlogSection from "./VideoBlogSection";
 import HighlightsSection from "./HighlightsSection";
+import AlumniSection from "./AlumniSection";
 import { FaWhatsapp, FaInstagram, FaFacebook, FaYoutube } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
@@ -29,25 +30,9 @@ function Home() {
   }, [images.length]);
 
   return (
-    <div className="bg-surface relative">
+    <div className="min-h-screen bg-white">
       <main className="relative">
-        {/* Development Banner */}
-        <div className="w-full flex justify-center py-2 px-5 bg-secondary-container text-on-secondary-container rounded-b-xl shadow-sm mb-4">
-          <style jsx>{`
-            @keyframes marquee {
-              0% {
-                transform: translateX(100%);
-              }
-              100% {
-                transform: translateX(-100%);
-              }
-            }
-            .marquee {
-              display: inline-block;
-              animation: marquee 15s linear infinite;
-            }
-          `}</style>
-        </div>
+
 
         {/* Hero Section */}
         <section className="relative w-full h-[600px] lg:h-[716px] flex items-center overflow-hidden bg-slate-900 rounded-3xl mx-auto max-w-[98%] shadow-2xl">
@@ -159,7 +144,7 @@ function Home() {
         </section>
 
         {/* Stats Section */}
-        <section className="py-16 bg-surface">
+        <section className="py-16 bg-white">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -228,6 +213,8 @@ function Home() {
             </motion.div>
           </div>
         </section>
+
+        <AlumniSection />
 
         {/* Existing Component Grid */}
         <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-20 py-10">

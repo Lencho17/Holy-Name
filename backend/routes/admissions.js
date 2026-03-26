@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const Admission = require('../models/Admission');
+const Student = require('../models/Student');
 const SiteContent = require('../models/SiteContent');
 const { protect } = require('../middleware/auth');
 const nodemailer = require('nodemailer');
@@ -131,6 +132,24 @@ router.patch('/:id', protect, async (req, res) => {
     );
     if (!admission) {
       return res.status(404).json({ message: 'Application not found' });
+    }
+
+    // If application is accepted, create a student record if it doesn't exist
+    if (status === 'accepted') {
+      const existingStudent = await Student.findOne({ admissionId: admission._id });
+      if (!existingStudent) {
+        await Student.create({
+          studentName: admission.studentName,
+          dateOfBirth: admission.dateOfBirth,
+          gender: admission.gender,
+          grade: admission.gradeApplied,
+          guardianName: admission.guardianName,
+          contactNumber: admission.contactNumber,
+          email: admission.email,
+          address: admission.address,
+          admissionId: admission._id,
+        });
+      }
     }
     res.json(admission);
   } catch (error) {

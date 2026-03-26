@@ -10,6 +10,7 @@ const siteContentSchema = new mongoose.Schema({
       src: String,
       featured: { type: Boolean, default: false },
       description: String,
+      eventId: { type: Number, default: null },
     },
   ],
   events: [
@@ -19,6 +20,7 @@ const siteContentSchema = new mongoose.Schema({
       date: String,
       image: String,
       description: String,
+      galleryImages: [String],
     },
   ],
   highlights: [
@@ -47,6 +49,19 @@ const siteContentSchema = new mongoose.Schema({
       pdfLink: String,
     },
   ],
+  alumni: [
+    {
+      id: Number,
+      name: String,
+      passedYear: String,
+      rank: String,
+      percentage: String,
+      level: String, // 'HSLC' or 'HS'
+      stream: String, // 'Arts', 'Science', 'Commerce'
+      subjects: [String],
+      photo: String,
+    }
+  ],
   faculty: {
     type: mongoose.Schema.Types.Mixed,
     default: {},
@@ -64,6 +79,26 @@ const siteContentSchema = new mongoose.Schema({
     type: String,
     default: "office@lenchosolutions.com"
   },
+  banner: {
+    isActive: { type: Boolean, default: false },
+    image: { type: String, default: null },
+    link: { type: String, default: null }
+  },
+  socialLinks: {
+    facebook: { type: String, default: "" },
+    instagram: { type: String, default: "" },
+    twitter: { type: String, default: "" },
+    youtube: { type: String, default: "" },
+    linkedin: { type: String, default: "" },
+    whatsapp: { type: String, default: "" },
+    whatsappChannel: { type: String, default: "" }
+  },
+  stats: [
+    {
+      label: String,
+      value: String
+    }
+  ]
 }, { timestamps: true });
 
 module.exports = mongoose.model('SiteContent', siteContentSchema);

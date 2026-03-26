@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Link } from "react-router-dom";
-import { FaWhatsapp, FaInstagram, FaFacebook } from "react-icons/fa";
+import { FaWhatsapp, FaWhatsappSquare, FaInstagram, FaFacebook, FaYoutube, FaTwitter, FaLinkedin } from "react-icons/fa";
+import { SiteDataContext } from "../context/SiteDataContext";
 
 const Footer = () => {
+  const { socialLinks } = useContext(SiteDataContext);
+
   return (
     <footer className="w-full bg-[#f6f2ff] dark:bg-slate-900 border-t border-purple-100 dark:border-slate-800">
       <div className="flex flex-col md:flex-row justify-between items-center px-8 py-12 w-full max-w-7xl mx-auto gap-8">
@@ -27,15 +30,41 @@ const Footer = () => {
           <Link to="/contact" className="text-slate-500 dark:text-slate-400 text-sm font-['Outfit'] tracking-wide hover:text-[#500088] dark:hover:text-purple-300 transition-colors">Contact</Link>
         </div>
         <div className="flex gap-4">
-          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
-            <FaWhatsapp size={20} />
-          </a>
-          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
-            <FaInstagram size={20} />
-          </a>
-          <a href="#" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
-            <FaFacebook size={20} />
-          </a>
+          {socialLinks?.whatsappChannel && (
+            <a href={socialLinks.whatsappChannel} title="WhatsApp Channel" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
+              <FaWhatsappSquare size={20} />
+            </a>
+          )}
+          {socialLinks?.whatsapp && (
+            <a href={socialLinks.whatsapp} title="WhatsApp" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
+              <FaWhatsapp size={20} />
+            </a>
+          )}
+          {socialLinks?.facebook && (
+            <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
+              <FaFacebook size={20} />
+            </a>
+          )}
+          {socialLinks?.instagram && (
+            <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
+              <FaInstagram size={20} />
+            </a>
+          )}
+          {socialLinks?.twitter && (
+            <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
+              <FaTwitter size={20} />
+            </a>
+          )}
+          {socialLinks?.youtube && (
+            <a href={socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
+              <FaYoutube size={20} />
+            </a>
+          )}
+          {socialLinks?.linkedin && (
+            <a href={socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm hover:bg-primary hover:text-white hover:scale-110 transition-all cursor-pointer">
+              <FaLinkedin size={20} />
+            </a>
+          )}
         </div>
       </div>
       <div className="w-full py-6 text-center text-[10px] text-slate-400 font-medium tracking-widest uppercase border-t border-purple-50 flex flex-col items-center gap-2">

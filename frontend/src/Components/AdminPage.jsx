@@ -1,16 +1,20 @@
 import React, { useState, useContext, useEffect } from 'react';
+import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner } from 'react-icons/fa';
 import { SiteDataContext } from '../context/SiteDataContext';
 
 function AdminPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, uploadImage, API_URL } = useContext(SiteDataContext);
+  const [expandedEventId, setExpandedEventId] = useState(null);
+  const [isAddingPhotos, setIsAddingPhotos] = useState(false);
+  const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, updateSiteContent, uploadImage, uploadEventPhotos, API_URL } = useContext(SiteDataContext);
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
   const [admins, setAdmins] = useState([]);
+  const [students, setStudents] = useState([]);
 
   useEffect(() => {
     const restoreSession = () => {
@@ -64,6 +68,7 @@ function AdminPage() {
     try {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/admissions`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
       if (res.ok) setApplications(await res.json());
     } catch (e) { console.warn('Could not fetch applications'); }
   };
@@ -73,16 +78,28 @@ function AdminPage() {
     try {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/auth/admins`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
       if (res.ok) setAdmins(await res.json());
     } catch (e) { console.warn('Could not fetch admins'); }
   };
 
+  const fetchStudents = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/students`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) setStudents(await res.json());
+    } catch (e) { console.warn('Could not fetch students'); }
+  };
+
   useEffect(() => {
     fetchApps();
+    fetchStudents();
     if (adminUser?.role === 'superadmin') fetchAdmins();
     // Live changes: poll every 30 seconds
     const interval = setInterval(() => {
         fetchApps();
+        fetchStudents();
         if (adminUser?.role === 'superadmin') fetchAdmins();
     }, 30000);
     return () => clearInterval(interval);
@@ -198,6 +215,10 @@ function AdminPage() {
         if (selectedApp?._id === id) {
           setSelectedApp(prev => ({ ...prev, status: newStatus }));
         }
+        // If accepted, refresh the student directory
+        if (newStatus === 'accepted') {
+          fetchStudents();
+        }
       } else {
         alert('Failed to update status');
       }
@@ -225,7 +246,7 @@ function AdminPage() {
     { label: 'Total Applications', value: totalApps.toString(), icon: <FaClipboardList className="text-primary" />, bg: 'bg-primary/10' },
     { label: 'Approved', value: approvedApps.toString(), icon: <FaCheckCircle className="text-green-500" />, bg: 'bg-green-50' },
     { label: 'Pending Review', value: pendingApps.toString(), icon: <FaChartLine className="text-tertiary" />, bg: 'bg-tertiary/10' },
-    { label: 'Total Students', value: approvedApps.toString(), icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
+    { label: 'Total Students', value: students.length.toString(), icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
   ];
 
   const recentApps = [...filteredApps]
@@ -240,18 +261,22 @@ function AdminPage() {
       originalApp: app
     }));
 
-  // Helper for image upload via API (falls back to Base64 if no backend)
+  // Helper for image upload/URL processing
+  const handleImageUrlInput = async (e, setter, fieldName) => {
+    const value = e.target.value;
+    if (!value) return;
+    
+    // If it's a Google Drive link, convert it
+    const finalUrl = value;
+    setter(prev => ({ ...prev, [fieldName]: finalUrl }));
+  };
+
   const handleImageUpload = async (e, setter, fieldName) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (uploadImage) {
-      const url = await uploadImage(file);
-      if (url) {
-        setter(prev => ({ ...prev, [fieldName]: url }));
-        return;
-      }
-    }
-    // Fallback to Base64
+    
+    // We still have the option for local file upload (base64) 
+    // but the plan favors Google Drive URLs.
     const reader = new FileReader();
     reader.onloadend = () => {
       setter(prev => ({ ...prev, [fieldName]: reader.result }));
@@ -260,48 +285,136 @@ function AdminPage() {
   };
 
   // --- Gallery Tab ---
-  const [newGalleryItem, setNewGalleryItem] = useState({ title: '', category: 'Campus Life', src: '', description: '', featured: false });
-  const handleAddGallery = () => {
-    if (!newGalleryItem.title || !newGalleryItem.src) return;
-    setGallery([{ ...newGalleryItem, id: Date.now() }, ...gallery]);
-    setNewGalleryItem({ title: '', category: 'Campus Life', src: '', description: '', featured: false });
+  const [newGalleryItem, setNewGalleryItem] = useState({ title: '', category: 'Campus Life', src: '', description: '' });
+  const [galleryFiles, setGalleryFiles] = useState([]);
+  const [isGalleryUploading, setIsGalleryUploading] = useState(false);
+
+  const handleAddGallery = async () => {
+    if (!newGalleryItem.title || (!galleryFiles.length && !newGalleryItem.src)) {
+      alert("Please provide a title and at least one image.");
+      return;
+    }
+    
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsGalleryUploading(true);
+    try {
+      const filesToUpload = galleryFiles.slice(0, 10);
+      const newItems = [];
+
+      for (const file of filesToUpload) {
+        const url = await uploadImage(file);
+        newItems.push({
+          ...newGalleryItem,
+          id: Date.now() + Math.random(),
+          src: url,
+          _id: `temp-${Date.now()}-${Math.random()}`
+        });
+      }
+
+      // Use atomic update to prevent race conditions with polling
+      updateSiteContent({
+        gallery: [...newItems, ...gallery]
+      });
+
+      alert(`Successfully added ${newItems.length} items to gallery.`);
+
+      // Reset form
+      setNewGalleryItem({ title: '', category: 'Campus Life', src: '', description: '' });
+      setGalleryFiles([]);
+    } catch (err) {
+      alert("Failed to upload images: " + err.message);
+    }
+    setIsGalleryUploading(false);
   };
-  const handleDeleteGallery = (id) => {
-    setGallery(gallery.filter(item => item.id !== id));
+
+  const handleDeleteGallery = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this image?")) return;
+    
+    const updatedGallery = gallery.filter(item => (item._id || item.id) !== id);
+    const deletedItem = gallery.find(item => (item._id || item.id) === id);
+    let updatedEvents = events;
+
+    // Also remove from local events galleryImages if it was linked
+    if (deletedItem && deletedItem.eventId) {
+      updatedEvents = events.map(ev => 
+        (ev._id || ev.id) === deletedItem.eventId 
+          ? { ...ev, galleryImages: (ev.galleryImages || []).filter(img => img !== deletedItem.src) }
+          : ev
+      );
+    }
+
+    // Use atomic update to prevent race conditions
+    updateSiteContent({
+      gallery: updatedGallery,
+      events: updatedEvents
+    });
+    
+    alert("Gallery item deleted successfully.");
   };
   const renderGalleryTab = () => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Gallery</h3>
-      <div className="flex flex-col md:flex-row gap-4 mb-6 items-stretch md:items-end bg-gray-50 p-4 rounded-xl border border-gray-100">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <input type="text" value={newGalleryItem.title} onChange={e => setNewGalleryItem({...newGalleryItem, title: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="Image Title" />
+      <div className="flex flex-col gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input type="text" value={newGalleryItem.title} onChange={e => setNewGalleryItem({...newGalleryItem, title: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="e.g. Science Fair 2025" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <select value={newGalleryItem.category} onChange={e => setNewGalleryItem({...newGalleryItem, category: e.target.value})} className="w-full p-2 border rounded-lg">
+              <option>Campus Life</option><option>Academic Events</option><option>Sports</option><option>Cultural Programs</option>
+            </select>
+          </div>
         </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Upload Image</label>
-          <input type="file" accept="image/*" onChange={e => handleImageUpload(e, setNewGalleryItem, 'src')} className="w-full p-[5px] border rounded-lg bg-white text-sm" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Upload Photos</label>
+            <input 
+              type="file" 
+              multiple 
+              onChange={e => {
+                const files = Array.from(e.target.files);
+                setGalleryFiles(files);
+              }}
+              className="w-full p-2 border rounded-lg text-sm bg-white" 
+              accept="image/*"
+            />
+            {galleryFiles.length > 0 && <p className="text-xs text-gray-500 mt-1">{galleryFiles.length} files selected</p>}
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <input type="text" value={newGalleryItem.description} onChange={e => setNewGalleryItem({...newGalleryItem, description: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="Short description..." />
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <select value={newGalleryItem.category} onChange={e => setNewGalleryItem({...newGalleryItem, category: e.target.value})} className="p-2 border rounded-lg">
-            <option>Campus Life</option><option>Academic Events</option><option>Sports</option><option>Cultural Programs</option>
-          </select>
+
+        <div className="flex items-center justify-end mt-2">
+          <button 
+            onClick={handleAddGallery} 
+            disabled={isGalleryUploading}
+            className="bg-tertiary text-white px-8 py-2 rounded-lg font-bold hover:opacity-90 flex items-center shadow-lg disabled:opacity-50"
+          >
+            {isGalleryUploading ? 'Uploading...' : <><FaPlus className="mr-2"/> Add to Gallery</>}
+          </button>
         </div>
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Small Description</label>
-          <input type="text" value={newGalleryItem.description} onChange={e => setNewGalleryItem({...newGalleryItem, description: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="Short description..." />
-        </div>
-        <button onClick={handleAddGallery} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 flex items-center h-[42px]"><FaPlus className="mr-2"/> Add</button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {gallery.map(item => (
-          <div key={item.id} className="relative group rounded-xl overflow-hidden border">
+        {gallery.filter(item => !item.eventId || item.eventId === null).map(item => (
+          <div key={item._id} className="relative group rounded-xl overflow-hidden border">
             <img src={item.src} alt={item.title} className="w-full h-32 object-cover" />
             <div className="p-2 bg-white text-sm">
                 <p className="font-bold truncate">{item.title}</p>
-                <p className="text-gray-500 text-xs">{item.category}</p>
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-500 text-xs">{item.category}</p>
+                  {item.eventId && (
+                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded">Linked to Event</span>
+                  )}
+                </div>
             </div>
-            <button onClick={() => handleDeleteGallery(item.id)} className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><FaTrash size={12} /></button>
+            <button onClick={() => handleDeleteGallery(item._id)} className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><FaTrash size={12} /></button>
           </div>
         ))}
       </div>
@@ -310,13 +423,34 @@ function AdminPage() {
 
   // --- Highlights Tab ---
   const [newHighlight, setNewHighlight] = useState({ title: '', date: '', category: 'Academic', image: '', description: '' });
-  const handleAddHighlight = () => {
-    if (!newHighlight.title || !newHighlight.description) return;
-    setHighlights([{ ...newHighlight, id: Date.now() }, ...highlights]);
-    setNewHighlight({ title: '', date: '', category: 'Academic', image: '', description: '' });
+  const [highlightFile, setHighlightFile] = useState(null);
+  const [isHighlightUploading, setIsHighlightUploading] = useState(false);
+
+  const handleAddHighlight = async () => {
+    if (!newHighlight.title || (!highlightFile && !newHighlight.image)) return;
+    
+    setIsHighlightUploading(true);
+    try {
+      let imageUrl = newHighlight.image;
+      if (highlightFile) {
+        imageUrl = await uploadImage(highlightFile);
+      }
+      
+      const itemToAdd = { 
+        ...newHighlight, 
+        image: imageUrl,
+        _id: `temp-${Date.now()}` 
+      };
+      setHighlights([itemToAdd, ...highlights]);
+      setNewHighlight({ title: '', date: '', category: 'Academic', image: '', description: '' });
+      setHighlightFile(null);
+    } catch (err) {
+      alert("Failed to upload highlight image: " + err.message);
+    }
+    setIsHighlightUploading(false);
   };
   const handleDeleteHighlight = (id) => {
-    setHighlights(highlights.filter(item => item.id !== id));
+    setHighlights(highlights.filter(item => item._id !== id));
   };
   const renderHighlightsTab = () => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -324,19 +458,31 @@ function AdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
         <input type="text" placeholder="Title" value={newHighlight.title} onChange={e => setNewHighlight({...newHighlight, title: e.target.value})} className="p-2 border rounded-lg" />
         <input type="text" placeholder="Date (e.g. March 15, 2026)" value={newHighlight.date} onChange={e => setNewHighlight({...newHighlight, date: e.target.value})} className="p-2 border rounded-lg" />
-        <div className="p-2 border rounded-lg bg-white flex items-center">
-          <span className="text-gray-400 text-sm mr-2 whitespace-nowrap">Image:</span>
-          <input type="file" accept="image/*" onChange={e => handleImageUpload(e, setNewHighlight, 'image')} className="w-full text-sm" />
+        <div className="p-2 border rounded-lg bg-white flex flex-col md:col-span-2">
+          <label className="text-gray-400 text-sm mb-1">Highlight Image:</label>
+          <input 
+            type="file" 
+            accept="image/*"
+            onChange={e => setHighlightFile(e.target.files[0])} 
+            className="w-full text-sm p-1 border rounded" 
+          />
+          {isHighlightUploading && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
         </div>
         <select value={newHighlight.category} onChange={e => setNewHighlight({...newHighlight, category: e.target.value})} className="p-2 border rounded-lg">
           <option>Academic</option><option>Sports</option><option>Cultural</option>
         </select>
         <textarea placeholder="Description" value={newHighlight.description} onChange={e => setNewHighlight({...newHighlight, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="2"></textarea>
-        <button onClick={handleAddHighlight} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2"><FaPlus className="inline mr-2"/> Add Highlight</button>
+        <button 
+          onClick={handleAddHighlight} 
+          disabled={isHighlightUploading}
+          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 disabled:bg-gray-400"
+        >
+          <FaPlus className="inline mr-2"/> {isHighlightUploading ? 'Adding...' : 'Add Highlight'}
+        </button>
       </div>
       <div className="space-y-4">
         {highlights.map(item => (
-          <div key={item.id} className="flex justify-between items-center p-4 border rounded-xl">
+          <div key={item._id} className="flex justify-between items-center p-4 border rounded-xl">
             <div className="flex gap-4 items-center">
               <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-gray-200" alt="" />
               <div>
@@ -344,7 +490,7 @@ function AdminPage() {
                 <p className="text-sm text-gray-500">{item.date} • {item.category}</p>
               </div>
             </div>
-            <button onClick={() => handleDeleteHighlight(item.id)} className="text-red-500 hover:text-red-700 p-2"><FaTrash /></button>
+            <button onClick={() => handleDeleteHighlight(item._id)} className="text-red-500 hover:text-red-700 p-2"><FaTrash /></button>
           </div>
         ))}
       </div>
@@ -352,39 +498,237 @@ function AdminPage() {
   );
 
   // --- Events Tab ---
-  const [newEvent, setNewEvent] = useState({ title: '', date: '', image: '', description: '' });
-  const handleAddEvent = () => {
-    if (!newEvent.title || !newEvent.description) return;
-    setEvents([{ ...newEvent, id: Date.now() }, ...events]);
-    setNewEvent({ title: '', date: '', image: '', description: '' });
+  const [newEvent, setNewEvent] = useState({ title: '', date: '', image: '', description: '', galleryImages: [] });
+  const [eventCoverFile, setEventCoverFile] = useState(null);
+  const [eventGalleryFiles, setEventGalleryFiles] = useState([]);
+  const [isEventUploading, setIsEventUploading] = useState(false);
+  const handleAddEvent = async () => {
+    if (!newEvent.title || !newEvent.date || !newEvent.description) {
+      alert("Please fill in title, date, and description.");
+      return;
+    }
+    
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      alert("Error: You are not authenticated.");
+      handleLogout();
+      return;
+    }
+
+    setIsEventUploading(true);
+    try {
+      const filesToUpload = eventGalleryFiles.slice(0, 10);
+      
+      // 1. Upload photos first
+      const response = await uploadEventPhotos(eventCoverFile, filesToUpload, newEvent.title);
+      
+      if (response) {
+        const coverUrl = response.cover?.url || newEvent.image;
+        const galleryPhotoUrls = response.gallery ? response.gallery.map(img => img.url) : [];
+        const eventIdForLinking = Date.now();
+        
+        // 2. Create the event object
+        const createdEvent = {
+          ...newEvent,
+          id: eventIdForLinking,
+          _id: `temp-ev-${Date.now()}`,
+          image: coverUrl,
+          galleryImages: galleryPhotoUrls
+        };
+        
+        // 3. Create associated gallery items for unified management
+        const newGalleryItems = galleryPhotoUrls.map(url => ({
+          id: Date.now() + Math.random(),
+          title: newEvent.title,
+          category: "Events",
+          src: url,
+          eventId: eventIdForLinking,
+          _id: `temp-g-${Date.now()}-${Math.random()}`
+        }));
+
+        // 4. Update events and gallery state ATOMICALLY to prevent race conditions
+        updateSiteContent({
+          events: [createdEvent, ...events],
+          gallery: [...newGalleryItems, ...gallery]
+        });
+
+        alert(`Event "${createdEvent.title}" created successfully!`);
+        
+        // Reset form
+        setNewEvent({ title: '', date: '', image: '', description: '', galleryImages: [] });
+        setEventCoverFile(null);
+        setEventGalleryFiles([]);
+      }
+    } catch (err) {
+      alert("Failed to create event: " + err.message);
+    }
+    setIsEventUploading(false);
   };
-  const handleDeleteEvent = (id) => {
-    setEvents(events.filter(item => item.id !== id));
+  
+  const handleUpdateEventPhotos = async (eventId, files) => {
+    if (!files || files.length === 0) return;
+    
+    setIsAddingPhotos(true);
+    try {
+      // Use the uploadEventPhotos helper to get URLs
+      // The helper currently calls content/upload-event which only uploads files and returns URLs
+      const response = await uploadEventPhotos(null, Array.from(files), "Event Update");
+      
+      if (response && response.gallery) {
+        const newPhotoUrls = response.gallery.map(img => img.url);
+        
+        // Add individual items to the global gallery state for management
+        const newGalleryItems = newPhotoUrls.map(url => ({
+          id: Date.now() + Math.random(),
+          title: "Event Photo",
+          category: "Events",
+          src: url,
+          eventId: eventId,
+          _id: `temp-g-${Date.now()}-${Math.random()}`
+        }));
+
+        // 1. Update the events and gallery state ATOMICALLY
+        updateSiteContent({
+          events: events.map(ev => 
+            (ev._id || ev.id) === eventId 
+              ? { ...ev, galleryImages: [...(ev.galleryImages || []), ...newPhotoUrls] }
+              : ev
+          ),
+          gallery: [...newGalleryItems, ...gallery]
+        });
+
+        alert("Photos added to event and gallery successfully!");
+      }
+    } catch (err) {
+      alert("Photo upload failed: " + err.message);
+    }
+    setIsAddingPhotos(false);
   };
+
+  const handleDeleteEvent = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this event and all its photos?")) return;
+    
+    // Logic: Filter out the event and its linked gallery items
+    const updatedEvents = events.filter(item => (item._id || item.id) !== id);
+    const updatedGallery = gallery.filter(item => item.eventId !== id);
+
+    // Update ATOMICALLY
+    updateSiteContent({
+      events: updatedEvents,
+      gallery: updatedGallery
+    });
+    
+    alert("Event deleted successfully.");
+  };
+
   const renderEventsTab = () => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h3 className="text-xl font-bold text-gray-800 mb-4">Manage School Events</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
         <input type="text" placeholder="Event Title" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} className="p-2 border rounded-lg" />
         <input type="text" placeholder="Date (e.g. Sept 5, 2025)" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} className="p-2 border rounded-lg" />
-        <div className="p-2 border rounded-lg bg-white flex items-center md:col-span-2">
-          <span className="text-gray-400 text-sm mr-2 whitespace-nowrap">Event Image:</span>
-          <input type="file" accept="image/*" onChange={e => handleImageUpload(e, setNewEvent, 'image')} className="w-full text-sm" />
+        <div className="p-2 border rounded-lg bg-white flex flex-col md:col-span-2">
+          <label className="text-gray-400 text-sm mb-1">Cover Image:</label>
+          <input 
+            type="file" 
+            accept="image/*"
+            onChange={e => setEventCoverFile(e.target.files[0])} 
+            className="w-full text-sm p-1 border rounded" 
+          />
+        </div>
+        <div className="p-2 border rounded-lg bg-white flex flex-col md:col-span-2">
+          <label className="text-gray-400 text-sm mb-1">Additional Gallery Photos (Max 10):</label>
+          <input 
+            type="file" 
+            multiple
+            accept="image/*"
+            onChange={e => {
+              const files = Array.from(e.target.files);
+              if (files.length > 10) {
+                alert("Maximum 10 photos allowed per event. Only the first 10 will be selected.");
+                setEventGalleryFiles(files.slice(0, 10));
+              } else {
+                setEventGalleryFiles(files);
+              }
+            }}
+            className="w-full text-sm p-1 border rounded" 
+          />
+          {eventGalleryFiles.length > 10 && (
+            <p className="text-red-500 text-xs mt-1">Warning: Only the first 10 photos will be uploaded.</p>
+          )}
         </div>
         <textarea placeholder="Event Description" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="3"></textarea>
-        <button onClick={handleAddEvent} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2"><FaPlus className="inline mr-2"/> Add Event</button>
+        <button 
+          onClick={handleAddEvent} 
+          disabled={isEventUploading}
+          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 disabled:bg-gray-400"
+        >
+          <FaPlus className="inline mr-2"/> {isEventUploading ? 'Adding...' : 'Add Event'}
+        </button>
       </div>
       <div className="space-y-4">
         {events.map(item => (
-          <div key={item.id} className="flex justify-between items-center p-4 border rounded-xl">
-            <div className="flex gap-4 items-center">
-              <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-gray-200" alt="" />
-              <div>
-                <p className="font-bold">{item.title}</p>
-                <p className="text-sm text-gray-500">{item.date}</p>
+          <div key={item._id} className="border rounded-xl">
+            <div className="flex justify-between items-center p-4">
+              <div className="flex gap-4 items-center">
+                <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-gray-200" alt="" />
+                <div>
+                  <p className="font-bold">{item.title}</p>
+                  <p className="text-sm text-gray-500">{item.date}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setExpandedEventId(expandedEventId === item._id ? null : item._id)}
+                  className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-sm font-bold hover:bg-blue-100"
+                >
+                  <FaImage className="inline mr-1" /> {expandedEventId === item._id ? 'Hide Photos' : 'Manage Photos'}
+                </button>
+                <button onClick={() => handleDeleteEvent(item._id)} className="text-red-500 hover:text-red-700 p-2"><FaTrash /></button>
               </div>
             </div>
-            <button onClick={() => handleDeleteEvent(item.id)} className="text-red-500 hover:text-red-700 p-2"><FaTrash /></button>
+            
+            {expandedEventId === item._id && (
+              <div className="p-4 bg-gray-50 border-t rounded-b-xl">
+                <h4 className="text-sm font-bold text-gray-700 mb-3 underline">Event Gallery Photos:</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                  {gallery.filter(g => g.eventId === item._id).map(photo => (
+                    <div key={photo._id} className="relative group aspect-square rounded-lg overflow-hidden border bg-white">
+                      <img src={photo.src} className="w-full h-full object-cover" alt="" />
+                      <button 
+                        onClick={() => handleDeleteGallery(photo._id)}
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <FaTimes size={10} />
+                      </button>
+                    </div>
+                  ))}
+                  {gallery.filter(g => g.eventId === item._id).length === 0 && (
+                    <p className="text-xs text-gray-400 col-span-full italic">No additional photos in gallery for this event.</p>
+                  )}
+                </div>
+                <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                    <p className="text-[10px] text-gray-400">Manage individual photos. Deleting here will also remove them from the event gallery.</p>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="file" 
+                        multiple 
+                        id={`event-upload-${item._id}`}
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => handleUpdateEventPhotos(item._id, e.target.files)}
+                      />
+                      <button 
+                        onClick={() => document.getElementById(`event-upload-${item._id}`).click()}
+                        disabled={isAddingPhotos}
+                        className="text-xs bg-tertiary text-white px-3 py-1 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400"
+                      >
+                        {isAddingPhotos ? 'Uploading...' : '⊕ Add More Photos'}
+                      </button>
+                    </div>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -395,11 +739,11 @@ function AdminPage() {
   const [newVideo, setNewVideo] = useState({ title: '', src: '' });
   const handleAddVideo = () => {
     if (!newVideo.title || !newVideo.src) return;
-    setVideos([{ ...newVideo, id: Date.now() }, ...videos]);
+    setVideos([{ ...newVideo, _id: `temp-${Date.now()}` }, ...videos]);
     setNewVideo({ title: '', src: '' });
   };
-  const handleDeleteVideo = (src, index) => {
-    setVideos(videos.filter((_, i) => i !== index));
+  const handleDeleteVideo = (id) => {
+    setVideos(videos.filter(vid => vid._id !== id));
   };
   const renderVideosTab = () => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -411,13 +755,13 @@ function AdminPage() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {videos.map((vid, idx) => (
-          <div key={idx} className="border rounded-xl p-4 flex flex-col items-center">
+          <div key={vid._id || idx} className="border rounded-xl p-4 flex flex-col items-center">
             <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
               <span className="text-gray-400">Video Placeholder</span>
             </div>
             <p className="font-bold flex-1">{vid.title}</p>
             <p className="text-xs text-gray-400 truncate w-full text-center mt-1 mb-4">{vid.src}</p>
-            <button onClick={() => handleDeleteVideo(vid.src, idx)} className="text-red-500 text-sm hover:underline"><FaTrash className="inline mr-1" /> Remove</button>
+            <button onClick={() => handleDeleteVideo(vid._id)} className="text-red-500 text-sm hover:underline"><FaTrash className="inline mr-1" /> Remove</button>
           </div>
         ))}
       </div>
@@ -426,22 +770,24 @@ function AdminPage() {
 
   // --- Notices Tab ---
   const [newNotice, setNewNotice] = useState({ title: '', date: '', size: '', pdfLink: '' });
+  const [isPdfUploading, setIsPdfUploading] = useState(false);
   const handleAddNotice = () => {
     if (!newNotice.title || !newNotice.pdfLink) return;
-    setNotices([{ ...newNotice, id: Date.now() }, ...notices]);
+    setNotices([{ ...newNotice, _id: `temp-${Date.now()}` }, ...notices]);
     setNewNotice({ title: '', date: '', size: '', pdfLink: '' });
   };
   const handleDeleteNotice = (id) => {
-    setNotices(notices.filter(item => item.id !== id));
+    setNotices(notices.filter(n => (n._id || n.id) !== id));
   };
   const handlePdfUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setIsPdfUploading(true);
     const token = localStorage.getItem('adminToken');
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('pdf', file);
     try {
-      const res = await fetch(`${API_URL}/content/upload`, {
+      const res = await fetch(`${API_URL}/content/upload-pdf`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData
@@ -450,12 +796,18 @@ function AdminPage() {
       if (res.ok) {
         setNewNotice({
           ...newNotice,
-          pdfLink: data.url,
+          pdfLink: data.url, // raw GitHub URL
           size: `${(file.size / 1024).toFixed(0)} KB`,
           date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         });
+      } else {
+        console.error('PDF upload failed:', data.message);
       }
-    } catch (err) { console.error('PDF upload failed'); }
+    } catch (err) {
+      console.error('PDF upload failed:', err);
+    } finally {
+      setIsPdfUploading(false);
+    }
   };
 
   const renderNoticesTab = () => (
@@ -468,13 +820,23 @@ function AdminPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Upload PDF</label>
-          <input type="file" accept=".pdf" onChange={handlePdfUpload} className="w-full p-[5px] border bg-white rounded-lg text-sm" />
+          <input type="file" accept=".pdf" onChange={handlePdfUpload} disabled={isPdfUploading} className="w-full p-[5px] border bg-white rounded-lg text-sm disabled:bg-gray-100" />
         </div>
-        <button onClick={handleAddNotice} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 h-[42px]"><FaPlus className="inline mr-2"/> Publish Notice</button>
+        <button 
+          onClick={handleAddNotice} 
+          disabled={isPdfUploading || !newNotice.title || !newNotice.pdfLink}
+          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 h-[42px] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-300"
+        >
+          {isPdfUploading ? (
+            <><FaSpinner className="mr-2 animate-spin"/> Uploading...</>
+          ) : (
+            <><FaPlus className="mr-2"/> Publish Notice</>
+          )}
+        </button>
       </div>
       <div className="space-y-3">
         {notices.map(item => (
-          <div key={item.id} className="flex justify-between items-center p-4 border rounded-xl hover:bg-gray-50 transition-colors">
+          <div key={item._id || item.id} className="flex justify-between items-center p-4 border rounded-xl hover:bg-gray-50 transition-colors">
             <div className="flex gap-4 items-center">
               <div className="w-10 h-10 bg-red-100 text-red-600 rounded-lg flex items-center justify-center font-bold text-xs uppercase">PDF</div>
               <div>
@@ -484,7 +846,7 @@ function AdminPage() {
             </div>
             <div className="flex items-center gap-2">
               <a href={item.pdfLink} target="_blank" rel="noreferrer" className="text-primary hover:underline text-xs font-bold">View</a>
-              <button onClick={() => handleDeleteNotice(item.id)} className="text-red-400 hover:text-red-600 p-2"><FaTrash size={14} /></button>
+              <button onClick={() => handleDeleteNotice(item._id || item.id)} className="text-red-400 hover:text-red-600 p-2"><FaTrash size={14} /></button>
             </div>
           </div>
         ))}
@@ -494,19 +856,33 @@ function AdminPage() {
 
   // --- Faculty Tab ---
   const [newFaculty, setNewFaculty] = useState({ name: '', title: '', EduQua: '', Subject: '', photo: '', department: 'Science' });
-  const handleAddFaculty = () => {
+  const [facultyFile, setFacultyFile] = useState(null);
+  const [isFacultyUploading, setIsFacultyUploading] = useState(false);
+
+  const handleAddFaculty = async () => {
     if (!newFaculty.name || !newFaculty.Subject) return;
-    const dept = newFaculty.department;
-    setFaculty({
-      ...faculty,
-      [dept]: [{ ...newFaculty, id: Date.now() }, ...faculty[dept]]
-    });
-    setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', department: dept });
+    
+    setIsFacultyUploading(true);
+    try {
+      let photoUrl = newFaculty.photo;
+      if (facultyFile) { photoUrl = await uploadImage(facultyFile); }
+      
+      const dept = newFaculty.department;
+      setFaculty({
+        ...faculty,
+        [dept]: [{ ...newFaculty, photo: photoUrl, _id: `temp-${Date.now()}` }, ...faculty[dept]]
+      });
+      setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', department: dept });
+      setFacultyFile(null);
+    } catch (err) {
+      alert("Faculty upload failed: " + err.message);
+    }
+    setIsFacultyUploading(false);
   };
   const handleDeleteFaculty = (dept, idToRemove, indexToRemove) => {
     setFaculty({
       ...faculty,
-      [dept]: faculty[dept].filter((f, i) => f.id ? f.id !== idToRemove : i !== indexToRemove)
+      [dept]: faculty[dept].filter((f, i) => (f._id || f.id) ? (f._id || f.id) !== idToRemove : i !== indexToRemove)
     });
   };
   const renderFacultyTab = () => (
@@ -520,11 +896,22 @@ function AdminPage() {
         </select>
         <input type="text" placeholder="Qualifications (e.g. MSc, PhD)" value={newFaculty.EduQua} onChange={e => setNewFaculty({...newFaculty, EduQua: e.target.value})} className="p-2 border rounded-lg" />
         <input type="text" placeholder="Experience (e.g. 5+ yrs exp)" value={newFaculty.title} onChange={e => setNewFaculty({...newFaculty, title: e.target.value})} className="p-2 border rounded-lg" />
-        <div className="p-2 border rounded-lg bg-white flex items-center">
-          <span className="text-gray-400 text-sm mr-2 whitespace-nowrap">Photo:</span>
-          <input type="file" accept="image/*" onChange={e => handleImageUpload(e, setNewFaculty, 'photo')} className="w-full text-sm" />
+        <div className="p-2 border rounded-lg bg-white flex flex-col">
+          <label className="text-gray-400 text-sm mb-1">Photo:</label>
+          <input 
+            type="file" 
+            accept="image/*"
+            onChange={e => setFacultyFile(e.target.files[0])} 
+            className="w-full text-sm p-1 border rounded" 
+          />
         </div>
-        <button onClick={handleAddFaculty} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-3"><FaPlus className="inline mr-2"/> Add Faculty Member</button>
+        <button 
+          onClick={handleAddFaculty} 
+          disabled={isFacultyUploading}
+          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-3 disabled:bg-gray-400"
+        >
+          <FaPlus className="inline mr-2"/> {isFacultyUploading ? 'Adding...' : 'Add Faculty Member'}
+        </button>
       </div>
 
       {Object.keys(faculty).map(dept => (
@@ -532,13 +919,13 @@ function AdminPage() {
           <h4 className="font-bold text-lg mb-3 text-primary">{dept} Department</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {faculty[dept].map((f, idx) => (
-              <div key={f.id || idx} className="flex gap-4 p-3 border rounded-xl items-center bg-gray-50">
+              <div key={f._id || f.id || idx} className="flex gap-4 p-3 border rounded-xl items-center bg-gray-50">
                 <img src={f.photo || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150"} className="w-12 h-12 rounded-full object-cover bg-gray-200" alt="" />
                 <div className="flex-1">
                   <p className="font-bold text-sm">{f.name}</p>
                   <p className="text-xs text-gray-500">{f.Subject}</p>
                 </div>
-                <button onClick={() => handleDeleteFaculty(dept, f.id, idx)} className="text-red-500 hover:text-red-700 p-2"><FaTrash size={14}/></button>
+                <button onClick={() => handleDeleteFaculty(dept, f._id || f.id, idx)} className="text-red-500 hover:text-red-700 p-2"><FaTrash size={14}/></button>
               </div>
             ))}
           </div>
@@ -551,6 +938,8 @@ function AdminPage() {
   const [isEditingPrincipal, setIsEditingPrincipal] = useState(false);
   const [editPrincipal, setEditPrincipal] = useState({});
 
+  const [isPrincipalUploading, setIsPrincipalUploading] = useState(false);
+
   const startEditingPrincipal = () => {
     setEditPrincipal(principal);
     setIsEditingPrincipal(true);
@@ -560,19 +949,18 @@ function AdminPage() {
     setEditPrincipal({ ...editPrincipal, [field]: value });
   };
   
-  const handlePrincipalImageUpload = (e, fieldName) => {
+  const handlePrincipalImageUpload = async (e, fieldName) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("File size is too large. Please select an image under 5MB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditPrincipal(prev => ({ ...prev, [fieldName]: reader.result }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsPrincipalUploading(true);
+    try {
+      const url = await uploadImage(file);
+      setEditPrincipal(prev => ({ ...prev, [fieldName]: url }));
+    } catch (err) {
+      alert("Upload failed: " + err.message);
     }
+    setIsPrincipalUploading(false);
   };
 
   const savePrincipal = () => {
@@ -620,11 +1008,17 @@ function AdminPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Principal Photo</label>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-2 flex-1">
             <img src={isEditingPrincipal ? editPrincipal.photo : principal.photo} alt="Current" className="w-16 h-16 object-cover rounded-lg shadow-sm border border-gray-200" />
             {isEditingPrincipal && (
-              <input type="file" accept="image/*" onChange={e => handlePrincipalImageUpload(e, 'photo')} className="w-full p-[5px] border bg-white rounded-lg text-sm" />
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={e => handlePrincipalImageUpload(e, 'photo')} 
+                className="w-full p-2 border bg-white rounded-lg text-sm" 
+              />
             )}
+            {isPrincipalUploading && <span className="text-xs text-blue-500">Uploading...</span>}
           </div>
         </div>
         <div>
@@ -636,6 +1030,344 @@ function AdminPage() {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+
+  // --- Banner Tab ---
+  const [isEditingBanner, setIsEditingBanner] = useState(false);
+  const [editBanner, setEditBanner] = useState({ isActive: false, image: null, link: '' });
+
+  const [isBannerUploading, setIsBannerUploading] = useState(false);
+
+  const startEditingBanner = () => {
+    setEditBanner(banner || { isActive: false, image: null, link: '' });
+    setIsEditingBanner(true);
+  };
+
+  const handleBannerImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsBannerUploading(true);
+    try {
+      const url = await uploadImage(file);
+      setEditBanner(prev => ({ ...prev, image: url }));
+    } catch (err) {
+      alert("Banner upload failed: " + err.message);
+    }
+    setIsBannerUploading(false);
+  };
+
+  const handleBannerChange = (field, value) => {
+    setEditBanner(prev => ({ ...prev, [field]: value }));
+  };
+
+  const saveBanner = () => {
+    setBanner(editBanner);
+    setIsEditingBanner(false);
+  };
+
+  const cancelBanner = () => {
+    setIsEditingBanner(false);
+  };
+
+  const renderBannerTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex justify-between flex-wrap items-center mb-6">
+        <h3 className="text-xl font-bold text-gray-800">Manage Popup Banner</h3>
+        {!isEditingBanner ? (
+          <button onClick={startEditingBanner} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Banner</button>
+        ) : (
+          <div className="flex gap-2 mt-2 sm:mt-0">
+            <button onClick={cancelBanner} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
+            <button onClick={saveBanner} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors">Save Changes</button>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
+        <div className="flex items-center gap-2 md:col-span-2">
+          <input 
+            type="checkbox" 
+            id="bannerActive" 
+            disabled={!isEditingBanner} 
+            checked={isEditingBanner ? editBanner.isActive : (banner?.isActive || false)} 
+            onChange={e => handleBannerChange('isActive', e.target.checked)} 
+            className="w-5 h-5 text-tertiary" 
+          />
+          <label htmlFor="bannerActive" className="text-sm font-bold text-gray-700">Enable Popup Banner</label>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Banner Image (Required)</label>
+          <div className="flex flex-col gap-4">
+            {(isEditingBanner ? editBanner.image : banner?.image) ? (
+              <img src={isEditingBanner ? editBanner.image : banner?.image} alt="Banner" className="w-full max-w-sm rounded-lg shadow-sm border border-gray-200 object-contain bg-white" />
+            ) : (
+              <div className="w-full max-w-sm h-32 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 text-sm">No Image Uploaded</div>
+            )}
+            {isEditingBanner && (
+              <div className="flex flex-col gap-2">
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleBannerImageUpload} 
+                  className="w-full max-w-sm p-2 border bg-white rounded-lg text-sm" 
+                />
+                {isBannerUploading && <span className="text-xs text-blue-500">Uploading...</span>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Target Link URL (Optional)</label>
+          <input 
+            type="url" 
+            placeholder="https://example.com/admission"
+            disabled={!isEditingBanner} 
+            value={isEditingBanner ? (editBanner.link || '') : (banner?.link || '')} 
+            onChange={e => handleBannerChange('link', e.target.value)} 
+            className="w-full max-w-sm p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500" 
+          />
+          <p className="text-xs text-gray-500 mt-2">If provided, clicking the banner will open this link.</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // --- Alumni Tab ---
+  const [alumniForm, setAlumniForm] = useState({ _id: null, name: '', passedYear: '', rank: '', percentage: '', level: 'HSLC', stream: 'Arts', subjects: [], photo: '' });
+  const [isEditingAlumni, setIsEditingAlumni] = useState(false);
+  const [subjectInput, setSubjectInput] = useState('');
+
+  const resetAlumniForm = () => {
+    setAlumniForm({ _id: null, name: '', passedYear: '', rank: '', percentage: '', level: 'HSLC', stream: 'Arts', subjects: [], photo: '' });
+    setIsEditingAlumni(false);
+    setSubjectInput('');
+  };
+
+  const [alumniFile, setAlumniFile] = useState(null);
+  const [isAlumniUploading, setIsAlumniUploading] = useState(false);
+
+  const handleAlumniSubmit = async (e) => {
+    e.preventDefault();
+    if (!alumniForm.name || !alumniForm.passedYear || (!alumniFile && !alumniForm.photo)) {
+      alert("Name, Passed Year, and Photo are required.");
+      return;
+    }
+    
+    setIsAlumniUploading(true);
+    try {
+      let photoUrl = alumniForm.photo;
+      if (alumniFile) {
+        photoUrl = await uploadImage(alumniFile);
+      }
+
+      let finalSubjects = [...alumniForm.subjects];
+      if (subjectInput.trim()) {
+        finalSubjects = subjectInput.split(',').map(s => s.trim()).filter(s => s);
+      } else {
+          finalSubjects = [];
+      }
+
+      if (isEditingAlumni) {
+        setAlumni(alumni.map(a => (a._id || a.id) === (alumniForm._id || alumniForm.id) ? { ...alumniForm, photo: photoUrl, subjects: finalSubjects } : a));
+      } else {
+        setAlumni([...(alumni || []), { ...alumniForm, _id: `temp-${Date.now()}`, photo: photoUrl, subjects: finalSubjects }]);
+      }
+      resetAlumniForm();
+      setAlumniFile(null);
+    } catch (err) {
+      alert("Alumni upload failed: " + err.message);
+    }
+    setIsAlumniUploading(false);
+  };
+
+  const handleEditAlumni = (alumnus) => {
+    setAlumniForm(alumnus);
+    setSubjectInput(alumnus.subjects?.join(', ') || '');
+    setIsEditingAlumni(true);
+  };
+
+  const handleDeleteAlumni = async (id) => {
+    if(window.confirm('Delete this alumni record?')) {
+      try {
+        const token = localStorage.getItem('adminToken');
+        // Since alumni are synced via SiteContent PUT for now (legacy), 
+        // we update local state and let the effect sync it, 
+        // OR if it's a separate model, we call the API.
+        // Based on previous edits, SiteDataContext handles syncing SiteContent.
+        setAlumni(alumni.filter(a => (a._id || a.id) !== id));
+      } catch (err) {
+        alert("Delete failed: " + err.message);
+      }
+    }
+  };
+
+  const renderAlumniTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8 max-w-5xl">
+      <h3 className="text-xl font-bold text-gray-800 mb-6">{isEditingAlumni ? 'Edit Alumni Record' : 'Add New Alumni'}</h3>
+      <form onSubmit={handleAlumniSubmit} className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+          <input required type="text" value={alumniForm.name} onChange={e => setAlumniForm({...alumniForm, name: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Passed Year *</label>
+          <input required type="text" value={alumniForm.passedYear} onChange={e => setAlumniForm({...alumniForm, passedYear: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. 2023" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Rank / Position</label>
+          <input type="text" value={alumniForm.rank} onChange={e => setAlumniForm({...alumniForm, rank: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. 1st State Rank" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Percentage / CGPA</label>
+          <input type="text" value={alumniForm.percentage} onChange={e => setAlumniForm({...alumniForm, percentage: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. 98.5%" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Level *</label>
+          <select value={alumniForm.level} onChange={e => setAlumniForm({...alumniForm, level: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white">
+            <option value="HSLC">HSLC (10th)</option>
+            <option value="HS">HS (12th)</option>
+          </select>
+        </div>
+        
+        {alumniForm.level === 'HS' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Stream</label>
+              <select value={alumniForm.stream} onChange={e => setAlumniForm({...alumniForm, stream: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white">
+                <option value="Arts">Arts</option>
+                <option value="Science">Science</option>
+                <option value="Commerce">Commerce</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subjects (Comma separated)</label>
+              <input type="text" value={subjectInput} onChange={e => setSubjectInput(e.target.value)} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="Physics, Chemistry, Maths..." />
+            </div>
+          </>
+        )}
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Alumni Photo *</label>
+          <div className="flex flex-col gap-2">
+            {alumniForm.photo && <img src={alumniForm.photo} alt="Preview" className="w-16 h-16 object-cover rounded shadow border" />}
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={e => setAlumniFile(e.target.files[0])} 
+              className="w-full p-2 border bg-white rounded-lg text-sm" 
+            />
+            {isAlumniUploading && <span className="text-xs text-blue-500">Uploading...</span>}
+          </div>
+        </div>
+
+        <div className="md:col-span-2 flex gap-2 pt-4">
+          <button 
+            type="submit" 
+            disabled={isAlumniUploading}
+            className="bg-primary text-white px-6 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors disabled:bg-gray-400"
+          >
+            {isAlumniUploading ? 'Processing...' : (isEditingAlumni ? 'Update Record' : 'Add Alumni')}
+          </button>
+          {isEditingAlumni && <button type="button" onClick={resetAlumniForm} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>}
+        </div>
+      </form>
+
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Existing Alumni Records</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
+              <th className="p-3">Photo</th>
+              <th className="p-3">Name</th>
+              <th className="p-3">Year / Level</th>
+              <th className="p-3">Rank / %</th>
+              <th className="p-3">Stream</th>
+              <th className="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {alumni?.map(a => (
+              <tr key={a._id || a.id} className="hover:bg-gray-50/50 transition-colors">
+                <td className="p-3"><img src={a.photo} alt={a.name} className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-200 bg-white" /></td>
+                <td className="p-3 font-medium text-gray-800">{a.name}</td>
+                <td className="p-3 text-sm text-gray-600 font-bold">{a.passedYear} <span className="font-normal text-xs text-gray-500">({a.level})</span></td>
+                <td className="p-3 text-sm text-gray-600">{a.rank || '-'} <span className="text-gray-300">|</span> {a.percentage || '-'}</td>
+                <td className="p-3 text-sm text-gray-600">{a.level === 'HS' ? a.stream : '-'}</td>
+                <td className="p-3 text-right">
+                  <button onClick={() => handleEditAlumni(a)} className="text-blue-600 hover:text-blue-800 font-bold text-xs uppercase mr-4 transition-colors">Edit</button>
+                  <button onClick={() => handleDeleteAlumni(a._id || a.id)} className="text-red-500 hover:text-red-700 p-1 flex items-center justify-end font-bold text-xs uppercase transition-colors max-w-min ml-auto"><FaTrash /></button>
+                </td>
+              </tr>
+            ))}
+            {(!alumni || alumni.length === 0) && (
+              <tr><td colSpan="6" className="p-6 text-center text-gray-500">No alumni records found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // --- Social Media Tab ---
+  const [isEditingSocial, setIsEditingSocial] = useState(false);
+  const [editSocial, setEditSocial] = useState({ facebook: '', instagram: '', twitter: '', youtube: '', linkedin: '', whatsapp: '', whatsappChannel: '' });
+
+  const startEditingSocial = () => {
+    setEditSocial(socialLinks || { facebook: '', instagram: '', twitter: '', youtube: '', linkedin: '', whatsapp: '', whatsappChannel: '' });
+    setIsEditingSocial(true);
+  };
+
+  const handleSocialChange = (field, value) => {
+    setEditSocial(prev => ({ ...prev, [field]: value }));
+  };
+
+  const saveSocial = () => {
+    setSocialLinks(editSocial);
+    setIsEditingSocial(false);
+  };
+
+  const cancelSocial = () => {
+    setIsEditingSocial(false);
+  };
+
+  const renderSocialMediaTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex justify-between flex-wrap items-center mb-6">
+        <h3 className="text-xl font-bold text-gray-800">Manage Social Media Links</h3>
+        {!isEditingSocial ? (
+          <button onClick={startEditingSocial} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Links</button>
+        ) : (
+          <div className="flex gap-2 mt-2 sm:mt-0">
+            <button onClick={cancelSocial} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
+            <button onClick={saveSocial} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors">Save Changes</button>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
+        {[
+          { id: 'facebook', label: 'Facebook' },
+          { id: 'instagram', label: 'Instagram' },
+          { id: 'twitter', label: 'Twitter' },
+          { id: 'youtube', label: 'YouTube' },
+          { id: 'linkedin', label: 'LinkedIn' },
+          { id: 'whatsapp', label: 'WhatsApp' },
+          { id: 'whatsappChannel', label: 'WhatsApp Channel' }
+        ].map(platform => (
+          <div key={platform.id}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{platform.label} URL</label>
+            <input 
+              type="url" 
+              placeholder={`https://${platform.id}.com/yourpage`}
+              disabled={!isEditingSocial} 
+              value={isEditingSocial ? (editSocial[platform.id] || '') : (socialLinks?.[platform.id] || '')} 
+              onChange={e => handleSocialChange(platform.id, e.target.value)} 
+              className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500" 
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -707,7 +1439,6 @@ function AdminPage() {
                 className="flex-1 p-2.5 border rounded-lg bg-white"
               >
                 <option value="admin">Admin</option>
-                <option value="superadmin">Super Admin</option>
               </select>
               <button 
                 type="submit" 
@@ -755,7 +1486,6 @@ function AdminPage() {
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Role</label>
                           <select value={editAdminData.role} onChange={e => setEditAdminData({...editAdminData, role: e.target.value})} className="w-full p-2 border rounded bg-white text-sm">
                             <option value="admin">Admin</option>
-                            <option value="superadmin">Super Admin</option>
                           </select>
                         </div>
                         <div className="flex gap-2">
@@ -786,7 +1516,7 @@ function AdminPage() {
                     <td className="py-4">
                       <div className="flex justify-end gap-2 pr-6">
                         <button onClick={() => startEditAdmin(admin)} className="text-blue-500 hover:text-blue-700 text-xs font-bold uppercase transition-colors mr-2">Edit</button>
-                        {admin._id !== adminUser?.id && (
+                        {admin._id !== adminUser?._id && (
                           <button 
                             onClick={() => handleDeleteAdmin(admin)} 
                             className="text-red-400 hover:text-red-600 text-[10px] font-bold uppercase tracking-wider p-1 transition-colors flex items-center"
@@ -994,11 +1724,14 @@ function AdminPage() {
           {[
             { id: 'gallery', label: 'Gallery', icon: <FaImage /> },
             { id: 'videos', label: 'Video Blog', icon: <FaVideo /> },
+            { id: 'banner', label: 'Popup Banner', icon: <FaImage /> },
             { id: 'highlights', label: 'Highlights', icon: <FaStar /> },
             { id: 'events', label: 'Events', icon: <FaCalendarAlt /> },
             { id: 'notices', label: 'Notices', icon: <FaClipboardList /> },
             { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher /> },
-            { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList /> }
+            { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList /> },
+            { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap /> },
+            { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt /> }
           ].map(item => (
             <button 
               key={item.id}
@@ -1082,11 +1815,14 @@ function AdminPage() {
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'gallery' && renderGalleryTab()}
           {activeTab === 'videos' && renderVideosTab()}
+          {activeTab === 'banner' && renderBannerTab()}
           {activeTab === 'highlights' && renderHighlightsTab()}
           {activeTab === 'events' && renderEventsTab()}
           {activeTab === 'notices' && renderNoticesTab()}
           {activeTab === 'faculty' && renderFacultyTab()}
-          {activeTab === 'principal' && renderPrincipalTab()}
+          { activeTab === 'principal' && renderPrincipalTab() }
+          { activeTab === 'alumni' && renderAlumniTab() }
+          { activeTab === 'socialMedia' && renderSocialMediaTab() }
           {activeTab === 'admins' && adminUser?.role === 'superadmin' && renderAdminsTab()}
           {activeTab === 'settings' && adminUser?.role === 'superadmin' && renderSettingsTab()}
           {activeTab === 'applications' && (
@@ -1153,9 +1889,76 @@ function AdminPage() {
             </div>
           )}
           {activeTab === 'students' && (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Student Directory</h3>
-              <p className="text-gray-500">Admitted students database will be displayed here.</p>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Student Directory</h3>
+                <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full">
+                  Total Admitted: {students.length}
+                </div>
+              </div>
+
+              {students.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaUsers className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No admitted students found in the database.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2">Name</th>
+                        <th className="pb-3">Class</th>
+                        <th className="pb-3">Gender</th>
+                        <th className="pb-3">Contact</th>
+                        <th className="pb-3">Admission Date</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {students.map(student => (
+                        <tr key={student._id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-4 px-2">
+                             <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs uppercase border border-blue-100">
+                                 {student.studentName?.charAt(0)}
+                               </div>
+                               <span className="font-bold text-gray-800">{student.studentName}</span>
+                             </div>
+                          </td>
+                          <td className="py-4"><span className="text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded uppercase tracking-tighter">{student.grade}</span></td>
+                          <td className="py-4 text-sm text-gray-600 capitalize">{student.gender}</td>
+                          <td className="py-4 font-mono text-gray-500 text-xs">{student.contactNumber}</td>
+                          <td className="py-4 text-xs text-gray-400">{new Date(student.createdAt).toLocaleDateString()}</td>
+                          <td className="py-4 text-right">
+                             <button 
+                               onClick={async () => {
+                                 if(window.confirm(`Remove ${student.studentName} from student directory?`)) {
+                                   try {
+                                      const token = localStorage.getItem('adminToken');
+                                      const res = await axios.delete(`${API_URL}/students/${student._id}`, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      if(res.data.message) {
+                                        setStudents(students.filter(s => s._id !== student._id));
+                                        alert("Student removed successfully.");
+                                      }
+                                   } catch(err) {
+                                     alert("Failed to delete student: " + err.message);
+                                   }
+                                 }
+                               }} 
+                               className="text-red-400 hover:text-red-600 transition-colors inline-flex items-center"
+                             >
+                               <FaTrash size={12} />
+                             </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </main>

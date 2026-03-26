@@ -7,6 +7,8 @@ export default function HighlightsSection() {
   const { highlights } = useContext(SiteDataContext);
   const [selectedHighlight, setSelectedHighlight] = useState(null);
 
+  if (!highlights || highlights.length === 0) return null;
+
   return (
     <section className="py-2">
       <div className="flex justify-between items-end mb-10 px-4 md:px-0">
@@ -24,7 +26,7 @@ export default function HighlightsSection() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {highlights.map((item, index) => (
           <motion.div
-            key={item.id}
+            key={item._id}
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
@@ -125,7 +127,7 @@ export default function HighlightsSection() {
                 <div className="mt-12 flex justify-between items-center gap-4">
                   <div className="flex -space-x-3 overflow-hidden">
                     {[1, 2, 3].map((i) => (
-                        <img key={i} className="inline-block h-10 w-10 rounded-full ring-4 ring-white" src={`https://i.pravatar.cc/100?u=${selectedHighlight.id}${i}`} alt="" />
+                        <img key={i} className="inline-block h-10 w-10 rounded-full ring-4 ring-white" src={`https://i.pravatar.cc/100?u=${selectedHighlight._id}${i}`} alt="" />
                     ))}
                     <div className="flex items-center justify-center h-10 w-10 rounded-full bg-slate-100 ring-4 ring-white text-xs font-bold text-slate-500">+12</div>
                   </div>

@@ -72,6 +72,15 @@ export default {
         "body": ["Outfit", "sans-serif"],
         "label": ["Outfit", "sans-serif"]
       },
+      keyframes: {
+        marquee: {
+          '0%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(-50%)' }, // Assuming content is duped to 200% width
+        }
+      },
+      animation: {
+        marquee: 'marquee 80s linear infinite',
+      },
       borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
     },
   },

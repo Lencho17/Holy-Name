@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner } from 'react-icons/fa';
 import { SiteDataContext } from '../context/SiteDataContext';
 
 function AdminPage() {
@@ -9,7 +9,7 @@ function AdminPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, updateSiteContent, uploadImage, uploadEventPhotos, API_URL } = useContext(SiteDataContext);
+  const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, updateSiteContent, uploadImage, uploadEventPhotos, API_URL } = useContext(SiteDataContext);
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
@@ -242,7 +242,7 @@ function AdminPage() {
   const approvedApps = filteredApps.filter(a => a.status === 'accepted').length;
   const pendingApps = filteredApps.filter(a => a.status === 'pending').length;
 
-  const stats = [
+  const dashboardStats = [
     { label: 'Total Applications', value: totalApps.toString(), icon: <FaClipboardList className="text-primary" />, bg: 'bg-primary/10' },
     { label: 'Approved', value: approvedApps.toString(), icon: <FaCheckCircle className="text-green-500" />, bg: 'bg-green-50' },
     { label: 'Pending Review', value: pendingApps.toString(), icon: <FaChartLine className="text-tertiary" />, bg: 'bg-tertiary/10' },
@@ -499,7 +499,6 @@ function AdminPage() {
 
   // --- Events Tab ---
   const [newEvent, setNewEvent] = useState({ title: '', date: '', image: '', description: '', galleryImages: [] });
-  const [eventCoverFile, setEventCoverFile] = useState(null);
   const [eventGalleryFiles, setEventGalleryFiles] = useState([]);
   const [isEventUploading, setIsEventUploading] = useState(false);
   const handleAddEvent = async () => {
@@ -518,13 +517,18 @@ function AdminPage() {
     setIsEventUploading(true);
     try {
       const filesToUpload = eventGalleryFiles.slice(0, 10);
+      const coverFile = filesToUpload.length > 0 ? filesToUpload[0] : null;
+      const galleryFilesToUpload = filesToUpload.length > 1 ? filesToUpload.slice(1) : [];
       
       // 1. Upload photos first
-      const response = await uploadEventPhotos(eventCoverFile, filesToUpload, newEvent.title);
+      const response = await uploadEventPhotos(coverFile, galleryFilesToUpload, newEvent.title);
       
       if (response) {
         const coverUrl = response.cover?.url || newEvent.image;
         const galleryPhotoUrls = response.gallery ? response.gallery.map(img => img.url) : [];
+        if (coverUrl && filesToUpload.length > 0) {
+          galleryPhotoUrls.unshift(coverUrl);
+        }
         const eventIdForLinking = Date.now();
         
         // 2. Create the event object
@@ -556,7 +560,6 @@ function AdminPage() {
         
         // Reset form
         setNewEvent({ title: '', date: '', image: '', description: '', galleryImages: [] });
-        setEventCoverFile(null);
         setEventGalleryFiles([]);
       }
     } catch (err) {
@@ -626,18 +629,8 @@ function AdminPage() {
       <h3 className="text-xl font-bold text-gray-800 mb-4">Manage School Events</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
         <input type="text" placeholder="Event Title" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} className="p-2 border rounded-lg" />
-        <input type="text" placeholder="Date (e.g. Sept 5, 2025)" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} className="p-2 border rounded-lg" />
-        <div className="p-2 border rounded-lg bg-white flex flex-col md:col-span-2">
-          <label className="text-gray-400 text-sm mb-1">Cover Image:</label>
-          <input 
-            type="file" 
-            accept="image/*"
-            onChange={e => setEventCoverFile(e.target.files[0])} 
-            className="w-full text-sm p-1 border rounded" 
-          />
-        </div>
-        <div className="p-2 border rounded-lg bg-white flex flex-col md:col-span-2">
-          <label className="text-gray-400 text-sm mb-1">Additional Gallery Photos (Max 10):</label>
+        <input type="text" placeholder="Date (e.g. Sept 5, 2025)" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} className="p-2 border rounded-lg" />        <div className="p-2 border rounded-lg bg-white flex flex-col md:col-span-2">
+          <label className="text-gray-400 text-sm mb-1">Event Images (Max 10, First is Cover):</label>
           <input 
             type="file" 
             multiple
@@ -651,8 +644,11 @@ function AdminPage() {
                 setEventGalleryFiles(files);
               }
             }}
-            className="w-full text-sm p-1 border rounded" 
+            className="w-full text-sm p-1 border rounded cursor-pointer" 
           />
+          {eventGalleryFiles.length > 0 && (
+            <p className="text-blue-600 text-xs mt-1 font-medium">{eventGalleryFiles.length} file(s) selected. The first image will be used as the cover.</p>
+          )}
           {eventGalleryFiles.length > 10 && (
             <p className="text-red-500 text-xs mt-1">Warning: Only the first 10 photos will be uploaded.</p>
           )}
@@ -1612,7 +1608,7 @@ function AdminPage() {
   const renderDashboard = () => (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-        {stats.map((stat, idx) => (
+        {dashboardStats.map((stat, idx) => (
           <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium mb-1">{stat.label}</p>
@@ -1685,6 +1681,188 @@ function AdminPage() {
     </>
   );
 
+  // --- Stats Tab ---
+  const [newStat, setNewStat] = useState({ label: '', value: '', totalCandidates: '', passedCandidates: '' });
+  const [editingStatId, setEditingStatId] = useState(null);
+
+  const renderStatsTab = () => {
+
+    const handleAddStat = async (e) => {
+      e.preventDefault();
+      try {
+        let finalValue = newStat.value;
+        if (newStat.label.trim().toLowerCase() === 'pass result') {
+          const total = parseInt(newStat.totalCandidates);
+          const passed = parseInt(newStat.passedCandidates);
+          if (total > 0 && passed >= 0) {
+            finalValue = Math.round((passed / total) * 100) + '%';
+          }
+        }
+        
+        const currentStats = stats || [];
+        const newStatItem = { 
+          id: editingStatId || Date.now().toString(), 
+          label: newStat.label, 
+          value: finalValue 
+        };
+        
+        let updatedStats;
+        if (editingStatId) {
+          updatedStats = currentStats.map(stat => stat.id === editingStatId ? newStatItem : stat);
+        } else {
+          updatedStats = [...currentStats, newStatItem];
+        }
+        
+        await updateSiteContent({ stats: updatedStats });
+        setStats(updatedStats);
+        setNewStat({ label: '', value: '', totalCandidates: '', passedCandidates: '' });
+        setEditingStatId(null);
+      } catch (error) {
+        console.error("Error saving stat:", error);
+      }
+    };
+
+    const handleDeleteStat = async (id) => {
+      try {
+        const updatedStats = (stats || []).filter(s => s.id !== id);
+        await updateSiteContent({ stats: updatedStats });
+        setStats(updatedStats);
+      } catch (error) {
+        console.error("Error deleting stat:", error);
+      }
+    };
+
+    const isPassResult = newStat.label.trim().toLowerCase() === 'pass result';
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-fade-in">
+        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+          <div className="p-2 bg-primary/10 text-primary rounded-lg"><FaChartLine /></div>
+          Manage Home Stats
+        </h3>
+        
+        <form onSubmit={handleAddStat} className="bg-gray-50/50 p-6 rounded-xl border border-gray-100 mb-8 relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-1 h-full bg-tertiary/50 group-focus-within:bg-tertiary transition-colors" />
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-semibold text-gray-700 text-sm uppercase tracking-wider">{editingStatId ? 'Edit Stat' : 'Add New Stat'}</h4>
+            {editingStatId && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  setEditingStatId(null);
+                  setNewStat({ label: '', value: '', totalCandidates: '', passedCandidates: '' });
+                }}
+                className="text-xs text-gray-500 hover:text-red-500 transition-colors"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input 
+              type="text" 
+              placeholder="Stat Label (e.g., 'Awards Won', 'Pass Result')" 
+              value={newStat.label}
+              onChange={(e) => setNewStat({...newStat, label: e.target.value})}
+              className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tertiary focus:border-tertiary outline-none transition-shadow bg-white"
+              required
+            />
+            {isPassResult ? (
+              <div className="grid grid-cols-2 gap-2">
+                <input 
+                  type="number" 
+                  placeholder="Total Candidates" 
+                  value={newStat.totalCandidates}
+                  onChange={(e) => setNewStat({...newStat, totalCandidates: e.target.value})}
+                  className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tertiary outline-none bg-white"
+                  required
+                />
+                <input 
+                  type="number" 
+                  placeholder="Passed" 
+                  value={newStat.passedCandidates}
+                  onChange={(e) => setNewStat({...newStat, passedCandidates: e.target.value})}
+                  className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tertiary outline-none bg-white"
+                  required
+                />
+              </div>
+            ) : (
+              <input 
+                type="text" 
+                placeholder="Stat Value (e.g., '15+', '2.5k+')" 
+                value={newStat.value}
+                onChange={(e) => setNewStat({...newStat, value: e.target.value})}
+                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tertiary outline-none bg-white"
+                required
+              />
+            )}
+            <button 
+              type="submit"
+              className="md:col-span-2 bg-gradient-to-r from-primary to-primary-fixed hover:-translate-y-0.5 transition-transform text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center shadow-md hover:shadow-lg"
+            >
+              <FaPlus className="mr-2" /> {editingStatId ? 'Update Stat' : (isPassResult ? 'Calculate & Add Stat' : 'Add Stat')}
+            </button>
+          </div>
+          {isPassResult && (
+            <p className="md:col-span-2 text-xs text-tertiary font-medium mt-3 bg-tertiary/10 p-2 rounded block">
+              💡 The Pass Result percentage will be automatically calculated based on these numbers.
+            </p>
+          )}
+        </form>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {(stats || []).map((stat, index) => (
+             <div key={stat.id || index} className="group bg-white border border-gray-100 p-6 rounded-2xl hover:shadow-xl transition-all hover:-translate-y-1 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-primary to-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
+               <div className="font-bold text-3xl text-gray-800 mb-1">{stat.value}</div>
+               <div className="text-gray-500 font-medium uppercase tracking-wider text-xs">{stat.label}</div>
+               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                 <button 
+                  onClick={() => {
+                    setEditingStatId(stat.id);
+                    // Special handling to parse values if it's "Pass Result"
+                    let totalCands = '';
+                    let passedCands = '';
+                    if (stat.label.trim().toLowerCase() === 'pass result') {
+                       // We can't perfectly recover total/passed from a % string, 
+                       // but we set what we can, leaving them empty so admin re-enters or just edits the string 
+                       // Actually, we'll just populate the label and value. If they change it to non-Pass Result, value is used.
+                    }
+                    setNewStat({ 
+                      label: stat.label, 
+                      value: stat.value, 
+                      totalCandidates: totalCands, 
+                      passedCandidates: passedCands 
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors"
+                  title="Edit Stat"
+                 >
+                   <FaEdit size={14} />
+                 </button>
+                 <button 
+                  onClick={() => handleDeleteStat(stat.id)}
+                  className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                  title="Delete Stat"
+                 >
+                   <FaTrash size={14} />
+                 </button>
+               </div>
+             </div>
+          ))}
+          {(!stats || stats.length === 0) && (
+            <div className="col-span-full py-12 text-center border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 font-medium flex flex-col items-center">
+              <FaChartLine className="text-4xl mb-3 text-gray-300" />
+              <p>No stats added yet.</p>
+              <p className="text-sm mt-1">Add your first stat to display on the home page.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-surface flex font-sans relative overflow-x-hidden">
       {/* Sidebar Overlay for Mobile */}
@@ -1731,7 +1909,8 @@ function AdminPage() {
             { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher /> },
             { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList /> },
             { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap /> },
-            { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt /> }
+            { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt /> },
+            { id: 'stats', label: 'Home Stats', icon: <FaChartLine /> }
           ].map(item => (
             <button 
               key={item.id}
@@ -1823,6 +2002,7 @@ function AdminPage() {
           { activeTab === 'principal' && renderPrincipalTab() }
           { activeTab === 'alumni' && renderAlumniTab() }
           { activeTab === 'socialMedia' && renderSocialMediaTab() }
+          { activeTab === 'stats' && renderStatsTab() }
           {activeTab === 'admins' && adminUser?.role === 'superadmin' && renderAdminsTab()}
           {activeTab === 'settings' && adminUser?.role === 'superadmin' && renderSettingsTab()}
           {activeTab === 'applications' && (

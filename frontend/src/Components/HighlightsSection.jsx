@@ -6,8 +6,12 @@ import { SiteDataContext } from '../context/SiteDataContext';
 export default function HighlightsSection() {
   const { highlights } = useContext(SiteDataContext);
   const [selectedHighlight, setSelectedHighlight] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
   if (!highlights || highlights.length === 0) return null;
+
+  const sortedHighlights = [...highlights].reverse();
+  const displayedHighlights = showAll ? sortedHighlights : sortedHighlights.slice(0, 3);
 
   return (
     <section className="py-2">
@@ -18,13 +22,18 @@ export default function HighlightsSection() {
             School Highlights
           </h3>
         </div>
-        <button className="hidden md:flex items-center gap-2 text-secondary font-bold hover:text-primary transition-colors">
-          View All <span className="material-symbols-outlined">arrow_forward</span>
-        </button>
+        {highlights.length > 3 && (
+          <button 
+            onClick={() => setShowAll(!showAll)}
+            className="hidden md:flex items-center gap-2 text-secondary font-bold hover:text-primary transition-colors"
+          >
+            {showAll ? 'View Less' : 'View All'} <span className="material-symbols-outlined">{showAll ? 'arrow_upward' : 'arrow_forward'}</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {highlights.map((item, index) => (
+        {displayedHighlights.map((item, index) => (
           <motion.div
             key={item._id}
             initial={{ opacity: 0, y: 30 }}
@@ -63,9 +72,14 @@ export default function HighlightsSection() {
         ))}
       </div>
       
-      <button className="md:hidden mt-8 w-full py-4 rounded-xl bg-surface-container border border-outline-variant text-primary font-bold flex justify-center items-center gap-2">
-        View All Highlights <span className="material-symbols-outlined">arrow_forward</span>
-      </button>
+      {highlights.length > 3 && (
+        <button 
+          onClick={() => setShowAll(!showAll)}
+          className="md:hidden mt-8 w-full py-4 rounded-xl bg-surface-container border border-outline-variant text-primary font-bold flex justify-center items-center gap-2"
+        >
+          {showAll ? 'View Less Highlights' : 'View All Highlights'} <span className="material-symbols-outlined">{showAll ? 'arrow_upward' : 'arrow_forward'}</span>
+        </button>
+      )}
 
       {/* Highlights Modal */}
       <AnimatePresence>

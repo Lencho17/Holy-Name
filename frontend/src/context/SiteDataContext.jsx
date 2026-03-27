@@ -80,7 +80,7 @@ export const SiteDataProvider = ({ children }) => {
         if (data.banner !== undefined) setBanner(data.banner);
         if (data.socialLinks && typeof data.socialLinks === 'object') setSocialLinks(data.socialLinks);
         if (Array.isArray(data.alumni)) setAlumni(data.alumni);
-        if (Array.isArray(data.stats) && data.stats.length > 0) setStats(data.stats);
+        if (Array.isArray(data.stats)) setStats(data.stats);
       } catch (error) {
         console.warn('Backend polling error or using local defaults:', error.message);
       } finally {
@@ -142,6 +142,7 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.banner) setBanner(updatedData.banner);
       if (updatedData.socialLinks) setSocialLinks(updatedData.socialLinks);
       if (updatedData.alumni) setAlumni(updatedData.alumni);
+      if (updatedData.stats) setStats(updatedData.stats);
 
       // console.log("Auto-save successful");
     } catch (err) {
@@ -165,6 +166,7 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.banner !== undefined) setBanner(updates.banner);
     if (updates.socialLinks !== undefined) setSocialLinks(updates.socialLinks);
     if (updates.alumni !== undefined) setAlumni(updates.alumni);
+    if (updates.stats !== undefined) setStats(updates.stats);
 
     // 2. Persist to backend in ONE request
     saveToBackend(updates);
@@ -233,6 +235,7 @@ export const SiteDataProvider = ({ children }) => {
   const wrapSetBanner = (val) => { setBanner(val); saveToBackend({ banner: val }); };
   const wrapSetSocialLinks = (val) => { setSocialLinks(val); saveToBackend({ socialLinks: val }); };
   const wrapSetAlumni = (val) => { setAlumni(val); saveToBackend({ alumni: val }); };
+  const wrapSetStats = (val) => { setStats(val); saveToBackend({ stats: val }); };
 
   return (
     <SiteDataContext.Provider value={{
@@ -248,6 +251,7 @@ export const SiteDataProvider = ({ children }) => {
       banner, setBanner: wrapSetBanner,
       socialLinks, setSocialLinks: wrapSetSocialLinks,
       alumni, setAlumni: wrapSetAlumni,
+      stats, setStats: wrapSetStats,
       updateSiteContent,
       uploadImage,
       uploadEventPhotos,

@@ -14,29 +14,12 @@ import {
   FaDesktop,
 } from "react-icons/fa";
 
-// Details component
-const Details = ({ details }) => {
-  const detailsStyle = {
-    position: "absolute",
-    top: "60px",
-    left: "0",
-    width: "200px",
-    background: "#fff",
-    border: "1px solid #ccc",
-    padding: "10px",
-    boxShadow: "0px 0px 10px rgba(0,0,0,0.1)",
-    zIndex: "1"
-  };
-
-  return <div style={detailsStyle}>{details}</div>;
-};
-
 const icons = [
   { title: "Clean / holistic",
     details: "Clean & holistic environment", 
     icon: FaLeaf },
   { title: "Co-ciricul",
-    details: "Supplementry co-curricular activities", 
+    details: "Supplementary co-curricular activities", 
     icon: FaBook },
   { title: "Dedicated teacher", 
     details: "Supportive teachers and staff", 
@@ -54,7 +37,7 @@ const icons = [
     details: "Parking space for HS Students", 
     icon: FaParking },
   { title: "Canteen", 
-    details: "Hygenic school canteen", 
+    details: "Hygienic school canteen", 
     icon: FaUtensils },
   { title: "Hostel", 
     details: "Hostel facility for girls", 
@@ -73,48 +56,30 @@ const icons = [
 const CircleIcon = ({ title, details, Icon }) => {
   const [hover, setHover] = useState(false);
 
-  const circleStyle = {
-    width: "60px",
-    height: "60px",
-    borderRadius: "50%",
-    background: "#ddd",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    textAlign: "center",
-    position: "relative",
-    margin: "5px",
-    fontSize: "1.5em",
-  };
-
-  const iconStyle = {
-    fontSize: "inherit",
-  };
-
   return (
     <div
-      style={circleStyle}
+      className="relative w-14 h-14 md:w-16 md:h-16 rounded-full bg-surface-container border border-outline-variant/30 text-on-surface-variant flex items-center justify-center cursor-pointer hover:bg-primary hover:text-on-primary hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-1 transition-all duration-300 group"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <Icon style={iconStyle} />
-      {hover && <Details details={details} />}
+      <Icon className="text-xl md:text-2xl" />
+      
+      {/* Tooltip */}
+      <div 
+        className={`absolute top-full mt-4 left-1/2 -translate-x-1/2 w-max max-w-[220px] bg-white text-slate-800 font-medium text-sm leading-snug text-center px-4 py-3 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 z-50 pointer-events-none transition-all duration-300 ${
+          hover ? "opacity-100 translate-y-0 scale-100" : "opacity-0 -translate-y-2 scale-95"
+        }`}
+      >
+        {details}
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-t border-l border-slate-100 rotate-45 rounded-tl-sm"></div>
+      </div>
     </div>
   );
 };
 
 const Items = () => {
-  const containerStyle = {
-    display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: "10px",
-    padding: "10px",
-  };
-
   return (
-    <div style={containerStyle}>
+    <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 py-8 px-4 max-w-7xl mx-auto">
       {icons.map((icon, index) => (
         <CircleIcon key={index} title={icon.title} details={icon.details} Icon={icon.icon} />
       ))}

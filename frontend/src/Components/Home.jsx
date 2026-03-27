@@ -10,7 +10,7 @@ import { FaWhatsapp, FaInstagram, FaFacebook, FaYoutube } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Home() {
-  const { videos } = useContext(SiteDataContext);
+  const { videos, stats } = useContext(SiteDataContext);
   const [currentIndex, setCurrentIndex] = useState(0);
   const images = [
     "/Pictures/1.JPG",
@@ -144,48 +144,33 @@ function Home() {
         </section>
 
         {/* Stats Section */}
-        <section className="py-16 bg-white">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8"
-          >
-            <div className="text-center space-y-2 p-8 rounded-3xl bg-surface-container-low border border-outline-variant/30 hover:bg-white hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
-              <div className="text-4xl font-black text-primary academic-serif">
-                2.5k+
-              </div>
-              <div className="text-[10px] font-bold text-secondary uppercase tracking-[0.2em]">
-                Students Enrolled
-              </div>
-            </div>
-            <div className="text-center space-y-2 p-8 rounded-3xl bg-surface-container-low border border-outline-variant/30 hover:bg-white hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
-              <div className="text-4xl font-black text-primary academic-serif">
-                150+
-              </div>
-              <div className="text-[10px] font-bold text-secondary uppercase tracking-[0.2em]">
-                Expert Faculty
-              </div>
-            </div>
-            <div className="text-center space-y-2 p-8 rounded-3xl bg-surface-container-low border border-outline-variant/30 hover:bg-white hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
-              <div className="text-4xl font-black text-primary academic-serif">
-                40+
-              </div>
-              <div className="text-[10px] font-bold text-secondary uppercase tracking-[0.2em]">
-                Laboratories
-              </div>
-            </div>
-            <div className="text-center space-y-2 p-8 rounded-3xl bg-surface-container-low border border-outline-variant/30 hover:bg-white hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
-              <div className="text-4xl font-black text-primary academic-serif">
-                100%
-              </div>
-              <div className="text-[10px] font-bold text-secondary uppercase tracking-[0.2em]">
-                Pass Result
-              </div>
-            </div>
-          </motion.div>
-        </section>
+        {stats && stats.length > 0 && (
+          <section className="py-16 bg-white">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className={`max-w-7xl mx-auto px-6 grid grid-cols-2 gap-8 ${
+                stats.length === 1 ? 'md:grid-cols-1 max-w-sm' :
+                stats.length === 2 ? 'md:grid-cols-2 max-w-screen-md' :
+                stats.length === 3 ? 'md:grid-cols-3 max-w-screen-lg' :
+                'md:grid-cols-4'
+              }`}
+            >
+              {stats.map((stat, idx) => (
+                <div key={stat.id || idx} className="text-center space-y-2 p-8 rounded-3xl bg-surface-container-low border border-outline-variant/30 hover:bg-white hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
+                  <div className="text-4xl font-black text-primary academic-serif">
+                    {stat.value}
+                  </div>
+                  <div className="text-[10px] font-bold text-secondary uppercase tracking-[0.2em]">
+                    {stat.label}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </section>
+        )}
 
         {/* Values Section */}
         <section className="w-full py-16 my-10 bg-gradient-to-b from-[#dfc8ff] to-[#f8f5ff] relative">
@@ -248,7 +233,7 @@ function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.7 }}
-              className="bg-primary-container text-on-primary rounded-3xl p-8 md:p-12 overflow-hidden shadow-2xl"
+              className="bg-blue-50 border border-blue-100 text-slate-800 rounded-3xl p-8 md:p-12 overflow-hidden shadow-xl"
             >
               <VideoBlogSection />
             </motion.section>

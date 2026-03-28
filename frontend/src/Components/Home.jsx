@@ -10,9 +10,10 @@ import { FaWhatsapp, FaInstagram, FaFacebook, FaYoutube } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Home() {
-  const { videos, stats } = useContext(SiteDataContext);
+  const { videos, stats, schoolProfile } = useContext(SiteDataContext);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const images = [
+  
+  const defaultImages = [
     "/Pictures/1.JPG",
     "/Pictures/2.JPG",
     "/Pictures/3.JPG",
@@ -20,6 +21,7 @@ function Home() {
     "/Pictures/5.JPG",
     "/Pictures/6.JPG",
   ];
+  const images = schoolProfile?.heroImages?.length > 0 ? schoolProfile.heroImages : defaultImages;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -64,7 +66,7 @@ function Home() {
                   Established 1986
                 </span>
               </div>
-              <h2 className="font-['Prata'] text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter">
+              <h2 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter">
                 Nurturing the{" "}
                 <span className="text-secondary drop-shadow-md italic">
                   Leaders
@@ -72,7 +74,7 @@ function Home() {
                 of Tomorrow.
               </h2>
               <p className="text-primary-fixed text-base md:text-lg max-w-xl font-medium leading-relaxed">
-                Holy Name Higher Secondary School offers a transformative
+                {schoolProfile?.name || "Holy Name School"} offers a transformative
                 academic journey that bridges traditional values with futuristic
                 learning architectures.
               </p>
@@ -145,13 +147,13 @@ function Home() {
 
         {/* Stats Section */}
         {stats && stats.length > 0 && (
-          <section className="py-16 bg-white">
+          <section className="py-8 bg-white">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className={`max-w-7xl mx-auto px-6 grid grid-cols-2 gap-8 ${
+              className={`max-w-7xl mx-auto px-6 grid grid-cols-2 gap-4 ${
                 stats.length === 1 ? 'md:grid-cols-1 max-w-sm' :
                 stats.length === 2 ? 'md:grid-cols-2 max-w-screen-md' :
                 stats.length === 3 ? 'md:grid-cols-3 max-w-screen-lg' :
@@ -159,11 +161,11 @@ function Home() {
               }`}
             >
               {stats.map((stat, idx) => (
-                <div key={stat.id || idx} className="text-center space-y-2 p-8 rounded-3xl bg-surface-container-low border border-outline-variant/30 hover:bg-white hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
-                  <div className="text-4xl font-black text-primary academic-serif">
+                <div key={stat.id || idx} className="text-center space-y-1 p-4 rounded-[1.5rem] bg-surface-container-low border border-outline-variant/30 hover:bg-white hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
+                  <div className="text-3xl md:text-4xl font-black text-primary academic-serif">
                     {stat.value}
                   </div>
-                  <div className="text-[10px] font-bold text-secondary uppercase tracking-[0.2em]">
+                  <div className="text-[11px] font-bold text-secondary uppercase tracking-[0.15em]">
                     {stat.label}
                   </div>
                 </div>
@@ -173,20 +175,20 @@ function Home() {
         )}
 
         {/* Values Section */}
-        <section className="w-full py-16 my-10 bg-gradient-to-b from-[#dfc8ff] to-[#f8f5ff] relative">
+        <section className="w-full py-8 my-4 bg-gradient-to-b from-primary/10 to-primary/5 relative">
           <div className="max-w-7xl mx-auto px-4 md:px-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-2xl shadow-purple-900/10 rounded-3xl p-12 md:p-20 text-center relative overflow-hidden"
+              className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-2xl shadow-primary/10 rounded-3xl p-12 md:p-20 text-center relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-primary-container"></div>
-              <span className="material-symbols-outlined text-purple-900/5 text-9xl absolute -bottom-10 -right-10 pointer-events-none">
+              <span className="material-symbols-outlined text-primary/5 text-9xl absolute -bottom-10 -right-10 pointer-events-none">
                 school
               </span>
-              <h3 className="font-['Prata'] text-3xl md:text-5xl font-black mb-6 text-slate-800">
+              <h3 className="font-serif text-3xl md:text-5xl font-black mb-6 text-slate-800">
                 Why Holy Name?
               </h3>
               <p className="text-lg md:text-2xl text-slate-700 leading-relaxed max-w-4xl mx-auto font-medium">
@@ -202,7 +204,7 @@ function Home() {
         <AlumniSection />
 
         {/* Existing Component Grid */}
-        <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-20 py-10">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-10 py-6">
           <HighlightsSection />
 
           <motion.section

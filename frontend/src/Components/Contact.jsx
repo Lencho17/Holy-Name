@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useContext, useState } from "react";
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaClock, FaGlobe } from "react-icons/fa";
+import { SiteDataContext } from "../context/SiteDataContext";
 
 function Contact() {
+  const { schoolProfile } = useContext(SiteDataContext);
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
       {/* Hero Section */}
@@ -27,25 +29,23 @@ function Contact() {
             <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-amber-500 transition-colors">
               <FaMapMarkerAlt className="text-2xl text-amber-500 group-hover:text-white transition-colors" />
             </div>
-            <h3 className="text-xl font-bold text-[#4C1A57] mb-3">Our Campus</h3>
-            <p className="text-gray-600">
-              Holy Name Higher Secondary School<br />
-              Cherekapar, Nazira Ali Rd, Hatimuria<br />
-              Dist: Sivasagar, Assam - 785697
+            <h3 className="text-xl font-bold text-primary mb-3">Our Campus</h3>
+            <p className="text-gray-600 whitespace-pre-line">
+              {schoolProfile?.officeAddress || `${schoolProfile?.name || "Holy Name School"}\nCherekapar, Nazira Ali Rd, Hatimuria\nDist: Sivasagar, Assam - 785697`}
             </p>
           </div>
 
           {/* Card 2: Phone */}
           <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 flex flex-col items-center text-center group hover:-translate-y-2 transition-all duration-300">
-            <div className="w-16 h-16 bg-[#F3E8F5] rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#4C1A57] transition-colors">
-              <FaPhoneAlt className="text-2xl text-[#4C1A57] group-hover:text-white transition-colors" />
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-primary transition-colors">
+              <FaPhoneAlt className="text-2xl text-primary group-hover:text-white transition-colors" />
             </div>
-            <h3 className="text-xl font-bold text-[#4C1A57] mb-3">Phone Line</h3>
+            <h3 className="text-xl font-bold text-primary mb-3">Phone Line</h3>
             <p className="text-gray-600 mb-4">
               We're available during office hours to answer your calls.
             </p>
-            <a href="tel:6901055733" className="text-xl font-bold text-amber-600 hover:text-amber-500 transition-colors">
-              +91 6901055733
+            <a href={`tel:${schoolProfile?.phone || "6901055733"}`} className="text-xl font-bold text-amber-600 hover:text-amber-500 transition-colors">
+              +91 {schoolProfile?.phone || "6901055733"}
             </a>
           </div>
 
@@ -54,12 +54,12 @@ function Contact() {
             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-500 transition-colors">
               <FaEnvelope className="text-2xl text-blue-500 group-hover:text-white transition-colors" />
             </div>
-            <h3 className="text-xl font-bold text-[#4C1A57] mb-3">Email Support</h3>
+            <h3 className="text-xl font-bold text-primary mb-3">Email Support</h3>
             <p className="text-gray-600 mb-4">
               Send us an email and we'll respond as soon as possible.
             </p>
-            <a href="mailto:holynameschool@gmail.com" className="font-bold text-blue-600 hover:text-blue-500 transition-colors break-all">
-              holynameschool@gmail.com
+            <a href={`mailto:${schoolProfile?.email || "holynameschool@gmail.com"}`} className="font-bold text-blue-600 hover:text-blue-500 transition-colors break-all">
+              {schoolProfile?.email || "holynameschool@gmail.com"}
             </a>
           </div>
 
@@ -68,26 +68,41 @@ function Contact() {
             <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-green-500 transition-colors">
               <FaClock className="text-2xl text-green-500 group-hover:text-white transition-colors" />
             </div>
-            <h3 className="text-xl font-bold text-[#4C1A57] mb-3">Office Hours</h3>
+            <h3 className="text-xl font-bold text-primary mb-3">Office Hours</h3>
+            <p className="text-gray-600 mb-4">
+              Visit us or call us during our standard operating hours.
+            </p>
             <div className="text-gray-600 space-y-1">
-              <p className="font-medium text-gray-800">Mon - Sat</p>
-              <p>9:00 AM - 1:30 PM</p>
-              <div className="w-8 h-px bg-gray-200 mx-auto my-2"></div>
-              <p className="font-medium text-gray-800">Sunday & Holidays</p>
-              <p>Closed</p>
+              <p className="font-bold text-green-600 whitespace-pre-line text-lg">
+                {schoolProfile?.officeHours || "9:00 AM - 1:30 PM (Mon - Sat)\nSunday & Holidays: Closed"}
+              </p>
             </div>
           </div>
 
         </div>
 
-        {/* Map Placeholder */}
         <div className="mt-12 bg-white rounded-3xl shadow-xl border border-gray-100 p-4 h-[400px] overflow-hidden relative group">
-          <div className="absolute inset-0 bg-gray-200 flex flex-col items-center justify-center m-4 rounded-2xl border-2 border-dashed border-gray-400">
-              <FaMapMarkerAlt className="text-4xl text-gray-400 mb-4" />
-              <p className="text-gray-500 font-bold text-xl">Interactive Map Area</p>
-              <p className="text-gray-400 max-w-sm text-center mt-2">Embed Google Maps iframe here replacing this placeholder.</p>
-          </div>
+          {schoolProfile?.mapLink ? (
+            <iframe
+              src={schoolProfile.mapLink}
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen=""
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="rounded-2xl"
+              title="School Location Map"
+            ></iframe>
+          ) : (
+            <div className="absolute inset-0 bg-gray-200 flex flex-col items-center justify-center m-4 rounded-2xl border-2 border-dashed border-gray-400">
+                <FaMapMarkerAlt className="text-4xl text-gray-400 mb-4" />
+                <p className="text-gray-500 font-bold text-xl">Interactive Map Area</p>
+                <p className="text-gray-400 max-w-sm text-center mt-2">Map will be updated soon.</p>
+            </div>
+          )}
         </div>
+
 
       </div>
     </div>

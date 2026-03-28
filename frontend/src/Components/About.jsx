@@ -1,8 +1,10 @@
+import React, { useContext } from 'react';
+import { SiteDataContext } from '../context/SiteDataContext';
+
 const About = () => {
-  const headMistress = {
-    src: "https://via.placeholder.com/600x400?text=Head+Mistress+Photo",
-    alt: "Head Mistress Photo",
-  };
+  const { visionStatement, aimsAndObjectives, headMistress, schoolProfile } = useContext(SiteDataContext);
+  
+  const headMistressPhoto = headMistress?.photo || "/Pictures/assets/head_mistress_photo.png";
   return (
     <div className="bg-surface min-h-screen py-16 px-4 md:px-8">
       <div className="max-w-7xl mx-auto">
@@ -93,7 +95,7 @@ const About = () => {
             </div>
 
             {/* Section 4 */}
-            <div className="p-8 bg-surface-container-high rounded-3xl border border-secondary/20 shadow-inner">
+            <div className="">
                <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
                   <img
@@ -156,7 +158,7 @@ const About = () => {
             </div>
 
             {/* Section 6 */}
-            <div className="p-8 bg-surface-container-high rounded-3xl border border-secondary/20 shadow-inner">
+            <div className="">
                <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
                   <img
@@ -229,7 +231,7 @@ const About = () => {
              </div>
 
              {/* Section 9 */}
-             <div className="p-8 bg-surface-container-highest rounded-3xl shadow-xl relative overflow-hidden">
+             <div className="relative overflow-hidden">
                <div className="absolute -right-10 -top-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
                <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
                 <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
@@ -252,7 +254,7 @@ const About = () => {
                   </p>
                   <p className="font-bold text-primary">
                     Fr. Hemanta has also introduced NCC & Scouts and Guides for the
-                    first time in Holy Name School and still counting...
+                    first time in {schoolProfile?.name || "Holy Name School"} and still counting...
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <img src="/Pictures/about/Chemistry Lab (1).jpg" className="w-full h-24 object-cover rounded-xl shadow-md border hover:scale-110 transition" />
@@ -285,36 +287,22 @@ const About = () => {
         {/* Info Grid - Aims & Objectives, Vision */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          <div className="bg-surface-container-low rounded-3xl shadow-xl p-8 border border-outline-variant/30 hover:-translate-y-2 transition duration-500">
+          <div className="p-8 hover:-translate-y-2 transition duration-500">
             <h2 className="text-3xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
               <span className="material-symbols-outlined text-secondary text-4xl">flag</span>
               Aims & Objectives
             </h2>
             <div className="space-y-6 text-on-surface-variant font-medium">
-              <div>
-                <h4 className="text-xl font-bold text-primary mb-2">Our Aim</h4>
-                <p>To provide a nurturing and inclusive environment that fosters the
-                intellectual, social, emotional, and physical development of
-                each student, empowering them to become responsible citizens.</p>
-              </div>
-              <div className="w-full h-px bg-outline-variant"></div>
-              <div>
-                <h4 className="text-xl font-bold text-primary mb-2">Academic Excellence</h4>
-                <p>To offer a rigorous and dynamic curriculum that
-                challenges students to achieve their highest potential.</p>
-              </div>
-              <div className="w-full h-px bg-outline-variant"></div>
-              <div>
-                <h4 className="text-xl font-bold text-primary mb-2">Character Development</h4>
-                <p>To instill values such as integrity, respect,
-                responsibility, and empathy.</p>
-              </div>
-              <div className="w-full h-px bg-outline-variant"></div>
-              <div>
-                 <h4 className="text-xl font-bold text-primary mb-2">Inclusivity & Diversity</h4>
-                 <p>To create an inclusive environment where all students
-                 feel valued and have equal opportunities to succeed.</p>
-              </div>
+              {(aimsAndObjectives || []).map((aim, index) => (
+                <div key={index}>
+                  {index > 0 && <div className="w-full h-px bg-outline-variant mb-6 mt-6"></div>}
+                  <h4 className="text-xl font-bold text-primary mb-2">{aim.title}</h4>
+                  <p className="whitespace-pre-line">{aim.description}</p>
+                </div>
+              ))}
+              {(!aimsAndObjectives || aimsAndObjectives.length === 0) && (
+                <p className="italic text-gray-400">Content updating soon...</p>
+              )}
             </div>
           </div>
 
@@ -324,41 +312,39 @@ const About = () => {
                 <span className="material-symbols-outlined text-secondary text-4xl">visibility</span>
                 Vision Statement
               </h2>
-              <p className="text-lg leading-relaxed text-white/90">
-                Our vision is to be a leading educational institution where
-                every student is empowered to reach their full potential,
-                equipped with the knowledge, skills, and values necessary to
-                thrive in a rapidly changing world. We aspire to create a
-                nurturing and inclusive environment that fosters a lifelong
-                love of learning.
+              <p className="text-lg leading-relaxed text-white/90 whitespace-pre-line">
+                {visionStatement}
               </p>
             </div>
 
-             <div className="bg-surface-container-low rounded-3xl shadow-xl p-8 border border-outline-variant/30 hover:-translate-y-2 transition duration-500">
+             <div className="p-8 hover:-translate-y-2 transition duration-500">
                 <h2 className="text-3xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
                   <span className="material-symbols-outlined text-secondary text-4xl">face_3</span>
                   Head Mistress
                 </h2>
                 <div className="flex flex-col sm:flex-row gap-6">
                   <img
-                    src={headMistress.src}
-                    alt={headMistress.alt}
-                    className="w-32 h-32 rounded-full shadow-lg object-cover border-4 border-white shrink-0"
+                    src={headMistressPhoto}
+                    alt="Head Mistress"
+                    className="w-32 h-32 rounded-full shadow-lg object-cover border-4 border-white shrink-0 bg-white"
                   />
                   <div className="text-on-surface-variant text-sm space-y-3 font-medium">
-                    <p className="font-bold text-primary">Dear Students, Parents, and Staff,</p>
-                    <p>
-                      Welcome to another exciting academic year at our school!
-                      Our commitment to providing a nurturing and inspiring
-                      environment remains unwavering.
-                    </p>
-                    <p>
-                      Let’s make this year a journey of growth,
-                      achievement, and joy.
-                    </p>
-                    <p className="font-bold text-primary pt-2 border-t border-outline-variant italic">
-                      Warm regards, [Sister Roselina Toppo]
-                    </p>
+                    <p className="font-bold text-primary">{headMistress?.greeting || ""}</p>
+                    <div className="whitespace-pre-line">
+                      {headMistress?.message || ""}
+                    </div>
+                    {headMistress?.signature && (
+                      <div className="flex flex-col items-start pt-4 border-t border-outline-variant mt-4">
+                        <img 
+                          src={headMistress.signature} 
+                          alt="Signature" 
+                          className="h-16 mb-2 opacity-70 mix-blend-multiply flex-shrink-0"
+                        />
+                         <p className="font-bold text-primary italic text-sm">
+                          Head Mistress
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

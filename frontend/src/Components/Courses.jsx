@@ -48,7 +48,7 @@ function Courses() {
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800">
       {/* Hero Section */}
-      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-r from-primary to-primary-container overflow-hidden">
+      <section className="relative w-full h-[35vh] min-h-[280px] flex items-center justify-center bg-gradient-to-r from-primary to-primary-container overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center px-4">
@@ -62,7 +62,7 @@ function Courses() {
       {/* School Levels Grid */}
       <section className="py-20 px-6 max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57] mb-4">Educational Wings</h2>
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-4">Educational Wings</h2>
           <div className="h-1 w-20 bg-amber-500 mx-auto rounded-full"></div>
           <p className="mt-6 text-gray-600 max-w-2xl mx-auto text-lg leading-relaxed">
             From early childhood setting the foundation to secondary education shaping future leaders, we provide a seamless educational journey.
@@ -72,12 +72,12 @@ function Courses() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {levels.map((level, index) => (
             <div key={index} className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#F3E8F5] rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
               <div className="relative z-10">
-                <div className="w-16 h-16 bg-[#4C1A57] rounded-xl flex items-center justify-center mb-6 shadow-md">
+                <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-6 shadow-md">
                   {level.icon}
                 </div>
-                <h3 className="text-2xl font-serif font-bold text-[#4C1A57] mb-3">{level.title}</h3>
+                <h3 className="text-2xl font-serif font-bold text-primary mb-3">{level.title}</h3>
                 <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors">
                   {level.desc}
                 </p>
@@ -92,7 +92,7 @@ function Courses() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between mb-12">
             <div className="md:w-1/2 mb-8 md:mb-0 pr-0 md:pr-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57] mb-4">Higher Secondary</h2>
+              <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-4">Higher Secondary</h2>
               <h3 className="text-xl text-amber-600 font-semibold mb-6">Grades XI & XII</h3>
               <p className="text-gray-600 text-lg leading-relaxed mb-6">
                 Our senior secondary curriculum provides specialized streams allowing students to focus on their passions and prepare meticulously for higher education and competitive examinations.
@@ -106,8 +106,8 @@ function Courses() {
                     onClick={() => setSelectedCategory(category)}
                     className={`px-6 py-2.5 rounded-full font-medium text-sm md:text-base transition-all duration-300 shadow-sm ${
                       selectedCategory === category
-                        ? "bg-[#4C1A57] text-white shadow-md transform scale-105"
-                        : "bg-white text-gray-600 hover:bg-white hover:text-[#4C1A57] hover:shadow-md border border-gray-200"
+                        ? "bg-primary text-white shadow-md transform scale-105"
+                        : "bg-white text-gray-600 hover:bg-white hover:text-primary hover:shadow-md border border-gray-200"
                     }`}
                   >
                     {category === "Science" && <FaAtom className="inline-block mr-2 -mt-1" />}
@@ -121,8 +121,8 @@ function Courses() {
 
             {/* Subject List Display */}
             <div className="md:w-1/2 w-full">
-              <div className="bg-white rounded-2xl shadow-lg p-8 md:p-10 border-t-4 border-[#4C1A57]">
-                <h3 className="text-2xl font-serif font-bold text-[#4C1A57] mb-6 flex items-center">
+              <div className="bg-white rounded-2xl shadow-lg p-8 md:p-10 border-t-4 border-primary">
+                <h3 className="text-2xl font-serif font-bold text-primary mb-6 flex items-center">
                   <span className="bg-amber-100 text-amber-700 p-2 rounded-lg mr-3">
                     {selectedCategory === "Science" && <FaAtom />}
                     {selectedCategory === "Commerce" && <FaBalanceScale />}
@@ -146,7 +146,7 @@ function Courses() {
 
       {/* Rules and Regulations */}
       <section className="py-20 px-6 max-w-5xl mx-auto">
-        <div className="bg-[#4C1A57] rounded-3xl p-8 md:p-14 shadow-2xl relative overflow-hidden text-white">
+        <div className="bg-primary rounded-3xl p-8 md:p-14 shadow-2xl relative overflow-hidden text-white">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20"></div>
           <div className="absolute bottom-0 left-0 w-40 h-40 bg-white opacity-5 rounded-full -ml-10 -mb-10"></div>
           

@@ -11,7 +11,7 @@ function Gallery() {
 
   const categories = ["All", "Campus Life", "Academic Events", "Sports", "Cultural Programs"];
 
-  const { gallery: galleryItems, events } = useContext(SiteDataContext);
+  const { gallery: galleryItems, events, schoolProfile } = useContext(SiteDataContext);
 
   // Check if we're filtering by a specific event
   const eventId = searchParams.get("event") || null;
@@ -96,9 +96,9 @@ function Gallery() {
   }, [eventId]);
 
   return (
-    <div className="bg-gradient-to-br from-[#1a1a2e] via-[#15152a] to-[#0d0d1a] min-h-screen font-sans text-gray-200 pb-20">
+    <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
       {/* Hero Section */}
-      <section className="relative w-full h-[40vh] min-h-[300px] flex items-center justify-center bg-gradient-to-br from-[#1e40af] to-[#1e3a8a] overflow-hidden">
+      <section className="relative w-full h-[35vh] min-h-[280px] flex items-center justify-center bg-gradient-to-r from-primary to-primary-container overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay transform scale-105 hover:scale-100 transition-transform duration-1000"></div>
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center px-4">
@@ -108,8 +108,8 @@ function Gallery() {
           </h1>
           <p className="text-lg md:text-xl text-white/90 max-w-3xl mx-auto font-light mb-8">
             {currentEvent
-              ? currentEvent.description || "Photos from this event at Holy Name School."
-              : "Glimpses of academic excellence, vibrant campus life, and memorable events at Holy Name School."}
+              ? currentEvent.description || `Photos from this event at ${schoolProfile?.name || "Holy Name School"}.`
+              : `Glimpses of academic excellence, vibrant campus life, and memorable events at ${schoolProfile?.name || "Holy Name School"}.`}
           </p>
         </div>
       </section>
@@ -120,7 +120,7 @@ function Gallery() {
         {eventId && (
           <button
             onClick={() => navigate("/gallery")}
-            className="mb-6 px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-bold rounded-xl transition-all duration-300 flex items-center gap-2 border border-amber-500/20"
+            className="mb-6 px-6 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl transition-all duration-300 flex items-center gap-2 border border-primary/20"
           >
             <FaArrowLeft /> Back to All Photos
           </button>
@@ -128,15 +128,15 @@ function Gallery() {
         
         {/* Filter Navigation — hidden when viewing event-specific gallery */}
         {!eventId && (
-          <div className="bg-slate-900 rounded-2xl shadow-xl p-2 mb-12 flex flex-wrap justify-center border border-slate-800">
+          <div className="bg-white rounded-2xl shadow-lg p-2 mb-12 flex flex-wrap justify-center border border-gray-100">
             {categories.map((category) => (
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
                 className={`px-6 py-3 m-1 rounded-xl text-sm font-bold transition-all duration-300 ${
                   activeCategory === category
-                    ? "bg-amber-500 text-[#1e3a8a] shadow-md transform scale-105"
-                    : "bg-transparent text-slate-400 hover:bg-slate-800 hover:text-amber-400"
+                    ? "bg-primary text-white shadow-md transform scale-105"
+                    : "bg-transparent text-gray-500 hover:bg-gray-50 hover:text-primary"
                 }`}
               >
                 {category}
@@ -154,19 +154,19 @@ function Gallery() {
               onClick={() => setSelectedImage(item)}
             >
               {/* Card Container */ }
-              <div className="relative overflow-hidden group cursor-pointer w-full aspect-[2/3] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl border border-amber-500/10 shadow-2xl transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0 hover:border-amber-500/40">
+              <div className="relative overflow-hidden group cursor-pointer w-full aspect-[2/3] bg-white rounded-xl border border-gray-200 shadow-lg transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0 hover:border-primary/40 hover:shadow-xl">
                 <img 
                   src={item.src} 
                   alt={item.title} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500"></div>
                 
                 <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end p-2 md:p-6 text-center z-20 transition-transform duration-500 translate-y-1 group-hover:translate-y-0">
                   <h3 className="text-white text-xs md:text-xl font-sans font-bold mb-1 shadow-black drop-shadow-2xl tracking-wide leading-tight px-1 line-clamp-2">
                     {item.title}
                   </h3>
-                  <p className="text-amber-400 text-[9px] md:text-sm font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
+                  <p className="text-amber-300 text-[9px] md:text-sm font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
                     {item.category}
                   </p>
                 </div>
@@ -176,11 +176,12 @@ function Gallery() {
         </div>
 
         {displayItems.length === 0 && (
-          <div className="text-center py-20 bg-slate-900 rounded-3xl shadow-sm border border-amber-900/10">
-            <FaImages className="text-6xl text-slate-700 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-slate-400">
+          <div className="text-center py-20 bg-white rounded-3xl shadow-lg border border-gray-100">
+            <FaImages className="text-6xl text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-500">
               {eventId ? "No photos found for this event yet." : "No images found in this category."}
             </h3>
+            <p className="text-gray-400 mt-2 text-sm">Please check back later for new photos.</p>
           </div>
         )}
       </div>
@@ -230,7 +231,7 @@ function Gallery() {
                     <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded uppercase tracking-wider border border-amber-500/20">{selectedImage.category}</span>
                     <h3 className="text-xl md:text-3xl font-serif font-bold text-white tracking-tight">{selectedImage.title}</h3>
                   </div>
-                  <p className="text-slate-400 text-sm md:text-base leading-relaxed">{selectedImage.description || "Captured moment at Holy Name School."}</p>
+                  <p className="text-slate-400 text-sm md:text-base leading-relaxed">{selectedImage.description || `Captured moment at ${schoolProfile?.name || "Holy Name School"}.`}</p>
                 </div>
 
                 <div className="flex items-center gap-6 bg-white/5 px-6 py-4 rounded-2xl border border-white/5 self-end md:self-center">

@@ -67,12 +67,40 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
+// GET /api/admissions/status — public, check application status
+router.get('/status', async (req, res) => {
+  try {
+    const { q } = req.query; // referenceNumber or email
+    if (!q) {
+      return res.status(400).json({ message: 'Query parameter required' });
+    }
+
+    const application = await Admission.findOne({
+      $or: [
+        { referenceNumber: q.toUpperCase() },
+        { email: q.toLowerCase() }
+      ]
+    }).select('studentName gradeApplied status createdAt referenceNumber');
+
+    if (!application) {
+      return res.status(404).json({ message: 'No application found with these details.' });
+    }
+
+    res.json(application);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // POST /api/admissions — public, submit an application
 router.post(
   '/',
   upload.fields([
     { name: 'transferCertificate', maxCount: 1 },
     { name: 'marksheet', maxCount: 1 },
+    { name: 'aadharVidOrReceipt', maxCount: 1 },
+    { name: 'studentPhoto', maxCount: 1 },
+    { name: 'birthCertificate', maxCount: 1 },
   ]),
   async (req, res) => {
     try {
@@ -85,6 +113,19 @@ router.post(
         if (req.files.marksheet) {
           data.marksheet = req.files.marksheet[0].path;
         }
+        if (req.files.aadharVidOrReceipt) {
+          data.aadharVidOrReceipt = req.files.aadharVidOrReceipt[0].path;
+        }
+        if (req.files.studentPhoto) {
+          data.studentPhoto = req.files.studentPhoto[0].path;
+        }
+        if (req.files.birthCertificate) {
+          data.birthCertificate = req.files.birthCertificate[0].path;
+        }
+      }
+
+      if (!data.fatherName && !data.motherName && !data.guardianName) {
+        return res.status(400).json({ message: 'At least one of Father, Mother, or Guardian name is required.' });
       }
 
       // Generate unique reference number

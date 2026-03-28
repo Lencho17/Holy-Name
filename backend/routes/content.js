@@ -45,6 +45,12 @@ router.put('/', protect, async (req, res) => {
     const safeUpdateData = {};
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {
+        // Emergency validation: reject any field containing "Hitler"
+        const contentStr = JSON.stringify(updateData[field]);
+        if (/hitler/gi.test(contentStr)) {
+          console.error(`[SECURITY] Blocked malicious update containing "Hitler" on field: ${field}`);
+          continue; // Skip this malicious field update
+        }
         safeUpdateData[field] = updateData[field];
       }
     }

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserPlus, FaUser, FaEnvelope, FaPhone, FaLock, FaExclamationCircle } from 'react-icons/fa';
+import { SiteDataContext } from '../context/SiteDataContext';
 
 function AdminSignUp() {
+  const { schoolProfile } = useContext(SiteDataContext);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [contact, setContact] = useState("");
@@ -56,7 +58,7 @@ function AdminSignUp() {
             <FaUserPlus className="text-4xl text-primary" />
           </div>
           <h1 className="text-3xl font-serif font-bold text-white mb-2">Create Admin Account</h1>
-          <p className="text-white/80 font-medium">Holy Name School Portal</p>
+          <p className="text-white/80 font-medium">{schoolProfile?.name || "Holy Name School"} Portal</p>
         </div>
 
         {/* Signup Card */}

@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText } from 'react-icons/fa';
 import { SiteDataContext } from '../context/SiteDataContext';
 
 function AdminPage() {
@@ -9,12 +9,13 @@ function AdminPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, updateSiteContent, uploadImage, uploadEventPhotos, API_URL } = useContext(SiteDataContext);
+  const { schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, updateSiteContent, uploadImage, uploadEventPhotos, API_URL } = useContext(SiteDataContext);
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
   const [admins, setAdmins] = useState([]);
   const [students, setStudents] = useState([]);
+  const [mapExtracted, setMapExtracted] = useState(false);
 
   useEffect(() => {
     const restoreSession = () => {
@@ -59,9 +60,11 @@ function AdminPage() {
     window.location.href = '/adminLogin';
   };
 
-  // --- Fetch real admission applications ---
+  // --- Fetch real admission applications && Inquiries ---
   const [applications, setApplications] = useState([]);
+  const [inquiries, setInquiries] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [inquirySearch, setInquirySearch] = useState('');
   const [selectedApp, setSelectedApp] = useState(null); // For "View" modal
 
   const fetchApps = async () => {
@@ -92,14 +95,48 @@ function AdminPage() {
     } catch (e) { console.warn('Could not fetch students'); }
   };
 
+  const fetchInquiries = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/inquiries`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) setInquiries(await res.json());
+    } catch (e) { console.warn('Could not fetch inquiries'); }
+  };
+
+  const handleInquiryReadToggle = async (inquiryId, currentStatus) => {
+    // Optimistic Update
+    const prevInquiries = [...inquiries];
+    setInquiries(inquiries.map(i => i._id === inquiryId ? { ...i, isRead: !currentStatus } : i));
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.patch(`${API_URL}/inquiries/${inquiryId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update with final state from server
+      if (res.data.inquiry) {
+        setInquiries(inquiries.map(i => i._id === inquiryId ? { ...i, isRead: res.data.inquiry.isRead } : i));
+      }
+    } catch (err) {
+      console.error("Failed to toggle read status:", err.message);
+      // Revert on failure
+      setInquiries(prevInquiries);
+      alert("Failed to update status. Please try again.");
+    }
+  };
+
   useEffect(() => {
     fetchApps();
     fetchStudents();
+    fetchInquiries();
     if (adminUser?.role === 'superadmin') fetchAdmins();
     // Live changes: poll every 30 seconds
     const interval = setInterval(() => {
         fetchApps();
         fetchStudents();
+        fetchInquiries();
         if (adminUser?.role === 'superadmin') fetchAdmins();
     }, 30000);
     return () => clearInterval(interval);
@@ -1861,6 +1898,376 @@ function AdminPage() {
     );
   };
 
+  // --- School Profile Tab ---
+  const renderSchoolProfileTab = () => {
+    const handleProfileChange = (field, value) => {
+      setSchoolProfile(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleProfileSave = async () => {
+      await updateSiteContent({ schoolProfile });
+      alert('School Profile updated successfully!');
+    };
+
+    const handleLogoUpload = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const url = await uploadImage(file);
+        handleProfileChange('logo', url);
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      }
+    };
+
+    const handleHeroImageUpload = async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+      try {
+        const urls = await Promise.all(files.map(file => uploadImage(file)));
+        handleProfileChange('heroImages', [...(schoolProfile.heroImages || []), ...urls.filter(Boolean)]);
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      }
+    };
+
+    const removeHeroImage = (index) => {
+      const newImages = [...(schoolProfile.heroImages || [])];
+      newImages.splice(index, 1);
+      handleProfileChange('heroImages', newImages);
+    };
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-4">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">School Profile</h2>
+          <p className="text-gray-500 mt-2">Manage the core school information, branding, and contact details.</p>
+        </header>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Basic Branding</h3>
+            <button
+              onClick={handleProfileSave}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors"
+            >
+              Save All Changes
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">School Name</label>
+              <input
+                type="text"
+                value={schoolProfile.name || ''}
+                onChange={(e) => handleProfileChange('name', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. Holy Name School"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Punch Line / Tagline</label>
+              <input
+                type="text"
+                value={schoolProfile.punchLine || ''}
+                onChange={(e) => handleProfileChange('punchLine', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. Let Your Light Shine"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">School Logo</label>
+              <div className="flex items-center gap-4">
+                {schoolProfile.logo && (
+                  <img src={schoolProfile.logo} alt="Logo" className="w-16 h-16 rounded-lg object-contain border border-gray-200 bg-gray-50" />
+                )}
+                <div className="relative overflow-hidden">
+                  <button className="px-6 py-2 bg-primary/10 text-primary rounded-lg border border-primary/20 hover:bg-primary/20 font-medium transition-colors flex items-center gap-2">
+                    <FaImage /> Upload Logo
+                  </button>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onChange={handleLogoUpload}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Contact Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
+              <input
+                type="text"
+                value={schoolProfile.phone || ''}
+                onChange={(e) => handleProfileChange('phone', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. 6901055733"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+              <input
+                type="email"
+                value={schoolProfile.email || ''}
+                onChange={(e) => handleProfileChange('email', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. holynameschool@gmail.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Office Hours</label>
+              <input
+                type="text"
+                value={schoolProfile.officeHours || ''}
+                onChange={(e) => handleProfileChange('officeHours', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. 9am - 1:30pm (Mon - Sat)"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Office Address</label>
+              <textarea
+                value={schoolProfile.officeAddress || ''}
+                onChange={(e) => handleProfileChange('officeAddress', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary h-20"
+                placeholder="e.g. XMH8+GGW, Nazira Ali Rd, Hatimuria, Assam 785697"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Google Maps Embed Link (Src URL)</label>
+              <textarea
+                value={schoolProfile.mapLink || ''}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  let extracted = false;
+                  // If user pasted an entire iframe, extract the src attribute
+                  const srcMatch = val.match(/src=["'](.*?)["']/);
+                  if (srcMatch && srcMatch[1]) {
+                    val = srcMatch[1];
+                    extracted = true;
+                  }
+                  // Clean up accidental wrapper quotes or spaces
+                  val = val.replace(/^["']|["']$/g, '').trim();
+                  
+                  if (extracted) {
+                    setMapExtracted(true);
+                    setTimeout(() => setMapExtracted(false), 5000);
+                  }
+                  
+                  handleProfileChange('mapLink', val);
+                }}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary h-24 font-mono text-sm"
+                placeholder='<iframe src="https://www.google.com/maps/embed?pb=..." width="600" height="450"...></iframe>'
+              />
+              <div className="mt-1 flex items-center justify-between">
+                <p className="text-xs text-gray-500">Paste the URL or the entire `&lt;iframe&gt;` code. We will extract the exact link.</p>
+                {mapExtracted && (
+                  <span className="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded flex items-center gap-1">
+                    <FaCheckCircle size={10} /> Link Extracted Successfully!
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Hero Carousel Images</h3>
+            <div className="relative overflow-hidden">
+              <button className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-bold hover:bg-primary/20 transition-colors flex items-center gap-2">
+                <FaPlus /> Add Images
+              </button>
+              <input 
+                type="file" 
+                accept="image/*"
+                multiple
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                onChange={handleHeroImageUpload}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">These images will be displayed in the sliding hero section on the top of the Home page.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {(schoolProfile.heroImages || []).map((imgUrl, idx) => (
+              <div key={idx} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-video">
+                <img src={imgUrl} alt={`Hero ${idx}`} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => removeHeroImage(idx)}
+                    className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transform scale-0 group-hover:scale-100 transition-transform"
+                    title="Remove Image"
+                  >
+                    <FaTrash size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {(!schoolProfile.heroImages || schoolProfile.heroImages.length === 0) && (
+              <div className="col-span-full py-8 text-center border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
+                <FaImage className="text-3xl mx-auto mb-2 text-gray-300" />
+                <p>No hero images uploaded yet.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderAboutTab = () => {
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">About Page Management</h2>
+          <p className="text-gray-500 mt-2">Manage the content displayed on the public About page.</p>
+        </header>
+
+        {/* Vision Statement Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Vision Statement</h3>
+          <textarea
+            value={visionStatement}
+            onChange={(e) => setVisionStatement(e.target.value)}
+            className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent min-h-[150px]"
+            placeholder="Enter the school's vision statement..."
+          />
+        </section>
+
+        {/* Aims & Objectives Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Aims & Objectives</h3>
+            <button
+              onClick={() => setAimsAndObjectives([...(aimsAndObjectives || []), { title: 'New Aim', description: 'Description here' }])}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Aim
+            </button>
+          </div>
+          <div className="space-y-4">
+            {(aimsAndObjectives || []).map((aim, index) => (
+              <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
+                <div className="flex-1 space-y-3">
+                  <input
+                    type="text"
+                    value={aim.title}
+                    onChange={(e) => {
+                      const newAims = [...aimsAndObjectives];
+                      newAims[index].title = e.target.value;
+                      setAimsAndObjectives(newAims);
+                    }}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold"
+                    placeholder="Aim Title"
+                  />
+                  <textarea
+                    value={aim.description}
+                    onChange={(e) => {
+                      const newAims = [...aimsAndObjectives];
+                      newAims[index].description = e.target.value;
+                      setAimsAndObjectives(newAims);
+                    }}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[80px]"
+                    placeholder="Aim Description"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    const newAims = aimsAndObjectives.filter((_, i) => i !== index);
+                    setAimsAndObjectives(newAims);
+                  }}
+                  className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                  title="Remove Aim"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            ))}
+            {(!aimsAndObjectives || aimsAndObjectives.length === 0) && (
+              <p className="text-center text-gray-500 py-4 italic">No aims and objectives added yet.</p>
+            )}
+          </div>
+        </section>
+
+        {/* Head Mistress Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Head Mistress Message</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Greeting</label>
+                <input
+                  type="text"
+                  value={headMistress?.greeting || ''}
+                  onChange={(e) => setHeadMistress({...headMistress, greeting: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                  placeholder="e.g., Message from the Head Mistress"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Signature (Name)</label>
+                <input
+                  type="text"
+                  value={headMistress?.signature || ''}
+                  onChange={(e) => setHeadMistress({...headMistress, signature: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                  placeholder="e.g., Sr. Name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Photo</label>
+                <div className="flex items-center gap-4">
+                  {headMistress?.photo && (
+                    <img src={headMistress.photo} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+                  )}
+                  <div className="relative overflow-hidden">
+                    <button className="px-6 py-2 bg-primary/10 text-primary rounded-lg border border-primary/20 hover:bg-primary/20 font-medium transition-colors flex items-center gap-2">
+                      <FaImage /> Upload New Photo
+                    </button>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      title="Upload Photo"
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const uploadedUrl = await uploadImage(file);
+                        if (uploadedUrl) {
+                          setHeadMistress({...headMistress, photo: uploadedUrl});
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Message</label>
+              <textarea
+                value={headMistress?.message || ''}
+                onChange={(e) => setHeadMistress({...headMistress, message: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[250px]"
+                placeholder="Enter the message paragraphs here..."
+              />
+              <p className="text-xs text-gray-500 mt-2">Line breaks will be converted to paragraphs on the public page.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-surface flex font-sans relative overflow-x-hidden">
       {/* Sidebar Overlay for Mobile */}
@@ -1898,6 +2305,7 @@ function AdminPage() {
           <div className="text-[10px] text-white/30 uppercase tracking-widest font-black mt-6 mb-2 px-4">Content Management</div>
           
           {[
+            { id: 'schoolProfile', label: 'School Profile', icon: <FaInfoCircle /> },
             { id: 'gallery', label: 'Gallery', icon: <FaImage /> },
             { id: 'videos', label: 'Video Blog', icon: <FaVideo /> },
             { id: 'banner', label: 'Popup Banner', icon: <FaImage /> },
@@ -1908,7 +2316,8 @@ function AdminPage() {
             { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList /> },
             { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap /> },
             { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt /> },
-            { id: 'stats', label: 'Home Stats', icon: <FaChartLine /> }
+            { id: 'stats', label: 'Home Stats', icon: <FaChartLine /> },
+            { id: 'about', label: 'About Page', icon: <FaInfoCircle /> }
           ].map(item => (
             <button 
               key={item.id}
@@ -1932,6 +2341,18 @@ function AdminPage() {
             className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${activeTab === 'students' ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
           >
             <FaUsers className="mr-3 text-lg" /> Students
+          </button>
+          
+          <button 
+            onClick={() => { setActiveTab('inquiries'); setIsSidebarOpen(false); }}
+            className={`flex items-center w-full px-4 py-3 mt-2 rounded-xl transition-all ${activeTab === 'inquiries' ? 'bg-white/10 text-white font-bold border-l-4 border-tertiary' : 'hover:bg-white/5 text-white/70 hover:text-white'}`}
+          >
+            <FaCommentDots className="mr-3 text-lg" /> Inquiries
+            {inquiries.filter(i => !i.isRead).length > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                {inquiries.filter(i => !i.isRead).length}
+              </span>
+            )}
           </button>
 
           {adminUser?.role === 'superadmin' && (
@@ -2001,6 +2422,8 @@ function AdminPage() {
           { activeTab === 'alumni' && renderAlumniTab() }
           { activeTab === 'socialMedia' && renderSocialMediaTab() }
           { activeTab === 'stats' && renderStatsTab() }
+          {activeTab === 'schoolProfile' && renderSchoolProfileTab()}
+          {activeTab === 'about' && renderAboutTab()}
           {activeTab === 'admins' && adminUser?.role === 'superadmin' && renderAdminsTab()}
           {activeTab === 'settings' && adminUser?.role === 'superadmin' && renderSettingsTab()}
           {activeTab === 'applications' && (
@@ -2123,6 +2546,132 @@ function AdminPage() {
                                       }
                                    } catch(err) {
                                      alert("Failed to delete student: " + err.message);
+                                   }
+                                 }
+                               }} 
+                               className="text-red-400 hover:text-red-600 transition-colors inline-flex items-center"
+                             >
+                               <FaTrash size={12} />
+                             </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'inquiries' && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Inquiries & Feedback</h3>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="relative w-full sm:w-64">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                    <input 
+                      type="text" 
+                      placeholder="Search Tracking No..." 
+                      value={inquirySearch}
+                      onChange={(e) => setInquirySearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                     <div className="text-xs text-amber-700 bg-amber-50 font-bold uppercase px-3 py-1 rounded-full flex items-center gap-1">
+                       <FaEnvelopeOpenText /> Unread: {inquiries.filter(i => !i.isRead).length}
+                     </div>
+                     <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full">
+                       Total: {inquiries.length}
+                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {inquiries.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaCommentDots className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No inquiries found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2">Type</th>
+                        <th className="pb-3">Sender</th>
+                        <th className="pb-3">Contact</th>
+                        <th className="pb-3">Date</th>
+                        <th className="pb-3">Subject / Message</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {inquiries
+                        .filter(i => {
+                          if (!inquirySearch) return true;
+                          const q = inquirySearch.toLowerCase();
+                          return (
+                            (i.trackingNumber && i.trackingNumber.toLowerCase().includes(q)) ||
+                            (i.name && i.name.toLowerCase().includes(q)) ||
+                            (i.subject && i.subject.toLowerCase().includes(q))
+                          );
+                        })
+                        .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(inquiry => (
+                        <tr key={inquiry._id} className={`hover:bg-gray-50/50 transition-colors ${!inquiry.isRead ? 'bg-blue-50/30' : ''}`}>
+                          <td className="py-4 px-2 align-top">
+                             <span className={`text-xs font-black px-2 py-1 rounded uppercase tracking-tighter ${
+                               inquiry.type === 'Complaint' ? 'bg-red-100 text-red-700' :
+                               inquiry.type === 'Suggestion' ? 'bg-green-100 text-green-700' :
+                               'bg-blue-100 text-blue-700'
+                             }`}>
+                               {inquiry.type}
+                             </span>
+                          </td>
+                          <td className="py-4 font-medium text-gray-800 align-top">
+                            <div className="flex items-center">
+                              {inquiry.name}
+                              {!inquiry.isRead && <span className="w-2 h-2 rounded-full bg-blue-500 inline-block ml-2 animate-pulse"></span>}
+                            </div>
+                            {inquiry.userType && (
+                               <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-1 items-center">
+                                  <span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200 font-bold">{inquiry.userType}</span>
+                                  {inquiry.userType === 'Student' && inquiry.className && (
+                                    <span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                      Class {inquiry.className} {inquiry.section ? `(${inquiry.section})` : ''}
+                                    </span>
+                                  )}
+                               </div>
+                            )}
+                          </td>
+                          <td className="py-4 text-xs font-mono text-gray-500 align-top">
+                             <div>{inquiry.phone || '-'}</div>
+                             <div className="text-gray-400 break-all">{inquiry.email || '-'}</div>
+                          </td>
+                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(inquiry.createdAt).toLocaleDateString()}</td>
+                          <td className="py-4 text-sm text-gray-600 max-w-xs align-top">
+                             <div className="truncate font-bold text-gray-800 mb-1">{inquiry.subject || 'No Subject'}</div>
+                             <div className="text-xs text-gray-600 line-clamp-3 leading-relaxed whitespace-pre-wrap">{inquiry.message}</div>
+                          </td>
+                          <td className="py-4 text-right align-top whitespace-nowrap">
+                             <button 
+                               onClick={() => handleInquiryReadToggle(inquiry._id, inquiry.isRead)} 
+                               className={`${inquiry.isRead ? 'text-gray-400' : 'text-primary' } hover:underline font-medium text-xs mr-3 transition-colors`}
+                             >
+                               {inquiry.isRead ? 'Mark Unread' : 'Mark Read'}
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 if(window.confirm(`Delete inquiry from ${inquiry.name}?`)) {
+                                   try {
+                                      const token = localStorage.getItem('adminToken');
+                                      await axios.delete(`${API_URL}/inquiries/${inquiry._id}`, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      setInquiries(inquiries.filter(i => i._id !== inquiry._id));
+                                   } catch(err) {
+                                     alert("Failed to delete inquiry: " + err.message);
                                    }
                                  }
                                }} 

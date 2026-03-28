@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import axios from "axios";
 import { FaUserCircle, FaLock, FaEnvelope, FaExclamationCircle } from "react-icons/fa";
+import { SiteDataContext } from "../context/SiteDataContext";
 
 function AdminLogin() {
+  const { schoolProfile } = useContext(SiteDataContext);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -77,7 +79,7 @@ function AdminLogin() {
             <FaUserCircle className="text-5xl text-primary" />
           </div>
           <h1 className="text-3xl font-serif font-bold text-white mb-2">Admin Portal</h1>
-          <p className="text-white/80 font-medium">Holy Name School</p>
+          <p className="text-white/80 font-medium">{schoolProfile?.name || "Holy Name School"}</p>
         </div>
 
         {/* Login Card */}
@@ -167,7 +169,7 @@ function AdminLogin() {
         
         {/* Footer info */}
         <p className="text-center text-gray-500 text-sm mt-8">
-          &copy; {new Date().getFullYear()} Holy Name School. All rights reserved.
+          &copy; {new Date().getFullYear()} {schoolProfile?.name || "Holy Name School"}. All rights reserved.
         </p>
       </div>
     </div>

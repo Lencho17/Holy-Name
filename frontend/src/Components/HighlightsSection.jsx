@@ -43,29 +43,29 @@ export default function HighlightsSection() {
             className="group bg-surface-container-low rounded-3xl overflow-hidden border border-outline-variant/30 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 flex flex-col cursor-pointer"
             onClick={() => setSelectedHighlight(item)}
           >
-            <div className="relative h-64 overflow-hidden">
+            <div className="relative h-48 overflow-hidden">
               <img 
                 src={item.image} 
                 alt={item.title} 
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               />
-              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-primary uppercase tracking-wider">
+              <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-0.5 rounded-full text-[10px] font-bold text-primary uppercase tracking-wider hover:bg-white transition-colors">
                 {item.category}
               </div>
             </div>
-            <div className="p-8 flex-1 flex flex-col">
-              <div className="flex items-center gap-2 text-on-surface-variant text-sm font-medium mb-3">
-                <span className="material-symbols-outlined text-sm">calendar_month</span>
+            <div className="p-4 pb-3 flex-1 flex flex-col">
+              <div className="flex items-center gap-1.5 text-on-surface-variant text-[11px] font-medium mb-1.5">
+                <span className="material-symbols-outlined text-[12px]">calendar_month</span>
                 {item.date}
               </div>
-              <h4 className="text-xl font-bold text-on-surface mb-3 group-hover:text-primary transition-colors">
+              <h4 className="text-[15px] font-bold text-on-surface mb-1.5 group-hover:text-primary transition-colors leading-tight line-clamp-2">
                 {item.title}
               </h4>
-              <p className="text-on-surface-variant line-clamp-3 mb-6 flex-1">
+              <p className="text-on-surface-variant text-[11px] line-clamp-2 mb-3 flex-1 leading-snug">
                 {item.description}
               </p>
-              <button className="text-secondary font-bold flex items-center gap-2 group-hover:gap-3 transition-all mt-auto w-fit">
-                Read More <span className="material-symbols-outlined text-sm">arrow_forward</span>
+              <button className="text-secondary text-[11px] font-bold flex items-center gap-1 group-hover:gap-1.5 transition-all mt-auto w-fit">
+                Read More <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
               </button>
             </div>
           </motion.div>

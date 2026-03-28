@@ -42,7 +42,7 @@ function Faculty() {
 
   const FacultyCard = ({ member }) => (
     <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group flex flex-col items-center text-center relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-24 bg-[#4C1A57] opacity-5 group-hover:opacity-10 transition-opacity"></div>
+      <div className="absolute top-0 left-0 w-full h-24 bg-primary opacity-5 group-hover:opacity-10 transition-opacity"></div>
       <div className="relative z-10 w-32 h-32 mb-6">
         <div className="absolute inset-0 bg-amber-400 rounded-full blur-sm opacity-20 group-hover:opacity-60 transition-opacity duration-300 transform group-hover:scale-110"></div>
         <img
@@ -51,7 +51,7 @@ function Faculty() {
           className="w-full h-full object-cover rounded-full border-4 border-white shadow-md relative z-10"
         />
       </div>
-      <h3 className="text-xl font-serif font-bold text-[#4C1A57] mb-1 group-hover:text-amber-600 transition-colors">{member.name}</h3>
+      <h3 className="text-xl font-serif font-bold text-primary mb-1 group-hover:text-amber-600 transition-colors">{member.name}</h3>
       <p className="text-sm font-semibold text-amber-600 mb-3">{member.Subject}</p>
       
       <div className="w-full h-px bg-gray-100 my-3"></div>
@@ -71,7 +71,7 @@ function Faculty() {
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
-      <section className="relative w-full h-[50vh] min-h-[400px] overflow-hidden bg-gradient-to-r from-primary to-primary-container">
+      <section className="relative w-full h-[35vh] min-h-[280px] overflow-hidden bg-gradient-to-r from-primary to-primary-container">
         {slides.map((slide, index) => (
           <div
             key={slide.id}
@@ -125,7 +125,7 @@ function Faculty() {
         {facultyData.Science.length > 0 && (
           <section>
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Science Department</h2>
+              <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Science Department</h2>
               <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
               <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Nurturing analytical minds and scientific inquiry through experienced mentorship.</p>
             </div>
@@ -140,7 +140,7 @@ function Faculty() {
         {facultyData.Arts.length > 0 && (
           <section>
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Arts & Humanities</h2>
+              <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Arts & Humanities</h2>
               <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
               <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Cultivating creativity, critical thinking, and a deeper understanding of human culture.</p>
             </div>
@@ -154,10 +154,10 @@ function Faculty() {
 
         {facultyData.Guest.length > 0 && (
           <section className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#F3E8F5] rounded-bl-full -mr-20 -mt-20 opacity-50"></div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-bl-full -mr-20 -mt-20 opacity-50"></div>
             <div className="relative z-10">
               <div className="text-center mb-10">
-                <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#4C1A57]">Guest & Visiting Faculty</h2>
+                <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Guest & Visiting Faculty</h2>
                 <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
               </div>
               <div className="flex justify-center">

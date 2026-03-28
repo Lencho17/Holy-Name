@@ -17,10 +17,10 @@ const defaultPrincipal = {
   name: "Fr. Hemanta Pegu",
   title: "Principal",
   introQuote: "Flowers leave part of their fragrance in the hand that bestows them",
-  message: "Holy Name HS School, Cherekapar Sivasagar...",
+  message: "Holy Name HS School, Cherekapar Sivasagar, has always aimed at the all-round development of its students. Our goal is to nurture intellectual, physical, spiritual, and emotional growth, preparing students to be responsible global citizens.",
   closingQuote: "Aristotle once said, \"Educating the mind without educating the heart is no education at all.\"",
   photo: "",
-  signature: "https://via.placeholder.com/150x50",
+  signature: "/Pictures/assets/principal_signature.png",
 };
 
 const defaultNotices = [];
@@ -44,6 +44,39 @@ const defaultStats = [
   { label: "Pass Result", value: "100%" }
 ];
 
+const defaultVisionStatement = "Holy Name High School, Sivasagar, envisions to be a center of excellence that imparts holistic education to its students. We strive to nurture the intellectual, physical, spiritual, and emotional growth of each child, preparing them to be responsible global citizens.";
+
+const defaultAimsAndObjectives = [
+  { title: "Academic Excellence", description: "To provide quality education that helps students attain academic excellence." },
+  { title: "Character Formation", description: "To inculcate moral values, discipline, and a strong sense of responsibility." }
+];
+
+const defaultHeadMistress = {
+  photo: "",
+  greeting: "A warm welcome to Holy Name School",
+  message: "On behalf of the Management and staff, I extend a loving welcome to you to the new academic year. Holy Name School has always aimed at the all-round development of its students.",
+  signature: "/Pictures/assets/head_mistress_signature.png"
+};
+
+const defaultSchoolProfile = {
+  name: "Holy Name School",
+  logo: "/Pictures/Logo.jpg",
+  punchLine: "Let Your Light Shine",
+  phone: "6901055733",
+  email: "holynameschool@gmail.com",
+  officeHours: "9am - 1:30pm (Mon - Sat)",
+  officeAddress: "XMH8+GGW, Nazira Ali Rd, Hatimuria, Assam 785697",
+  mapLink: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3555.6218095340837!2d94.66374457624775!3d26.978873257242732!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x374736eaad53cc3d%3A0x49d6b196c9334e5d!2sHoly%20Name%20School!5e0!3m2!1sen!2sin!4v1774612478828!5m2!1sen!2sin",
+  heroImages: [
+    "/Pictures/1.JPG",
+    "/Pictures/2.JPG",
+    "/Pictures/3.JPG",
+    "/Pictures/4.JPG",
+    "/Pictures/5.JPG",
+    "/Pictures/6.JPG",
+  ]
+};
+
 export const SiteDataProvider = ({ children }) => {
   const [videos, setVideos] = useState([]);
   const [highlights, setHighlights] = useState(defaultHighlights);
@@ -57,6 +90,10 @@ export const SiteDataProvider = ({ children }) => {
   const [socialLinks, setSocialLinks] = useState(defaultSocialLinks);
   const [alumni, setAlumni] = useState(defaultAlumni);
   const [stats, setStats] = useState(defaultStats);
+  const [visionStatement, setVisionStatement] = useState(defaultVisionStatement);
+  const [aimsAndObjectives, setAimsAndObjectives] = useState(defaultAimsAndObjectives);
+  const [headMistress, setHeadMistress] = useState(defaultHeadMistress);
+  const [schoolProfile, setSchoolProfile] = useState(defaultSchoolProfile);
   const [loading, setLoading] = useState(true);
 
   const lastSaveRef = useRef(0);
@@ -81,6 +118,10 @@ export const SiteDataProvider = ({ children }) => {
         if (data.socialLinks && typeof data.socialLinks === 'object') setSocialLinks(data.socialLinks);
         if (Array.isArray(data.alumni)) setAlumni(data.alumni);
         if (Array.isArray(data.stats)) setStats(data.stats);
+        if (data.visionStatement !== undefined) setVisionStatement(data.visionStatement);
+        if (Array.isArray(data.aimsAndObjectives)) setAimsAndObjectives(data.aimsAndObjectives);
+        if (data.headMistress && typeof data.headMistress === 'object') setHeadMistress(data.headMistress);
+        if (data.schoolProfile && typeof data.schoolProfile === 'object') setSchoolProfile(data.schoolProfile);
       } catch (error) {
         console.warn('Backend polling error or using local defaults:', error.message);
       } finally {
@@ -143,6 +184,10 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.socialLinks) setSocialLinks(updatedData.socialLinks);
       if (updatedData.alumni) setAlumni(updatedData.alumni);
       if (updatedData.stats) setStats(updatedData.stats);
+      if (updatedData.visionStatement !== undefined) setVisionStatement(updatedData.visionStatement);
+      if (updatedData.aimsAndObjectives) setAimsAndObjectives(updatedData.aimsAndObjectives);
+      if (updatedData.headMistress) setHeadMistress(updatedData.headMistress);
+      if (updatedData.schoolProfile) setSchoolProfile(updatedData.schoolProfile);
 
       // console.log("Auto-save successful");
     } catch (err) {
@@ -167,6 +212,10 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.socialLinks !== undefined) setSocialLinks(updates.socialLinks);
     if (updates.alumni !== undefined) setAlumni(updates.alumni);
     if (updates.stats !== undefined) setStats(updates.stats);
+    if (updates.visionStatement !== undefined) setVisionStatement(updates.visionStatement);
+    if (updates.aimsAndObjectives !== undefined) setAimsAndObjectives(updates.aimsAndObjectives);
+    if (updates.headMistress !== undefined) setHeadMistress(updates.headMistress);
+    if (updates.schoolProfile !== undefined) setSchoolProfile(updates.schoolProfile);
 
     // 2. Persist to backend in ONE request
     saveToBackend(updates);
@@ -236,6 +285,10 @@ export const SiteDataProvider = ({ children }) => {
   const wrapSetSocialLinks = (val) => { setSocialLinks(val); saveToBackend({ socialLinks: val }); };
   const wrapSetAlumni = (val) => { setAlumni(val); saveToBackend({ alumni: val }); };
   const wrapSetStats = (val) => { setStats(val); saveToBackend({ stats: val }); };
+  const wrapSetVisionStatement = (val) => { setVisionStatement(val); saveToBackend({ visionStatement: val }); };
+  const wrapSetAimsAndObjectives = (val) => { setAimsAndObjectives(val); saveToBackend({ aimsAndObjectives: val }); };
+  const wrapSetHeadMistress = (val) => { setHeadMistress(val); saveToBackend({ headMistress: val }); };
+  const wrapSetSchoolProfile = (val) => { setSchoolProfile(val); saveToBackend({ schoolProfile: val }); };
 
   return (
     <SiteDataContext.Provider value={{
@@ -252,6 +305,10 @@ export const SiteDataProvider = ({ children }) => {
       socialLinks, setSocialLinks: wrapSetSocialLinks,
       alumni, setAlumni: wrapSetAlumni,
       stats, setStats: wrapSetStats,
+      visionStatement, setVisionStatement: wrapSetVisionStatement,
+      aimsAndObjectives, setAimsAndObjectives: wrapSetAimsAndObjectives,
+      headMistress, setHeadMistress: wrapSetHeadMistress,
+      schoolProfile, setSchoolProfile: wrapSetSchoolProfile,
       updateSiteContent,
       uploadImage,
       uploadEventPhotos,

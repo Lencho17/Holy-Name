@@ -16,15 +16,14 @@ async function check() {
     console.log('Content keys:', Object.keys(content));
     
     console.log('Principal fields:');
-    if (content.principal) {
       Object.keys(content.principal).forEach(k => {
-        const s = JSON.stringify(content.principal[k]).length;
+        const val = content.principal[k];
+        const s = JSON.stringify(val).length;
         console.log(`  - ${k}: ${s} bytes`);
-        if (s > 1000) {
-          console.log(`    (First 50 chars): ${JSON.stringify(content.principal[k]).substring(0, 50)}...`);
+        if (k === 'photo' || k === 'signature') {
+          console.log(`    Value: ${val}`);
         }
       });
-    }
 
     console.log('Gallery count:', content.gallery?.length || 0);
     console.log('Events count:', content.events?.length || 0);

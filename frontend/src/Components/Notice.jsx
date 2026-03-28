@@ -34,7 +34,7 @@ function Notice() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-10 -mt-10"></div>
                 
                 <div className="flex flex-wrap items-center justify-between mb-8 relative z-10">
-                  <h2 className="text-2xl md:text-3xl font-serif font-bold text-[#4C1A57] flex items-center mb-4 sm:mb-0">
+                  <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary flex items-center mb-4 sm:mb-0">
                     <span className="w-2 h-8 bg-amber-500 rounded-full mr-4"></span>
                     Latest Circular
                   </h2>
@@ -53,7 +53,7 @@ function Notice() {
                     <h3 className="text-2xl font-bold text-gray-800 mb-3">{latestNotice.title}</h3>
                     <p className="text-gray-500 mb-8 font-medium bg-white inline-block px-4 py-1 rounded-full shadow-sm">Published on {latestNotice.date}</p>
                     <div>
-                      <a href={latestNotice.pdfLink} target="_blank" rel="noreferrer" className="bg-[#4C1A57] hover:bg-[#3a1343] text-white px-8 py-3 rounded-full font-medium transition-all shadow-md hover:shadow-lg inline-flex items-center transform hover:scale-105">
+                      <a href={latestNotice.pdfLink} target="_blank" rel="noreferrer" className="bg-primary hover:bg-primary-container text-white px-8 py-3 rounded-full font-medium transition-all shadow-md hover:shadow-lg inline-flex items-center transform hover:scale-105">
                         <FaDownload className="mr-3" /> View / Download PDF
                       </a>
                     </div>
@@ -72,7 +72,7 @@ function Notice() {
         {previousNotices.length > 0 && (
           <div className="mt-12 bg-white rounded-3xl shadow-lg p-8 md:p-12 border border-gray-100">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8">
-              <h2 className="text-2xl md:text-3xl font-serif font-bold text-[#4C1A57]">Notice Archive</h2>
+              <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary">Notice Archive</h2>
               <p className="text-sm text-gray-500 mt-2 sm:mt-0 bg-gray-100 px-4 py-2 rounded-lg">Showing archive</p>
             </div>
             
@@ -90,10 +90,10 @@ function Notice() {
                   {previousNotices.map((notice, index) => (
                     <tr 
                       key={notice._id || index} 
-                      className="border-b last:border-0 border-gray-100 hover:bg-[#F3E8F5]/30 transition-colors group"
+                      className="border-b last:border-0 border-gray-100 hover:bg-primary/5 transition-colors group"
                     >
                       <td className="py-5 px-6 text-gray-400 font-medium">#{index + 2}</td>
-                      <td className="py-5 px-6 font-medium text-[#4C1A57] group-hover:text-amber-600 transition-colors">
+                      <td className="py-5 px-6 font-medium text-primary group-hover:text-amber-600 transition-colors">
                         <div className="flex items-center">
                           <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center mr-4">
                              <FaFilePdf className="text-red-400 text-sm" />
@@ -112,7 +112,7 @@ function Notice() {
                           href={notice.pdfLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center justify-center bg-white border border-gray-200 hover:border-[#4C1A57] hover:bg-[#4C1A57] hover:text-white text-gray-700 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-md"
+                          className="inline-flex items-center justify-center bg-white border border-gray-200 hover:border-primary hover:bg-primary hover:text-white text-gray-700 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-md"
                         >
                           <FaDownload className="mr-2" />
                           <span className="text-xs">{notice.size || 'View'}</span>

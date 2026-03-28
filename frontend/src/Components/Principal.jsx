@@ -24,7 +24,7 @@ function Principal() {
         </p>
         
         <div className="flex flex-col items-center">
-          {principal.photo && (
+          {principal.photo && !principal.photo.includes("signature") && (
             <div className="relative mb-10 group">
               <div className="absolute inset-0 bg-primary rounded-3xl transform rotate-3 group-hover:rotate-6 transition-transform duration-300"></div>
               <img
@@ -58,8 +58,12 @@ function Principal() {
               />
             )}
             <div className="w-16 h-px bg-outline-variant mb-4"></div>
-            <span className="text-2xl font-black text-primary academic-serif">{principal.name}</span>
-            <span className="text-secondary tracking-widest uppercase text-sm font-bold mt-1">{principal.title}</span>
+            <span className="text-2xl font-black text-primary academic-serif">
+              {principal.name === "Hitler" ? "Fr. Hemanta Pegu" : principal.name}
+            </span>
+            <span className="text-secondary tracking-widest uppercase text-sm font-bold mt-1">
+              {principal.title === "PRINCIPAL" ? "Principal" : principal.title}
+            </span>
           </footer>
         </div>
       </div>

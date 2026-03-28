@@ -5,7 +5,7 @@ import { SiteDataContext } from "../context/SiteDataContext";
 import { useNavigate } from "react-router-dom";
 
 const EventsSection = () => {
-  const { events } = useContext(SiteDataContext);
+  const { events, schoolProfile } = useContext(SiteDataContext);
   const [showAll, setShowAll] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -72,7 +72,7 @@ const EventsSection = () => {
           Our Events
         </h2>
         <p className="text-slate-400 max-w-2xl mx-auto font-light">
-          Experience the vibrant life at Holy Name School through our academic,
+          Experience the vibrant life at {schoolProfile?.name || "Holy Name School"} through our academic,
           cultural, and sporting celebrations.
         </p>
       </div>
@@ -87,7 +87,7 @@ const EventsSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               onClick={() => handleOpen(event)}
-              className="relative group cursor-pointer w-full aspect-[2/3] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl transition-all duration-300 sm:hover:-translate-y-2 overflow-hidden"
+              className="relative group cursor-pointer w-full aspect-square bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl transition-all duration-300 sm:hover:-translate-y-2 overflow-hidden"
             >
               <img
                 src={event.image}
@@ -243,7 +243,7 @@ const EventsSection = () => {
                         {selectedEvent.title}
                       </h3>
                       <p className="text-slate-400 text-sm leading-relaxed line-clamp-3 max-w-xl">
-                        {selectedEvent.description || "Captured moments at Holy Name School."}
+                        {selectedEvent.description || `Captured moments at ${schoolProfile?.name || "Holy Name School"}.`}
                       </p>
                     </div>
 

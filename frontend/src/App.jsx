@@ -27,7 +27,33 @@ import Layout from "./Layout";
 import "./App.css";
 import AdminLogin from "./Components/AdminLogin";
 import AdminPage from "./Components/AdminPage";
-import { SiteDataProvider } from "./context/SiteDataContext";
+import { SiteDataProvider, SiteDataContext } from "./context/SiteDataContext";
+import { useContext, useEffect } from "react";
+
+// Helper component to sync the browser favicon with the school logo
+function FaviconManager() {
+  const { schoolProfile } = useContext(SiteDataContext);
+  
+  useEffect(() => {
+    if (schoolProfile?.logo) {
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = schoolProfile.logo;
+      
+      // Update the title as well if needed, though title is usually page-specific
+      if (schoolProfile.name) {
+        // Only update if it's the home page or a generic page
+        // For now, let's stick to the icon as requested
+      }
+    }
+  }, [schoolProfile?.logo]);
+
+  return null;
+}
 
 function App() {
   const router = createBrowserRouter(
@@ -95,6 +121,7 @@ function App() {
   );
   return (
     <SiteDataProvider>
+      <FaviconManager />
       <RouterProvider router={router} />
     </SiteDataProvider>
   );

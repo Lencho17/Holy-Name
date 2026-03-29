@@ -38,4 +38,7 @@ const admissionSchema = new mongoose.Schema({
   referenceNumber: { type: String, required: true, unique: true },
 }, { timestamps: true });
 
+// Optimize admin filtering and ordering
+admissionSchema.index({ status: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Admission', admissionSchema);

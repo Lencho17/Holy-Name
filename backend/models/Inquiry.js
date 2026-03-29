@@ -56,8 +56,13 @@ const inquirySchema = new mongoose.Schema({
   },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    index: true
   }
 });
+
+// Composite index for common filtering in admin panel
+inquirySchema.index({ isRead: 1, type: 1 });
+inquirySchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Inquiry', inquirySchema);

@@ -7,6 +7,16 @@ const { uploadPdfToGithub } = require('../utils/github');
 
 const router = express.Router();
 
+/**
+ * Simple in-memory cache for the monolithic SiteContent document.
+ * In a serverless environment, this persists as long as the instance is warm.
+ */
+let contentCache = {
+  data: null,
+  lastFetched: 0,
+  ttl: 5 * 60 * 1000, // 5 minutes
+};
+
 // Multer memory storage for PDFs (no Cloudinary — goes to GitHub)
 const pdfMemoryUpload = multer({
   storage: multer.memoryStorage(),
@@ -22,13 +32,24 @@ const pdfMemoryUpload = multer({
 
 router.get('/', async (req, res) => {
   try {
+    const now = Date.now();
+    
+    // Serve from cache if available and not expired
+    if (contentCache.data && (now - contentCache.lastFetched < contentCache.ttl)) {
+      // console.log('⚡ Serving content from cache');
+      return res.json(contentCache.data);
+    }
+
     let content = await SiteContent.findOne().lean();
     if (!content) {
       content = await SiteContent.create({});
       content = content.toObject();
     }
     
-    // Gallery and Events are now back in SiteContent model
+    // Update cache
+    contentCache.data = content;
+    contentCache.lastFetched = now;
+    
     res.json(content);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -45,11 +66,11 @@ router.put('/', protect, async (req, res) => {
     const safeUpdateData = {};
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {
-        // Emergency validation: reject any field containing "Hitler"
+        // Emergency validation: reject any field containing "malicious" patterns
         const contentStr = JSON.stringify(updateData[field]);
         if (/hitler/gi.test(contentStr)) {
-          console.error(`[SECURITY] Blocked malicious update containing "Hitler" on field: ${field}`);
-          continue; // Skip this malicious field update
+          console.error(`[SECURITY] Blocked malicious update containing restricted keywords on field: ${field}`);
+          continue; 
         }
         safeUpdateData[field] = updateData[field];
       }
@@ -58,14 +79,16 @@ router.put('/', protect, async (req, res) => {
     let content = await SiteContent.findOneAndUpdate(
       {}, // Matches the single site content document
       { $set: safeUpdateData },
-      { new: true, upsert: true }
+      { new: true, upsert: true, lean: true }
     );
+
+    // BUST CACHE on update so changes are visible immediately
+    contentCache.data = content;
+    contentCache.lastFetched = Date.now();
 
     res.json(content);
   } catch (error) {
     console.error('PUT /api/content error:', error.message);
-    const fs = require('fs');
-    fs.writeFileSync('error_log.txt', error.stack + '\n' + JSON.stringify(error.errors || {}));
     if (error.errors) {
       console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
     }

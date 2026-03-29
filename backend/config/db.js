@@ -1,12 +1,25 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 
+/**
+ * Global connection cache to persist across serverless invocations.
+ */
+let cachedConnection = null;
+
 const connectDB = async () => {
   // Fix for querySrv ECONNREFUSED on Windows: Force use of Google DNS
-  try {
-    dns.setServers(['8.8.8.8', '8.8.4.4']);
-  } catch (e) {
-    console.warn('DNS setServers failed, continuing with default resolver...');
+  // ONLY for common development environments; Vercel handles this better natively.
+  if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
+    try {
+      dns.setServers(['8.8.8.8', '8.8.4.4']);
+    } catch (e) {
+      console.warn('DNS setServers failed, continuing with default resolver...');
+    }
+  }
+
+  // If already connected or connecting, return the cached connection
+  if (cachedConnection && mongoose.connection.readyState >= 1) {
+    return cachedConnection;
   }
 
   try {
@@ -15,17 +28,20 @@ const connectDB = async () => {
       throw new Error('MONGO_URI is not defined');
     }
 
-    // SANITY CHECK: If SRV is failing, we provide more context
-    console.log('Connecting to MongoDB...');
+    console.log(`Connecting to MongoDB (cached: ${!!cachedConnection})...`);
 
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000,
+    cachedConnection = await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 8000, // slightly more tolerant for cold starts
+      connectTimeoutMS: 10000,
+      heartbeatFrequencyMS: 10000,
     });
+
     console.log('✅ MongoDB Connected Successfully');
+    return cachedConnection;
   } catch (error) {
     console.error(`❌ Connection Error: ${error.message}`);
     
-    // Provide help for specific errors
+    // Detailed help for specific errors
     if (error.message.includes('querySrv ECONNREFUSED')) {
       console.log('\n--- DNS SRV RESOLUTION FAILED ---');
       console.log('Node.js is unable to resolve the _mongodb._tcp SRV record.');
@@ -35,7 +51,11 @@ const connectDB = async () => {
       console.log('3. Ensure your IP is whitelisted in MongoDB Atlas');
     }
     
-    process.exit(1);
+    // In serverless, we don't want to exit the whole process if possible,
+    // but the app can't function without DB.
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
   }
 };
 

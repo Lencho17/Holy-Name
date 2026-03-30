@@ -13,8 +13,8 @@ function AdminPage() {
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
   const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
-  // Defensive API_URL with leading slash
-  const API_URL = raw_API_URL?.startsWith('/') ? raw_API_URL : `/${raw_API_URL || 'api'}`;
+  // Defensive API_URL — handle both full URLs and relative paths
+  const API_URL = raw_API_URL?.startsWith('http') ? raw_API_URL : (raw_API_URL?.startsWith('/') ? raw_API_URL : `/${raw_API_URL || 'api'}`);
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);

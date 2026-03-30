@@ -61,6 +61,19 @@ const inquirySchema = new mongoose.Schema({
   }
 });
 
+// Uppercase Normalization: Convert relevant fields to uppercase before saving
+inquirySchema.pre('save', function(next) {
+  const stringFields = ['name', 'subject', 'message', 'className', 'section'];
+
+  stringFields.forEach(field => {
+    if (this[field] && typeof this[field] === 'string') {
+      this[field] = this[field].toUpperCase();
+    }
+  });
+
+  next();
+});
+
 // Composite index for common filtering in admin panel
 inquirySchema.index({ isRead: 1, type: 1 });
 inquirySchema.index({ createdAt: -1 });

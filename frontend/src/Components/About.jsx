@@ -11,7 +11,7 @@ const About = () => {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.about || "https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?q=80&w=2070&auto=format&fit=crop"}
             alt="About Holy Name"
             className="w-full h-full object-cover opacity-95"
           />
@@ -27,7 +27,7 @@ const About = () => {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            About <span className="text-secondary italic drop-shadow-md">Us</span>
+            About <span className="text-amber-400 italic drop-shadow-md">Us</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             Discover our journey of 38 years in academic excellence and holistic student development.
@@ -40,7 +40,9 @@ const About = () => {
         <div className="bg-surface-container-low shadow-2xl rounded-3xl p-8 md:p-14 border border-outline-variant/30 mb-16 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
           
-          <h3 className="academic-serif text-3xl md:text-4xl font-black text-primary mb-10 border-b border-outline-variant pb-4">Our History</h3>
+          <h3 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-10 border-b border-outline-variant pb-4">
+            Our <span className="text-amber-600 italic">History</span>
+          </h3>
           
           <div className="space-y-16 text-on-surface-variant text-lg leading-relaxed font-medium">
             

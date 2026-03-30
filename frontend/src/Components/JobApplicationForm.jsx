@@ -179,9 +179,16 @@ function JobApplicationForm() {
     try {
       const data = new FormData();
       
-      // Append text fields
+      // Append text fields with normalization
       Object.keys(formData).forEach(key => {
-        data.append(key, formData[key]);
+        let value = formData[key];
+        // Normalize to uppercase except for email and specific fields
+        if (typeof value === 'string' && key !== 'email' && key !== 'dob') {
+          value = value.trim().toUpperCase();
+        } else if (typeof value === 'string' && key === 'email') {
+          value = value.trim().toLowerCase();
+        }
+        data.append(key, value);
       });
       data.append('appliedFor', jobId || "");
 
@@ -316,7 +323,7 @@ function JobApplicationForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Full Name *</label>
-                  <input required name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                  <input required name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -331,7 +338,7 @@ function JobApplicationForm() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Aadhar Number *</label>
-                    <input required name="aadhar" value={formData.aadhar} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                    <input required name="aadhar" value={formData.aadhar} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Gender *</label>
@@ -345,11 +352,11 @@ function JobApplicationForm() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">PAN Number *</label>
-                  <input required name="pan" value={formData.pan} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                  <input required name="pan" value={formData.pan} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Religion *</label>
-                  <input required name="religion" value={formData.religion} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                  <input required name="religion" value={formData.religion} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Caste *</label>
@@ -382,20 +389,20 @@ function JobApplicationForm() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Post Office</label>
-                  <input name="postOffice" value={formData.postOffice} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                  <input name="postOffice" value={formData.postOffice} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Police Station</label>
-                  <input name="policeStation" value={formData.policeStation} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                  <input name="policeStation" value={formData.policeStation} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Pincode</label>
-                  <input name="pincode" value={formData.pincode} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                  <input name="pincode" value={formData.pincode} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Full Address *</label>
-                <textarea required name="address" value={formData.address} onChange={handleInputChange} rows="3" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all"></textarea>
+                <textarea required name="address" value={formData.address} onChange={handleInputChange} rows="3" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase"></textarea>
               </div>
             </section>
 
@@ -406,7 +413,7 @@ function JobApplicationForm() {
               </h2>
               <div className="space-y-2 mb-6">
                 <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Highest Qualification *</label>
-                <input required name="qualification" value={formData.qualification} onChange={handleInputChange} placeholder="e.g. M.Sc B.Ed" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                <input required name="qualification" value={formData.qualification} onChange={handleInputChange} placeholder="e.g. M.Sc B.Ed" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
               </div>
               
               <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex items-center justify-between mb-8 transition-all hover:border-primary/20">
@@ -429,7 +436,7 @@ function JobApplicationForm() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">School Name *</label>
-                    <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                    <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Experience Range *</label>

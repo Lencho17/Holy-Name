@@ -3,7 +3,7 @@ import { FaFilePdf, FaDownload, FaBell, FaCalendarAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Notice() {
-  const { notices } = useContext(SiteDataContext);
+  const { notices, schoolProfile } = useContext(SiteDataContext);
   const latestNotice = notices && notices.length > 0 ? notices[0] : null;
   const previousNotices = notices && notices.length > 1 ? notices.slice(1) : [];
 
@@ -13,7 +13,7 @@ function Notice() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1577563908411-5077b6dc7624?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.notice || "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?q=80&w=2070&auto=format&fit=crop"}
             alt="Notice Board"
             className="w-full h-full object-cover opacity-95"
           />
@@ -29,7 +29,7 @@ function Notice() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Notice <span className="text-secondary italic drop-shadow-md">Board</span>
+            Notice <span className="text-amber-400 italic drop-shadow-md">Board</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             Get the latest circulars, announcements, and important updates directly from the school administration.

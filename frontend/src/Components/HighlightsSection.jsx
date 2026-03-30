@@ -66,7 +66,7 @@ export default function HighlightsSection() {
 
   if (!highlights || highlights.length === 0) return null;
 
-  const sortedHighlights = [...highlights].reverse();
+  const sortedHighlights = highlights;
   const displayedHighlights = showAll ? sortedHighlights : sortedHighlights.slice(0, 3);
 
   // Build image gallery: use galleryImages if available, else fallback to single image
@@ -79,10 +79,10 @@ export default function HighlightsSection() {
     <section className="py-2">
       <div className="flex justify-between items-end mb-10 px-4 md:px-0">
         <div>
-          <h2 className="text-primary font-black text-xl tracking-widest uppercase mb-2">Spotlight</h2>
-          <h3 className="academic-serif text-3xl md:text-5xl font-black text-on-surface">
-            School Highlights
-          </h3>
+          <h2 className="text-primary font-black text-xl tracking-widest uppercase mb-2 border-l-4 border-amber-500 pl-4">Spotlight</h2>
+          <h1 className="font-serif text-3xl md:text-6xl font-black text-gray-900 leading-tight">
+            School <span className="text-amber-600 italic">Highlights</span>
+          </h1>
         </div>
         {highlights.length > 3 && (
           <button 

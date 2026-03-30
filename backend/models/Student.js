@@ -13,6 +13,8 @@ const studentSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'inactive', 'graduated'], default: 'active' },
   rollNumber: String,
   section: String,
+  penNumber: String,
+  aadharNumber: String,
 }, { timestamps: true });
 
 module.exports = mongoose.model('Student', studentSchema);

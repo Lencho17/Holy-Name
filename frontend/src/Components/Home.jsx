@@ -60,7 +60,7 @@ function Home() {
               </div>
               <h2 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter">
                 Nurturing the{" "}
-                <span className="text-secondary drop-shadow-md italic">
+                <span className="text-amber-400 drop-shadow-md italic">
                   Leaders
                 </span>{" "}
                 of Tomorrow.
@@ -112,9 +112,9 @@ function Home() {
                   <span className="material-symbols-outlined text-primary text-4xl">
                     workspace_premium
                   </span>
-                  <span className="text-primary font-black text-2xl">#1</span>
+                  <span className="text-amber-600 font-black text-2xl">#1</span>
                 </div>
-                <h4 className="text-primary flex flex-1 justify-center items-center text-center font-bold text-xl uppercase tracking-wider leading-none">
+                <h4 className="text-amber-600 flex flex-1 justify-center items-center text-center font-bold text-xl uppercase tracking-wider leading-none">
                   Top Rated School
                 </h4>
               </div>
@@ -167,52 +167,24 @@ function Home() {
         )}
 
         {/* Values Section */}
-        <section className="w-full py-16 md:py-24 my-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 40%, #0F172A 100%)' }}>
-          {/* Decorative Elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Glowing orbs */}
-            <div className="absolute top-10 left-[10%] w-72 h-72 rounded-full opacity-[0.07]" style={{ background: 'radial-gradient(circle, #3B82F6 0%, transparent 70%)' }} />
-            <div className="absolute bottom-10 right-[10%] w-96 h-96 rounded-full opacity-[0.05]" style={{ background: 'radial-gradient(circle, #8B5CF6 0%, transparent 70%)' }} />
-            {/* Dot pattern */}
-            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-            {/* Floating accent lines */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
-          </div>
-
-          <div className="max-w-7xl mx-auto px-4 md:px-8 relative z-10">
+        {/* Values Section */}
+        <section className="w-full py-16 md:py-24 my-4 relative bg-gradient-to-r from-green-200 to-blue-200">
+          <div className="max-w-7xl mx-auto px-4 md:px-8">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
               className="text-center"
+              style={{ fontFamily: "'EB Garamond', serif" }}
             >
-              {/* Accent badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 mb-8">
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                <span className="text-blue-300 text-xs font-semibold uppercase tracking-widest">Our Promise</span>
-              </div>
-
-              <h3 className="text-4xl md:text-6xl font-black mb-8 text-white leading-tight tracking-tight">
-                Why <span className="bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent">Holy Name</span>?
+              <h3 className="font-serif text-4xl md:text-6xl font-black text-gray-900 leading-tight tracking-tighter mb-8 transition-all hover:scale-[1.02]">
+                Why <span className="text-amber-600 italic drop-shadow-sm">Holy Name?</span>
               </h3>
               
-              <p className="text-lg md:text-xl text-slate-300/90 leading-relaxed max-w-3xl mx-auto font-medium">
-                Because at Holy Name, we foster curiosity, creativity, and a love
-                for learning, nurturing students to become confident,
-                compassionate leaders of tomorrow.
+              <p className="text-lg md:text-2xl text-gray-600 leading-relaxed max-w-5xl mx-auto">
+                "Because at Holy Name,we foster curiosity, creativity, and a love for learning, nurturing students to become confident, compassionate leaders of tomorrow.Empowering young minds to dream, discover, and achieve"
               </p>
-              <p className="text-base md:text-lg text-slate-400/70 mt-4 max-w-2xl mx-auto italic">
-                "Empowering young minds to dream, discover, and achieve."
-              </p>
-
-              {/* Decorative underline */}
-              <div className="mt-10 flex items-center justify-center gap-2">
-                <div className="w-8 h-0.5 rounded-full bg-blue-500/40" />
-                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 shadow-lg shadow-blue-500/30" />
-                <div className="w-8 h-0.5 rounded-full bg-blue-500/40" />
-              </div>
             </motion.div>
           </div>
         </section>

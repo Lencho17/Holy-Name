@@ -38,7 +38,7 @@ function Faculty() {
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
 
-  const { faculty: facultyData } = useContext(SiteDataContext);
+  const { faculty: facultyData , schoolProfile } = useContext(SiteDataContext);
 
   const FacultyCard = ({ member }) => (
     <div className="relative bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100/80 group overflow-hidden flex flex-col items-center flex-1 transform hover:-translate-y-2 h-full">
@@ -119,7 +119,7 @@ function Faculty() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.faculty || "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop"}
             alt="Faculty"
             className="w-full h-full object-cover opacity-95"
           />
@@ -135,7 +135,7 @@ function Faculty() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Our Esteemed <span className="text-secondary italic drop-shadow-md">Faculty</span>
+            Our Esteemed <span className="text-amber-400 italic drop-shadow-md">Faculty</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             Meet our dedicated team of educators who are passionate about nurturing young minds and fostering excellence.
@@ -148,7 +148,9 @@ function Faculty() {
         {facultyData.Science.length > 0 && (
           <section>
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Science Department</h2>
+              <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
+                Science <span className="text-amber-600 italic">Department</span>
+              </h2>
               <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
               <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Nurturing analytical minds and scientific inquiry through experienced mentorship.</p>
             </div>
@@ -163,7 +165,9 @@ function Faculty() {
         {facultyData.Arts.length > 0 && (
           <section>
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Arts & Humanities</h2>
+              <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
+                Arts & <span className="text-amber-600 italic">Humanities</span>
+              </h2>
               <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
               <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Cultivating creativity, critical thinking, and a deeper understanding of human culture.</p>
             </div>
@@ -178,7 +182,9 @@ function Faculty() {
         {facultyData.Commerce?.length > 0 && (
           <section>
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Commerce</h2>
+              <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
+                Commerce <span className="text-amber-600 italic">Department</span>
+              </h2>
               <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
               <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Fostering business acumen and financial literacy with real-world applications.</p>
             </div>

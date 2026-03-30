@@ -31,7 +31,7 @@ function Career() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.career || "https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop"}
             alt="Careers"
             className="w-full h-full object-cover opacity-95"
           />
@@ -47,7 +47,7 @@ function Career() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Careers at <span className="text-secondary italic drop-shadow-md">Holy Name</span>
+            Careers at <span className="text-amber-400 italic drop-shadow-md">Holy Name</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             Join our passionate team of educators and professionals dedicated to shaping the future of our students.
@@ -168,7 +168,9 @@ function Career() {
             </div>
 
             <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 relative overflow-hidden max-h-min">
-              <h3 className="text-xl font-bold text-primary mb-4">Why Holy Name?</h3>
+              <h3 className="font-serif text-3xl md:text-5xl font-black text-gray-900 leading-tight mb-8">
+                Why <span className="text-amber-600 italic drop-shadow-sm">Holy Name?</span>
+              </h3>
               <p className="text-gray-600 text-sm mb-4">
                 We offer a supportive environment that fosters professional growth, innovation in teaching, and a strong sense of community.
               </p>

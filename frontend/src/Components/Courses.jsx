@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import { SiteDataContext } from "../context/SiteDataContext";
 import { FaBookOpen, FaAtom, FaBalanceScale, FaLandmark, FaChild, FaGraduationCap, FaShieldAlt } from "react-icons/fa";
 
 function Courses() {
+  const { schoolProfile } = useContext(SiteDataContext);
   const [selectedCategory, setSelectedCategory] = useState("Science");
 
   const courses = {
@@ -55,7 +57,7 @@ function Courses() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.courses || "https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=2070&auto=format&fit=crop"}
             alt="Courses"
             className="w-full h-full object-cover opacity-95"
           />
@@ -71,7 +73,7 @@ function Courses() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Academic <span className="text-secondary italic drop-shadow-md">Programmes</span>
+            Academic <span className="text-amber-400 italic drop-shadow-md">Programmes</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             Explore our diverse and rigorous curriculum designed to inspire curiosity and foster lifelong learning.

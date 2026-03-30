@@ -67,7 +67,9 @@ const defaultSchoolProfile = {
   officeHours: "",
   officeAddress: "",
   mapLink: "",
-  heroImages: []
+  heroImages: [],
+  pageHeroImages: {},
+  affiliation: []
 };
 
 export const SiteDataProvider = ({ children }) => {

@@ -37,10 +37,10 @@ exports.validateDateOfBirth = (dateString) => {
   if (!dateString || typeof dateString !== 'string') return false;
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return false;
-  // Age must be between 5 and 120 years
+  // Age must be between 3 and 120 years (relaxed for Nursery)
   const today = new Date();
   const age = today.getFullYear() - date.getFullYear();
-  return age >= 5 && age <= 120;
+  return age >= 3 && age <= 120;
 };
 
 exports.sanitizeString = (str) => {
@@ -49,16 +49,22 @@ exports.sanitizeString = (str) => {
 };
 
 exports.validateGrade = (grade) => {
-  const validGrades = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-  return validGrades.includes(String(grade));
+  const validGrades = [
+    'nursery', 'lkg', 'ukg', 
+    'class1', 'class2', 'class3', 'class4', 'class5', 
+    'class6', 'class7', 'class8', 'class9', 'class10',
+    'class11-science', 'class11-commerce', 'class11-arts',
+    'class12-science', 'class12-commerce', 'class12-arts'
+  ];
+  return validGrades.includes(String(grade).toLowerCase().trim());
 };
 
 exports.validateBloodGroup = (bg) => {
   const valid = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
-  return valid.includes(String(bg).toUpperCase());
+  return valid.includes(String(bg).trim().toUpperCase());
 };
 
 exports.validateGender = (gender) => {
-  const valid = ['Male', 'Female', 'Other'];
-  return valid.includes(String(gender).trim());
+  const valid = ['male', 'female', 'other'];
+  return valid.includes(String(gender).trim().toLowerCase());
 };

@@ -39,6 +39,28 @@ const admissionSchema = new mongoose.Schema({
   referenceNumber: { type: String, required: true, unique: true },
 }, { timestamps: true });
 
+// Uppercase Normalization: Convert all relevant fields to uppercase before saving
+admissionSchema.pre('save', function(next) {
+  const stringFields = [
+    'studentName', 'placeOfBirth', 'bloodGroup', 'religion', 'previousSchool',
+    'gradeApplied', 'fatherName', 'fatherOccupation', 'motherName', 'motherOccupation',
+    'guardianName', 'relationship', 'address', 'po', 'ps', 'pincode',
+    'aadharNumber', 'penNumber', 'caste', 'stream', 'elective', 'mil'
+  ];
+
+  stringFields.forEach(field => {
+    if (this[field] && typeof this[field] === 'string') {
+      this[field] = this[field].toUpperCase();
+    }
+  });
+
+  if (this.selectedSubjects && Array.isArray(this.selectedSubjects)) {
+    this.selectedSubjects = this.selectedSubjects.map(s => s.toUpperCase());
+  }
+
+  next();
+});
+
 // Optimize admin filtering and ordering
 admissionSchema.index({ status: 1, createdAt: -1 });
 

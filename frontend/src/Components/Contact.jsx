@@ -10,7 +10,7 @@ function Contact() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1534536281715-e28d76689b4d?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.contact || "https://images.unsplash.com/photo-1534536281715-e28d76689b4d?q=80&w=2070&auto=format&fit=crop"}
             alt="Contact Us"
             className="w-full h-full object-cover opacity-95"
           />
@@ -26,7 +26,7 @@ function Contact() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Contact <span className="text-secondary italic drop-shadow-md">Info</span>
+            Contact <span className="text-amber-400 italic drop-shadow-md">Info</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             We're here to help. Reach out to us with any questions or inquiries about our school.
@@ -42,7 +42,7 @@ function Contact() {
             <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-amber-500 transition-colors">
               <FaMapMarkerAlt className="text-2xl text-amber-500 group-hover:text-white transition-colors" />
             </div>
-            <h3 className="text-xl font-bold text-primary mb-3">Our Campus</h3>
+            <h3 className="text-xl font-black text-primary mb-3 font-serif italic">Our <span className="text-amber-600">Campus</span></h3>
             <p className="text-gray-600 whitespace-pre-line">
               {schoolProfile?.officeAddress || schoolProfile?.name}
             </p>
@@ -53,7 +53,7 @@ function Contact() {
             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-primary transition-colors">
               <FaPhoneAlt className="text-2xl text-primary group-hover:text-white transition-colors" />
             </div>
-            <h3 className="text-xl font-bold text-primary mb-3">Phone Line</h3>
+            <h3 className="text-xl font-black text-primary mb-3 font-serif italic">Phone <span className="text-amber-600">Line</span></h3>
             <p className="text-gray-600 mb-4">
               We're available during office hours to answer your calls.
             </p>
@@ -67,7 +67,7 @@ function Contact() {
             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-500 transition-colors">
               <FaEnvelope className="text-2xl text-blue-500 group-hover:text-white transition-colors" />
             </div>
-            <h3 className="text-xl font-bold text-primary mb-3">Email Support</h3>
+            <h3 className="text-xl font-black text-primary mb-3 font-serif italic">Email <span className="text-amber-600">Support</span></h3>
             <p className="text-gray-600 mb-4">
               Send us an email and we'll respond as soon as possible.
             </p>
@@ -81,7 +81,7 @@ function Contact() {
             <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-green-500 transition-colors">
               <FaClock className="text-2xl text-green-500 group-hover:text-white transition-colors" />
             </div>
-            <h3 className="text-xl font-bold text-primary mb-3">Office Hours</h3>
+            <h3 className="text-xl font-black text-primary mb-3 font-serif italic">Office <span className="text-amber-600">Hours</span></h3>
             <p className="text-gray-600 mb-4">
               Visit us or call us during our standard operating hours.
             </p>

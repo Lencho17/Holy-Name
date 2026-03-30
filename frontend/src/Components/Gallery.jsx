@@ -49,9 +49,15 @@ function Gallery() {
 
     displayItems = combined;
   } else {
+    // Filter out any gallery items that belong to an event which no longer exists
+    const validGalleryItems = galleryItems.filter(item => 
+      !item.eventId || 
+      events.some(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId))
+    );
+    
     displayItems = activeCategory === "All"
-      ? galleryItems
-      : galleryItems.filter(item => item.category === activeCategory);
+      ? validGalleryItems
+      : validGalleryItems.filter(item => item.category === activeCategory);
   }
 
   // Ensure current image's collection is used for lightbox navigation
@@ -101,7 +107,7 @@ function Gallery() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1511629091441-ee46146481b6?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.gallery || "https://images.unsplash.com/photo-1511629091441-ee46146481b6?q=80&w=2070&auto=format&fit=crop"}
             alt="Gallery"
             className="w-full h-full object-cover opacity-95"
           />
@@ -117,7 +123,7 @@ function Gallery() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            {currentEvent ? currentEvent.title : "Photo"} <span className="text-secondary italic drop-shadow-md">{currentEvent ? "" : "Gallery"}</span>
+            {currentEvent ? currentEvent.title : "Photo"} <span className="text-amber-400 italic drop-shadow-md">{currentEvent ? "" : "Gallery"}</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             {currentEvent

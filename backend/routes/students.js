@@ -5,7 +5,8 @@ const {
   getStudentById,
   createStudent,
   updateStudent,
-  deleteStudent
+  deleteStudent,
+  exportStudents
 } = require('../controllers/studentController');
 const { protect } = require('../middleware/auth');
 
@@ -15,6 +16,8 @@ router.use(protect);
 router.route('/')
   .get(getAllStudents)
   .post(createStudent);
+
+router.get('/export', exportStudents);
 
 router.route('/:id')
   .get(getStudentById)

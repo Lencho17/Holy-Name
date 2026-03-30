@@ -67,9 +67,8 @@ const EventsSection = () => {
     <div className="bg-gradient-to-br from-[#1a1a2e] via-[#15152a] to-[#0d0d1a] rounded-3xl overflow-hidden font-sans text-gray-200 pb-16 shadow-2xl">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="py-12 px-4 md:px-8 text-center bg-white/5">
-        <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 tracking-tight flex items-center justify-center">
-          <FaCalendarAlt className="text-amber-500 mr-4 drop-shadow-lg" />
-          Our Events
+        <h2 className="font-serif text-4xl md:text-6xl font-black text-white mb-4 tracking-tight flex items-center justify-center">
+          Recent <span className="text-amber-400 italic ml-4">Events</span>
         </h2>
         <p className="text-slate-400 max-w-2xl mx-auto font-light">
           Experience the vibrant life at {schoolProfile?.name || "School"} through our academic,

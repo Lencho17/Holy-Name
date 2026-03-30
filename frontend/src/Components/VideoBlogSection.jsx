@@ -72,8 +72,8 @@ const VideoBlogSection = () => {
   return (
     <section className="py-12 px-4 md:px-8 bg-gradient-to-br from-[#f6f8fa] to-[#eaeff3] rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-black text-slate-800 text-center mb-10 tracking-tight uppercase">
-          Video Blog
+        <h2 className="font-serif text-4xl md:text-6xl font-black text-slate-900 text-center mb-10 tracking-tight">
+          Visual <span className="text-amber-600 italic">Insights</span>
         </h2>
         <div className="flex flex-wrap justify-center items-stretch gap-6 lg:gap-8">
           {videos.map((video, index) => (

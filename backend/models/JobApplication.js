@@ -62,4 +62,20 @@ const jobApplicationSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+// Uppercase Normalization: Convert all relevant fields to uppercase before saving
+jobApplicationSchema.pre('save', function(next) {
+  const stringFields = [
+    'fullName', 'gender', 'qualification', 'schoolName', 'udiseCode',
+    'caste', 'religion', 'postOffice', 'policeStation', 'pincode', 'address'
+  ];
+
+  stringFields.forEach(field => {
+    if (this[field] && typeof this[field] === 'string') {
+      this[field] = this[field].toUpperCase();
+    }
+  });
+
+  next();
+});
+
 module.exports = mongoose.model('JobApplication', jobApplicationSchema);

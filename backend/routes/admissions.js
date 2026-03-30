@@ -100,22 +100,12 @@ const sendApplicantConfirmationEmail = async (admissionData) => {
 };
 
 // --- Multer config for admission documents ---
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../config/cloudinary');
+const { createStorage, getFileUrl, fileFilter } = require('../middleware/upload');
 
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => {
-    return {
-      folder: 'holyname/admissions',
-      resource_type: 'auto', // Support images AND pdfs
-      allowed_formats: ['jpeg', 'jpg', 'png', 'pdf'],
-    };
-  },
-});
-
+const admissionStorage = createStorage('admissions');
 const upload = multer({
-  storage,
+  storage: admissionStorage,
+  fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
@@ -328,6 +318,8 @@ router.patch('/:id', protect, async (req, res) => {
           email: admission.email,
           address: admission.address,
           admissionId: admission._id,
+          penNumber: admission.penNumber,
+          aadharNumber: admission.aadharNumber,
         });
       }
     }

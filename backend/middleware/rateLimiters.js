@@ -1,10 +1,10 @@
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-// General API rate limiter (100 req/min)
+// General API rate limiter (1000 req/min)
 const apiLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 1 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 1000,
   message: { message: 'Too many requests. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -23,10 +23,10 @@ const authLimiter = rateLimit({
   }
 });
 
-// Sensitive submission rate limiter (Forms/Contact) (5 req/hour)
+// Sensitive submission rate limiter (Forms/Contact) (50 req/hour)
 const submissionLimiter = rateLimit({
   windowMs: parseInt(process.env.SUBMISSION_LIMIT_WINDOW_MS) || 60 * 60 * 1000,
-  max: parseInt(process.env.SUBMISSION_LIMIT_MAX) || 5,
+  max: parseInt(process.env.SUBMISSION_LIMIT_MAX) || 50,
   message: { message: 'Too many form submissions. Please try again in an hour.' },
   standardHeaders: true,
   legacyHeaders: false,

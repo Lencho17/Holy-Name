@@ -71,8 +71,12 @@ const Footer = () => {
           {/* Affiliation Column */}
           <div className="flex flex-col items-start gap-2.5">
             <h5 className="font-bold text-xs text-primary dark:text-blue-400 uppercase tracking-widest mb-1">Affiliation</h5>
-            <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">SEBA & ASHEC</p>
-            <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Diocese of Dibrugarh</p>
+            {schoolProfile?.affiliation?.map((aff, idx) => (
+              <p key={idx} className="text-slate-600 dark:text-slate-400 text-sm font-medium">{aff}</p>
+            ))}
+            {(!schoolProfile?.affiliation || schoolProfile.affiliation.length === 0) && (
+              <p className="text-slate-400 dark:text-slate-500 text-sm font-medium italic">No affiliation set</p>
+            )}
             {schoolProfile?.officeHours && <p className="text-slate-500 dark:text-slate-500 text-[11px] mt-1 font-medium">Office: {schoolProfile.officeHours}</p>}
           </div>
           
@@ -122,7 +126,7 @@ const Footer = () => {
 
       {/* Bottom Bar */}
       <div className="w-full py-4 text-center text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-widest uppercase border-t border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 bg-white/50 dark:bg-slate-900/50 transition-colors duration-300">
-        <span>&copy; {new Date().getFullYear()} {schoolProfile?.name || "School"}, Sivasagar. All Rights Reserved.</span>
+        <span>&copy; {new Date().getFullYear()} {schoolProfile?.name || "Holy Name School"}. All Rights Reserved.</span>
         <span className="hidden md:inline">•</span>
         <span>
           Developed by{" "}

@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -11,7 +11,7 @@ function AdminPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
   // Defensive API_URL with leading slash
   const API_URL = raw_API_URL?.startsWith('/') ? raw_API_URL : `/${raw_API_URL || 'api'}`;
@@ -117,6 +117,39 @@ function AdminPage() {
   const [selectedJobApp, setSelectedJobApp] = useState(null);
 
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const [isExportingStudents, setIsExportingStudents] = useState(false);
+
+  const handleExportStudents = async () => {
+    setIsExportingStudents(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/students/export`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.status === 401) return handleLogout();
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileName = `students_export_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } else {
+        alert("Failed to export students.");
+      }
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("An error occurred during export.");
+    } finally {
+      setIsExportingStudents(false);
+    }
+  };
 
   const fetchApps = async (page = appPage, search = searchQuery) => {
     try {
@@ -916,7 +949,7 @@ function AdminPage() {
     // Also remove from local events galleryImages if it was linked
     if (deletedItem && deletedItem.eventId) {
       updatedEvents = events.map(ev => 
-        (ev._id || ev.id) === deletedItem.eventId 
+        (String(ev._id) === String(deletedItem.eventId) || String(ev.id) === String(deletedItem.eventId))
           ? { ...ev, galleryImages: (ev.galleryImages || []).filter(img => img !== deletedItem.src) }
           : ev
       );
@@ -979,7 +1012,11 @@ function AdminPage() {
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {gallery.filter(item => !item.eventId || item.eventId === null).map(item => (
+        {gallery.filter(item => 
+          !item.eventId || 
+          item.eventId === null || 
+          !events.find(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId))
+        ).map(item => (
           <div key={item._id} className="relative group rounded-xl overflow-hidden border">
             <img src={item.src} alt={item.title} className="w-full h-32 object-cover" />
             <div className="p-2 bg-white text-sm">
@@ -987,7 +1024,7 @@ function AdminPage() {
                 <div className="flex justify-between items-center">
                   <p className="text-gray-500 text-xs">{item.category}</p>
                   {item.eventId && (
-                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded">Linked to Event</span>
+                    <span className="text-[10px] bg-red-100 text-red-700 px-1 rounded">Orphaned Event Photo</span>
                   )}
                 </div>
             </div>
@@ -1217,9 +1254,15 @@ function AdminPage() {
   const handleDeleteEvent = async (id) => {
     if (!window.confirm("Are you sure you want to delete this event and all its photos?")) return;
     
+    const eventToDelete = events.find(item => (item._id || item.id) === id);
+    const eventIdNum = eventToDelete ? eventToDelete.id : null;
+
     // Logic: Filter out the event and its linked gallery items
     const updatedEvents = events.filter(item => (item._id || item.id) !== id);
-    const updatedGallery = gallery.filter(item => item.eventId !== id);
+    const updatedGallery = gallery.filter(item => {
+      if (!item.eventId) return true;
+      return String(item.eventId) !== String(id) && (eventIdNum ? String(item.eventId) !== String(eventIdNum) : true);
+    });
 
     // Update ATOMICALLY
     updateSiteContent({
@@ -1472,7 +1515,7 @@ function AdminPage() {
       const dept = newFaculty.department;
       setFaculty({
         ...faculty,
-        [dept]: [{ ...newFaculty, photo: photoUrl, _id: `temp-${Date.now()}` }, ...faculty[dept]]
+        [dept]: [{ ...newFaculty, photo: photoUrl, _id: `temp-${Date.now()}` }, ...(faculty[dept] || [])]
       });
       setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', classes: '', department: dept });
       setFacultyFile(null);
@@ -1484,7 +1527,7 @@ function AdminPage() {
   const handleDeleteFaculty = (dept, idToRemove, indexToRemove) => {
     setFaculty({
       ...faculty,
-      [dept]: faculty[dept].filter((f, i) => (f._id || f.id) ? (f._id || f.id) !== idToRemove : i !== indexToRemove)
+      [dept]: (faculty[dept] || []).filter((f, i) => (f._id || f.id) ? (f._id || f.id) !== idToRemove : i !== indexToRemove)
     });
   };
   const renderFacultyTab = () => (
@@ -2517,11 +2560,11 @@ function AdminPage() {
 
   // Sync from context → local ONLY on initial load (not on every context change)
   useEffect(() => {
-    if (!localProfileInitRef.current && schoolProfile) {
+    if (!localProfileInitRef.current && !loading && schoolProfile) {
       setLocalProfile(schoolProfile);
       localProfileInitRef.current = true;
     }
-  }, [schoolProfile]);
+  }, [schoolProfile, loading]);
 
   const renderSchoolProfileTab = () => {
     const handleProfileChange = (field, value) => {
@@ -2562,6 +2605,47 @@ function AdminPage() {
         return { ...prev, heroImages: newImages };
       });
     };
+
+    const handlePageHeroUpload = async (pageId, e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const url = await uploadImage(file);
+        setLocalProfile(prev => ({
+          ...prev,
+          pageHeroImages: {
+            ...(prev.pageHeroImages || {}),
+            [pageId]: url
+          }
+        }));
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      }
+    };
+
+    const removePageHeroImage = (pageId) => {
+      setLocalProfile(prev => ({
+        ...prev,
+        pageHeroImages: {
+          ...(prev.pageHeroImages || {}),
+          [pageId]: ""
+        }
+      }));
+    };
+
+    const PAGES_REQUIRING_HERO = [
+      { id: 'about', label: 'About Us' },
+      { id: 'admission', label: 'Admissions' },
+      { id: 'career', label: 'Career' },
+      { id: 'complaints', label: 'Complaints' },
+      { id: 'contact', label: 'Contact' },
+      { id: 'courses', label: 'Courses' },
+      { id: 'faculty', label: 'Faculty' },
+      { id: 'gallery', label: 'Gallery' },
+      { id: 'notice', label: 'Notice Board' },
+      { id: 'principal', label: "Principal's Desk" },
+      { id: 'studentPortal', label: 'Student Portal' }
+    ];
 
     return (
       <div className="space-y-8 animate-fadeIn">
@@ -2700,6 +2784,137 @@ function AdminPage() {
                 )}
               </div>
             </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">School Affiliations (Website Footer)</label>
+              <div className="space-y-2">
+                {(localProfile.affiliation || []).map((aff, index) => (
+                  <div key={index} className="flex gap-2 group animate-fadeIn">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={aff}
+                        onChange={(e) => {
+                          const newAffs = [...(localProfile.affiliation || [])];
+                          newAffs[index] = e.target.value;
+                          handleProfileChange('affiliation', newAffs);
+                        }}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary text-sm h-10"
+                        placeholder="e.g. SEBA & ASHEC"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newAffs = localProfile.affiliation.filter((_, i) => i !== index);
+                        handleProfileChange('affiliation', newAffs);
+                      }}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      title="Remove Affiliation"
+                    >
+                      <FaTrash size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newAffs = [...(localProfile.affiliation || []), ""];
+                    handleProfileChange('affiliation', newAffs);
+                  }}
+                  className="mt-1 flex items-center gap-2 text-primary font-bold text-xs hover:text-primary/80 transition-colors bg-primary/5 px-3 py-2 rounded-lg border border-primary/10 border-dashed"
+                >
+                  <FaPlus size={10} /> Add Affiliation Row
+                </button>
+              </div>
+            </div>
+
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8 border-t pt-8 mt-4">
+              {/* Online Instructions */}
+              <div>
+                <label className="block text-sm font-bold text-blue-700 mb-2 flex items-center gap-2">
+                  <FaLaptop className="text-blue-500" /> Online Admission Instructions
+                </label>
+                <div className="space-y-2">
+                  {(localProfile.onlineAdmissionInstructions || []).map((inst, index) => (
+                    <div key={index} className="flex gap-2 group animate-fadeIn">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={inst}
+                          onChange={(e) => {
+                            const newInst = [...(localProfile.onlineAdmissionInstructions || [])];
+                            newInst[index] = e.target.value;
+                            handleProfileChange('onlineAdmissionInstructions', newInst);
+                          }}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm h-10"
+                          placeholder="e.g. Fill up the form"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newInst = localProfile.onlineAdmissionInstructions.filter((_, i) => i !== index);
+                          handleProfileChange('onlineAdmissionInstructions', newInst);
+                        }}
+                        className="p-2 text-red-100 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newInst = [...(localProfile.onlineAdmissionInstructions || []), ""];
+                      handleProfileChange('onlineAdmissionInstructions', newInst);
+                    }}
+                    className="mt-1 flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-wider hover:text-blue-700 transition-colors bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 border-dashed"
+                  >
+                    <FaPlus size={8} /> Add Step
+                  </button>
+                </div>
+              </div>
+
+              {/* Offline Instructions */}
+              <div>
+                <label className="block text-sm font-bold text-amber-700 mb-2 flex items-center gap-2">
+                  <FaBuilding className="text-amber-500" /> Offline Admission Instructions
+                </label>
+                <div className="space-y-2">
+                  {(localProfile.offlineAdmissionInstructions || []).map((inst, index) => (
+                    <div key={index} className="flex gap-2 group animate-fadeIn">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={inst}
+                          onChange={(e) => {
+                            const newInst = [...(localProfile.offlineAdmissionInstructions || [])];
+                            newInst[index] = e.target.value;
+                            handleProfileChange('offlineAdmissionInstructions', newInst);
+                          }}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm h-10"
+                          placeholder="e.g. Visit the school office"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newInst = localProfile.offlineAdmissionInstructions.filter((_, i) => i !== index);
+                          handleProfileChange('offlineAdmissionInstructions', newInst);
+                        }}
+                        className="p-2 text-red-100 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newInst = [...(localProfile.offlineAdmissionInstructions || []), ""];
+                      handleProfileChange('offlineAdmissionInstructions', newInst);
+                    }}
+                    className="mt-1 flex items-center gap-2 text-amber-600 font-bold text-[10px] uppercase tracking-wider hover:text-amber-700 transition-colors bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 border-dashed"
+                  >
+                    <FaPlus size={8} /> Add Step
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -2741,6 +2956,66 @@ function AdminPage() {
                 <p>No hero images uploaded yet.</p>
               </div>
             )}
+          </div>
+        </section>
+
+        {/* Page-Specific Hero Images Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="border-b pb-4 mb-6">
+            <h3 className="text-xl font-bold text-gray-800">Page-Specific Hero Backgrounds</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Upload specifically tailored top-banner background images completely individually for each of your inner pages.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {PAGES_REQUIRING_HERO.map(page => {
+              const currentImageUrl = localProfile.pageHeroImages?.[page.id];
+
+              return (
+                <div key={page.id} className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 flex flex-col">
+                  <div className="p-3 bg-white border-b border-gray-100 flex justify-between items-center z-10">
+                    <h4 className="font-bold text-gray-800 text-sm truncate">{page.label}</h4>
+                  </div>
+                  
+                  <div className="relative aspect-video bg-gray-100 flex-1 flex flex-col items-center justify-center group overflow-hidden">
+                    {currentImageUrl ? (
+                      <>
+                        <img 
+                          src={currentImageUrl} 
+                          alt={`${page.label} Hero`} 
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3">
+                          <button 
+                            onClick={() => removePageHeroImage(page.id)}
+                            className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-colors shadow-lg flex items-center gap-1"
+                          >
+                            <FaTrash /> Remove
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-4 text-center h-full w-full">
+                        <FaImage className="text-3xl text-gray-300 mb-2" />
+                        <span className="text-xs text-gray-400 font-medium mb-3">No custom image</span>
+                        <div className="relative">
+                          <button className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1 border border-blue-200">
+                            <FaPlus /> Upload
+                          </button>
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={(e) => handlePageHeroUpload(page.id, e)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>
@@ -3348,8 +3623,18 @@ function AdminPage() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Student Directory</h3>
-                <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full">
-                  Total Admitted: {students.length}
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full whitespace-nowrap">
+                    Total Admitted: {students.length}
+                  </div>
+                  <button 
+                    onClick={handleExportStudents}
+                    disabled={isExportingStudents || students.length === 0}
+                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isExportingStudents ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                    {isExportingStudents ? 'Exporting...' : 'Export to Excel'}
+                  </button>
                 </div>
               </div>
 

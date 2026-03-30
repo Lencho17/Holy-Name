@@ -123,12 +123,34 @@ const siteContentSchema = new mongoose.Schema({
     punchLine: { type: String, default: "" },
     phone: { type: String, default: "" },
     email: { type: String, default: "" },
+    affiliation: { type: [String], default: [] },
     officeHours: { type: String, default: "" },
     officeAddress: { type: String, default: "" },
     mapLink: { type: String, default: "" },
+    onlineAdmissionInstructions: {
+      type: [String],
+      default: ["Fill up the form", "Upload all documents marked compulsory", "Pay the Fee", "Download & Print Acknowledgement Receipt", "Submit the receipt during interview date allotted", "You can check the status of your application by reference number or email verification"]
+    },
+    offlineAdmissionInstructions: {
+      type: [String],
+      default: ["Visit the school administrative block during working hours (9 AM - 3 PM).", "Collect the admission application packet from the front desk.", "Fill out the form manually in CAPITAL letters.", "Attach photocopies of necessary documents.", "Submit the completed docket and pay the fee at the cash counter."]
+    },
     heroImages: {
       type: [String],
       default: []
+    },
+    pageHeroImages: {
+      about: { type: String, default: "" },
+      admission: { type: String, default: "" },
+      career: { type: String, default: "" },
+      complaints: { type: String, default: "" },
+      contact: { type: String, default: "" },
+      courses: { type: String, default: "" },
+      faculty: { type: String, default: "" },
+      gallery: { type: String, default: "" },
+      notice: { type: String, default: "" },
+      principal: { type: String, default: "" },
+      studentPortal: { type: String, default: "" }
     }
   }
 }, { timestamps: true });

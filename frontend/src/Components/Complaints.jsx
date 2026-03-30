@@ -41,7 +41,19 @@ function Complaints() {
 
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
-      const response = await axios.post(`${apiBase}/inquiries`, formData);
+      
+      // Normalize data to uppercase (except email)
+      const normalizedData = {
+        ...formData,
+        name: formData.isAnonymous ? "ANONYMOUS" : (formData.name || '').trim().toUpperCase(),
+        subject: (formData.subject || '').trim().toUpperCase(),
+        message: (formData.message || '').trim().toUpperCase(),
+        className: (formData.className || '').trim().toUpperCase(),
+        section: (formData.section || '').trim().toUpperCase(),
+        email: (formData.email || '').trim().toLowerCase()
+      };
+
+      const response = await axios.post(`${apiBase}/inquiries`, normalizedData);
       const newInquiry = response.data.inquiry;
       
       setSubmitted(true);
@@ -179,7 +191,7 @@ function Complaints() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.complaints || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2070&auto=format&fit=crop"}
             alt="Feedback"
             className="w-full h-full object-cover opacity-95"
           />
@@ -195,7 +207,7 @@ function Complaints() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Submit <span className="text-secondary italic drop-shadow-md">Feedback</span>
+            Submit <span className="text-amber-400 italic drop-shadow-md">Feedback</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             Your suggestions and feedback help us continuously improve the Holy Name experience for everyone.
@@ -292,7 +304,7 @@ function Complaints() {
                           name="className"
                           value={formData.className}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all uppercase" 
                           placeholder="e.g. 10" 
                           required={formData.userType === 'Student'}
                         />
@@ -305,7 +317,7 @@ function Complaints() {
                           name="section"
                           value={formData.section}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all uppercase" 
                           placeholder="e.g. A" 
                         />
                       </div>
@@ -320,7 +332,7 @@ function Complaints() {
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="name">Full Name {formData.type === 'General Inquiry' ? '*' : ''}</label>
                   <input
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white:bg-[#1E293B]:bg-[#1E293B] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all uppercase"
                     id="name" name="name" type="text" placeholder="John Doe"
                     value={formData.name} onChange={handleChange} required={!formData.isAnonymous}
                   />
@@ -360,7 +372,7 @@ function Complaints() {
               <div className={formData.isAnonymous ? "md:col-span-2" : ""}>
                 <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="subject">Subject</label>
                 <input
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white:bg-[#1E293B]:bg-[#1E293B] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all uppercase"
                   id="subject" name="subject" type="text" placeholder="Brief summary of your message"
                   value={formData.subject} onChange={handleChange} required
                 />
@@ -370,7 +382,7 @@ function Complaints() {
             <div className="mb-8">
               <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="message">Message Details</label>
               <textarea
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white:bg-[#1E293B]:bg-[#1E293B] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none uppercase"
                 id="message" name="message" rows="5" placeholder="Please provide as much detail as possible..."
                 value={formData.message} onChange={handleChange} required
               />

@@ -29,7 +29,6 @@ const pdfMemoryUpload = multer({
   },
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
 }).single('pdf');
-
 router.get('/', async (req, res) => {
   try {
     const now = Date.now();
@@ -76,11 +75,33 @@ router.put('/', protect, async (req, res) => {
       }
     }
 
-    let content = await SiteContent.findOneAndUpdate(
-      {}, // Matches the single site content document
-      { $set: safeUpdateData },
-      { new: true, upsert: true, lean: true }
-    );
+    let content = await SiteContent.findOne();
+    if (!content) {
+      content = await SiteContent.create({});
+    }
+
+    // Apply updates conservatively (atomic field updates)
+    for (const key in safeUpdateData) {
+      const val = safeUpdateData[key];
+      
+      // If it's a simple object (like schoolProfile, socialLinks, principal, headMistress)
+      // we merge it to prevent blowing away existing fields if the frontend only sends a partial update.
+      if (val && typeof val === 'object' && !Array.isArray(val) && ['schoolProfile', 'socialLinks', 'principal', 'headMistress'].includes(key)) {
+        // Merge key-by-key into the existing Mongoose subdocument.
+        // Spreading Mongoose subdocuments is unreliable for nested arrays.
+        if (!content[key]) content[key] = {};
+        for (const subKey of Object.keys(val)) {
+          content[key][subKey] = val[subKey];
+        }
+        content.markModified(key);
+      } else {
+        // For arrays and primitives, simple assignment (replaces the whole array)
+        content[key] = val;
+      }
+    }
+
+    await content.save();
+    content = content.toObject();
 
     // BUST CACHE on update so changes are visible immediately
     contentCache.data = content;
@@ -97,15 +118,23 @@ router.put('/', protect, async (req, res) => {
 });
 
 // POST /api/content/upload — protected, upload single image (Cloudinary)
-router.post('/upload', protect, uploadSingle, (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+router.post('/upload', protect, (req, res) => {
+  uploadSingle(req, res, (err) => {
+    if (err) {
+      console.error('[CLOUDINARY UPLOAD ERROR]:', err);
+      return res.status(500).json({ message: 'Upload failed', error: err.message });
     }
-    res.json({ url: req.file.path, public_id: req.file.filename });
-  } catch (error) {
-    res.status(500).json({ message: 'Upload failed', error: error.message });
-  }
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      // req.file.path is the Cloudinary URL
+      res.json({ url: req.file.path, public_id: req.file.filename });
+    } catch (error) {
+      console.error('[CONTROLLER ERROR]:', error);
+      res.status(500).json({ message: 'Upload failed', error: error.message });
+    }
+  });
 });
 
 // POST /api/content/upload-pdf — protected, upload PDF to GitHub
@@ -123,25 +152,32 @@ router.post('/upload-pdf', protect, pdfMemoryUpload, async (req, res) => {
 });
 
 // POST /api/content/upload-event — protected, upload multiple event images (cover + gallery)
-router.post('/upload-event', protect, uploadEventImages, (req, res) => {
-  try {
-    const result = {};
-    if (req.files.image) {
-      result.cover = {
-        url: req.files.image[0].path,
-        public_id: req.files.image[0].filename
-      };
+router.post('/upload-event', protect, (req, res) => {
+  uploadEventImages(req, res, (err) => {
+    if (err) {
+      console.error('[EVENT CLOUDINARY UPLOAD ERROR]:', err);
+      return res.status(500).json({ message: 'Event upload failed', error: err.message });
     }
-    if (req.files.images) {
-      result.gallery = req.files.images.map(f => ({
-        url: f.path,
-        public_id: f.filename
-      }));
+    try {
+      const result = {};
+      if (req.files.image) {
+        result.cover = {
+          url: req.files.image[0].path,
+          public_id: req.files.image[0].filename
+        };
+      }
+      if (req.files.images) {
+        result.gallery = req.files.images.map(f => ({
+          url: f.path,
+          public_id: f.filename
+        }));
+      }
+      res.json(result);
+    } catch (error) {
+      console.error('[EVENT CONTROLLER ERROR]:', error);
+      res.status(500).json({ message: 'Event upload failed', error: error.message });
     }
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ message: 'Event upload failed', error: error.message });
-  }
+  });
 });
 
 module.exports = router;

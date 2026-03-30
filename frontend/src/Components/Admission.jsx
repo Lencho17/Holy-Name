@@ -86,7 +86,7 @@ function Admission() {
   };
 
   const handleSubjectChange = (subject) => {
-    setSelectedSubjects(prev => 
+    setSelectedSubjects(prev =>
       prev.includes(subject) ? prev.filter(s => s !== subject) : [...prev, subject]
     );
   };
@@ -98,38 +98,42 @@ function Admission() {
 
     const form = e.target;
     const formData = new FormData();
-    formData.append('studentName', form.querySelector('[name="studentName"]')?.value || '');
+
+    // Helper to get uppercase value
+    const getUVal = (name) => (form.querySelector(`[name="${name}"]`)?.value || '').trim().toUpperCase();
+
+    formData.append('studentName', getUVal('studentName'));
     formData.append('dateOfBirth', form.querySelector('[name="dateOfBirth"]')?.value || '');
-    formData.append('placeOfBirth', form.querySelector('[name="placeOfBirth"]')?.value || '');
-    formData.append('gender', form.querySelector('[name="gender"]')?.value || '');
-    formData.append('religion', form.querySelector('[name="religion"]')?.value || '');
-    formData.append('caste', form.querySelector('[name="caste"]')?.value || '');
-    formData.append('bloodGroup', form.querySelector('[name="bloodGroup"]')?.value || '');
+    formData.append('placeOfBirth', getUVal('placeOfBirth'));
+    formData.append('gender', getUVal('gender'));
+    formData.append('religion', getUVal('religion'));
+    formData.append('caste', getUVal('caste'));
+    formData.append('bloodGroup', getUVal('bloodGroup'));
     formData.append('aadharNumber', aadharNumber);
-    formData.append('penNumber', form.querySelector('[name="penNumber"]')?.value || '');
-    formData.append('previousSchool', form.querySelector('[name="previousSchool"]')?.value || '');
+    formData.append('penNumber', getUVal('penNumber'));
+    formData.append('previousSchool', getUVal('previousSchool'));
     formData.append('gradeApplied', gradeApplied);
-    formData.append('stream', form.querySelector('[name="stream"]')?.value || '');
+    formData.append('stream', getUVal('stream'));
     formData.append('nccInterest', nccInterest);
-    
-    formData.append('fatherName', form.querySelector('[name="fatherName"]')?.value || '');
-    formData.append('fatherOccupation', form.querySelector('[name="fatherOccupation"]')?.value || '');
-    formData.append('motherName', form.querySelector('[name="motherName"]')?.value || '');
-    formData.append('motherOccupation', form.querySelector('[name="motherOccupation"]')?.value || '');
-    formData.append('guardianName', form.querySelector('[name="guardianName"]')?.value || '');
-    formData.append('relationship', form.querySelector('[name="relationship"]')?.value || '');
+
+    formData.append('fatherName', getUVal('fatherName'));
+    formData.append('fatherOccupation', getUVal('fatherOccupation'));
+    formData.append('motherName', getUVal('motherName'));
+    formData.append('motherOccupation', getUVal('motherOccupation'));
+    formData.append('guardianName', getUVal('guardianName'));
+    formData.append('relationship', getUVal('relationship'));
     formData.append('contactNumber', contactNumber);
-    formData.append('email', form.querySelector('[name="email"]')?.value || '');
-    formData.append('address', form.querySelector('[name="address"]')?.value || '');
-    formData.append('po', form.querySelector('[name="po"]')?.value || '');
-    formData.append('ps', form.querySelector('[name="ps"]')?.value || '');
-    formData.append('pincode', form.querySelector('[name="pincode"]')?.value || '');
-    formData.append('elective', form.querySelector('[name="elective"]')?.value || '');
-    formData.append('mil', form.querySelector('[name="mil"]')?.value || '');
+    formData.append('email', (form.querySelector('[name="email"]')?.value || '').trim().toLowerCase());
+    formData.append('address', getUVal('address'));
+    formData.append('po', getUVal('po'));
+    formData.append('ps', getUVal('ps'));
+    formData.append('pincode', getUVal('pincode'));
+    formData.append('elective', getUVal('elective'));
+    formData.append('mil', getUVal('mil'));
 
     // Class 11-12 specialized subjects
     if (gradeApplied === "class11" || gradeApplied === "class12") {
-      selectedSubjects.forEach(subject => formData.append('selectedSubjects[]', subject));
+      selectedSubjects.forEach(subject => formData.append('selectedSubjects[]', subject.toUpperCase()));
     }
 
     // At least one parent/guardian check
@@ -237,17 +241,17 @@ function Admission() {
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text("APPLICATION SUBMITTED SUCCESSFULLY", 105, yPos, { align: "center" });
-    
+
     // Reference Box
     yPos += 8;
     doc.setFillColor(250, 250, 250);
     doc.setDrawColor(230, 230, 230);
     doc.roundedRect(15, yPos, pageWidth - 30, 25, 3, 3, 'FD');
-    
+
     doc.setFontSize(9);
     doc.setTextColor(100, 100, 100);
     doc.text("REFERENCE NUMBER", 105, yPos + 8, { align: "center" });
-    
+
     doc.setFontSize(18);
     doc.setTextColor(...primaryColor);
     doc.setFont("courier", "bold");
@@ -255,7 +259,7 @@ function Admission() {
 
     // Details Table
     yPos += 35;
-    
+
     const tableBody = [
       ["Student Name", submittedData.studentName],
       ["Grade Applied", submittedData.gradeApplied.toUpperCase()],
@@ -279,25 +283,25 @@ function Admission() {
       head: [["Information Detail", "Provided Value"]],
       body: tableBody,
       theme: 'grid',
-      headStyles: { 
-        fillColor: primaryColor, 
-        textColor: [255, 255, 255], 
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: [255, 255, 255],
         fontSize: 10,
         halign: 'center'
       },
-      bodyStyles: { 
-        fontSize: 10, 
+      bodyStyles: {
+        fontSize: 10,
         cellPadding: 5,
         textColor: [50, 50, 50]
       },
-      columnStyles: { 
-        0: { fontStyle: 'bold', fillColor: [250, 250, 250], cellWidth: 60 } 
+      columnStyles: {
+        0: { fontStyle: 'bold', fillColor: [250, 250, 250], cellWidth: 60 }
       },
       margin: { left: 15, right: 15 }
     });
 
     yPos = doc.lastAutoTable.finalY + 15;
-    
+
     // Note Section
     doc.setFillColor(254, 252, 232); // Light yellow
     doc.rect(15, yPos, pageWidth - 30, 20, 'F');
@@ -308,12 +312,12 @@ function Admission() {
     doc.setFont("helvetica", "normal");
     doc.text("Please present this receipt during your scheduled interview. The reference number is ", 20, yPos + 13);
     doc.text("required for all future correspondence regarding this application.", 20, yPos + 17);
-    
+
     // Footer
     yPos += 35;
     doc.setDrawColor(200, 200, 200);
     doc.line(15, yPos, pageWidth - 15, yPos);
-    
+
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(`${schoolProfile?.name || 'School Office'} | ${schoolProfile?.phone || ''} | ${schoolProfile?.email || ''}`, 105, yPos + 8, { align: "center" });
@@ -328,7 +332,7 @@ function Admission() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop"
+            src={schoolProfile?.pageHeroImages?.admission || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop"}
             alt="Admissions"
             className="w-full h-full object-cover opacity-95"
           />
@@ -344,7 +348,7 @@ function Admission() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Join Our <span className="text-secondary italic drop-shadow-md">Community</span>
+            Join Our <span className="text-amber-400 italic drop-shadow-md">Community</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             Start your journey towards academic excellence and holistic growth at Holy Name HS School.
@@ -355,7 +359,9 @@ function Admission() {
       <div className="max-w-7xl mx-auto px-4 md:px-8 -mt-16 relative z-20">
         <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 mb-12 border border-gray-100">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Admission Process</h2>
+            <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 leading-tight">
+              Admission <span className="text-amber-600 italic">Process</span>
+            </h2>
             <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
             <p className="mt-4 text-gray-600">A simple, transparent, and seamless five-step journey.</p>
           </div>
@@ -366,7 +372,7 @@ function Admission() {
               <div key={index} className="relative group">
                 {index !== steps.length - 1 && (
                   <div className="hidden md:block absolute top-8 left-[60%] w-[calc(100%-20%)] h-[2px] bg-gray-200">
-                     <div className="h-full bg-amber-500 w-0 group-hover:w-full transition-all duration-500"></div>
+                    <div className="h-full bg-amber-500 w-0 group-hover:w-full transition-all duration-500"></div>
                   </div>
                 )}
                 <div className="w-16 h-16 mx-auto bg-amber-50 relative z-10 rounded-full flex items-center justify-center border-4 border-white shadow-md text-amber-500 text-xl font-bold mb-4 transition-transform group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-white">
@@ -384,35 +390,27 @@ function Admission() {
           <div className="bg-white rounded-3xl shadow-lg p-8 md:p-10 border border-gray-100 hover:border-blue-200 transition-colors">
             <div className="flex items-center mb-6">
               <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-2xl mr-4">
-                 <FaLaptop />
+                <FaLaptop />
               </div>
               <h2 className="text-2xl font-serif font-bold text-primary">Online Mode</h2>
             </div>
             <ul className="space-y-4 text-gray-600">
-              <li className="flex items-start">
-                <span className="text-blue-500 mr-2">✓</span>
-                Fill up the form
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-500 mr-2">✓</span>
-                Upload all documents marked compulsory
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-500 mr-2">✓</span>
-                Pay the Fee
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-500 mr-2">✓</span>
-                Download & Print Acknowledgement Receipt
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-500 mr-2">✓</span>
-                Submit the receipt during interview date allotted
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-500 mr-2">✓</span>
-                You can check the status of your application by reference number or email verification
-              </li>
+              {(schoolProfile.onlineAdmissionInstructions?.length > 0 
+                ? schoolProfile.onlineAdmissionInstructions 
+                : [
+                    "Fill up the form", 
+                    "Upload all documents marked compulsory", 
+                    "Pay the Fee", 
+                    "Download & Print Acknowledgement Receipt", 
+                    "Submit the receipt during interview date allotted", 
+                    "You can check the status of your application by reference number or email verification"
+                  ]
+              ).map((inst, idx) => (
+                <li key={idx} className="flex items-start">
+                  <span className="text-blue-500 mr-2">✓</span>
+                  {inst}
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -420,31 +418,26 @@ function Admission() {
           <div className="bg-white rounded-3xl shadow-lg p-8 md:p-10 border border-gray-100 hover:border-amber-200 transition-colors">
             <div className="flex items-center mb-6">
               <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-2xl mr-4">
-                 <FaBuilding />
+                <FaBuilding />
               </div>
               <h2 className="text-2xl font-serif font-bold text-primary">Offline Mode</h2>
             </div>
             <ul className="space-y-4 text-gray-600">
-              <li className="flex items-start">
-                <span className="text-amber-500 mr-2">✓</span>
-                Visit the school administrative block during working hours (9 AM - 3 PM).
-              </li>
-              <li className="flex items-start">
-                <span className="text-amber-500 mr-2">✓</span>
-                Collect the admission application packet from the front desk.
-              </li>
-              <li className="flex items-start">
-                <span className="text-amber-500 mr-2">✓</span>
-                Fill out the form manually in CAPITAL letters.
-              </li>
-              <li className="flex items-start">
-                <span className="text-amber-500 mr-2">✓</span>
-                Attach photocopies of necessary documents.
-              </li>
-              <li className="flex items-start">
-                <span className="text-amber-500 mr-2">✓</span>
-                Submit the completed docket and pay the fee at the cash counter.
-              </li>
+              {(schoolProfile.offlineAdmissionInstructions?.length > 0 
+                ? schoolProfile.offlineAdmissionInstructions 
+                : [
+                    "Visit the school administrative block during working hours (9 AM - 3 PM).",
+                    "Collect the admission application packet from the front desk.",
+                    "Fill out the form manually in CAPITAL letters.",
+                    "Attach photocopies of necessary documents.",
+                    "Submit the completed docket and pay the fee at the cash counter."
+                  ]
+              ).map((inst, idx) => (
+                <li key={idx} className="flex items-start">
+                  <span className="text-amber-500 mr-2">✓</span>
+                  {inst}
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -452,463 +445,478 @@ function Admission() {
         {/* Application Form */}
         <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 mb-12 border border-gray-100" id="apply">
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary">Apply Now</h2>
+            <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 leading-tight">
+              Apply <span className="text-amber-600 italic">Now</span>
+            </h2>
             <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
             <p className="mt-4 text-gray-600">Fill out the form below to initiate the admission process.</p>
           </div>
 
           {!submittedData ? (
             <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Student Name (As per Aadhar) *</label>
-                <input name="studentName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter full name" required />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Date of Birth *</label>
-                <input name="dateOfBirth" type="date" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Aadhar Number</label>
-                <input 
-                  name="aadharNumber" 
-                  type="text" 
-                  value={aadharNumber}
-                  onChange={(e) => setAadharNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" 
-                  placeholder="12-digit Aadhar number" 
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Place of Birth</label>
-                <input name="placeOfBirth" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter place of birth" />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Gender *</label>
-                <select name="gender" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
-                  <option value="">Select Gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Blood Group</label>
-                <select name="bloodGroup" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors">
-                  <option value="">Select Blood Group</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Religion</label>
-                <input name="religion" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter religion" />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Caste *</label>
-                <select 
-                  name="caste" 
-                  value={caste} 
-                  onChange={(e) => setCaste(e.target.value)} 
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" 
-                  required
-                >
-                  <option value="General">General</option>
-                  <option value="OBC">OBC</option>
-                  <option value="SC">SC</option>
-                  <option value="ST">ST</option>
-                  <option value="MOBC">MOBC</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Grade/Class Applied For *</label>
-                <select 
-                  name="gradeApplied"
-                  value={gradeApplied}
-                  onChange={(e) => setGradeApplied(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" 
-                  required
-                >
-                  <option value="">Select Grade</option>
-                  <option value="nursery">Nursery</option>
-                  <option value="lkg">LKG</option>
-                  <option value="ukg">UKG</option>
-                  <option value="class1">Class I</option>
-                  <option value="class2">Class II</option>
-                  <option value="class3">Class III</option>
-                  <option value="class4">Class IV</option>
-                  <option value="class5">Class V</option>
-                  <option value="class6">Class VI</option>
-                  <option value="class7">Class VII</option>
-                  <option value="class8">Class VIII</option>
-                  <option value="class9">Class IX</option>
-                  <option value="class10">Class X</option>
-                  <option value="class11-science">Class XI (Science)</option>
-                  <option value="class11-commerce">Class XI (Commerce)</option>
-                  <option value="class11-arts">Class XI (Arts)</option>
-                  <option value="class12-science">Class XII (Science)</option>
-                  <option value="class12-commerce">Class XII (Commerce)</option>
-                  <option value="class12-arts">Class XII (Arts)</option>
-                </select>
-              </div>
-              
-              {/* Conditional PEN Number for Class 2+ */}
-              {gradeApplied && !["nursery", "lkg", "ukg", "class1"].includes(gradeApplied) && (
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">PEN (Permanent Education Number) *</label>
-                  <input name="penNumber" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter PEN number" required />
+              {/* Submission Error Display */}
+              {submitError && (
+                <div className="bg-red-50 border-2 border-red-100 p-6 rounded-2xl flex items-start animate-fade-in mb-8">
+                  <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center text-xl mr-4 flex-shrink-0">
+                    <FaExclamationCircle />
+                  </div>
+                  <div>
+                    <h3 className="text-red-800 font-bold text-lg mb-1">Submission Error</h3>
+                    <p className="text-red-600 font-medium">{submitError}</p>
+                    <p className="text-red-500/70 text-xs mt-2 uppercase tracking-widest font-black">Please review your details and try again</p>
+                  </div>
                 </div>
               )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Student Name (As per Aadhar) *</label>
+                  <input name="studentName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER FULL NAME" required />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Date of Birth *</label>
+                  <input name="dateOfBirth" type="date" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Aadhar Number</label>
+                  <input
+                    name="aadharNumber"
+                    type="text"
+                    value={aadharNumber}
+                    onChange={(e) => setAadharNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
+                    placeholder="12-DIGIT AADHAR NUMBER"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Place of Birth</label>
+                  <input name="placeOfBirth" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER PLACE OF BIRTH" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Gender *</label>
+                  <select name="gender" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" required>
+                    <option value="">SELECT GENDER</option>
+                    <option value="male">MALE</option>
+                    <option value="female">FEMALE</option>
+                    <option value="other">OTHER</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Blood Group</label>
+                  <select name="bloodGroup" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase">
+                    <option value="">SELECT BLOOD GROUP</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Religion</label>
+                  <input name="religion" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER RELIGION" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Caste *</label>
+                  <select
+                    name="caste"
+                    value={caste}
+                    onChange={(e) => setCaste(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
+                    required
+                  >
+                    <option value="General">GENERAL</option>
+                    <option value="OBC">OBC</option>
+                    <option value="SC">SC</option>
+                    <option value="ST">ST</option>
+                    <option value="MOBC">MOBC</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Grade/Class Applied For *</label>
+                  <select
+                    name="gradeApplied"
+                    value={gradeApplied}
+                    onChange={(e) => setGradeApplied(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
+                    required
+                  >
+                    <option value="">SELECT GRADE</option>
+                    <option value="nursery">NURSERY</option>
+                    <option value="lkg">LKG</option>
+                    <option value="ukg">UKG</option>
+                    <option value="class1">CLASS I</option>
+                    <option value="class2">CLASS II</option>
+                    <option value="class3">CLASS III</option>
+                    <option value="class4">CLASS IV</option>
+                    <option value="class5">CLASS V</option>
+                    <option value="class6">CLASS VI</option>
+                    <option value="class7">CLASS VII</option>
+                    <option value="class8">CLASS VIII</option>
+                    <option value="class9">CLASS IX</option>
+                    <option value="class10">CLASS X</option>
+                    <option value="class11-science">CLASS XI (SCIENCE)</option>
+                    <option value="class11-commerce">CLASS XI (COMMERCE)</option>
+                    <option value="class11-arts">CLASS XI (ARTS)</option>
+                    <option value="class12-science">CLASS XII (SCIENCE)</option>
+                    <option value="class12-commerce">CLASS XII (COMMERCE)</option>
+                    <option value="class12-arts">CLASS XII (ARTS)</option>
+                  </select>
+                </div>
 
-              {/* Conditional MIL & Elective for Class 9-10 */}
-              {(gradeApplied === "class9" || gradeApplied === "class10") && (
-                <>
+                {/* Conditional PEN Number for Class 2+ */}
+                {gradeApplied && !["nursery", "lkg", "ukg", "class1"].includes(gradeApplied) && (
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">MIL (Modern Indian Language) *</label>
-                    <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
-                      <option value="">Select MIL</option>
-                      <option value="assamese">Assamese</option>
-                      <option value="bengali">Bengali</option>
-                      <option value="hindi">Hindi</option>
-                      <option value="bodo">Bodo</option>
-                      <option value="urdu">Urdu</option>
-                      <option value="manipuri">Manipuri</option>
-                      <option value="nepali">Nepali</option>
-                      <option value="khasi">Khasi</option>
-                      <option value="garo">Garo</option>
-                      <option value="mizo">Mizo</option>
-                      <option value="hmar">Hmar</option>
-                      <option value="karbi">Karbi</option>
-                    </select>
+                    <label className="block text-gray-700 font-medium mb-2">PEN (Permanent Education Number) *</label>
+                    <input name="penNumber" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER PEN NUMBER" required />
                   </div>
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">Elective Subject *</label>
-                    <select name="elective" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
-                      <option value="">Select Elective</option>
-                      <option value="advanced_math">Advanced Mathematics (E)</option>
-                      <option value="geography">Geography (E)</option>
-                      <option value="history">History (E)</option>
-                      <option value="sanskrit">Sanskrit (E)</option>
-                      <option value="arabic">Arabic (E)</option>
-                      <option value="persian">Persian (E)</option>
-                      <option value="santhali">Santhali (E)</option>
-                      <option value="computer_science">Computer Science (E)</option>
-                      <option value="fine_art">Fine Art (E)</option>
-                      <option value="music">Music (E)</option>
-                      <option value="dance">Dance (E)</option>
-                      <option value="home_science">Home Science (E)</option>
-                      <option value="woodcraft">Woodcraft (E)</option>
-                      <option value="garment_designing">Garment Designing (E)</option>
-                      <option value="weaving_textile">Weaving and Textile Design (E)</option>
-                      <option value="assamese_e">Assamese (E)</option>
-                      <option value="hindi_e">Hindi (E)</option>
-                      <option value="manipuri_e">Manipuri (E)</option>
-                      <option value="commerce_e">Commerce (E)</option>
-                      <option value="yoga_pe">Yoga and Physical Education (E)</option>
-                      <option value="it_ites">IT/ITeS NSQF (E)</option>
-                      <option value="retail_trade">Retail Trade NSQF (E)</option>
-                      <option value="agriculture_horticulture">Agriculture & Horticulture</option>
-                      <option value="animal_health">Animal Health Worker NSQF (E)</option>
-                      <option value="tourism_hospitality">Tourism & Hospitality NSQF (E)</option>
-                      <option value="health_care">Health Care NSQF (E)</option>
-                      <option value="private_security">Private Security NSQF (E)</option>
-                      <option value="beauty_wellness">Beauty and Wellness NSQF (E)</option>
-                      <option value="automotive">Automotive NSQF (E)</option>
-                      <option value="electronics_hardware">Electronics and Hardware NSQF (E)</option>
-                    </select>
-                  </div>
-                </>
-              )}
+                )}
 
-              {/* Conditional Stream Selection for 11-12 */}
-              {gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12")) && (
-                <>
-                  <div className="md:col-span-2 bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-2">
-                    <p className="text-sm font-bold text-primary flex items-center mb-2">
-                       💼 Compulsory Subjects
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">English</span>
-                      <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">Environmental Education</span>
+                {/* Conditional MIL & Elective for Class 9-10 */}
+                {(gradeApplied === "class9" || gradeApplied === "class10") && (
+                  <>
+                    <div>
+                      <label className="block text-gray-700 font-medium mb-2">MIL (Modern Indian Language) *</label>
+                      <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" required>
+                        <option value="">SELECT MIL</option>
+                        <option value="assamese">ASSAMESE</option>
+                        <option value="bengali">BENGALI</option>
+                        <option value="hindi">HINDI</option>
+                        <option value="bodo">BODO</option>
+                        <option value="urdu">URDU</option>
+                        <option value="manipuri">MANIPURI</option>
+                        <option value="nepali">NEPALI</option>
+                        <option value="khasi">KHASI</option>
+                        <option value="garo">GARO</option>
+                        <option value="mizo">MIZO</option>
+                        <option value="hmar">HMAR</option>
+                        <option value="karbi">KARBI</option>
+                      </select>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">MIL / Alternative English *</label>
-                    <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
-                      <option value="">Select Language</option>
-                      <option value="assamese">Assamese</option>
-                      <option value="bodo">Bodo</option>
-                      <option value="hindi">Hindi</option>
-                      <option value="bengali">Bengali</option>
-                      <option value="nepali">Nepali</option>
-                      <option value="urdu">Urdu</option>
-                      <option value="khasi">Khasi</option>
-                      <option value="garo">Garo</option>
-                      <option value="mizo">Mizo</option>
-                      <option value="manipuri">Manipuri</option>
-                      <option value="hmar">Hmar</option>
-                      <option value="karbi">Karbi</option>
-                      <option value="alt_english">Alternative English</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">Select Stream *</label>
-                    <select 
-                      name="stream" 
-                      value={selectedStream}
-                      onChange={(e) => {
-                        setSelectedStream(e.target.value);
-                        setSelectedSubjects([]); // Reset subjects on stream change
-                      }}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" 
-                      required
-                    >
-                      <option value="">Choose Stream</option>
-                      <option value="science">Science</option>
-                      <option value="commerce">Commerce</option>
-                      <option value="arts">Arts / Humanities</option>
-                    </select>
-                  </div>
+                    <div>
+                      <label className="block text-gray-700 font-medium mb-2">Elective Subject *</label>
+                      <select name="elective" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
+                        <option value="">Select Elective</option>
+                        <option value="advanced_math">Advanced Mathematics (E)</option>
+                        <option value="geography">Geography (E)</option>
+                        <option value="history">History (E)</option>
+                        <option value="sanskrit">Sanskrit (E)</option>
+                        <option value="arabic">Arabic (E)</option>
+                        <option value="persian">Persian (E)</option>
+                        <option value="santhali">Santhali (E)</option>
+                        <option value="computer_science">Computer Science (E)</option>
+                        <option value="fine_art">Fine Art (E)</option>
+                        <option value="music">Music (E)</option>
+                        <option value="dance">Dance (E)</option>
+                        <option value="home_science">Home Science (E)</option>
+                        <option value="woodcraft">Woodcraft (E)</option>
+                        <option value="garment_designing">Garment Designing (E)</option>
+                        <option value="weaving_textile">Weaving and Textile Design (E)</option>
+                        <option value="assamese_e">Assamese (E)</option>
+                        <option value="hindi_e">Hindi (E)</option>
+                        <option value="manipuri_e">Manipuri (E)</option>
+                        <option value="commerce_e">Commerce (E)</option>
+                        <option value="yoga_pe">Yoga and Physical Education (E)</option>
+                        <option value="it_ites">IT/ITeS NSQF (E)</option>
+                        <option value="retail_trade">Retail Trade NSQF (E)</option>
+                        <option value="agriculture_horticulture">Agriculture & Horticulture</option>
+                        <option value="animal_health">Animal Health Worker NSQF (E)</option>
+                        <option value="tourism_hospitality">Tourism & Hospitality NSQF (E)</option>
+                        <option value="health_care">Health Care NSQF (E)</option>
+                        <option value="private_security">Private Security NSQF (E)</option>
+                        <option value="beauty_wellness">Beauty and Wellness NSQF (E)</option>
+                        <option value="automotive">Automotive NSQF (E)</option>
+                        <option value="electronics_hardware">Electronics and Hardware NSQF (E)</option>
+                      </select>
+                    </div>
+                  </>
+                )}
 
-                  {/* Dynamic Elective Checkboxes for 11-12 */}
-                  {selectedStream && (
-                    <div className="md:col-span-2 mt-4">
-                      <label className="block text-gray-700 font-bold mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 italic">
-                         Please select your elective subjects:
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {/* Science Subjects */}
-                        {selectedStream === 'science' && [
-                          'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'Geology'
-                        ].map(sub => (
-                          <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedSubjects.includes(sub)}
-                              onChange={() => handleSubjectChange(sub)}
-                              className="w-5 h-5 accent-amber-500 mr-3"
-                            />
-                            <span className="text-sm text-gray-700">{sub}</span>
-                          </label>
-                        ))}
-
-                        {/* Arts Subjects */}
-                        {selectedStream === 'arts' && [
-                          'Political Science', 'History', 'Geography', 'Education', 'Economics', 
-                          'Sociology', 'Logic & Philosophy', 'Anthropology', 'Mathematics', 'Home Science'
-                        ].map(sub => (
-                          <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedSubjects.includes(sub)}
-                              onChange={() => handleSubjectChange(sub)}
-                              className="w-5 h-5 accent-amber-500 mr-3"
-                            />
-                            <span className="text-sm text-gray-700">{sub}</span>
-                          </label>
-                        ))}
-
-                        {/* Commerce Subjects */}
-                        {selectedStream === 'commerce' && [
-                          'Accountancy', 'Business Studies', 'Economics', 
-                          'Business Mathematics and Statistics', 'Mathematics',
-                          'Sales Management and Advertising', 'Insurance', 'Finance', 
-                          'Economic Geography', 'Computer Science and Application', 
-                          'Entrepreneurship Development', 'Multimedia and Web Technology'
-                        ].map(sub => (
-                          <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedSubjects.includes(sub)}
-                              onChange={() => handleSubjectChange(sub)}
-                              className="w-5 h-5 accent-amber-500 mr-3"
-                            />
-                            <span className="text-sm text-gray-700">{sub}</span>
-                          </label>
-                        ))}
+                {/* Conditional Stream Selection for 11-12 */}
+                {gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12")) && (
+                  <>
+                    <div className="md:col-span-2 bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-2">
+                      <p className="text-sm font-bold text-primary flex items-center mb-2">
+                        💼 Compulsory Subjects
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">English</span>
+                        <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">Environmental Education</span>
                       </div>
                     </div>
-                  )}
-                </>
-              )}
+                    <div>
+                      <label className="block text-gray-700 font-medium mb-2">MIL / Alternative English *</label>
+                      <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
+                        <option value="">Select Language</option>
+                        <option value="assamese">Assamese</option>
+                        <option value="bodo">Bodo</option>
+                        <option value="hindi">Hindi</option>
+                        <option value="bengali">Bengali</option>
+                        <option value="nepali">Nepali</option>
+                        <option value="urdu">Urdu</option>
+                        <option value="khasi">Khasi</option>
+                        <option value="garo">Garo</option>
+                        <option value="mizo">Mizo</option>
+                        <option value="manipuri">Manipuri</option>
+                        <option value="hmar">Hmar</option>
+                        <option value="karbi">Karbi</option>
+                        <option value="alt_english">Alternative English</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-medium mb-2">Select Stream *</label>
+                      <select
+                        name="stream"
+                        value={selectedStream}
+                        onChange={(e) => {
+                          setSelectedStream(e.target.value);
+                          setSelectedSubjects([]); // Reset subjects on stream change
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors"
+                        required
+                      >
+                        <option value="">Choose Stream</option>
+                        <option value="science">Science</option>
+                        <option value="commerce">Commerce</option>
+                        <option value="arts">Arts / Humanities</option>
+                      </select>
+                    </div>
 
-              {/* NCC Interest Section */}
-              <div className="md:col-span-2 bg-amber-50 p-6 rounded-2xl border border-amber-100 mt-4">
-                <label className="flex items-center cursor-pointer group">
-                  <div className="relative">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only" 
-                      checked={nccInterest}
-                      onChange={() => setNccInterest(!nccInterest)}
-                    />
-                    <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${nccInterest ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
-                    <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${nccInterest ? 'translate-x-6' : ''}`}></div>
-                  </div>
-                  <div className="ml-4">
-                    <h4 className="text-lg font-bold text-primary flex items-center">
-                      <FaShieldAlt className="mr-2 text-amber-600" />
-                      Interested in joining NCC?
-                    </h4>
-                    <p className="text-sm text-gray-600">Join the 11th Assam Battalion membership program for leadership and discipline training.</p>
-                  </div>
-                </label>
-              </div>
+                    {/* Dynamic Elective Checkboxes for 11-12 */}
+                    {selectedStream && (
+                      <div className="md:col-span-2 mt-4">
+                        <label className="block text-gray-700 font-bold mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 italic">
+                          Please select your elective subjects:
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {/* Science Subjects */}
+                          {selectedStream === 'science' && [
+                            'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'Geology'
+                          ].map(sub => (
+                            <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
+                              <input
+                                type="checkbox"
+                                checked={selectedSubjects.includes(sub)}
+                                onChange={() => handleSubjectChange(sub)}
+                                className="w-5 h-5 accent-amber-500 mr-3"
+                              />
+                              <span className="text-sm text-gray-700">{sub}</span>
+                            </label>
+                          ))}
 
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Previous School Attended (If any)</label>
-                <input 
-                  name="previousSchool" 
-                  type="text" 
-                  value={previousSchool}
-                  onChange={(e) => setPreviousSchool(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" 
-                  placeholder="School name" 
-                />
-              </div>
-            </div>
+                          {/* Arts Subjects */}
+                          {selectedStream === 'arts' && [
+                            'Political Science', 'History', 'Geography', 'Education', 'Economics',
+                            'Sociology', 'Logic & Philosophy', 'Anthropology', 'Mathematics', 'Home Science'
+                          ].map(sub => (
+                            <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
+                              <input
+                                type="checkbox"
+                                checked={selectedSubjects.includes(sub)}
+                                onChange={() => handleSubjectChange(sub)}
+                                className="w-5 h-5 accent-amber-500 mr-3"
+                              />
+                              <span className="text-sm text-gray-700">{sub}</span>
+                            </label>
+                          ))}
 
-            <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b pb-2">Parent / Guardian Information (At least one name is mandatory)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Father's Name</label>
-                <input name="fatherName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter father's name" />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Father's Occupation</label>
-                <input name="fatherOccupation" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter father's occupation" />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Mother's Name</label>
-                <input name="motherName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter mother's name" />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Mother's Occupation</label>
-                <input name="motherOccupation" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter mother's occupation" />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Guardian's Full Name</label>
-                <input name="guardianName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter guardian's name" />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Relationship to Student</label>
-                <input name="relationship" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="e.g. Father, Mother" />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Contact Number *</label>
-                <input 
-                  name="contactNumber" 
-                  type="tel" 
-                  value={contactNumber}
-                  onChange={handlePhoneChange}
-                  className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${contactNumber.length > 0 && contactNumber.length < 10 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`} 
-                  placeholder="10-digit phone number" 
-                  required 
-                />
-                {contactNumber.length > 0 && contactNumber.length < 10 && (
-                  <p className="text-red-500 text-xs mt-1">Please enter a valid 10-digit number</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Email Address *</label>
-                <input name="email" type="email" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter email address" required />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="md:col-span-3">
-                <label className="block text-gray-700 font-medium mb-2">Residential Address *</label>
-                <textarea name="address" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" rows="2" placeholder="House No, Street, Village/Town" required></textarea>
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Post Office (PO) *</label>
-                <input name="po" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="PO name" required />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Police Station (PS) *</label>
-                <input name="ps" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="PS name" required />
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Pincode *</label>
-                <input name="pincode" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="6-digit pincode" required />
-              </div>
-            </div>
-
-            <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b pb-2">Documents to Upload</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Student Passport Photo *</label>
-                <input name="studentPhoto" type="file" accept=".jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
-                <p className="text-xs text-gray-500 mt-1">JPG or PNG (Max 2MB)</p>
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Birth Certificate *</label>
-                <input name="birthCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
-                <p className="text-xs text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Transfer Certificate {previousSchool ? '*' : '(If applicable)'}</label>
-                <input name="transferCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!!previousSchool} />
-                <p className="text-xs text-gray-500 mt-1">Required if you attended a previous school</p>
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">Previous Class Marksheet *</label>
-                <input name="marksheet" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
-                <p className="text-xs text-gray-500 mt-1">PDF, JPG, or PNG</p>
-              </div>
-              {caste !== 'General' && (
-                <div className="md:col-span-2 p-6 bg-amber-50 rounded-2xl border border-amber-200 animate-fadeIn transition-all">
-                   <h3 className="font-bold text-amber-800 mb-4 flex items-center">
-                     <FaIdBadge className="mr-2" /> Caste Certificate *
-                   </h3>
-                   <div className="space-y-2">
-                     <label className="text-sm font-bold text-amber-600 uppercase tracking-widest">Upload Certificate ({caste})</label>
-                     <input required={caste !== 'General'} type="file" name="casteCertificate" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" />
-                     <p className="text-xs text-amber-700/70 mt-1">Required for {caste} category. (Max 5MB)</p>
-                   </div>
-                </div>
-              )}
-              
-              <div className="md:col-span-2">
-                <label className="block text-gray-700 font-medium mb-2">Aadhar Card / VID Photo {aadharNumber ? '' : '*'}</label>
-                <input name="aadharVidOrReceipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!aadharNumber} />
-                {!aadharNumber && (
-                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start mt-2">
-                    <div className="text-amber-500 mr-2 mt-0.5 text-sm">💡</div>
-                    <p className="text-xs text-amber-800">
-                      <strong>Aadhar Missing?</strong> Please upload <strong>Aadhar VID Scan</strong> or <strong>Application Receipt</strong>.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="text-center pt-6">
-              <button 
-                type="submit" 
-                disabled={submitting}
-                className={`text-white font-bold px-10 py-4 rounded-full transition-all duration-300 transform hover:-translate-y-1 text-lg flex items-center justify-center mx-auto ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-opacity-90 hover:shadow-lg:shadow-none:shadow-none'}`}
-              >
-                {submitting ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Submitting Application...
+                          {/* Commerce Subjects */}
+                          {selectedStream === 'commerce' && [
+                            'Accountancy', 'Business Studies', 'Economics',
+                            'Business Mathematics and Statistics', 'Mathematics',
+                            'Sales Management and Advertising', 'Insurance', 'Finance',
+                            'Economic Geography', 'Computer Science and Application',
+                            'Entrepreneurship Development', 'Multimedia and Web Technology'
+                          ].map(sub => (
+                            <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
+                              <input
+                                type="checkbox"
+                                checked={selectedSubjects.includes(sub)}
+                                onChange={() => handleSubjectChange(sub)}
+                                className="w-5 h-5 accent-amber-500 mr-3"
+                              />
+                              <span className="text-sm text-gray-700">{sub}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
-                ) : (
-                  "Submit Application"
                 )}
-              </button>
-            </div>
-          </form>
+
+                {/* NCC Interest Section */}
+                <div className="md:col-span-2 bg-amber-50 p-6 rounded-2xl border border-amber-100 mt-4">
+                  <label className="flex items-center cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={nccInterest}
+                        onChange={() => setNccInterest(!nccInterest)}
+                      />
+                      <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${nccInterest ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
+                      <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${nccInterest ? 'translate-x-6' : ''}`}></div>
+                    </div>
+                    <div className="ml-4">
+                      <h4 className="text-lg font-bold text-primary flex items-center">
+                        <FaShieldAlt className="mr-2 text-amber-600" />
+                        Interested in joining NCC?
+                      </h4>
+                      <p className="text-sm text-gray-600">Join the 11th Assam Battalion membership program for leadership and discipline training.</p>
+                    </div>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Previous School Attended (If any)</label>
+                  <input
+                    name="previousSchool"
+                    type="text"
+                    value={previousSchool}
+                    onChange={(e) => setPreviousSchool(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors"
+                    placeholder="School name"
+                  />
+                </div>
+              </div>
+
+              <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b pb-2">Parent / Guardian Information (At least one name is mandatory)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Father's Name</label>
+                  <input name="fatherName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="Enter father's name" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Father's Occupation</label>
+                  <input name="fatherOccupation" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter father's occupation" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Mother's Name</label>
+                  <input name="motherName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="Enter mother's name" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Mother's Occupation</label>
+                  <input name="motherOccupation" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter mother's occupation" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Guardian's Full Name</label>
+                  <input name="guardianName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="Enter guardian's name" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Relationship to Student</label>
+                  <input name="relationship" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="e.g. Father, Mother" />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Contact Number *</label>
+                  <input
+                    name="contactNumber"
+                    type="tel"
+                    value={contactNumber}
+                    onChange={handlePhoneChange}
+                    className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${contactNumber.length > 0 && contactNumber.length < 10 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                    placeholder="10-digit phone number"
+                    required
+                  />
+                  {contactNumber.length > 0 && contactNumber.length < 10 && (
+                    <p className="text-red-500 text-xs mt-1">Please enter a valid 10-digit number</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Email Address *</label>
+                  <input name="email" type="email" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter email address" required />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="md:col-span-3">
+                  <label className="block text-gray-700 font-medium mb-2">Residential Address *</label>
+                  <textarea name="address" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" rows="2" placeholder="House No, Street, Village/Town" required></textarea>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Post Office (PO) *</label>
+                  <input name="po" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="PO name" required />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Police Station (PS) *</label>
+                  <input name="ps" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="PS name" required />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Pincode *</label>
+                  <input name="pincode" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="6-digit pincode" required />
+                </div>
+              </div>
+
+              <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b pb-2">Documents to Upload</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Student Passport Photo *</label>
+                  <input name="studentPhoto" type="file" accept=".jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
+                  <p className="text-xs text-gray-500 mt-1">JPG or PNG (Max 2MB)</p>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Birth Certificate *</label>
+                  <input name="birthCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
+                  <p className="text-xs text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Transfer Certificate {previousSchool ? '*' : '(If applicable)'}</label>
+                  <input name="transferCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!!previousSchool} />
+                  <p className="text-xs text-gray-500 mt-1">Required if you attended a previous school</p>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">Previous Class Marksheet *</label>
+                  <input name="marksheet" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
+                  <p className="text-xs text-gray-500 mt-1">PDF, JPG, or PNG</p>
+                </div>
+                {caste !== 'General' && (
+                  <div className="md:col-span-2 p-6 bg-amber-50 rounded-2xl border border-amber-200 animate-fadeIn transition-all">
+                    <h3 className="font-bold text-amber-800 mb-4 flex items-center">
+                      <FaIdBadge className="mr-2" /> Caste Certificate *
+                    </h3>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-amber-600 uppercase tracking-widest">Upload Certificate ({caste})</label>
+                      <input required={caste !== 'General'} type="file" name="casteCertificate" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" />
+                      <p className="text-xs text-amber-700/70 mt-1">Required for {caste} category. (Max 5MB)</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="md:col-span-2">
+                  <label className="block text-gray-700 font-medium mb-2">Aadhar Card / VID Photo {aadharNumber ? '' : '*'}</label>
+                  <input name="aadharVidOrReceipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!aadharNumber} />
+                  {!aadharNumber && (
+                    <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start mt-2">
+                      <div className="text-amber-500 mr-2 mt-0.5 text-sm">💡</div>
+                      <p className="text-xs text-amber-800">
+                        <strong>Aadhar Missing?</strong> Please upload <strong>Aadhar VID Scan</strong> or <strong>Application Receipt</strong>.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-center pt-6">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`text-white font-bold px-10 py-4 rounded-full transition-all duration-300 transform hover:-translate-y-1 text-lg flex items-center justify-center mx-auto ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-opacity-90 hover:shadow-lg:shadow-none:shadow-none'}`}
+                >
+                  {submitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Submitting Application...
+                    </>
+                  ) : (
+                    "Submit Application"
+                  )}
+                </button>
+              </div>
+            </form>
           ) : (
             <div className="max-w-3xl mx-auto py-10 animate-fade-in">
               {/* Success Icon */}
@@ -928,10 +936,10 @@ function Admission() {
                 {/* School Header */}
                 <div className="flex flex-col items-center text-center border-b border-gray-100 pb-8 mb-8 pt-4">
                   {schoolProfile?.logo && (
-                    <img 
-                      src={schoolProfile.logo} 
-                      alt="School Logo" 
-                      className="w-24 h-24 object-contain mb-4 transform hover:scale-105 transition-transform" 
+                    <img
+                      src={schoolProfile.logo}
+                      alt="School Logo"
+                      className="w-24 h-24 object-contain mb-4 transform hover:scale-105 transition-transform"
                     />
                   )}
                   <h2 className="text-3xl md:text-4xl font-serif font-black text-primary tracking-tighter leading-none mb-2">
@@ -996,11 +1004,11 @@ function Admission() {
                   <div className="mt-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Academic Selection</p>
                     <div className="flex flex-wrap gap-2">
-                       {submittedData.mil && <span className="px-4 py-2 bg-white text-slate-700 font-bold rounded-full text-xs border border-slate-200 shadow-sm capitalize">Language: {submittedData.mil}</span>}
-                       {submittedData.elective && <span className="px-4 py-2 bg-white text-slate-700 font-bold rounded-full text-xs border border-slate-200 shadow-sm capitalize">Elective: {submittedData.elective.replace(/_/g, ' ')}</span>}
-                       {submittedData.selectedSubjects?.map((sub, i) => (
-                         <span key={i} className="px-4 py-2 bg-amber-500 text-white font-bold rounded-full text-xs shadow-sm shadow-amber-200">{sub}</span>
-                       ))}
+                      {submittedData.mil && <span className="px-4 py-2 bg-white text-slate-700 font-bold rounded-full text-xs border border-slate-200 shadow-sm capitalize">Language: {submittedData.mil}</span>}
+                      {submittedData.elective && <span className="px-4 py-2 bg-white text-slate-700 font-bold rounded-full text-xs border border-slate-200 shadow-sm capitalize">Elective: {submittedData.elective.replace(/_/g, ' ')}</span>}
+                      {submittedData.selectedSubjects?.map((sub, i) => (
+                        <span key={i} className="px-4 py-2 bg-amber-500 text-white font-bold rounded-full text-xs shadow-sm shadow-amber-200">{sub}</span>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -1019,14 +1027,14 @@ function Admission() {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center mt-12 mb-20 px-4">
-                <button 
+                <button
                   onClick={handleDownloadReceipt}
                   className="group flex-1 max-w-sm bg-primary text-white font-black px-10 py-5 rounded-3xl hover:bg-slate-800 transition-all shadow-2xl shadow-primary/20 flex items-center justify-center transform hover:-translate-y-2 active:scale-95"
                 >
                   <FaPrint className="mr-3 text-xl group-hover:animate-bounce" />
                   Download PDF Receipt
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setSubmittedData(null);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1115,13 +1123,12 @@ function Admission() {
                           const StepIcon = step.icon;
                           return (
                             <div key={step.key} className="flex flex-col items-center relative z-10 flex-1">
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all duration-500 shadow-sm ${
-                                isCompleted
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all duration-500 shadow-sm ${isCompleted
                                   ? isCurrent
                                     ? 'bg-amber-500 text-white scale-110 ring-4 ring-amber-200'
                                     : 'bg-green-500 text-white'
                                   : 'bg-gray-200 text-gray-400'
-                              }`}>
+                                }`}>
                                 {isCompleted && !isCurrent ? <FaCheckCircle /> : <StepIcon />}
                               </div>
                               <p className={`text-xs font-bold mt-2 uppercase tracking-wider ${isCompleted ? 'text-gray-800' : 'text-gray-400'}`}>{step.label}</p>

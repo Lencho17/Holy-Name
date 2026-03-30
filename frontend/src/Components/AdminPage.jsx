@@ -2079,23 +2079,14 @@ function AdminPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Role</label>
-            <div className="flex gap-2">
-              <select 
-                value={newAdmin.role} 
-                onChange={e => setNewAdmin({...newAdmin, role: e.target.value})} 
-                className="flex-1 p-2.5 border rounded-lg bg-white"
-              >
-                <option value="admin">Admin</option>
-              </select>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">&nbsp;</label>
               <button 
                 type="submit" 
                 disabled={isAdminFormLoading}
-                className="bg-primary text-white px-6 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition-all disabled:opacity-50"
+                className="bg-primary text-white px-6 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition-all disabled:opacity-50 w-full"
               >
                 {isAdminFormLoading ? '...' : 'Create'}
               </button>
-            </div>
           </div>
         </form>
       </div>
@@ -2134,6 +2125,7 @@ function AdminPage() {
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Role</label>
                           <select value={editAdminData.role} onChange={e => setEditAdminData({...editAdminData, role: e.target.value})} className="w-full p-2 border rounded bg-white text-sm">
                             <option value="admin">Admin</option>
+                            <option value="superadmin">Super Admin</option>
                           </select>
                         </div>
                         <div className="flex gap-2">

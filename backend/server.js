@@ -42,7 +42,7 @@ app.use(helmet({
 // CORS — restrict in production, open in dev
 const corsOptions = {
   origin: isProduction
-    ? [process.env.CLIENT_URL, 'https://www.holynameschool.edu', 'https://holy-name.vercel.app'].filter(Boolean)
+    ? [process.env.CLIENT_URL, 'https://holy-name-liard.vercel.app', 'https://holynamehsschool.in', 'https://www.holynamehsschool.in', 'https://www.holynameschool.edu', 'https://holy-name.vercel.app'].filter(Boolean)
     : true, // allow all origins in development
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],

@@ -6,13 +6,29 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Email Transporter (use Gmail/SMTP settings from .env)
+// Email Transporter (Standard SMTP configuration for Gmail)
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // or another service
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // Use SSL/TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  // Add reasonable timeouts
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 20000,
+});
+
+// Verify transporter on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Email Transporter Verification Failed:', error.message);
+    console.dir(error, { depth: null });
+  } else {
+    console.log('✅ Email Transporter is ready to send messages');
+  }
 });
 
 const generateToken = (id) => {
@@ -148,8 +164,14 @@ router.post('/request-otp', protect, async (req, res) => {
 
     res.json({ message: recipientEmail ? 'OTPs sent to both emails' : 'OTP sent to your email' });
   } catch (error) {
-    console.error('Request OTP Error:', error);
-    res.status(500).json({ message: 'Failed to send OTP', error: error.message });
+    console.error('❌ Request OTP Error:', error.message);
+    // Log detailed diagnostics for debug on Render
+    console.dir(error, { depth: null });
+    res.status(500).json({ 
+      message: 'Failed to send OTP', 
+      error: error.message,
+      code: error.code || 'UNKNOWN_ERROR'
+    });
   }
 });
 

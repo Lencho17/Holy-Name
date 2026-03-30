@@ -6,19 +6,20 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Email Transporter (Standard SMTP for Port 587 / STARTTLS)
+// Email Transporter (Redundant configuration for Gmail to resolve timeouts)
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // Must be false for 587
-  family: 4, // Force IPv4 to avoid ENETUNREACH on Render
+  service: 'gmail', // Let Nodemailer handle the magic
+  family: 4, // Force IPv4
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  // Add reasonable timeouts
-  connectionTimeout: 15000, // 15 seconds
-  greetingTimeout: 15000,
+  tls: {
+    rejectUnauthorized: false, // Bypass SSL cert check issues
+  },
+  // Extra-long timeouts
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
   socketTimeout: 30000,
 });
 

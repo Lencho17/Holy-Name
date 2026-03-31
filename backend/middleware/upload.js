@@ -18,16 +18,9 @@ const createStorage = (defaultFolder) => {
       const isPdf = file.mimetype === "application/pdf" || (file.originalname && file.originalname.toLowerCase().endsWith(".pdf"));
       const params = {
         folder,
-        resource_type: isPdf ? "raw" : "auto",
-        type: "upload",
+        resource_type: "auto", // Let Cloudinary auto-detect the best type
+        format: isPdf ? "pdf" : undefined
       };
-
-      if (file.mimetype.startsWith("image/")) {
-        params.allowed_formats = ["jpg", "jpeg", "png", "webp"];
-        params.transformation = [{ quality: "auto", fetch_format: "auto" }];
-      } else if (isPdf) {
-        params.public_id = `${Date.now()}-${file.originalname.replace(/\s+/g, "_")}`;
-      }
 
       return params;
     },

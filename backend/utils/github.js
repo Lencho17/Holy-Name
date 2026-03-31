@@ -9,11 +9,24 @@ const fetch = require('node-fetch');
  */
 const uploadPdfToGithub = async (fileBuffer, fileName) => {
   try {
-    const token = process.env.GITHUB_TOKEN;
-    const repo = process.env.GITHUB_REPO; // In 'owner/repo' format
+    let token = process.env.GITHUB_TOKEN;
+    let repo = process.env.GITHUB_REPO; // Robustly handle both 'owner/repo' and 'https://github.com/owner/repo.git'
+
+    // If variables appear missing, it is highly likely the Node server is in --watch mode 
+    // and was started before the .env file existed or was populated. Auto-reload dot-env here:
+    if (!token || !repo) {
+      require('dotenv').config();
+      token = process.env.GITHUB_TOKEN;
+      repo = process.env.GITHUB_REPO;
+    }
 
     if (!token || !repo) {
       throw new Error('GitHub configuration missing. Set GITHUB_TOKEN and GITHUB_REPO in .env');
+    }
+
+    // Clean up repo string if it's a full URL
+    if (repo.includes('github.com/')) {
+      repo = repo.split('github.com/')[1].replace('.git', '');
     }
 
     const path = `notices/${Date.now()}-${fileName.replace(/\s+/g, '_')}`;

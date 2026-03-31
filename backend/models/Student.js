@@ -10,7 +10,11 @@ const studentSchema = new mongoose.Schema({
   email: String,
   address: String,
   admissionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admission' },
-  status: { type: String, enum: ['active', 'inactive', 'graduated'], default: 'active' },
+  status: { 
+    type: String, 
+    enum: ['pending', 'shortlisted', 'rejected', 'reviewed', 'active', 'inactive', 'graduated'], 
+    default: 'active' 
+  },
   rollNumber: String,
   section: String,
   penNumber: String,

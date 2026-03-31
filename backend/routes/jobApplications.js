@@ -6,18 +6,9 @@ const JobApplication = require('../models/JobApplication');
 const SiteContent = require('../models/SiteContent');
 const { protect, authorize } = require('../middleware/auth');
 const { submissionLimiter } = require('../middleware/rateLimiters');
-const nodemailer = require('nodemailer');
+const { transporter } = require('../utils/mailer');
 
 const router = express.Router();
-
-// Email Transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 const sendApplicationEmail = async (appData) => {
   try {
@@ -50,31 +41,44 @@ const sendApplicationEmail = async (appData) => {
 
 const sendApplicantConfirmationEmail = async (appData) => {
   try {
+    const siteContent = await SiteContent.findOne();
+    const schoolLogo = siteContent?.schoolProfile?.logo || 'https://holynamehsschool.in/logo.png';
+    const schoolName = siteContent?.schoolProfile?.name || 'Holy Name High School';
+    const schoolTagline = siteContent?.schoolProfile?.punchLine || 'Excellence in Education';
+
     const mailOptions = {
-      from: `"Holy Name School" <${process.env.EMAIL_USER}>`,
+      from: `"${schoolName}" <${process.env.EMAIL_USER}>`,
       to: appData.email,
       subject: `Application Received: ${appData.referenceNumber}`,
       html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-          <h2 style="color: #2563eb; text-align: center;">Thank You for Applying!</h2>
-          <p>Dear <strong>${appData.fullName}</strong>,</p>
-          <p>We have successfully received your job application at <strong>Holy Name High School</strong>. Thank you for your interest in joining our academic community.</p>
-          
-          <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; margin: 20px 0; text-align: center; border-radius: 8px;">
-            <p style="margin: 0; font-size: 14px; text-transform: uppercase; color: #64748b; font-weight: bold;">Your Reference Number</p>
-            <p style="margin: 5px 0 0 0; font-size: 24px; color: #1e293b; font-weight: bold; font-family: monospace;">${appData.referenceNumber}</p>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+          <div style="background-color: #1e3a8a; color: white; padding: 30px; text-align: center;">
+            ${schoolLogo ? `<img src="${schoolLogo}" alt="${schoolName}" style="max-height: 80px; margin-bottom: 15px; border-radius: 8px;">` : ''}
+            <h1 style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">${schoolName}</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9; font-style: italic;">${schoolTagline}</p>
           </div>
+          
+          <div style="padding: 30px; background-color: white;">
+            <h2 style="color: #1e3a8a; margin-top: 0; text-align: center;">Recruitment Acknowledgment</h2>
+            <p>Dear <strong>${appData.fullName}</strong>,</p>
+            <p>We have successfully received your job application at <strong>${schoolName}</strong>. Thank you for your interest in joining our academic community.</p>
+            
+            <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; margin: 20px 0; text-align: center; border-radius: 8px;">
+              <p style="margin: 0; font-size: 14px; text-transform: uppercase; color: #64748b; font-weight: bold;">Your Reference Number</p>
+              <p style="margin: 5px 0 0 0; font-size: 24px; color: #1e293b; font-weight: bold; font-family: monospace;">${appData.referenceNumber}</p>
+            </div>
 
-          <p>Our recruitment team will review your qualifications and experience. If your profile matches our requirements, we will contact you for a demo class and interview.</p>
-          
-          <p>In the meantime, feel free to visit our <a href="${process.env.CLIENT_URL || 'https://holynameschool.edu.in'}" style="color: #2563eb;">official website</a> to learn more about our school's culture and values.</p>
-          
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-          
-          <p style="font-size: 12px; color: #94a3b8; text-align: center;">
-            This is an automated confirmation. Please do not reply to this email.<br/>
-            &copy; ${new Date().getFullYear()} Holy Name School, Sivasagar.
-          </p>
+            <p>Our recruitment team will review your qualifications and experience. If your profile matches our requirements, we will contact you for a demo class and interview.</p>
+            
+            <p>In the meantime, feel free to visit our <a href="${process.env.CLIENT_URL || 'https://holynamehsschool.in'}" style="color: #2563eb;">official website</a> to learn more about our school's culture and values.</p>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0;" />
+            
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+              This is an automated confirmation. Please do not reply to this email.<br/>
+              &copy; ${new Date().getFullYear()} ${schoolName}, Sivasagar.
+            </p>
+          </div>
         </div>
       `,
     };

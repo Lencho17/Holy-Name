@@ -6,18 +6,9 @@ const Student = require('../models/Student');
 const SiteContent = require('../models/SiteContent');
 const { protect } = require('../middleware/auth');
 const { submissionLimiter } = require('../middleware/rateLimiters');
-const nodemailer = require('nodemailer');
+const { transporter } = require('../utils/mailer');
 
 const router = express.Router();
-
-// Email Transporter (use Gmail/SMTP settings from .env)
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // or another service like 'outlook', 'sendgrid' etc.
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 const sendSubmissionEmail = async (admissionData) => {
   try {
@@ -50,21 +41,27 @@ const sendSubmissionEmail = async (admissionData) => {
 
 const sendApplicantConfirmationEmail = async (admissionData) => {
   try {
+    const siteContent = await SiteContent.findOne();
+    const schoolLogo = siteContent?.schoolProfile?.logo || 'https://holynamehsschool.in/logo.png';
+    const schoolName = siteContent?.schoolProfile?.name || 'Holy Name High School';
+    const schoolTagline = siteContent?.schoolProfile?.punchLine || 'Excellence in Education';
+
     const mailOptions = {
-      from: `"Holy Name School" <${process.env.EMAIL_USER}>`,
+      from: `"${schoolName}" <${process.env.EMAIL_USER}>`,
       to: admissionData.email,
       subject: `Admission Application Received: ${admissionData.referenceNumber}`,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #1e3a8a; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
           <div style="background-color: #1e3a8a; color: white; padding: 30px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">Holy Name High School</h1>
-            <p style="margin: 5px 0 0 0; opacity: 0.9; font-style: italic;">Excellence in Education</p>
+            ${schoolLogo ? `<img src="${schoolLogo}" alt="${schoolName}" style="max-height: 80px; margin-bottom: 15px; border-radius: 8px;">` : ''}
+            <h1 style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">${schoolName}</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9; font-style: italic;">${schoolTagline}</p>
           </div>
           
           <div style="padding: 30px; background-color: white;">
             <h2 style="color: #1e3a8a; margin-top: 0;">Application Received!</h2>
             <p>Dear Parent/Guardian of <strong>${admissionData.studentName}</strong>,</p>
-            <p>We are pleased to inform you that we have successfully received your admission application for <strong>${admissionData.gradeApplied.toUpperCase()}</strong> at Holy Name High School.</p>
+            <p>We are pleased to inform you that we have successfully received your admission application for <strong>${admissionData.gradeApplied.toUpperCase()}</strong> at ${schoolName}.</p>
             
             <div style="background-color: #eff6ff; border: 1px dashed #3b82f6; padding: 20px; margin: 25px 0; text-align: center; border-radius: 10px;">
               <p style="margin: 0; font-size: 14px; text-transform: uppercase; color: #1e40af; font-weight: bold; letter-spacing: 1px;">Application Reference Number</p>
@@ -80,13 +77,13 @@ const sendApplicantConfirmationEmail = async (admissionData) => {
             
             <p style="margin-top: 30px;">If you have any urgent queries, please contact our office at <strong>${process.env.OFFICE_PHONE || 'the school office number'}</strong>.</p>
             
-            <p style="margin-bottom: 0;">Warm regards,<br/><strong>Admissions Office</strong><br/>Holy Name High School</p>
+            <p style="margin-bottom: 0;">Warm regards,<br/><strong>Admissions Office</strong><br/>${schoolName}</p>
           </div>
           
           <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
             <p style="font-size: 12px; color: #64748b; margin: 0;">
               This is an automated message. Please do not reply to this email.<br/>
-              &copy; ${new Date().getFullYear()} Holy Name School, Sivasagar.
+              &copy; ${new Date().getFullYear()} ${schoolName}, Sivasagar.
             </p>
           </div>
         </div>
@@ -96,6 +93,70 @@ const sendApplicantConfirmationEmail = async (admissionData) => {
     console.log(`Admission confirmation email sent to ${admissionData.email}`);
   } catch (err) {
     console.error('Failed to send admission confirmation email:', err.message);
+  }
+};
+
+const sendStatusUpdateEmail = async (admissionData, newStatus) => {
+  try {
+    const siteContent = await SiteContent.findOne();
+    const schoolLogo = siteContent?.schoolProfile?.logo || 'https://holynamehsschool.in/logo.png';
+    const schoolName = siteContent?.schoolProfile?.name || 'Holy Name High School';
+    const schoolTagline = siteContent?.schoolProfile?.punchLine || 'Excellence in Education';
+
+    const statusLabels = {
+      'entrance-exam': 'Entrance Exam Scheduled',
+      'interview': 'Interview Scheduled',
+      'accepted': 'Application Accepted',
+      'rejected': 'Application Update'
+    };
+
+    const statusMessages = {
+      'entrance-exam': `We are pleased to inform you that your application has been shortlisted for the <strong>Entrance Examination</strong>. Our office will contact you shortly with the date, time, and venue details.`,
+      'interview': `Congratulations! Your ward has cleared the initial assessment and is now invited for a <strong>Personal Interview</strong>. Please ensure both parents attend along with the student and all original documents.`,
+      'accepted': `We are delighted to welcome you to the ${schoolName} family! Your admission application has been <strong>Accepted</strong>. Please visit the school office within the next 3 working days to complete the enrollment formalities and fee payment.`,
+      'rejected': `Thank you for your interest in ${schoolName}. After careful review, we regret to inform you that we are unable to offer admission at this time. We wish you the very best in your future academic endeavors.`
+    };
+
+    const mailOptions = {
+      from: `"${schoolName} Admissions" <${process.env.EMAIL_USER}>`,
+      to: admissionData.email,
+      subject: `Application Update: ${admissionData.referenceNumber} - ${statusLabels[newStatus] || 'Holy Name School'}`,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #1e3a8a; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+          <div style="background-color: #1e3a8a; color: white; padding: 30px; text-align: center;">
+            ${schoolLogo ? `<img src="${schoolLogo}" alt="${schoolName}" style="max-height: 80px; margin-bottom: 15px; border-radius: 8px;">` : ''}
+            <h1 style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">${schoolName}</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9; font-style: italic;">${schoolTagline}</p>
+          </div>
+          
+          <div style="padding: 30px; background-color: white;">
+            <h2 style="color: #1e3a8a; margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Application Status Updated</h2>
+            <p>Dear Parent/Guardian of <strong>${admissionData.studentName}</strong>,</p>
+            <p>This is to inform you that there has been an update to your admission application (Ref: <strong>${admissionData.referenceNumber}</strong>).</p>
+            
+            <div style="background-color: #f8fafc; border-left: 4px solid #1e3a8a; padding: 20px; margin: 25px 0; border-radius: 0 10px 10px 0;">
+              <p style="margin: 0; font-weight: bold; color: #1e3a8a; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Current Status:</p>
+              <p style="margin: 5px 0 10px 0; font-size: 20px; font-weight: 800; color: #111;">${statusLabels[newStatus]?.toUpperCase() || newStatus.toUpperCase()}</p>
+              <p style="margin: 0; font-size: 15px; color: #4b5563;">${statusMessages[newStatus] || 'Your application is currently being processed.'}</p>
+            </div>
+
+            <p>If you have any questions, please visit our website or contact the admissions office during working hours.</p>
+            
+            <p style="margin-top: 30px; margin-bottom: 0;">Sincerely,<br/><strong>Admissions Department</strong><br/>${schoolName}</p>
+          </div>
+          
+          <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+            <p style="font-size: 12px; color: #64748b; margin: 0;">
+              &copy; ${new Date().getFullYear()} ${schoolName}, Sivasagar. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `,
+    };
+    await transporter.sendMail(mailOptions);
+    console.log(`Status update email (${newStatus}) sent to ${admissionData.email}`);
+  } catch (err) {
+    console.error('Failed to send status update email:', err.message);
   }
 };
 
@@ -241,6 +302,47 @@ router.post(
   }
 );
 
+// PATCH /api/admissions/:id/status — protected, update application status
+router.patch('/:id/status', protect, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const admission = await Admission.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+    if (!admission) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    // Trigger notification
+    sendStatusUpdateEmail(admission, status);
+
+    // If application is accepted, create a student record if it doesn't exist
+    if (status === 'accepted') {
+      const existingStudent = await Student.findOne({ admissionId: admission._id });
+      if (!existingStudent) {
+        await Student.create({
+          studentName: admission.studentName,
+          dateOfBirth: admission.dateOfBirth,
+          gender: admission.gender,
+          grade: admission.gradeApplied,
+          guardianName: admission.guardianName,
+          contactNumber: admission.contactNumber,
+          email: admission.email,
+          address: admission.address,
+          admissionId: admission._id,
+          penNumber: admission.penNumber,
+          aadharNumber: admission.aadharNumber,
+        });
+      }
+    }
+    res.json(admission);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // GET /api/admissions — protected, list all applications
 router.get('/', protect, async (req, res) => {
   try {
@@ -291,39 +393,16 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-// PATCH /api/admissions/:id — protected, update application status
-router.patch('/:id', protect, async (req, res) => {
+// DELETE /api/admissions/:id — protected, delete application
+router.delete('/:id', protect, async (req, res) => {
   try {
-    const { status } = req.body;
-    const admission = await Admission.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const admission = await Admission.findByIdAndDelete(req.params.id);
     if (!admission) {
       return res.status(404).json({ message: 'Application not found' });
     }
-
-    // If application is accepted, create a student record if it doesn't exist
-    if (status === 'accepted') {
-      const existingStudent = await Student.findOne({ admissionId: admission._id });
-      if (!existingStudent) {
-        await Student.create({
-          studentName: admission.studentName,
-          dateOfBirth: admission.dateOfBirth,
-          gender: admission.gender,
-          grade: admission.gradeApplied,
-          guardianName: admission.guardianName,
-          contactNumber: admission.contactNumber,
-          email: admission.email,
-          address: admission.address,
-          admissionId: admission._id,
-          penNumber: admission.penNumber,
-          aadharNumber: admission.aadharNumber,
-        });
-      }
-    }
-    res.json(admission);
+    // Note: This does NOT delete the Student record if one was created. 
+    // This is intentional to preserve the Student Directory unless manually deleted there.
+    res.json({ message: 'Application deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

@@ -80,9 +80,14 @@ function Admission() {
   const [caste, setCaste] = useState("General");
 
   const handlePhoneChange = (e) => {
-    // Strip everything except digits and limit to 10
     const value = e.target.value.replace(/\D/g, "").slice(0, 10);
     setContactNumber(value);
+  };
+
+  const [pincode, setPincode] = useState("");
+  const handlePincodeChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setPincode(value);
   };
 
   const handleSubjectChange = (subject) => {
@@ -110,6 +115,7 @@ function Admission() {
     formData.append('caste', getUVal('caste'));
     formData.append('bloodGroup', getUVal('bloodGroup'));
     formData.append('aadharNumber', aadharNumber);
+    formData.append('pincode', pincode);
     formData.append('penNumber', getUVal('penNumber'));
     formData.append('previousSchool', getUVal('previousSchool'));
     formData.append('gradeApplied', gradeApplied);
@@ -127,7 +133,6 @@ function Admission() {
     formData.append('address', getUVal('address'));
     formData.append('po', getUVal('po'));
     formData.append('ps', getUVal('ps'));
-    formData.append('pincode', getUVal('pincode'));
     formData.append('elective', getUVal('elective'));
     formData.append('mil', getUVal('mil'));
 
@@ -844,7 +849,18 @@ function Admission() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Pincode *</label>
-                  <input name="pincode" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="6-digit pincode" required />
+                  <input 
+                    name="pincode" 
+                    type="text" 
+                    value={pincode}
+                    onChange={handlePincodeChange}
+                    className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${pincode.length > 0 && pincode.length < 6 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                    placeholder="6-digit pincode" 
+                    required 
+                  />
+                  {pincode.length > 0 && pincode.length < 6 && (
+                    <p className="text-red-500 text-xs mt-1">Please enter a valid 6-digit pincode</p>
+                  )}
                 </div>
               </div>
 

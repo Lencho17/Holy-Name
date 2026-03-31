@@ -13,8 +13,10 @@ function AdminPage() {
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
   const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
-  // Defensive API_URL — handle both full URLs and relative paths
-  const API_URL = raw_API_URL?.startsWith('http') ? raw_API_URL : (raw_API_URL?.startsWith('/') ? raw_API_URL : `/${raw_API_URL || 'api'}`);
+  // Defensive API_URL — ensure it points to the correct backend
+  const API_URL = raw_API_URL 
+    ? (raw_API_URL.startsWith('http') ? raw_API_URL : (raw_API_URL.startsWith('/') ? raw_API_URL : `/api`))
+    : '/api';
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
@@ -819,7 +821,7 @@ function AdminPage() {
   const handleStatusUpdate = async (id, newStatus) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/admissions/${id}`, {
+      const res = await fetch(`${API_URL}/admissions/${id}/status`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -843,6 +845,26 @@ function AdminPage() {
     } catch (e) {
       console.warn('Could not update status', e);
       alert('Error updating status');
+    }
+  };
+
+  const handleDeleteApplication = async (id) => {
+    if (!window.confirm('Are you sure you want to permanently delete this application? This action cannot be undone.')) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/admissions/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setApplications(apps => apps.filter(app => app._id !== id));
+        if (selectedApp?._id === id) setSelectedApp(null);
+        alert('Application deleted successfully');
+      } else {
+        alert('Failed to delete application');
+      }
+    } catch (e) {
+      alert('Error deleting application');
     }
   };
 
@@ -1437,19 +1459,35 @@ function AdminPage() {
         headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
-      const data = await res.json();
-      if (res.ok) {
-        setNewNotice({
-          ...newNotice,
-          pdfLink: data.url, // raw GitHub URL
-          size: `${(file.size / 1024).toFixed(0)} KB`,
-          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        });
-      } else {
-        console.error('PDF upload failed:', data.message);
+      
+      if (!res.ok) {
+        let errorMessage = 'Server error';
+        try {
+          const errData = await res.json();
+          // Include backend exception details if provided for better visibility
+          errorMessage = errData.error 
+            ? `${errData.message} - ${errData.error}` 
+            : (errData.message || errorMessage);
+        } catch (parseErr) {
+          // Response wasn't JSON
+          errorMessage = `HTTP Error ${res.status}`;
+        }
+        console.error('PDF upload failed:', errorMessage);
+        alert(`Failed to upload PDF: ${errorMessage}`);
+        return;
       }
+      
+      const data = await res.json();
+      setNewNotice({
+        ...newNotice,
+        pdfLink: data.url, // raw GitHub URL
+        size: `${(file.size / 1024).toFixed(0)} KB`,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      });
+      alert('PDF uploaded successfully! Click Publish Notice to save.');
     } catch (err) {
       console.error('PDF upload failed:', err);
+      alert(`Network error or upload failed: ${err.message}`);
     } finally {
       setIsPdfUploading(false);
     }
@@ -2342,11 +2380,19 @@ function AdminPage() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button onClick={() => setSelectedApp(app.originalApp)} className="text-blue-500 hover:text-blue-700 font-medium text-xs mr-3 hover:underline transition-colors">View</button>
-                    {app.status === 'Pending' && (
+                    {app.status === 'Pending' ? (
                       <>
                         <button onClick={() => handleStatusUpdate(app.originalApp._id, 'accepted')} className="text-emerald-500 hover:text-emerald-700 font-medium text-xs mr-3 transition-colors">Approve</button>
                         <button onClick={() => handleStatusUpdate(app.originalApp._id, 'rejected')} className="text-red-400 hover:text-red-600 font-medium text-xs transition-colors">Reject</button>
                       </>
+                    ) : (
+                      <button 
+                        onClick={() => handleDeleteApplication(app.originalApp._id)} 
+                        className="text-red-400 hover:text-red-600 font-medium text-xs transition-colors"
+                        title="Delete Application"
+                      >
+                        <FaTrash />
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -3588,20 +3634,54 @@ function AdminPage() {
                           <td className="py-3 text-gray-600">{app.contactNumber}</td>
                           <td className="py-3 text-gray-500 text-sm">{new Date(app.createdAt).toLocaleDateString()}</td>
                           <td className="py-3">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              app.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                              app.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                              'bg-tertiary/10 text-tertiary'
-                            }`}>{app.status}</span>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              app.status === 'accepted' ? 'bg-green-100 text-green-700 border border-green-200' :
+                              app.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200' :
+                              app.status === 'entrance-exam' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                              app.status === 'interview' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                              'bg-amber-100 text-amber-700 border border-amber-200'
+                            }`}>{app.status?.replace('-', ' ')}</span>
                           </td>
                           <td className="py-3 text-right">
-                            <button onClick={() => setSelectedApp(app)} className="text-primary hover:underline font-medium text-sm mr-3">View</button>
-                            {app.status === 'pending' && (
-                              <>
-                                <button onClick={() => handleStatusUpdate(app._id, 'accepted')} className="text-green-600 hover:text-green-800 font-medium text-sm mr-3">Approve</button>
-                                <button onClick={() => handleStatusUpdate(app._id, 'rejected')} className="text-red-600 hover:text-red-800 font-medium text-sm">Reject</button>
-                              </>
-                            )}
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => setSelectedApp(app)} className="text-primary hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="View Details">
+                                <FaSearch size={14} />
+                              </button>
+                              
+                              {app.status !== 'accepted' && app.status !== 'rejected' && (
+                                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
+                                  <select 
+                                    className="text-[10px] font-bold border-none bg-transparent focus:ring-0 cursor-pointer"
+                                    value={app.nextStatus || app.status}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setApplications(prev => prev.map(a => a._id === app._id ? { ...a, nextStatus: val } : a));
+                                    }}
+                                  >
+                                    <option value="pending">Pending</option>
+                                    <option value="entrance-exam">Exam</option>
+                                    <option value="interview">Interview</option>
+                                    <option value="accepted">Accept</option>
+                                    <option value="rejected">Reject</option>
+                                  </select>
+                                  <button 
+                                    onClick={() => handleStatusUpdate(app._id, app.nextStatus || app.status)}
+                                    className="bg-primary text-white p-1.5 rounded-md hover:bg-blue-700 transition-all shadow-sm"
+                                    title="Save Status Update"
+                                  >
+                                    <FaCheckCircle size={10} />
+                                  </button>
+                                </div>
+                              )}
+
+                              <button 
+                                onClick={() => handleDeleteApplication(app._id)} 
+                                className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                title="Delete Application"
+                              >
+                                <FaTrash size={14} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -4118,6 +4198,13 @@ function AdminPage() {
                         <span className="hidden sm:inline">Download PDF</span>
                       </>
                     )}
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteApplication(selectedApp._id)}
+                    className="p-2.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"
+                    title="Delete Application"
+                  >
+                    <FaTrash size={16} />
                   </button>
                   <button onClick={() => setSelectedApp(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500">
                     <FaPlus className="rotate-45 text-2xl" />

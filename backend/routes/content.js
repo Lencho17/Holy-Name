@@ -4,6 +4,7 @@ const SiteContent = require('../models/SiteContent');
 const { protect } = require('../middleware/auth');
 const { uploadSingle, uploadMultiple, uploadEventImages } = require('../middleware/upload');
 const { uploadPdfToGithub } = require('../utils/github');
+const { sendEmail } = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -138,17 +139,55 @@ router.post('/upload', protect, (req, res) => {
 });
 
 // POST /api/content/upload-pdf — protected, upload PDF to GitHub
-router.post('/upload-pdf', protect, pdfMemoryUpload, async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No PDF file uploaded' });
+router.post('/upload-pdf', protect, (req, res) => {
+  pdfMemoryUpload(req, res, async (err) => {
+    if (err) {
+      console.error('[PDF MULTER ERROR]:', err);
+      return res.status(500).json({ message: 'File processing failed', error: err.message });
     }
-    const rawUrl = await uploadPdfToGithub(req.file.buffer, req.file.originalname);
-    res.json({ url: rawUrl });
-  } catch (error) {
-    console.error('GitHub PDF upload error:', error.message);
-    res.status(500).json({ message: 'PDF upload failed', error: error.message });
-  }
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No PDF file uploaded' });
+      }
+      const rawUrl = await uploadPdfToGithub(req.file.buffer, req.file.originalname);
+      res.json({ url: rawUrl });
+    } catch (error) {
+      console.error('[PDF GITHUB UPLOAD ERROR]:', error);
+      
+      // Attempt to notify the administrator automatically
+      try {
+        const content = await SiteContent.findOne().lean();
+        const adminEmail = content?.notificationEmail || process.env.EMAIL_USER;
+        
+        if (adminEmail) {
+          await sendEmail({
+            to: adminEmail,
+            subject: '⚠️ Alert: PDF Notice Upload Failed',
+            html: `
+              <div style="font-family: Arial, sans-serif; border: 1px solid #ffcccc; border-radius: 8px; overflow: hidden; max-width: 600px;">
+                <div style="background-color: #ff4444; color: white; padding: 15px; font-weight: bold; font-size: 18px;">
+                  Upload Failure Alert
+                </div>
+                <div style="padding: 20px; background-color: #fffafb;">
+                  <p>The administrative dashboard encountered a critical error while attempting to upload a new PDF notice to GitHub.</p>
+                  <p><strong>Attempted File:</strong> ${req.file ? req.file.originalname : 'Unknown'}</p>
+                  <div style="background-color: #fce4e4; border-left: 4px solid #cc0000; padding: 10px; margin: 15px 0;">
+                    <p style="margin: 0; color: #cc0000; font-family: monospace;">${error.message}</p>
+                  </div>
+                  <p>This may indicate an issue with the GitHub configuration (e.g. invalid repository token) or a network service interruption. Please investigate the backend server logs.</p>
+                </div>
+              </div>
+            `
+          });
+          console.log(`[PDF GITHUB UPLOAD ERROR] Alert email sent to ${adminEmail}`);
+        }
+      } catch (mailError) {
+        console.error('[NOTIFY ADMIN ERROR]: Failed to send failure email.', mailError);
+      }
+
+      res.status(500).json({ message: 'GitHub upload failed', error: error.message });
+    }
+  });
 });
 
 // POST /api/content/upload-event — protected, upload multiple event images (cover + gallery)

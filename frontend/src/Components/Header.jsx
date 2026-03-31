@@ -46,7 +46,7 @@ function Header() {
           <Link to="/" className="flex items-center gap-3 group cursor-pointer focus-ring rounded-lg">
             <img
               src={schoolProfile?.logo || "/Pictures/Logo.jpg"}
-              className="w-10 h-10 md:w-12 md:h-12 rounded-xl shadow-soft group-hover:shadow-medium group-hover:scale-105 transition-all duration-fast object-cover"
+              className="w-10 h-10 md:w-12 md:h-12 group-hover:scale-105 transition-all duration-fast object-contain"
               alt="Holy Name School Logo"
             />
             <div className="flex flex-col">

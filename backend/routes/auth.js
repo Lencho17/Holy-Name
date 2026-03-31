@@ -1,37 +1,10 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { transporter } = require('../utils/mailer');
 const Admin = require('../models/Admin');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
-
-// Email Transporter (Redundant configuration for Gmail to resolve timeouts)
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // Let Nodemailer handle the magic
-  family: 4, // Force IPv4
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // Bypass SSL cert check issues
-  },
-  // Extra-long timeouts
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 30000,
-});
-
-// Verify transporter on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Email Transporter Verification Failed:', error.message);
-    console.dir(error, { depth: null });
-  } else {
-    console.log('✅ Email Transporter is ready to send messages');
-  }
-});
 
 const generateToken = (id) => {
   if (!process.env.JWT_SECRET) {

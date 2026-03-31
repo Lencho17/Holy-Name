@@ -85,12 +85,12 @@ exports.exportStudents = async (req, res) => {
       `"${s.gender || ''}"`,
       `"${s.dateOfBirth || ''}"`,
       `"${s.guardianName || ''}"`,
-      `"${s.contactNumber || ''}"`,
+      `"=""${s.contactNumber || ''}"""`,
       `"${s.email || ''}"`,
       `"${(s.address || '').replace(/"/g, '""')}"`,
       `"${s.status || ''}"`,
-      `"${s.penNumber || ''}"`,
-      `"${s.aadharNumber || ''}"`,
+      `"=""${s.penNumber || ''}"""`,
+      `"=""${s.aadharNumber || ''}"""`,
       `"${s.createdAt ? new Date(s.createdAt).toLocaleDateString() : ''}"`
     ]);
 

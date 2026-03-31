@@ -46,6 +46,10 @@ const inquirySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  tempPassword: {
+    type: String,
+    trim: true
+  },
   isRead: {
     type: Boolean,
     default: false

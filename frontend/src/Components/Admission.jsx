@@ -71,7 +71,7 @@ function Admission() {
 
   // Form field states for conditional logic
   const [gradeApplied, setGradeApplied] = useState("");
-  const [aadharNumber, setAadharNumber] = useState("");
+  const [AadhaarNumber, setAadhaarNumber] = useState("");
   const [previousSchool, setPreviousSchool] = useState("");
   const [selectedStream, setSelectedStream] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState([]);
@@ -114,7 +114,7 @@ function Admission() {
     formData.append('religion', getUVal('religion'));
     formData.append('caste', getUVal('caste'));
     formData.append('bloodGroup', getUVal('bloodGroup'));
-    formData.append('aadharNumber', aadharNumber);
+    formData.append('AadhaarNumber', AadhaarNumber);
     formData.append('pincode', pincode);
     formData.append('penNumber', getUVal('penNumber'));
     formData.append('previousSchool', getUVal('previousSchool'));
@@ -158,14 +158,14 @@ function Admission() {
     // File uploads
     const tcFile = form.querySelector('[name="transferCertificate"]')?.files[0];
     const msFile = form.querySelector('[name="marksheet"]')?.files[0];
-    const aadharFile = form.querySelector('[name="aadharVidOrReceipt"]')?.files[0];
+    const AadhaarFile = form.querySelector('[name="AadhaarVidOrReceipt"]')?.files[0];
     const photoFile = form.querySelector('[name="studentPhoto"]')?.files[0];
     const birthFile = form.querySelector('[name="birthCertificate"]')?.files[0];
     const casteFile = form.querySelector('[name="casteCertificate"]')?.files[0];
 
     if (tcFile) formData.append('transferCertificate', tcFile);
     if (msFile) formData.append('marksheet', msFile);
-    if (aadharFile) formData.append('aadharVidOrReceipt', aadharFile);
+    if (AadhaarFile) formData.append('AadhaarVidOrReceipt', AadhaarFile);
     if (photoFile) formData.append('studentPhoto', photoFile);
     if (birthFile) formData.append('birthCertificate', birthFile);
     if (casteFile) formData.append('casteCertificate', casteFile);
@@ -400,16 +400,16 @@ function Admission() {
               <h2 className="text-2xl font-serif font-bold text-primary">Online Mode</h2>
             </div>
             <ul className="space-y-4 text-gray-600">
-              {(schoolProfile.onlineAdmissionInstructions?.length > 0 
-                ? schoolProfile.onlineAdmissionInstructions 
+              {(schoolProfile.onlineAdmissionInstructions?.length > 0
+                ? schoolProfile.onlineAdmissionInstructions
                 : [
-                    "Fill up the form", 
-                    "Upload all documents marked compulsory", 
-                    "Pay the Fee", 
-                    "Download & Print Acknowledgement Receipt", 
-                    "Submit the receipt during interview date allotted", 
-                    "You can check the status of your application by reference number or email verification"
-                  ]
+                  "Fill up the form",
+                  "Upload all documents marked compulsory",
+                  "Pay the Fee",
+                  "Download & Print Acknowledgement Receipt",
+                  "Submit the receipt during interview date allotted",
+                  "You can check the status of your application by reference number or email verification"
+                ]
               ).map((inst, idx) => (
                 <li key={idx} className="flex items-start">
                   <span className="text-blue-500 mr-2">✓</span>
@@ -428,15 +428,15 @@ function Admission() {
               <h2 className="text-2xl font-serif font-bold text-primary">Offline Mode</h2>
             </div>
             <ul className="space-y-4 text-gray-600">
-              {(schoolProfile.offlineAdmissionInstructions?.length > 0 
-                ? schoolProfile.offlineAdmissionInstructions 
+              {(schoolProfile.offlineAdmissionInstructions?.length > 0
+                ? schoolProfile.offlineAdmissionInstructions
                 : [
-                    "Visit the school administrative block during working hours (9 AM - 3 PM).",
-                    "Collect the admission application packet from the front desk.",
-                    "Fill out the form manually in CAPITAL letters.",
-                    "Attach photocopies of necessary documents.",
-                    "Submit the completed docket and pay the fee at the cash counter."
-                  ]
+                  "Visit the school administrative block during working hours (9 AM - 3 PM).",
+                  "Collect the admission application packet from the front desk.",
+                  "Fill out the form manually in CAPITAL letters.",
+                  "Attach photocopies of necessary documents.",
+                  "Submit the completed docket and pay the fee at the cash counter."
+                ]
               ).map((inst, idx) => (
                 <li key={idx} className="flex items-start">
                   <span className="text-amber-500 mr-2">✓</span>
@@ -474,7 +474,7 @@ function Admission() {
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Student Name (As per Aadhar) *</label>
+                  <label className="block text-gray-700 font-medium mb-2">Student Name (As per Aadhaar) *</label>
                   <input name="studentName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER FULL NAME" required />
                 </div>
                 <div>
@@ -482,14 +482,14 @@ function Admission() {
                   <input name="dateOfBirth" type="date" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required />
                 </div>
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Aadhar Number</label>
+                  <label className="block text-gray-700 font-medium mb-2">Aadhaar Number</label>
                   <input
-                    name="aadharNumber"
+                    name="AadhaarNumber"
                     type="text"
-                    value={aadharNumber}
-                    onChange={(e) => setAadharNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                    value={AadhaarNumber}
+                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
-                    placeholder="12-DIGIT AADHAR NUMBER"
+                    placeholder="12-DIGIT Aadhaar NUMBER"
                   />
                 </div>
                 <div>
@@ -521,7 +521,16 @@ function Admission() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Religion</label>
-                  <input name="religion" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER RELIGION" />
+                  <select name="religion" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase">
+                    <option value="">SELECT RELIGION</option>
+                    <option value="HINDUISM">HINDUISM</option>
+                    <option value="ISLAM">ISLAM</option>
+                    <option value="CHRISTIANITY">CHRISTIANITY</option>
+                    <option value="SIKHISM">SIKHISM</option>
+                    <option value="BUDDHISM">BUDDHISM</option>
+                    <option value="JAINISM">JAINISM</option>
+                    <option value="OTHER">OTHER</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Caste *</label>
@@ -849,14 +858,14 @@ function Admission() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Pincode *</label>
-                  <input 
-                    name="pincode" 
-                    type="text" 
+                  <input
+                    name="pincode"
+                    type="text"
                     value={pincode}
                     onChange={handlePincodeChange}
                     className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${pincode.length > 0 && pincode.length < 6 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                    placeholder="6-digit pincode" 
-                    required 
+                    placeholder="6-digit pincode"
+                    required
                   />
                   {pincode.length > 0 && pincode.length < 6 && (
                     <p className="text-red-500 text-xs mt-1">Please enter a valid 6-digit pincode</p>
@@ -900,13 +909,13 @@ function Admission() {
                 )}
 
                 <div className="md:col-span-2">
-                  <label className="block text-gray-700 font-medium mb-2">Aadhar Card / VID Photo {aadharNumber ? '' : '*'}</label>
-                  <input name="aadharVidOrReceipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!aadharNumber} />
-                  {!aadharNumber && (
+                  <label className="block text-gray-700 font-medium mb-2">Aadhaar Card / VID Photo {AadhaarNumber ? '' : '*'}</label>
+                  <input name="AadhaarVidOrReceipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!AadhaarNumber} />
+                  {!AadhaarNumber && (
                     <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start mt-2">
                       <div className="text-amber-500 mr-2 mt-0.5 text-sm">💡</div>
                       <p className="text-xs text-amber-800">
-                        <strong>Aadhar Missing?</strong> Please upload <strong>Aadhar VID Scan</strong> or <strong>Application Receipt</strong>.
+                        <strong>Aadhaar Missing?</strong> Please upload <strong>Aadhaar VID Scan</strong> or <strong>Application Receipt</strong>.
                       </p>
                     </div>
                   )}
@@ -1140,10 +1149,10 @@ function Admission() {
                           return (
                             <div key={step.key} className="flex flex-col items-center relative z-10 flex-1">
                               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all duration-500 shadow-sm ${isCompleted
-                                  ? isCurrent
-                                    ? 'bg-amber-500 text-white scale-110 ring-4 ring-amber-200'
-                                    : 'bg-green-500 text-white'
-                                  : 'bg-gray-200 text-gray-400'
+                                ? isCurrent
+                                  ? 'bg-amber-500 text-white scale-110 ring-4 ring-amber-200'
+                                  : 'bg-green-500 text-white'
+                                : 'bg-gray-200 text-gray-400'
                                 }`}>
                                 {isCompleted && !isCurrent ? <FaCheckCircle /> : <StepIcon />}
                               </div>

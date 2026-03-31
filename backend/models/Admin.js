@@ -9,7 +9,8 @@ const adminSchema = new mongoose.Schema({
   otp: { type: String },
   otpExpires: { type: Date },
   newAdminOtp: { type: String },
-  newAdminOtpExpires: { type: Date }
+  newAdminOtpExpires: { type: Date },
+  isApproved: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Hash password before saving

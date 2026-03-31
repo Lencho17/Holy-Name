@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { FaUserPlus, FaUser, FaEnvelope, FaPhone, FaLock, FaExclamationCircle } from 'react-icons/fa';
 import { SiteDataContext } from '../context/SiteDataContext';
 
+import axios from 'axios';
+
 function AdminSignUp() {
   const { schoolProfile } = useContext(SiteDataContext);
   const [name, setName] = useState("");
@@ -13,7 +15,7 @@ function AdminSignUp() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
@@ -33,13 +35,28 @@ function AdminSignUp() {
     // Reset error message
     setError("");
 
-    // Simulate API call
-    setTimeout(() => {
-        console.log("Registered:", {name, username, contact, password});
-        setLoading(false);
-        // On successful sign-up, redirect to the login page
-        window.location.href = "/adminLogin";
-    }, 1000);
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const requestData = {
+        name: name,
+        email: username,
+        phone: contact,
+        type: 'General Inquiry',
+        subject: `Admin Access Request: ${name}`,
+        message: `A new user is requesting admin access.\nName: ${name}\nEmail: ${username}\nContact: ${contact}\n\nPlease review and create an account for them if appropriate.`,
+        userType: 'Other',
+        isAnonymous: false,
+        tempPassword: password
+      };
+      
+      await axios.post(`${apiBase}/inquiries`, requestData);
+      
+      alert("Admin access request sent successfully. The superadmin will review your request.");
+      window.location.href = "/adminLogin";
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to send request. Please try again later.");
+      setLoading(false);
+    }
   };
 
   return (

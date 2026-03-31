@@ -38,6 +38,10 @@ router.post('/login', async (req, res) => {
 
     const admin = await Admin.findOne({ email: email.toLowerCase() });
 
+    if (admin && !admin.isApproved) {
+      return res.status(403).json({ message: 'Admin account pending approval by superadmin' });
+    }
+
     if (admin && (await admin.matchPassword(password))) {
       res.json({
         _id: admin._id,
@@ -374,6 +378,27 @@ router.put('/admins/:id', protect, async (req, res) => {
       return res.status(400).json({ message: error.message });
     }
     console.error('PUT admin error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+router.post('/approve-admin', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Only superadmins can approve admins' });
+    }
+    const { adminId } = req.body;
+    if (!adminId) {
+      return res.status(400).json({ message: 'adminId is required' });
+    }
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+    admin.isApproved = true;
+    await admin.save();
+    res.json({ message: 'Admin approved successfully' });
+  } catch (error) {
+    console.error('Approve admin error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

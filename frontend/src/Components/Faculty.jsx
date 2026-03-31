@@ -196,6 +196,40 @@ function Faculty() {
           </section>
         )}
 
+        {facultyData["High School"]?.length > 0 && (
+          <section>
+            <div className="text-center mb-12">
+              <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
+                High School <span className="text-amber-600 italic">Department</span>
+              </h2>
+              <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Guiding the transition to higher education with foundational excellence.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {facultyData["High School"].map((faculty, index) => (
+                <FacultyCard key={`high-school-${index}`} member={faculty} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {facultyData.Nursery?.length > 0 && (
+          <section>
+            <div className="text-center mb-12">
+              <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
+                Nursery <span className="text-amber-600 italic">Department</span>
+              </h2>
+              <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              <p className="mt-4 text-gray-600 max-w-2xl mx-auto">A gentle, play-based start to lifelong learning and holistic growth.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {facultyData.Nursery.map((faculty, index) => (
+                <FacultyCard key={`nursery-${index}`} member={faculty} />
+              ))}
+            </div>
+          </section>
+        )}
+
       </div>
     </div>
   );

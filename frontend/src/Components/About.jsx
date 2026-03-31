@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
 import { SiteDataContext } from '../context/SiteDataContext';
-
+import vargheseImage from '../Pictures/varghese.png';
 const About = () => {
   const { visionStatement, aimsAndObjectives, headMistress, schoolProfile } = useContext(SiteDataContext);
-  
+
   const headMistressPhoto = headMistress?.photo || "/Pictures/assets/head_mistress_photo.png";
   return (
     <div className="bg-surface min-h-screen pb-16">
@@ -39,13 +39,13 @@ const About = () => {
 
         <div className="bg-surface-container-low shadow-2xl rounded-3xl p-8 md:p-14 border border-outline-variant/30 mb-16 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-          
+
           <h3 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-10 border-b border-outline-variant pb-4">
             Our <span className="text-amber-600 italic">History</span>
           </h3>
-          
+
           <div className="space-y-16 text-on-surface-variant text-lg leading-relaxed font-medium">
-            
+
             {/* Section 1 */}
             <div className="flex flex-col md:flex-row gap-8 items-start">
               <p className="flex-1">
@@ -117,7 +117,7 @@ const About = () => {
 
             {/* Section 4 */}
             <div className="">
-               <div className="flex flex-col md:flex-row gap-8 items-start">
+              <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
                   <img
                     src="/Pictures/about/Fr Joy.png"
@@ -139,11 +139,11 @@ const About = () => {
                   <div className="bg-white/50 p-6 rounded-2xl border border-outline-variant/50 relative">
                     <span className="material-symbols-outlined absolute top-2 right-2 text-primary/10 text-4xl">menu_book</span>
                     <p>
-                    On the Initiation day the KG-I students were encouraged to offer a
-                    “Dakshina” of Rs 1.25 in coins, and the Assamese traditional
-                    “Phulam Gamusas” to their “Gurus”. Short passages from The Bible,
-                    The Gita and The Quran were also read symbolizing the Secular
-                    spirit of our Nation.
+                      On the Initiation day the KG-I students were encouraged to offer a
+                      “Dakshina” of Rs 1.25 in coins, and the Assamese traditional
+                      “Phulam Gamusas” to their “Gurus”. Short passages from The Bible,
+                      The Gita and The Quran were also read symbolizing the Secular
+                      spirit of our Nation.
                     </p>
                   </div>
                   <div className="flex gap-4">
@@ -160,16 +160,19 @@ const About = () => {
             {/* Section 5: Gallery Grid */}
             <div className="space-y-6">
               <div className="flex items-center gap-4">
-                <h4 className="text-2xl font-bold text-primary academic-serif">Rev Fr. Jose Varghese (1999-2005)</h4>
+                <h4 className="text-2xl font-bold text-primary academic-serif">Rev Fr. Jose Varghese <span className="text-secondary text-sm ml-2 tracking-widest">(1999-2005)</span></h4>
                 <div className="flex-1 h-px bg-outline-variant"></div>
               </div>
-              <p>
-                To inculcate in the students a spirit of team work, Co-operation and
-                for the smooth running of the school the students were divided into
-                four houses. The School conducts sports week and various Co-curricular activities such as:
-                Solo Group Dance, Singing Competition, Recitation, Extempore Speech,
-                Debate and Science Exhibition.
-              </p>
+              <div className="flex flex-col md:flex-row gap-6">
+                <img src={vargheseImage} className="w-40 h-40 object-cover rounded-2xl shadow-lg shrink-0 grayscale hover:grayscale-0 transition-all duration-500 border border-outline-variant/30" alt="Rev Fr. Jose Varghese" />
+                <p className="flex-1">
+                  To inculcate in the students a spirit of team work, Co-operation and
+                  for the smooth running of the school the students were divided into
+                  four houses. The School conducts sports week and various Co-curricular activities such as:
+                  Solo Group Dance, Singing Competition, Recitation, Extempore Speech,
+                  Debate and Science Exhibition.
+                </p>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000804.jpg" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" /></div>
                 <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000742.jpg" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" /></div>
@@ -180,7 +183,7 @@ const About = () => {
 
             {/* Section 6 */}
             <div className="">
-               <div className="flex flex-col md:flex-row gap-8 items-start">
+              <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
                   <img
                     src="/Pictures/about/IMG_20240731_000410.jpg"
@@ -234,7 +237,7 @@ const About = () => {
             </div>
 
             {/* Section 8 */}
-             <div className="space-y-6">
+            <div className="space-y-6">
               <div className="flex items-center gap-4">
                 <h4 className="text-2xl font-bold text-primary academic-serif">Rev Fr. Bartholomew Bhengra <span className="text-secondary text-sm ml-2 tracking-widest">(2018-2021)</span></h4>
                 <div className="flex-1 h-px bg-outline-variant"></div>
@@ -249,12 +252,12 @@ const About = () => {
                   a plot of land contiguous with the school campus.
                 </p>
               </div>
-             </div>
+            </div>
 
-             {/* Section 9 */}
-             <div className="relative overflow-hidden">
-               <div className="absolute -right-10 -top-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
-               <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
+            {/* Section 9 */}
+            <div className="relative overflow-hidden">
+              <div className="absolute -right-10 -top-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
+              <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
                 <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
                   <img
                     src="/Pictures/picturesoftheweb/Fr Hemanta Pegu.JPG"
@@ -262,7 +265,7 @@ const About = () => {
                     className="w-full h-auto rounded-2xl shadow-lg border-[6px] border-white object-cover aspect-square"
                   />
                   <p className="text-center font-bold text-primary academic-serif text-xl border-b border-primary/20 pb-2">Rev Fr. Hemanta Pegu</p>
-                  <p className="text-center text-secondary text-sm font-bold uppercase tracking-widest">(2021-Present)</p>
+                  <p className="text-center text-secondary text-sm font-bold uppercase tracking-widest">(2021-2025)</p>
                 </div>
                 <div className="flex-1 space-y-4">
                   <p>
@@ -274,8 +277,8 @@ const About = () => {
                     Senior Secondary students.
                   </p>
                   <p className="font-bold text-primary">
-                    Fr. Hemanta has also introduced NCC & Scouts and Guides for the
-                    first time in {schoolProfile?.name || "School"} and still counting...
+                    He has also introduced NCC & Scouts and Guides for the
+                    first time in {schoolProfile?.name || "School"}.
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <img src="/Pictures/about/Chemistry Lab (1).jpg" className="w-full h-24 object-cover rounded-xl shadow-md border hover:scale-110 transition" />
@@ -307,7 +310,7 @@ const About = () => {
 
         {/* Info Grid - Aims & Objectives, Vision */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
+
           <div className="p-8 hover:-translate-y-2 transition duration-500">
             <h2 className="text-3xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
               <span className="material-symbols-outlined text-secondary text-4xl">flag</span>
@@ -338,37 +341,37 @@ const About = () => {
               </p>
             </div>
 
-             <div className="p-8 hover:-translate-y-2 transition duration-500">
-                <h2 className="text-3xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
-                  <span className="material-symbols-outlined text-secondary text-4xl">face_3</span>
-                  Head Mistress
-                </h2>
-                <div className="flex flex-col sm:flex-row gap-6">
-                  <img
-                    src={headMistressPhoto}
-                    alt="Head Mistress"
-                    className="w-32 h-32 rounded-full shadow-lg object-cover border-4 border-white shrink-0 bg-white"
-                  />
-                  <div className="text-on-surface-variant text-sm space-y-3 font-medium">
-                    <p className="font-bold text-primary">{headMistress?.greeting || ""}</p>
-                    <div className="whitespace-pre-line">
-                      {headMistress?.message || ""}
-                    </div>
-                    {headMistress?.signature && (
-                      <div className="flex flex-col items-start pt-4 border-t border-outline-variant mt-4">
-                        <img 
-                          src={headMistress.signature || null} 
-                          alt="Signature" 
-                          className="h-16 mb-2 opacity-70 mix-blend-multiply flex-shrink-0"
-                        />
-                         <p className="font-bold text-primary italic text-sm">
-                          Head Mistress
-                        </p>
-                      </div>
-                    )}
+            <div className="p-8 hover:-translate-y-2 transition duration-500">
+              <h2 className="text-3xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
+                <span className="material-symbols-outlined text-secondary text-4xl">face_3</span>
+                Head Mistress
+              </h2>
+              <div className="flex flex-col sm:flex-row gap-6">
+                <img
+                  src={headMistressPhoto}
+                  alt="Head Mistress"
+                  className="w-32 h-32 rounded-full shadow-lg object-cover border-4 border-white shrink-0 bg-white"
+                />
+                <div className="text-on-surface-variant text-sm space-y-3 font-medium">
+                  <p className="font-bold text-primary">{headMistress?.greeting || ""}</p>
+                  <div className="whitespace-pre-line">
+                    {headMistress?.message || ""}
                   </div>
+                  {headMistress?.signature && (
+                    <div className="flex flex-col items-start pt-4 border-t border-outline-variant mt-4">
+                      <img
+                        src={headMistress.signature || null}
+                        alt="Signature"
+                        className="h-16 mb-2 opacity-70 mix-blend-multiply flex-shrink-0"
+                      />
+                      <p className="font-bold text-primary italic text-sm">
+                        Head Mistress
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
+            </div>
 
           </div>
         </div>

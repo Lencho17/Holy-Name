@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -75,21 +75,18 @@ function AdminPage() {
     const resetTimer = () => {
       if (timeoutId) clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        // Automatically logout due to inactivity
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminData');
-        window.location.href = '/adminLogin';
+        handleLogout();
       }, 30 * 60 * 1000); 
     };
 
     resetTimer();
 
-    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
-    events.forEach(event => window.addEventListener(event, resetTimer, { passive: true }));
+    const activityEvents = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    activityEvents.forEach(event => window.addEventListener(event, resetTimer, { passive: true }));
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
-      events.forEach(event => window.removeEventListener(event, resetTimer, { passive: true }));
+      activityEvents.forEach(event => window.removeEventListener(event, resetTimer, { passive: true }));
     };
   }, []);
 
@@ -816,6 +813,41 @@ function AdminPage() {
   const handleDeleteAdmin = async (admin) => {
     if (!window.confirm('Are you sure you want to delete this admin? Dual-OTP verification will be required.')) return;
     await requestOtp('delete', admin);
+  };
+  
+  const handleApproveAdmin = async (adminId) => {
+    if (!window.confirm("Are you sure you want to approve this administrator? They will be sent a temporary password via email.")) return;
+    setIsAdminFormLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.post(`${API_URL}/auth/approve-admin`, { adminId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert("Admin approved successfully!");
+      fetchAdmins();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error approving admin");
+    } finally {
+      setIsAdminFormLoading(false);
+    }
+  };
+
+  const handleRejectAdmin = async (adminId) => {
+    if (!window.confirm("Are you sure you want to reject this application? This will permanently delete the pending admin record.")) return;
+    setIsAdminFormLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      // Using existing delete endpoint but without OTP requirement since it's unapproved
+      const res = await axios.delete(`${API_URL}/auth/admins/${adminId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert("Application rejected and deleted.");
+      fetchAdmins();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error rejecting application");
+    } finally {
+      setIsAdminFormLoading(false);
+    }
   };
 
   const handleStatusUpdate = async (id, newStatus) => {
@@ -2081,10 +2113,50 @@ function AdminPage() {
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h3 className="text-xl font-bold text-gray-800 mb-6 font-serif">Administrative Staff Management</h3>
       
+      {/* Pending Approvals Section */}
+      {admins.filter(a => !a.isApproved).length > 0 && (
+        <div className="mb-10 bg-amber-50/30 p-6 rounded-2xl border border-amber-100">
+          <h4 className="font-bold text-amber-800 mb-4 flex items-center text-sm uppercase tracking-wider">
+            <FaClock className="mr-2 animate-pulse" /> Pending Access Requests ({admins.filter(a => !a.isApproved).length})
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {admins.filter(a => !a.isApproved).map(pending => (
+              <div key={pending._id} className="bg-white p-4 rounded-xl shadow-sm border border-amber-100 flex items-center justify-between group hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
+                    {pending.name?.charAt(0) || pending.email?.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-800 text-sm">{pending.name}</p>
+                    <p className="text-[10px] text-gray-500 font-mono">{pending.email}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleApproveAdmin(pending._id)}
+                    disabled={isAdminFormLoading}
+                    className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-3 py-2 rounded-lg transition-colors shadow-sm"
+                  >
+                    Approve
+                  </button>
+                  <button 
+                    onClick={() => handleRejectAdmin(pending._id)}
+                    disabled={isAdminFormLoading}
+                    className="bg-white hover:bg-red-50 text-red-500 border border-red-100 text-[10px] font-black uppercase px-3 py-2 rounded-lg transition-colors"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Create New Admin Form */}
       <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8">
         <h4 className="font-bold text-gray-700 mb-4 flex items-center">
-          <FaPlus className="mr-2 text-tertiary" /> Register New Administrator
+          <FaPlus className="mr-2 text-tertiary" /> Register New Administrator (Dual OTP)
         </h4>
         <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
@@ -2135,6 +2207,14 @@ function AdminPage() {
 
       {/* Admin List */}
       <div className="overflow-x-auto">
+        <div className="flex justify-between items-center mb-4">
+            <h4 className="font-bold text-gray-600 text-xs uppercase tracking-widest">Active Administrators</h4>
+            <div className="flex gap-2">
+                <span className="flex items-center text-[10px] text-gray-400">
+                    <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Approved
+                </span>
+            </div>
+        </div>
         <table className="w-full text-left">
           <thead>
             <tr className="text-xs text-gray-400 uppercase tracking-widest border-b border-gray-100">
@@ -2177,8 +2257,9 @@ function AdminPage() {
                   <tr className="hover:bg-gray-50/50 transition-colors">
                     <td className="py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase relative">
                           {admin.name ? admin.name.charAt(0) : admin.email?.charAt(0) || 'A'}
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
                         </div>
                         <span className="font-bold text-gray-700">{admin.name || 'Unnamed Admin'}</span>
                       </div>

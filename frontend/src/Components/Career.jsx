@@ -8,6 +8,37 @@ function Career() {
   const [vacancies, setVacancies] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- Tracking State ---
+  const [trackingRef, setTrackingRef] = useState("");
+  const [trackingEmail, setTrackingEmail] = useState("");
+  const [isTracking, setIsTracking] = useState(false);
+  const [trackResult, setTrackResult] = useState(null);
+  const [trackError, setTrackError] = useState(null);
+
+  const handleTrack = async (e) => {
+    e.preventDefault();
+    if (!trackingRef || !trackingEmail) return;
+    
+    setIsTracking(true);
+    setTrackError(null);
+    setTrackResult(null);
+
+    try {
+      const res = await fetch(`${API_URL}/job-applications/track/${trackingRef}?email=${trackingEmail}`);
+      const data = await res.json();
+      
+      if (res.ok) {
+        setTrackResult(data);
+      } else {
+        setTrackError(data.message || "Failed to track application.");
+      }
+    } catch (err) {
+      setTrackError("Network error. Please try again.");
+    } finally {
+      setIsTracking(false);
+    }
+  };
+
   useEffect(() => {
     const fetchVacancies = async () => {
       try {
@@ -130,8 +161,86 @@ function Career() {
             </div>
           </div>
 
-          {/* Sidebar - How to apply & Culture */}
+          {/* Sidebar - How to apply, Tracking & Culture */}
           <div className="lg:col-span-1 flex flex-col gap-8">
+            {/* Tracking Application Card */}
+            <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 relative overflow-hidden ring-4 ring-primary/5">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-8 -mt-8 pointer-events-none"></div>
+              
+              <h3 className="text-xl font-bold text-slate-800 mb-2 flex items-center">
+                Track Application
+              </h3>
+              <p className="text-gray-500 text-xs font-medium mb-6">Check your current hiring status.</p>
+
+              <form onSubmit={handleTrack} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Ref ID</label>
+                  <input
+                    required
+                    type="text"
+                    value={trackingRef}
+                    onChange={(e) => setTrackingRef(e.target.value.toUpperCase())}
+                    placeholder="JOB-2026-XXXXX"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-primary outline-none transition-all placeholder:text-gray-300 font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Email</label>
+                  <input
+                    required
+                    type="email"
+                    value={trackingEmail}
+                    onChange={(e) => setTrackingEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-primary outline-none transition-all placeholder:text-gray-300"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isTracking}
+                  className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-black transition-all flex items-center justify-center shadow-lg active:scale-95 disabled:opacity-50"
+                >
+                  {isTracking ? <FaSpinner className="animate-spin" /> : "Track Status"}
+                </button>
+              </form>
+
+              {trackError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[10px] font-bold uppercase tracking-wide flex items-center">
+                   <span className="material-symbols-outlined text-sm mr-2">error</span>
+                   {trackError}
+                </div>
+              )}
+
+              {trackResult && (
+                <div className="mt-6 p-6 bg-slate-50 rounded-2xl border border-gray-200 animate-fadeIn text-center">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Current Status</p>
+                  
+                  <div className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4 shadow-sm ${
+                    trackResult.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
+                    trackResult.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                    trackResult.status === 'reviewed' ? 'bg-blue-100 text-blue-700' :
+                    'bg-amber-100 text-amber-700'
+                  }`}>
+                    {trackResult.status === 'shortlisted' ? 'Shortlisted' :
+                     trackResult.status === 'rejected' ? 'Rejected' :
+                     trackResult.status === 'reviewed' ? 'Reviewed' :
+                     'Under Review'}
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-slate-800 truncate">{trackResult.appliedForTitle}</p>
+                    <p className="text-[10px] text-gray-500 font-medium">Applied: {new Date(trackResult.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  
+                  {trackResult.status === 'shortlisted' && (
+                    <p className="mt-4 text-[11px] text-green-600 font-bold bg-white p-2 rounded-lg border border-green-100">
+                       Our HR team will call you for interview!
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="bg-primary rounded-3xl shadow-xl p-8 text-white relative overflow-hidden max-h-min">
               <div className="absolute bottom-0 right-0 w-32 h-32 bg-amber-500/10 rounded-tl-full -mr-10 -mb-10"></div>
               

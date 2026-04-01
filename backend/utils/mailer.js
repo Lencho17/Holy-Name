@@ -6,7 +6,8 @@ const createTransporter = () => {
     host: 'smtp.gmail.com',
     port: 465, // SSL/TLS port
     secure: true, // true for 465, false for 587
-    family: 4, // Force IPv4
+    // Absolutely force IPv4 to bypass Render IPv6 routing issues
+    lookup: (hostname, options, callback) => require('dns').lookup(hostname, { family: 4 }, callback),
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,

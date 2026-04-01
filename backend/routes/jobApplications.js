@@ -158,6 +158,37 @@ router.post(
   }
 );
 
+// @desc    Track application status
+// @route   GET /api/job-applications/track/:referenceNumber
+// @access  Public
+router.get('/track/:referenceNumber', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required for tracking.' });
+    }
+
+    const application = await JobApplication.findOne({ 
+      referenceNumber: req.params.referenceNumber,
+      email: email.toLowerCase()
+    }).populate('appliedFor', 'title');
+
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found with provided Reference Number and Email.' });
+    }
+
+    res.json({
+      fullName: application.fullName,
+      status: application.status,
+      appliedForTitle: application.appliedFor?.title || 'General Application',
+      createdAt: application.createdAt
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error while tracking application.' });
+  }
+});
+
 // @desc    Get all applications
 // @route   GET /api/job-applications
 // @access  Private (Admin)

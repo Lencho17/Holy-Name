@@ -17,5 +17,6 @@ import AdminLoginBtn from './AdminLoginBtn.jsx'
 import AdminSignUp from './AdminSignUp.jsx'
 import PopupBanner from './PopupBanner.jsx'
 import JobApplicationForm from './JobApplicationForm.jsx'
+import ScrollToTop from './ScrollToTop.jsx'
 
-export {About,Contact,Home,Gallery,Header,Footer,Principal,Courses,Complaints,Admission,Faculty,Notice,Career,StudentPortal,BelowSocialbtn,AdminLoginBtn,AdminSignUp,PopupBanner,JobApplicationForm}
+export {About,Contact,Home,Gallery,Header,Footer,Principal,Courses,Complaints,Admission,Faculty,Notice,Career,StudentPortal,BelowSocialbtn,AdminLoginBtn,AdminSignUp,PopupBanner,JobApplicationForm,ScrollToTop}

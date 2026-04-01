@@ -91,9 +91,15 @@ function Admission() {
   };
 
   const handleSubjectChange = (subject) => {
-    setSelectedSubjects(prev =>
-      prev.includes(subject) ? prev.filter(s => s !== subject) : [...prev, subject]
-    );
+    setSelectedSubjects(prev => {
+      if (prev.includes(subject)) {
+        return prev.filter(s => s !== subject);
+      }
+      if (prev.length < 4) {
+        return [...prev, subject];
+      }
+      return prev;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -137,7 +143,12 @@ function Admission() {
     formData.append('mil', getUVal('mil'));
 
     // Class 11-12 specialized subjects
-    if (gradeApplied === "class11" || gradeApplied === "class12") {
+    if (gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12"))) {
+      if (selectedSubjects.length !== 4) {
+        setSubmitError('Please select exactly 4 elective subjects.');
+        setSubmitting(false);
+        return;
+      }
       selectedSubjects.forEach(subject => formData.append('selectedSubjects[]', subject.toUpperCase()));
     }
 
@@ -571,12 +582,8 @@ function Admission() {
                     <option value="class8">CLASS VIII</option>
                     <option value="class9">CLASS IX</option>
                     <option value="class10">CLASS X</option>
-                    <option value="class11-science">CLASS XI (SCIENCE)</option>
-                    <option value="class11-commerce">CLASS XI (COMMERCE)</option>
-                    <option value="class11-arts">CLASS XI (ARTS)</option>
-                    <option value="class12-science">CLASS XII (SCIENCE)</option>
-                    <option value="class12-commerce">CLASS XII (COMMERCE)</option>
-                    <option value="class12-arts">CLASS XII (ARTS)</option>
+                    <option value="class11">CLASS XI</option>
+                    <option value="class12">CLASS XII</option>
                   </select>
                 </div>
 
@@ -701,8 +708,11 @@ function Admission() {
                     {/* Dynamic Elective Checkboxes for 11-12 */}
                     {selectedStream && (
                       <div className="md:col-span-2 mt-4">
-                        <label className="block text-gray-700 font-bold mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 italic">
-                          Please select your elective subjects:
+                        <label className="block text-gray-700 font-bold mb-4 bg-amber-50 p-4 rounded-xl border border-amber-100 italic flex justify-between items-center flex-wrap gap-2">
+                          <span>Please select your elective subjects:</span>
+                          <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest ${selectedSubjects.length === 4 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            Selected: {selectedSubjects.length} / 4
+                          </span>
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                           {/* Science Subjects */}

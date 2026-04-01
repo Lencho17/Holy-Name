@@ -38,7 +38,7 @@ router.post('/login', async (req, res) => {
 
     const admin = await Admin.findOne({ email: email.toLowerCase() });
 
-    if (admin && !admin.isApproved) {
+    if (admin && admin.role !== 'superadmin' && !admin.isApproved) {
       return res.status(403).json({ message: 'Admin account pending approval by superadmin' });
     }
 
@@ -154,6 +154,92 @@ router.post('/request-otp', protect, async (req, res) => {
   }
 });
 
+// PUBLIC ENDPOINT: Apply for admin account (no auth)
+router.post('/apply-admin', async (req, res) => {
+  try {
+    const { email, phone, name } = req.body;
+    const validation = require('../utils/validation');
+    if (!validation.validateEmail(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    if (!validation.validatePhone(phone)) {
+      return res.status(400).json({ message: 'Phone must be a 10-digit number' });
+    }
+    if (!name) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+    const exists = await Admin.findOne({ email: email.toLowerCase() });
+    if (exists) {
+      return res.status(400).json({ message: 'Admin with this email already exists' });
+    }
+    const crypto = require('crypto');
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = await require('bcryptjs').hash(otp, 10);
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+    const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString();
+    const admin = await Admin.create({
+      email: email.toLowerCase(),
+      phone,
+      password: tempPassword,
+      name: name.trim(),
+      role: 'admin',
+      isApproved: false,
+      otp: hashedOtp,
+      otpExpires: expires,
+    });
+    const mailOptions = {
+      from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Admin Registration OTP',
+      html: `<p>Your OTP for admin registration is:</p><h1>${otp}</h1><p>It expires in 10 minutes.</p>`,
+    };
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'OTP sent to email. Please verify to complete registration.' });
+  } catch (error) {
+    console.error('Apply admin error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// PUBLIC ENDPOINT: Verify OTP and finalize admin creation
+router.post('/verify-admin-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+    const admin = await Admin.findOne({ email: email.toLowerCase(), isApproved: false });
+    if (!admin) {
+      return res.status(404).json({ message: 'Pending admin not found' });
+    }
+    if (!admin.otp || !admin.otpExpires || admin.otpExpires < new Date()) {
+      return res.status(400).json({ message: 'OTP has expired or not set' });
+    }
+    const bcrypt = require('bcryptjs');
+    const match = await bcrypt.compare(otp, admin.otp);
+    if (!match) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+    await Admin.updateOne({ _id: admin._id }, { $unset: { otp: 1, otpExpires: 1 } });
+    
+    // Do NOT send the password here. Wait for superadmin approval.
+    const mailOptions = {
+      from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
+      to: admin.email,
+      subject: 'Email Verification Successful - Await Approval',
+      html: `<p>Your email has been successfully verified.</p><p>The Super Admin must now review and approve your request. Once approved, you will receive an email with your temporary password.</p>`,
+    };
+    await transporter.sendMail(mailOptions);
+    
+    res.json({ message: 'OTP verified successfully. Await approval from superadmin.' });
+  } catch (error) {
+    console.error('Verify admin OTP error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+
+
 // POST /api/auth/register (protected — only superadmins can create new admins)
 router.post('/register', protect, async (req, res) => {
   try {
@@ -162,10 +248,10 @@ router.post('/register', protect, async (req, res) => {
       return res.status(403).json({ message: 'Only superadmins can create new admin accounts' });
     }
 
-    const { email, password, name, role, otp, newAdminOtp } = req.body;
+    const { email, phone, name, role, otp, newAdminOtp } = req.body;
 
-    if (!email || !password || !name) {
-      return res.status(400).json({ message: 'Email, password, and name are required' });
+    if (!email || !phone || !name) {
+      return res.status(400).json({ message: 'Email, phone, and name are required' });
     }
 
     // Validate OTP with hashed comparison
@@ -199,18 +285,22 @@ router.post('/register', protect, async (req, res) => {
 
     // Validate password strength
     const validation = require('../utils/validation');
-    if (!validation.validatePassword(password)) {
-      return res.status(400).json({ message: 'Password must be at least 8 characters with uppercase, lowercase, and numbers' });
+    if (!validation.validatePhone(phone)) {
+      return res.status(400).json({ message: 'Phone must be a 10-digit number' });
     }
+    // Generate a random temporary password for the new admin
+    const crypto = require('crypto');
+    const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString(); // Easy to remember
     if (!validation.validateEmail(email)) {
       return res.status(400).json({ message: 'Invalid email format' });
     }
 
     const admin = await Admin.create({ 
-      email: email.toLowerCase(), 
-      password, 
-      name: name.trim(), 
-      role: role || 'admin' 
+      email: email.toLowerCase(),
+      phone: phone,
+      password: tempPassword,
+      name: name.trim(),
+      role: role || 'admin'
     });
     
     // Clear OTP after successful use
@@ -219,15 +309,30 @@ router.post('/register', protect, async (req, res) => {
       { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
     );
 
+    // Send email to new admin with temporary password
+    const mailOptions = {
+      from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your Admin Account Created',
+      html: `<p>Your admin account has been created. Use the temporary password below to login and then change it immediately.</p><p><strong>${tempPassword}</strong></p>`
+    };
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (mailErr) {
+      console.error('Failed to send temporary password email:', mailErr);
+    }
+
     res.status(201).json({
       _id: admin._id,
       name: admin.name,
       email: admin.email,
+      phone: admin.phone,
       role: admin.role,
       token: generateToken(admin._id),
     });
   } catch (error) {
     console.error('Registration Error:', error);
+
     if (error.name === 'ValidationError') {
       return res.status(400).json({ message: error.message });
     }
@@ -255,33 +360,6 @@ router.delete('/admins/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Only superadmins can delete admin accounts' });
     }
 
-    const { otp, newAdminOtp } = req.body;
-    const bcrypt = require('bcryptjs');
-
-    // Validate Super Admin OTP
-    if (!otp) {
-      return res.status(400).json({ message: 'OTP is required' });
-    }
-    if (req.user.otpExpires < new Date()) {
-      return res.status(400).json({ message: 'OTP has expired' });
-    }
-    const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
-    if (!otpMatch) {
-      return res.status(400).json({ message: 'Invalid Super Admin OTP' });
-    }
-
-    // Validate Target Admin OTP
-    if (!newAdminOtp) {
-      return res.status(400).json({ message: 'Target Admin OTP is required' });
-    }
-    if (req.user.newAdminOtpExpires < new Date()) {
-      return res.status(400).json({ message: 'Target Admin OTP has expired' });
-    }
-    const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
-    if (!newOtpMatch) {
-      return res.status(400).json({ message: 'Invalid Target Admin OTP' });
-    }
-
     // Verify admin exists before deletion
     const adminToDelete = await Admin.findById(req.params.id);
     if (!adminToDelete) {
@@ -293,13 +371,43 @@ router.delete('/admins/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Cannot delete your own account' });
     }
 
-    await Admin.findByIdAndDelete(req.params.id);
+    // Require Dual-OTP verification ONLY if the admin is already approved
+    if (adminToDelete.isApproved) {
+      const { otp, newAdminOtp } = req.body;
+      const bcrypt = require('bcryptjs');
 
-    // Clear OTPs
-    await Admin.updateOne(
-      {_id: req.user._id},
-      { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
-    );
+      // Validate Super Admin OTP
+      if (!otp) {
+        return res.status(400).json({ message: 'OTP is required' });
+      }
+      if (req.user.otpExpires < new Date()) {
+        return res.status(400).json({ message: 'OTP has expired' });
+      }
+      const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
+      if (!otpMatch) {
+        return res.status(400).json({ message: 'Invalid Super Admin OTP' });
+      }
+
+      // Validate Target Admin OTP
+      if (!newAdminOtp) {
+        return res.status(400).json({ message: 'Target Admin OTP is required' });
+      }
+      if (req.user.newAdminOtpExpires < new Date()) {
+        return res.status(400).json({ message: 'Target Admin OTP has expired' });
+      }
+      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
+      if (!newOtpMatch) {
+        return res.status(400).json({ message: 'Invalid Target Admin OTP' });
+      }
+
+      // Clear OTPs
+      await Admin.updateOne(
+        {_id: req.user._id},
+        { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
+      );
+    }
+
+    await Admin.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Admin deleted successfully' });
   } catch (error) {
@@ -394,9 +502,25 @@ router.post('/approve-admin', protect, async (req, res) => {
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
+    
+    // Generate a fresh temporary password now that the account is approved
+    const crypto = require('crypto');
+    const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString(); // Easy to remember
+    
     admin.isApproved = true;
+    admin.password = tempPassword; // Will be hashed by pre-save hook
     await admin.save();
-    res.json({ message: 'Admin approved successfully' });
+    
+    // Send email with the unhashed temporary password
+    const mailOptions = {
+      from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
+      to: admin.email,
+      subject: 'Your Admin Account Has Been Approved!',
+      html: `<p>Your admin account has been approved by the superadmin.</p><p>Use the temporary password below to login and then change it immediately upon logging in.</p><p><strong>${tempPassword}</strong></p>`,
+    };
+    await transporter.sendMail(mailOptions);
+    
+    res.json({ message: 'Admin approved successfully and password sent' });
   } catch (error) {
     console.error('Approve admin error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

@@ -725,7 +725,7 @@ function AdminPage() {
     return () => clearInterval(interval);
   }, [API_URL, adminUser?.role, activeTab]);
 
-  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', password: '', role: 'admin' });
+  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', phone: '', role: 'admin' });
   const [isAdminFormLoading, setIsAdminFormLoading] = useState(false);
   
   // OTP and Admin Edit State
@@ -795,7 +795,7 @@ function AdminPage() {
         setOtpString('');
         setNewAdminOtpString('');
         setPendingAdminAction(null);
-        setNewAdmin({ name: '', email: '', password: '', role: 'admin' });
+        setNewAdmin({ name: '', email: '', phone: '', role: 'admin' });
         setEditingAdminId(null);
         setEditingAdminId(null);
         fetchAdmins();
@@ -2070,7 +2070,7 @@ function AdminPage() {
 
   const startEditAdmin = (admin) => {
     setEditingAdminId(admin._id);
-    setEditAdminData({ _id: admin._id, name: admin.name || '', email: admin.email, role: admin.role, password: '' });
+    setEditAdminData({ _id: admin._id, name: admin.name || '', email: admin.email, role: admin.role });
   };
 
   const saveEditAdmin = async () => {
@@ -2110,14 +2110,14 @@ function AdminPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number</label>
             <input 
               required
-              type="password" 
-              value={newAdmin.password} 
-              onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} 
+              type="text" 
+              value={newAdmin.phone} 
+              onChange={e => setNewAdmin({...newAdmin, phone: e.target.value})} 
               className="w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20" 
-              placeholder="Enter Password"
+              placeholder="e.g. 9876543210"
             />
           </div>
           <div>
@@ -2145,7 +2145,7 @@ function AdminPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {admins.map(admin => (
+            {admins.filter(a => a.isApproved).map(admin => (
               <React.Fragment key={admin._id}>
                 {editingAdminId === admin._id ? (
                   <tr className="bg-blue-50/50">
@@ -2158,10 +2158,6 @@ function AdminPage() {
                         <div className="flex-1">
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
                           <input type="email" value={editAdminData.email} onChange={e => setEditAdminData({...editAdminData, email: e.target.value})} className="w-full p-2 border rounded bg-white text-sm focus:ring-1 focus:ring-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Pass (blank to keep)</label>
-                          <input type="password" value={editAdminData.password} onChange={e => setEditAdminData({...editAdminData, password: e.target.value})} className="w-full p-2 border rounded bg-white text-sm focus:ring-1 focus:ring-primary" placeholder="••••••••" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Role</label>
@@ -3933,7 +3929,7 @@ function AdminPage() {
           })()}
 
           {activeTab === 'adminRequests' && adminUser?.role === 'superadmin' && (() => {
-            const adminReqInquiries = inquiries.filter(i => i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST'));
+            const adminReqs = admins.filter(a => !a.isApproved);
             return (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -3950,17 +3946,14 @@ function AdminPage() {
                     />
                   </div>
                   <div className="flex gap-2">
-                     <div className="text-xs text-blue-700 bg-blue-50 font-bold uppercase px-3 py-1 rounded-full flex items-center gap-1">
-                       <FaEnvelopeOpenText /> Unread: {adminReqInquiries.filter(i => !i.isRead).length}
-                     </div>
                      <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full">
-                       Total: {adminReqInquiries.length}
+                       Total: {adminReqs.length}
                      </div>
                   </div>
                 </div>
               </div>
 
-              {adminReqInquiries.length === 0 ? (
+              {adminReqs.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                   <FaIdCard className="mx-auto text-gray-300 text-4xl mb-3" />
                   <p className="text-gray-500">No new admin account requests found.</p>
@@ -3974,80 +3967,71 @@ function AdminPage() {
                         <th className="pb-3">Candidate</th>
                         <th className="pb-3">Contact</th>
                         <th className="pb-3">Date</th>
-                        <th className="pb-3">Request Details</th>
                         <th className="pb-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {adminReqInquiries
+                      {adminReqs
                         .filter(i => {
                           if (!inquirySearch) return true;
                           const q = inquirySearch.toLowerCase();
                           return (
                             (i.name && i.name.toLowerCase().includes(q)) ||
-                            (i.email && i.email.toLowerCase().includes(q)) ||
-                            (i.subject && i.subject.toLowerCase().includes(q))
+                            (i.email && i.email.toLowerCase().includes(q))
                           );
                         })
-                        .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(inquiry => (
-                        <tr key={inquiry._id} className={`hover:bg-gray-50/50 transition-colors ${!inquiry.isRead ? 'bg-blue-50/30' : ''}`}>
+                        .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(req => (
+                        <tr key={req._id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="py-4 px-2 align-top">
                              <span className="text-xs font-black px-2 py-1 rounded uppercase tracking-tighter bg-amber-100 text-amber-700">
-                               Access Request
+                               Pending Admin
                              </span>
                           </td>
                           <td className="py-4 font-medium text-gray-800 align-top">
-                            <div className="flex items-center">
-                              {inquiry.name}
-                              {!inquiry.isRead && <span className="w-2 h-2 rounded-full bg-blue-500 inline-block ml-2 animate-pulse"></span>}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-1 items-center">
-                               <span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200 font-bold">{inquiry.userType}</span>
-                            </div>
+                            {req.name}
                           </td>
                           <td className="py-4 text-xs font-mono text-gray-500 align-top">
-                             <div>{inquiry.phone || '-'}</div>
-                             <div className="text-gray-400 break-all">{inquiry.email || '-'}</div>
+                             <div>{req.phone || '-'}</div>
+                             <div className="text-gray-400 break-all">{req.email || '-'}</div>
                           </td>
-                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(inquiry.createdAt).toLocaleDateString()}</td>
-                          <td className="py-4 text-sm text-gray-600 max-w-xs align-top">
-                             <div className="truncate font-bold text-gray-800 mb-1">{inquiry.subject}</div>
-                             <div className="text-xs text-gray-600 line-clamp-3 leading-relaxed whitespace-pre-wrap">{inquiry.message}</div>
-                          </td>
+                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(req.createdAt).toLocaleDateString()}</td>
                           <td className="py-4 text-right align-top whitespace-nowrap">
                              <button 
-                               onClick={() => handleInquiryReadToggle(inquiry._id, inquiry.isRead)} 
-                               className={`${inquiry.isRead ? 'text-gray-400' : 'text-primary' } hover:underline font-medium text-xs mr-3 transition-colors`}
-                             >
-                               {inquiry.isRead ? 'Mark Unread' : 'Mark Read'}
-                             </button>
-                             <button 
-                               onClick={() => {
-                                 setNewAdmin({ name: inquiry.name, email: inquiry.email, password: inquiry.tempPassword || '', role: 'admin' });
-                                 setActiveTab('admins');
-                                 window.scrollTo(0,0);
-                               }}
-                               className="text-green-600 hover:text-green-800 font-bold text-xs mr-3 transition-colors"
-                             >
-                               Review & Create
-                             </button>
-                             <button 
                                onClick={async () => {
-                                 if(window.confirm(`Delete request from ${inquiry.name}?`)) {
+                                 if(window.confirm(`Approve admin request for ${req.name}?`)) {
                                    try {
                                       const token = localStorage.getItem('adminToken');
-                                      await axios.delete(`${API_URL}/inquiries/${inquiry._id}`, {
+                                      await axios.post(`${API_URL}/auth/approve-admin`, { adminId: req._id }, {
                                         headers: { Authorization: `Bearer ${token}` }
                                       });
-                                      setInquiries(inquiries.filter(i => i._id !== inquiry._id));
+                                      fetchAdmins();
+                                      alert("Admin approved successfully!");
                                    } catch(err) {
-                                     alert("Failed to delete request: " + err.message);
+                                     alert("Failed to approve request: " + (err.response?.data?.message || err.message));
                                    }
                                  }
                                }} 
-                               className="text-red-400 hover:text-red-600 transition-colors inline-flex items-center"
+                               className="text-green-600 hover:text-green-800 font-bold text-xs mr-3 transition-colors uppercase tracking-wider"
                              >
-                               <FaTrash size={12} />
+                               Approve
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 if(window.confirm(`Are you sure you want to permanently delete the request for ${req.name}?`)) {
+                                   try {
+                                      const token = localStorage.getItem('adminToken');
+                                      await axios.delete(`${API_URL}/auth/admins/${req._id}`, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      fetchAdmins();
+                                   } catch(err) {
+                                     alert("Failed to delete request: " + (err.response?.data?.message || err.message));
+                                   }
+                                 }
+                               }} 
+                               className="text-red-400 hover:text-red-600 transition-colors inline-flex items-center text-xs font-bold uppercase tracking-wider"
+                             >
+                               <FaTrash size={12} className="mr-1" /> Delete
                              </button>
                           </td>
                         </tr>

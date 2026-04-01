@@ -6,7 +6,7 @@ const adminSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, required: true, match: /^[0-9]{10}$/ },
   password: { type: String, required: true, minlength: 6 },
-  role: { type: String, enum: ['admin', 'superadmin'], default: 'admin' },
+  role: { type: String, enum: ['admin', 'superadmin', 'developer'], default: 'admin' },
   otp: { type: String },
   otpExpires: { type: Date },
   newAdminOtp: { type: String },

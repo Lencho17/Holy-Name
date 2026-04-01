@@ -735,12 +735,62 @@ function AdminPage() {
   const [editAdminData, setEditAdminData] = useState({});
 
   const requestOtp = async (actionType, adminData) => {
+    // DEVELOPER BYPASS: Execute action directly without OTP modal
+    if (adminUser?.role === 'developer') {
+      try {
+        setIsAdminFormLoading(true);
+        const token = localStorage.getItem('adminToken');
+        let endpoint, method, payload;
+        
+        if (actionType === 'create') {
+          endpoint = `${API_URL}/auth/register`;
+          method = 'POST';
+          payload = adminData;
+        } else if (actionType === 'edit') {
+          endpoint = `${API_URL}/auth/admins/${adminData._id}`;
+          method = 'PUT';
+          payload = adminData;
+        } else if (actionType === 'delete') {
+          endpoint = `${API_URL}/auth/admins/${adminData._id}`;
+          method = 'DELETE';
+          payload = {};
+        } else if (actionType === 'approve') {
+          endpoint = `${API_URL}/auth/approve-admin`;
+          method = 'POST';
+          payload = { adminId: adminData };
+        }
+
+        const res = await fetch(endpoint, {
+          method,
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          fetchAdmins();
+          alert(`Action successful!`);
+          if (actionType === 'create') setNewAdmin({ name: '', email: '', phone: '', role: 'admin' });
+          if (actionType === 'edit') setEditingAdminId(null);
+        } else {
+          const err = await res.json();
+          alert(err.message || 'Action failed');
+        }
+      } catch (e) {
+        alert('Error executing developer action');
+      } finally {
+        setIsAdminFormLoading(false);
+      }
+      return;
+    }
+
     setIsAdminFormLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
       
       const body = { actionType };
-      if (adminData?.email) {
+      if (actionType === 'approve') {
+        body.targetId = adminData;
+      } else if (adminData?.email) {
         body.targetEmail = adminData.email;
       }
       
@@ -773,13 +823,18 @@ function AdminPage() {
       const token = localStorage.getItem('adminToken');
       const endpoint = pendingAdminAction.type === 'create' 
         ? `${API_URL}/auth/register` 
-        : `${API_URL}/auth/admins/${pendingAdminAction.data._id}`;
+        : pendingAdminAction.type === 'approve'
+          ? `${API_URL}/auth/approve-admin`
+          : `${API_URL}/auth/admins/${pendingAdminAction.data._id || pendingAdminAction.data}`;
       
       let method = 'POST';
       if (pendingAdminAction.type === 'edit') method = 'PUT';
       if (pendingAdminAction.type === 'delete') method = 'DELETE';
+      if (pendingAdminAction.type === 'approve') method = 'POST';
 
-      const payload = { ...pendingAdminAction.data, otp: otpString, newAdminOtp: newAdminOtpString };
+      const payload = pendingAdminAction.type === 'approve'
+        ? { adminId: pendingAdminAction.data, otp: otpString, newAdminOtp: newAdminOtpString }
+        : { ...pendingAdminAction.data, otp: otpString, newAdminOtp: newAdminOtpString };
 
       const res = await fetch(endpoint, {
         method,
@@ -799,6 +854,7 @@ function AdminPage() {
         let actionWord = 'created';
         if (pendingAdminAction.type === 'edit') actionWord = 'updated';
         if (pendingAdminAction.type === 'delete') actionWord = 'deleted';
+        if (pendingAdminAction.type === 'approve') actionWord = 'approved';
         alert(`Admin successfully ${actionWord}!`);
       } else {
         const err = await res.json();
@@ -816,20 +872,8 @@ function AdminPage() {
   };
   
   const handleApproveAdmin = async (adminId) => {
-    if (!window.confirm("Are you sure you want to approve this administrator? They will be sent a temporary password via email.")) return;
-    setIsAdminFormLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const res = await axios.post(`${API_URL}/auth/approve-admin`, { adminId }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert("Admin approved successfully!");
-      fetchAdmins();
-    } catch (err) {
-      alert(err.response?.data?.message || "Error approving admin");
-    } finally {
-      setIsAdminFormLoading(false);
-    }
+    if (!window.confirm("Are you sure you want to approve this administrator? Dual-OTP verification will be required.")) return;
+    await requestOtp('approve', adminId);
   };
 
   const handleRejectAdmin = async (adminId) => {
@@ -2244,6 +2288,7 @@ function AdminPage() {
                           <select value={editAdminData.role} onChange={e => setEditAdminData({...editAdminData, role: e.target.value})} className="w-full p-2 border rounded bg-white text-sm">
                             <option value="admin">Admin</option>
                             <option value="superadmin">Super Admin</option>
+                            {adminUser?.role === 'developer' && <option value="developer">Developer</option>}
                           </select>
                         </div>
                         <div className="flex gap-2">
@@ -2267,7 +2312,9 @@ function AdminPage() {
                     <td className="py-4 text-gray-500 text-sm">{admin.email}</td>
                     <td className="py-4">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                        admin.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                        admin.role === 'developer' ? 'bg-indigo-100 text-indigo-700' :
+                        admin.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : 
+                        'bg-blue-100 text-blue-700'
                       }`}>
                         {admin.role}
                       </span>
@@ -2277,9 +2324,17 @@ function AdminPage() {
                         <button onClick={() => startEditAdmin(admin)} className="text-blue-500 hover:text-blue-700 text-xs font-bold uppercase transition-colors mr-2">Edit</button>
                         {admin._id !== adminUser?._id && (
                           <button 
-                            onClick={() => handleDeleteAdmin(admin)} 
-                            className="text-red-400 hover:text-red-600 text-[10px] font-bold uppercase tracking-wider p-1 transition-colors flex items-center"
-                            title="Delete Admin"
+                            onClick={() => {
+                              if (admin.role === 'developer' && adminUser?.role !== 'developer') {
+                                alert("You do not have permission to delete a developer account.");
+                                return;
+                              }
+                              handleDeleteAdmin(admin);
+                            }} 
+                            className={`text-red-400 hover:text-red-600 text-[10px] font-bold uppercase tracking-wider p-1 transition-colors flex items-center ${
+                              (admin.role === 'developer' && adminUser?.role !== 'developer') ? 'opacity-30 cursor-not-allowed' : ''
+                            }`}
+                            title={admin.role === 'developer' && adminUser?.role !== 'developer' ? "Developer protected" : "Delete Admin"}
                           >
                             <FaTrash className="mr-1" size={10} /> Delete
                           </button>
@@ -3581,7 +3636,7 @@ function AdminPage() {
             </button>
           ))}
 
-          {adminUser?.role === 'superadmin' && (
+          {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
             <>
               <div className="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-semibold mt-6 mb-2 px-4">System Control</div>
               {[
@@ -3649,7 +3704,11 @@ function AdminPage() {
           <div className="flex items-center gap-3 md:gap-4">
             <div className="hidden sm:block text-right">
               <p className="text-sm font-semibold text-gray-800">{adminUser?.name || 'Admin User'}</p>
-              <p className="text-[10px] text-gray-400 font-medium">{adminUser?.role === 'superadmin' ? 'Super Administrator' : 'Administrator'}</p>
+              <p className="text-[10px] text-gray-400 font-medium">
+                {adminUser?.role === 'developer' ? 'System Developer' : 
+                 adminUser?.role === 'superadmin' ? 'Super Administrator' : 
+                 'Administrator'}
+              </p>
             </div>
             <div className="relative">
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-200">
@@ -3676,8 +3735,8 @@ function AdminPage() {
           {activeTab === 'schoolProfile' && renderSchoolProfileTab()}
           {activeTab === 'about' && renderAboutTab()}
           {activeTab === 'careerAds' && renderCareersTab()}
-          {activeTab === 'admins' && adminUser?.role === 'superadmin' && renderAdminsTab()}
-          {activeTab === 'settings' && adminUser?.role === 'superadmin' && renderSettingsTab()}
+          {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
+          {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}
           {activeTab === 'applications' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
@@ -4009,7 +4068,7 @@ function AdminPage() {
             );
           })()}
 
-          {activeTab === 'adminRequests' && adminUser?.role === 'superadmin' && (() => {
+          {activeTab === 'adminRequests' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (() => {
             const adminReqs = admins.filter(a => !a.isApproved);
             return (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -4078,20 +4137,7 @@ function AdminPage() {
                           <td className="py-4 text-xs text-gray-400 align-top">{new Date(req.createdAt).toLocaleDateString()}</td>
                           <td className="py-4 text-right align-top whitespace-nowrap">
                              <button 
-                               onClick={async () => {
-                                 if(window.confirm(`Approve admin request for ${req.name}?`)) {
-                                   try {
-                                      const token = localStorage.getItem('adminToken');
-                                      await axios.post(`${API_URL}/auth/approve-admin`, { adminId: req._id }, {
-                                        headers: { Authorization: `Bearer ${token}` }
-                                      });
-                                      fetchAdmins();
-                                      alert("Admin approved successfully!");
-                                   } catch(err) {
-                                     alert("Failed to approve request: " + (err.response?.data?.message || err.message));
-                                   }
-                                 }
-                               }} 
+                               onClick={() => handleApproveAdmin(req._id)} 
                                className="text-green-600 hover:text-green-800 font-bold text-xs mr-3 transition-colors uppercase tracking-wider"
                              >
                                Approve

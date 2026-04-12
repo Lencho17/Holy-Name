@@ -11,6 +11,9 @@ function AdminLogin() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState(null);
+  const [view, setView] = useState('login'); // 'login' | 'forgot' | 'reset'
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = (event) => {
@@ -40,6 +43,7 @@ function AdminLogin() {
           if (adminDataStr && adminDataStr !== "undefined") {
             localStorage.setItem('adminToken', res.data.token);
             localStorage.setItem('adminData', adminDataStr);
+            localStorage.setItem('loginTimestamp', Date.now().toString());
             setToken(res.data.token);
           } else {
             throw new Error('Server returned invalid user data object');
@@ -62,6 +66,53 @@ function AdminLogin() {
       navigate('/admin');
     }
   }, [token, navigate]);
+
+  const handleForgotPassword = (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    if (!username) {
+      setError("Please enter your email to reset password.");
+      setLoading(false);
+      return;
+    }
+    const apiBase = import.meta.env.VITE_API_URL || '/api';
+    axios.post(`${apiBase}/auth/forgot-password`, { email: username })
+      .then((res) => {
+        alert(res.data.message || 'OTP sent to email');
+        setView('reset');
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.response?.data?.message || 'Failed to request reset');
+        setLoading(false);
+      });
+  };
+
+  const handleResetPassword = (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    if (!username || !resetOtp || !newPassword) {
+      setError("Please fill in all fields.");
+      setLoading(false);
+      return;
+    }
+    const apiBase = import.meta.env.VITE_API_URL || '/api';
+    axios.post(`${apiBase}/auth/reset-password`, { email: username, otp: resetOtp, newPassword })
+      .then((res) => {
+        alert("Password reset successfully! Please sign in.");
+        setView('login');
+        setPassword('');
+        setResetOtp('');
+        setNewPassword('');
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.response?.data?.message || 'Failed to reset password');
+        setLoading(false);
+      });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center font-sans relative overflow-hidden">
@@ -91,88 +142,195 @@ function AdminLogin() {
 
         {/* Login Card */}
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 md:p-10 border border-white/30">
-          <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Sign In</h2>
           
-          <form onSubmit={handleSubmit} className="space-y-5">
-            
-            {error && (
-              <div className="p-3.5 bg-red-50 border border-red-200 text-red-600 rounded-xl flex items-start text-sm font-medium">
-                <FaExclamationCircle className="mt-0.5 mr-2 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="relative">
-              <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="username">
-                Username or Email
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaEnvelope className="text-gray-300 group-focus-within:text-blue-500 transition-colors" />
-                </div>
-                <input
-                  className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="admin@holynameschool.edu"
-                />
-              </div>
+          {error && (
+            <div className="p-3.5 mb-5 bg-red-50 border border-red-200 text-red-600 rounded-xl flex items-start text-sm font-medium">
+              <FaExclamationCircle className="mt-0.5 mr-2 flex-shrink-0" />
+              <span>{error}</span>
             </div>
+          )}
 
-            <div className="relative">
-              <div className="flex justify-between items-center mb-2 ml-1">
-                <label className="block text-sm font-semibold text-gray-700" htmlFor="password">
-                  Password
-                </label>
-                <a href="#" className="text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors">
-                  Forgot Password?
-                </a>
-              </div>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaLock className="text-gray-300 group-focus-within:text-blue-500 transition-colors" />
+          {view === 'login' && (
+            <>
+              <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Sign In</h2>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="relative">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="username">
+                    Username or Email
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaEnvelope className="text-gray-300 group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <input
+                      className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
+                      id="username"
+                      type="text"
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      placeholder="admin@holynameschool.edu"
+                    />
+                  </div>
                 </div>
-                <input
-                  className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                />
+
+                <div className="relative">
+                  <div className="flex justify-between items-center mb-2 ml-1">
+                    <label className="block text-sm font-semibold text-gray-700" htmlFor="password">
+                      Password
+                    </label>
+                    <button type="button" onClick={() => { setView('forgot'); setError(null); }} className="text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors">
+                      Forgot Password?
+                    </button>
+                  </div>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaLock className="text-gray-300 group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <input
+                      className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  className="w-full text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center transform hover:-translate-y-0.5 relative overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' }}
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Authenticating...
+                    </span>
+                  ) : (
+                    "Sign In to Dashboard"
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center pt-5 border-t border-gray-100">
+                <p className="text-gray-500 text-sm">
+                  New administrator?{" "}
+                  <Link to="/signup" className="text-blue-600 font-bold hover:text-blue-800 transition-colors">
+                    Request Access
+                  </Link>
+                </p>
               </div>
-            </div>
+            </>
+          )}
 
-            <button
-              className="w-full text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center transform hover:-translate-y-0.5 relative overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' }}
-              type="submit"
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Authenticating...
-                </span>
-              ) : (
-                "Sign In to Dashboard"
-              )}
-            </button>
-          </form>
+          {view === 'forgot' && (
+            <>
+              <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Reset Password</h2>
+              <p className="text-sm text-gray-600 mb-6 text-center">
+                Enter your registered email address and we'll send you an OTP to reset your password.
+              </p>
+              <form onSubmit={handleForgotPassword} className="space-y-5">
+                <div className="relative">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="forgot-username">
+                    Email Address
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaEnvelope className="text-gray-300 group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <input
+                      className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
+                      id="forgot-username"
+                      type="text"
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      placeholder="admin@holynameschool.edu"
+                    />
+                  </div>
+                </div>
 
-          <div className="mt-6 text-center pt-5 border-t border-gray-100">
-            <p className="text-gray-500 text-sm">
-              New administrator?{" "}
-              <Link to="/signup" className="text-blue-600 font-bold hover:text-blue-800 transition-colors">
-                Request Access
-              </Link>
-            </p>
-          </div>
+                <div className="flex gap-4 pt-2">
+                  <button type="button" onClick={() => setView('login')} className="w-1/3 py-4 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                    Back
+                  </button>
+                  <button
+                    className="w-2/3 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' }}
+                    type="submit"
+                    disabled={loading}
+                  >
+                    {loading ? 'Sending...' : 'Send OTP'}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {view === 'reset' && (
+            <>
+              <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Verify & Reset</h2>
+              <form onSubmit={handleResetPassword} className="space-y-5">
+                <div className="relative">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                    Email Address
+                  </label>
+                  <input
+                    className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed"
+                    type="text"
+                    value={username}
+                    readOnly
+                  />
+                </div>
+                <div className="relative">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="reset-otp">
+                    6-Digit OTP from Email
+                  </label>
+                  <input
+                    className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800 font-mono tracking-widest"
+                    id="reset-otp"
+                    type="text"
+                    value={resetOtp}
+                    onChange={(event) => setResetOtp(event.target.value)}
+                    placeholder="123456"
+                    maxLength={6}
+                  />
+                </div>
+                <div className="relative">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="new-password">
+                    New Password
+                  </label>
+                  <input
+                    className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="Enter new password"
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-2">
+                  <button type="button" onClick={() => setView('login')} className="w-1/3 py-4 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    className="w-2/3 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+                    type="submit"
+                    disabled={loading}
+                  >
+                    {loading ? 'Reseting...' : 'Confirm Reset'}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
         </div>
         
         {/* Footer info */}

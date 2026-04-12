@@ -215,7 +215,6 @@ function Admission() {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const primaryColor = [30, 41, 59]; // Slate 800 (Professional Primary)
-    const accentColor = [245, 158, 11]; // Amber 500
 
     const loadImage = (url) => {
       return new Promise((resolve) => {

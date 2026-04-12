@@ -17,7 +17,7 @@ const VideoCard = ({ src, title }) => {
         return url;
       }
       return `https://www.youtube.com/embed/${videoId}?rel=0`;
-    } catch (e) {
+    } catch {
       return url;
     }
   };

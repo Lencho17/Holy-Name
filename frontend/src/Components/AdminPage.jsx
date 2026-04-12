@@ -64,31 +64,51 @@ function AdminPage() {
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminData');
+    localStorage.removeItem('loginTimestamp');
     setAdminUser(null);
     window.location.href = '/adminLogin';
   };
 
-  // --- Auto Logout on Inactivity (30 mins) ---
+  const [sessionRemaining, setSessionRemaining] = useState(1800);
+
+  // --- Strict 30 Minute Session Timer ---
   useEffect(() => {
-    let timeoutId;
+    let startTimestamp = parseInt(localStorage.getItem('loginTimestamp'), 10);
+    if (!startTimestamp || isNaN(startTimestamp)) {
+      startTimestamp = Date.now();
+      localStorage.setItem('loginTimestamp', startTimestamp.toString());
+    }
 
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
+    const maxDuration = 30 * 60; // 30 minutes in seconds
+    
+    const intervalId = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+      const remaining = maxDuration - elapsed;
+
+      if (remaining <= 0) {
+        clearInterval(intervalId);
+        alert('Your session has expired (30 minute limit). Please log in again.');
         handleLogout();
-      }, 30 * 60 * 1000); 
-    };
+      } else {
+        setSessionRemaining(remaining);
+        
+        // Notify at 28 mins and 29 mins
+        if (remaining === 120) {
+          alert('Warning: Your session will expire in 2 minutes.');
+        } else if (remaining === 60) {
+          alert('Warning: Your session will expire in 1 minute. Please save your work!');
+        }
+      }
+    }, 1000);
 
-    resetTimer();
-
-    const activityEvents = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
-    activityEvents.forEach(event => window.addEventListener(event, resetTimer, { passive: true }));
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      activityEvents.forEach(event => window.removeEventListener(event, resetTimer, { passive: true }));
-    };
+    return () => clearInterval(intervalId);
   }, []);
+
+  const formatTimer = (secs) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   // --- Fetch real admission applications && Inquiries ---
   const [applications, setApplications] = useState([]);
@@ -570,7 +590,7 @@ function AdminPage() {
   };
 
   const fetchAdmins = async () => {
-    if (adminUser?.role !== 'superadmin') return;
+    if (adminUser?.role !== 'superadmin' && adminUser?.role !== 'developer') return;
     try {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/auth/admins`, { headers: { Authorization: `Bearer ${token}` } });
@@ -707,7 +727,7 @@ function AdminPage() {
       fetchJobApplications();
     }
 
-    if (adminUser?.role === 'superadmin') fetchAdmins();
+    if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') fetchAdmins();
 
     // Live changes: poll for new data every 60 seconds (reduced frequency to save resources)
     const interval = setInterval(() => {
@@ -716,7 +736,7 @@ function AdminPage() {
       if (activeTab === 'dashboard' || activeTab === 'students') fetchStudents();
       if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
       if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
-      if (adminUser?.role === 'superadmin') fetchAdmins();
+      if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') fetchAdmins();
     }, 60000);
 
     return () => clearInterval(interval);
@@ -860,19 +880,25 @@ function AdminPage() {
         const err = await res.json();
         alert(err.message || 'Verification failed');
       }
-    } catch (e) {
+    } catch (error) {
       alert('Error during verification');
     }
     setIsOtpLoading(false);
   };
 
   const handleDeleteAdmin = async (admin) => {
-    if (!window.confirm('Are you sure you want to delete this admin? Dual-OTP verification will be required.')) return;
+    const confirmMsg = adminUser?.role === 'developer' 
+      ? 'Are you sure you want to delete this admin?' 
+      : 'Are you sure you want to delete this admin? Dual-OTP verification will be required.';
+    if (!window.confirm(confirmMsg)) return;
     await requestOtp('delete', admin);
   };
   
   const handleApproveAdmin = async (adminId) => {
-    if (!window.confirm("Are you sure you want to approve this administrator? Dual-OTP verification will be required.")) return;
+    const confirmMsg = adminUser?.role === 'developer'
+      ? "Are you sure you want to approve this administrator?"
+      : "Are you sure you want to approve this administrator? Dual-OTP verification will be required.";
+    if (!window.confirm(confirmMsg)) return;
     await requestOtp('approve', adminId);
   };
 
@@ -882,7 +908,7 @@ function AdminPage() {
     try {
       const token = localStorage.getItem('adminToken');
       // Using existing delete endpoint but without OTP requirement since it's unapproved
-      const res = await axios.delete(`${API_URL}/auth/admins/${adminId}`, {
+      await axios.delete(`${API_URL}/auth/admins/${adminId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert("Application rejected and deleted.");
@@ -918,8 +944,8 @@ function AdminPage() {
       } else {
         alert('Failed to update status');
       }
-    } catch (e) {
-      console.warn('Could not update status', e);
+    } catch (error) {
+      console.warn('Could not update status', error);
       alert('Error updating status');
     }
   };
@@ -939,7 +965,7 @@ function AdminPage() {
       } else {
         alert('Failed to delete application');
       }
-    } catch (e) {
+    } catch (error) {
       alert('Error deleting application');
     }
   };
@@ -1544,7 +1570,7 @@ function AdminPage() {
           errorMessage = errData.error 
             ? `${errData.message} - ${errData.error}` 
             : (errData.message || errorMessage);
-        } catch (parseErr) {
+        } catch (error) {
           // Response wasn't JSON
           errorMessage = `HTTP Error ${res.status}`;
         }
@@ -1958,7 +1984,7 @@ function AdminPage() {
   const handleDeleteAlumni = async (id) => {
     if(window.confirm('Delete this alumni record?')) {
       try {
-        const token = localStorage.getItem('adminToken');
+        localStorage.getItem('adminToken');
         // Since alumni are synced via SiteContent PUT for now (legacy), 
         // we update local state and let the effect sync it, 
         // OR if it's a separate model, we call the API.
@@ -2200,7 +2226,7 @@ function AdminPage() {
       {/* Create New Admin Form */}
       <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8">
         <h4 className="font-bold text-gray-700 mb-4 flex items-center">
-          <FaPlus className="mr-2 text-tertiary" /> Register New Administrator (Dual OTP)
+          <FaPlus className="mr-2 text-tertiary" /> Register New Administrator {adminUser?.role !== 'developer' && '(Dual OTP)'}
         </h4>
         <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
@@ -2288,7 +2314,6 @@ function AdminPage() {
                           <select value={editAdminData.role} onChange={e => setEditAdminData({...editAdminData, role: e.target.value})} className="w-full p-2 border rounded bg-white text-sm">
                             <option value="admin">Admin</option>
                             <option value="superadmin">Super Admin</option>
-                            {adminUser?.role === 'developer' && <option value="developer">Developer</option>}
                           </select>
                         </div>
                         <div className="flex gap-2">
@@ -2321,7 +2346,21 @@ function AdminPage() {
                     </td>
                     <td className="py-4">
                       <div className="flex justify-end gap-2 pr-6">
-                        <button onClick={() => startEditAdmin(admin)} className="text-blue-500 hover:text-blue-700 text-xs font-bold uppercase transition-colors mr-2">Edit</button>
+                        <button 
+                          onClick={() => {
+                            if (admin.role === 'developer' && adminUser?.role !== 'developer') {
+                              alert("You do not have permission to edit a developer account.");
+                              return;
+                            }
+                            startEditAdmin(admin);
+                          }} 
+                          className={`text-blue-500 hover:text-blue-700 text-xs font-bold uppercase transition-colors mr-2 flex items-center ${
+                            (admin.role === 'developer' && adminUser?.role !== 'developer') ? 'opacity-30 cursor-not-allowed' : ''
+                          }`}
+                          title={admin.role === 'developer' && adminUser?.role !== 'developer' ? "Developer protected" : "Edit Admin"}
+                        >
+                          Edit
+                        </button>
                         {admin._id !== adminUser?._id && (
                           <button 
                             onClick={() => {
@@ -3702,13 +3741,21 @@ function AdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-3 md:gap-4">
-            <div className="hidden sm:block text-right">
-              <p className="text-sm font-semibold text-gray-800">{adminUser?.name || 'Admin User'}</p>
-              <p className="text-[10px] text-gray-400 font-medium">
-                {adminUser?.role === 'developer' ? 'System Developer' : 
-                 adminUser?.role === 'superadmin' ? 'Super Administrator' : 
-                 'Administrator'}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex flex-col items-end mr-2">
+                 <div className={`flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-md border ${sessionRemaining <= 120 ? 'bg-red-50 text-red-500 border-red-100 animate-pulse' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
+                   <FaClock />
+                   <span>{formatTimer(sessionRemaining)}</span>
+                 </div>
+              </div>
+              <div className="hidden sm:block text-right">
+                <p className="text-sm font-semibold text-gray-800">{adminUser?.name || 'Admin User'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">
+                  {adminUser?.role === 'developer' ? 'System Developer' : 
+                   adminUser?.role === 'superadmin' ? 'Super Administrator' : 
+                   'Administrator'}
+                </p>
+              </div>
             </div>
             <div className="relative">
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-200">

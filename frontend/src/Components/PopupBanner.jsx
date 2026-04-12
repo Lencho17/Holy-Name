@@ -22,7 +22,7 @@ function PopupBanner() {
           if (imageUrl === banner.image && (now - timestamp < 1800000)) {
             hasBeenShown = true;
           }
-        } catch (e) {
+        } catch {
           // Fallback if parsing fails (e.g. old data format)
           hasBeenShown = false;
         }

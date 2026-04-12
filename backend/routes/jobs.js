@@ -8,7 +8,7 @@ const { protect, authorize } = require('../middleware/auth');
 // @access  Public
 router.get('/', async (req, res) => {
   try {
-    const jobs = await Job.find().sort({ createdAt: -1 });
+    const jobs = await Job.find().sort({ createdAt: -1 }).lean();
     res.json(jobs);
   } catch (err) {
     res.status(500).json({ message: 'Server Error' });

@@ -366,7 +366,8 @@ router.get('/', protect, async (req, res) => {
     const admissions = await Admission.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
     
     const total = await Admission.countDocuments(query);
     

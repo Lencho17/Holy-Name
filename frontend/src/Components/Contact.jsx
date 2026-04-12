@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaClock, FaGlobe } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 

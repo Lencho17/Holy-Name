@@ -7,25 +7,21 @@ const SiteContent = require('../models/SiteContent');
  */
 const seedData = async () => {
   try {
-    const defaultEmail = 'narayanphukan30@gmail.com';
+    const defaultEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@school.com';
     
-    // 1. Seed default superadmin
-    const defaultAdmin = await Admin.findOne({ email: defaultEmail });
+    // 1. Seed default superadmin ONLY IF no superadmins exist
+    const superAdminCount = await Admin.countDocuments({ role: 'superadmin' });
     
-    if (!defaultAdmin) {
+    if (superAdminCount === 0) {
       await Admin.create({
         email: defaultEmail,
         password: 'admin123',
         name: 'Super Admin',
-        role: 'superadmin'
+        role: 'superadmin',
+        phone: '1234567890',
+        isApproved: true
       });
       console.log(`🔐 Default Super Admin created: ${defaultEmail}`);
-    } else if (defaultAdmin.role !== 'superadmin') {
-      await Admin.updateOne(
-        { email: defaultEmail },
-        { $set: { role: 'superadmin' } }
-      );
-      console.log(`🔐 Elevated ${defaultEmail} to Super Admin`);
     }
 
     // 2. Seed default site content

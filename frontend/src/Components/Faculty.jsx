@@ -3,40 +3,6 @@ import { FaChevronLeft, FaChevronRight, FaGraduationCap, FaUserTie, FaFacebook, 
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Faculty() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  
-  const slides = [
-    {
-      id: 1,
-      text: "Pre-Primary Educators",
-      imageUrl: "https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=2070&auto=format&fit=crop",
-    },
-    {
-      id: 2,
-      text: "Primary Department",
-      imageUrl: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2022&auto=format&fit=crop",
-    },
-    {
-      id: 3,
-      text: "Secondary & Higher Secondary",
-      imageUrl: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop",
-    },
-    {
-      id: 4,
-      text: "Dedicated Support Staff",
-      imageUrl: "https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=2070&auto=format&fit=crop",
-    },
-  ];
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [slides.length]);
-
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
 
   const { faculty: facultyData , schoolProfile } = useContext(SiteDataContext);
 

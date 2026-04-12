@@ -26,7 +26,7 @@ const ReviewAndFAQ = () => {
         } else {
           alert("Failed to submit review. Please try again.");
         }
-      } catch (error) {
+      } catch {
         alert(
           "An error occurred while submitting your review. Please try again."
         );

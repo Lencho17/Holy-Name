@@ -53,7 +53,7 @@ const icons = [
     icon: FaDesktop },
 ];
 
-const CircleIcon = ({ title, details, Icon }) => {
+const CircleIcon = ({ details, icon: IconComponent }) => {
   const [hover, setHover] = useState(false);
 
   return (
@@ -63,7 +63,7 @@ const CircleIcon = ({ title, details, Icon }) => {
       onMouseLeave={() => setHover(false)}
       onClick={() => setHover(!hover)}
     >
-      <Icon className="text-xl md:text-2xl" />
+      <IconComponent className="text-xl md:text-2xl" />
       
       {/* Tooltip */}
       <div 
@@ -82,7 +82,7 @@ const Items = () => {
   return (
     <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 py-8 px-4 max-w-7xl mx-auto">
       {icons.map((icon, index) => (
-        <CircleIcon key={index} title={icon.title} details={icon.details} Icon={icon.icon} />
+        <CircleIcon key={index} details={icon.details} icon={icon.icon} />
       ))}
     </div>
   );

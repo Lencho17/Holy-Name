@@ -4,31 +4,39 @@ import {
   createBrowserRouter,
   createRoutesFromElements,
 } from "react-router-dom";
-import {
-  About,
-  AdminSignUp,
-  Admission,
-  BelowSocialbtn,
-  Career,
-  Complaints,
-  Contact,
-  Courses,
-  Faculty,
-  Footer,
-  Gallery,
-  Header,
-  Home,
-  Notice,
-  Principal,
-  StudentPortal,
-  JobApplicationForm,
-} from "./Components/index";
 import Layout from "./Layout";
 import "./App.css";
-import AdminLogin from "./Components/AdminLogin";
-import AdminPage from "./Components/AdminPage";
 import { SiteDataProvider, SiteDataContext } from "./context/SiteDataContext";
-import { useContext, useEffect } from "react";
+import React, { useContext, useEffect, Suspense } from "react";
+import { FaSpinner } from "react-icons/fa";
+
+// Lazy Load Route Components
+const Home = React.lazy(() => import("./Components/Home"));
+const About = React.lazy(() => import("./Components/About"));
+const Contact = React.lazy(() => import("./Components/Contact"));
+const Gallery = React.lazy(() => import("./Components/Gallery"));
+const Header = React.lazy(() => import("./Components/Header"));
+const Footer = React.lazy(() => import("./Components/Footer"));
+const Career = React.lazy(() => import("./Components/Career"));
+const Principal = React.lazy(() => import("./Components/Principal"));
+const Courses = React.lazy(() => import("./Components/Courses"));
+const Complaints = React.lazy(() => import("./Components/Complaints"));
+const Admission = React.lazy(() => import("./Components/Admission"));
+const Faculty = React.lazy(() => import("./Components/Faculty"));
+const Notice = React.lazy(() => import("./Components/Notice"));
+const StudentPortal = React.lazy(() => import("./Components/StudentPortal"));
+const JobApplicationForm = React.lazy(() => import("./Components/JobApplicationForm"));
+const BelowSocialbtn = React.lazy(() => import("./Components/BelowSocialbtn"));
+
+const AdminLogin = React.lazy(() => import("./Components/AdminLogin"));
+const AdminSignUp = React.lazy(() => import("./Components/AdminSignUp"));
+const AdminPage = React.lazy(() => import("./Components/AdminPage"));
+
+const SuspenseFallback = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <FaSpinner className="animate-spin text-4xl text-primary opacity-50" />
+  </div>
+);
 
 // Helper component to sync the browser favicon with the school logo
 function FaviconManager() {
@@ -93,29 +101,29 @@ function App() {
           </div>
         }
       >
-        <Route path="" element={<Home />} />
-        <Route path="about" element={<About />} />
-        <Route path="contact" element={<Contact />} />
-        <Route path="gallery" element={<Gallery />} />
-        <Route path="header" element={<Header />} />
-        <Route path="footer" element={<Footer />} />
-        <Route path="career" element={<Career />} />
-        <Route path="principal" element={<Principal />} />
-        <Route path="courses" element={<Courses />} />
-        <Route path="complaints" element={<Complaints />} />
-        <Route path="admission" element={<Admission />} />
-        <Route path="faculty" element={<Faculty />} />
-        <Route path="notice" element={<Notice />} />
-        <Route path="studentportal" element={<StudentPortal />} />
-        <Route path="apply" element={<JobApplicationForm />} />
-        <Route path="apply/:jobId" element={<JobApplicationForm />} />
-        <Route path="belowsocialbtn" element={<BelowSocialbtn />} />
+        <Route path="" element={<Suspense fallback={<SuspenseFallback />}><Home /></Suspense>} />
+        <Route path="about" element={<Suspense fallback={<SuspenseFallback />}><About /></Suspense>} />
+        <Route path="contact" element={<Suspense fallback={<SuspenseFallback />}><Contact /></Suspense>} />
+        <Route path="gallery" element={<Suspense fallback={<SuspenseFallback />}><Gallery /></Suspense>} />
+        <Route path="header" element={<Suspense fallback={<SuspenseFallback />}><Header /></Suspense>} />
+        <Route path="footer" element={<Suspense fallback={<SuspenseFallback />}><Footer /></Suspense>} />
+        <Route path="career" element={<Suspense fallback={<SuspenseFallback />}><Career /></Suspense>} />
+        <Route path="principal" element={<Suspense fallback={<SuspenseFallback />}><Principal /></Suspense>} />
+        <Route path="courses" element={<Suspense fallback={<SuspenseFallback />}><Courses /></Suspense>} />
+        <Route path="complaints" element={<Suspense fallback={<SuspenseFallback />}><Complaints /></Suspense>} />
+        <Route path="admission" element={<Suspense fallback={<SuspenseFallback />}><Admission /></Suspense>} />
+        <Route path="faculty" element={<Suspense fallback={<SuspenseFallback />}><Faculty /></Suspense>} />
+        <Route path="notice" element={<Suspense fallback={<SuspenseFallback />}><Notice /></Suspense>} />
+        <Route path="studentportal" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
+        <Route path="apply" element={<Suspense fallback={<SuspenseFallback />}><JobApplicationForm /></Suspense>} />
+        <Route path="apply/:jobId" element={<Suspense fallback={<SuspenseFallback />}><JobApplicationForm /></Suspense>} />
+        <Route path="belowsocialbtn" element={<Suspense fallback={<SuspenseFallback />}><BelowSocialbtn /></Suspense>} />
       </Route>
 
       {/* Admin routes without Header/Footer layout */}
-      <Route path="adminLogin" element={<AdminLogin />} />
-      <Route path="signup" element={<AdminSignUp />} />
-      <Route path="admin" element={<AdminPage />} />
+      <Route path="adminLogin" element={<Suspense fallback={<SuspenseFallback />}><AdminLogin /></Suspense>} />
+      <Route path="signup" element={<Suspense fallback={<SuspenseFallback />}><AdminSignUp /></Suspense>} />
+      <Route path="admin" element={<Suspense fallback={<SuspenseFallback />}><AdminPage /></Suspense>} />
     </Route>
     ),
   );

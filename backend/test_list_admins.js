@@ -2,14 +2,10 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
 }).then(async () => {
-    console.log("Connected to MongoDB.");
     const Admin = require('./models/Admin.js');
-    console.log("Updating role logic....");
-    
-    // We already handled this logic in the API, let me check why API hit 500
+    const admins = await Admin.find({});
+    console.log(JSON.stringify(admins, null, 2));
     process.exit(0);
 }).catch(console.error);
 

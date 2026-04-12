@@ -96,10 +96,7 @@ function Gallery() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedImage, displayItems]);
 
-  // Reset category filter when event filter changes
-  useEffect(() => {
-    if (eventId) setActiveCategory("All");
-  }, [eventId]);
+
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">

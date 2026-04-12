@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+
 import Items from "./Items";
 import EventsSection from "./EventsSection";
 import VideoBlogSection from "./VideoBlogSection";

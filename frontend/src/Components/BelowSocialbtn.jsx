@@ -4,27 +4,19 @@ import { TiMessages } from "react-icons/ti";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 const BelowSocialbtn = () => {
-  const [showIcons, setShowIcons] = useState(false);
-  const [style, setStyle] = useState({});
   const { socialLinks } = useContext(SiteDataContext);
-
-  useEffect(() => {
-    if (showIcons) {
-      setStyle({
-        opacity: 1,
-        transform: "translateY(0)",
-        transition: "opacity 0.3s ease, transform 0.3s ease",
-      });
-    } else {
-      setStyle({
-        opacity: 0,
-        transform: "translateY(20px)",
-        transition: "opacity 0.3s ease, transform 0.3s ease",
-        visibility: "hidden",
-        transitionDelay: "0s, 0.3s",
-      });
-    }
-  }, [showIcons]);
+  const [showIcons, setShowIcons] = useState(false);
+  const style = showIcons ? {
+    opacity: 1,
+    transform: "translateY(0)",
+    transition: "opacity 0.3s ease, transform 0.3s ease",
+  } : {
+    opacity: 0,
+    transform: "translateY(20px)",
+    transition: "opacity 0.3s ease, transform 0.3s ease",
+    visibility: "hidden",
+    transitionDelay: "0s, 0.3s",
+  };
 
   return (
     <div className="fixed bottom-0 left-0 p-4 md:p-6 flex flex-col items-center z-50">

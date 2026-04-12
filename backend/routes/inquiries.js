@@ -113,7 +113,7 @@ router.post('/', async (req, res) => {
 // @desc    Get all inquiries (Protected)
 router.get('/', protect, async (req, res) => {
   try {
-    const inquiries = await Inquiry.find().sort({ createdAt: -1 });
+    const inquiries = await Inquiry.find().sort({ createdAt: -1 }).lean();
     res.json(inquiries);
   } catch (error) {
     console.error('Error fetching inquiries:', error);

@@ -71,7 +71,7 @@ function AdminPage() {
 
   const [sessionRemaining, setSessionRemaining] = useState(1800);
 
-  // --- Strict 30 Minute Session Timer ---
+  // --- Strict 120 Minute Session Timer ---
   useEffect(() => {
     let startTimestamp = parseInt(localStorage.getItem('loginTimestamp'), 10);
     if (!startTimestamp || isNaN(startTimestamp)) {
@@ -79,7 +79,7 @@ function AdminPage() {
       localStorage.setItem('loginTimestamp', startTimestamp.toString());
     }
 
-    const maxDuration = 30 * 60; // 30 minutes in seconds
+    const maxDuration = 120 * 60; // 30 minutes in seconds
     
     const intervalId = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);

@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -69,9 +69,9 @@ function AdminPage() {
     window.location.href = '/adminLogin';
   };
 
-  const [sessionRemaining, setSessionRemaining] = useState(1800);
+  const [sessionRemaining, setSessionRemaining] = useState(7200);
 
-  // --- Strict 120 Minute Session Timer ---
+  // --- Strict 2 Hour Session Timer ---
   useEffect(() => {
     let startTimestamp = parseInt(localStorage.getItem('loginTimestamp'), 10);
     if (!startTimestamp || isNaN(startTimestamp)) {
@@ -79,7 +79,7 @@ function AdminPage() {
       localStorage.setItem('loginTimestamp', startTimestamp.toString());
     }
 
-    const maxDuration = 120 * 60; // 30 minutes in seconds
+    const maxDuration = 2 * 60 * 60; // 2 hours in seconds
     
     const intervalId = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
@@ -87,12 +87,12 @@ function AdminPage() {
 
       if (remaining <= 0) {
         clearInterval(intervalId);
-        alert('Your session has expired (30 minute limit). Please log in again.');
+        alert('Your session has expired (2 hour limit). Please log in again.');
         handleLogout();
       } else {
         setSessionRemaining(remaining);
         
-        // Notify at 28 mins and 29 mins
+        // Notify at 1 hour 58 mins and 1 hour 59 mins
         if (remaining === 120) {
           alert('Warning: Your session will expire in 2 minutes.');
         } else if (remaining === 60) {
@@ -105,8 +105,12 @@ function AdminPage() {
   }, []);
 
   const formatTimer = (secs) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
     const s = (secs % 60).toString().padStart(2, '0');
+    if (h > 0) {
+      return `${h}:${m}:${s}`;
+    }
     return `${m}:${s}`;
   };
 
@@ -1643,6 +1647,7 @@ function AdminPage() {
   const [newFaculty, setNewFaculty] = useState({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', classes: '', department: 'Science' });
   const [facultyFile, setFacultyFile] = useState(null);
   const [isFacultyUploading, setIsFacultyUploading] = useState(false);
+  const [editingFaculty, setEditingFaculty] = useState(null); // { dept, index }
 
   const handleAddFaculty = async () => {
     if (!newFaculty.name || !newFaculty.Subject) return;
@@ -1653,16 +1658,56 @@ function AdminPage() {
       if (facultyFile) { photoUrl = await uploadImage(facultyFile); }
       
       const dept = newFaculty.department;
-      setFaculty({
-        ...faculty,
-        [dept]: [{ ...newFaculty, photo: photoUrl, _id: `temp-${Date.now()}` }, ...(faculty[dept] || [])]
-      });
+      
+      if (editingFaculty) {
+        // Update existing member
+        const { dept: oldDept, index } = editingFaculty;
+        const updatedDeptList = [...(faculty[oldDept] || [])];
+        
+        if (oldDept === dept) {
+          // Same department, just update
+          updatedDeptList[index] = { ...newFaculty, photo: photoUrl };
+          setFaculty({
+            ...faculty,
+            [dept]: updatedDeptList
+          });
+        } else {
+          // Changed department: remove from old, add to new
+          const filteredOldDept = updatedDeptList.filter((_, i) => i !== index);
+          setFaculty({
+            ...faculty,
+            [oldDept]: filteredOldDept,
+            [dept]: [{ ...newFaculty, photo: photoUrl }, ...(faculty[dept] || [])]
+          });
+        }
+        setEditingFaculty(null);
+      } else {
+        // Add new member
+        setFaculty({
+          ...faculty,
+          [dept]: [{ ...newFaculty, photo: photoUrl, _id: `temp-${Date.now()}` }, ...(faculty[dept] || [])]
+        });
+      }
+      
       setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', classes: '', department: dept });
       setFacultyFile(null);
     } catch (err) {
-      alert("Faculty upload failed: " + err.message);
+      alert("Faculty update failed: " + err.message);
     }
     setIsFacultyUploading(false);
+  };
+
+  const handleStartEdit = (dept, index, member) => {
+    setNewFaculty({ ...member, department: dept });
+    setEditingFaculty({ dept, index });
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingFaculty(null);
+    setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', classes: '', department: 'Science' });
+    setFacultyFile(null);
   };
   const handleDeleteFaculty = (dept, idToRemove, indexToRemove) => {
     setFaculty({
@@ -1672,7 +1717,7 @@ function AdminPage() {
   };
   const renderFacultyTab = () => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Faculty</h3>
+      <h3 className="text-xl font-bold text-gray-800 mb-4">{editingFaculty ? 'Edit Faculty Member' : 'Manage Faculty'}</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
         <input type="text" placeholder="Name" value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} className="p-2 border rounded-lg" />
         <input type="text" placeholder="Subject" value={newFaculty.Subject} onChange={e => setNewFaculty({...newFaculty, Subject: e.target.value})} className="p-2 border rounded-lg" />
@@ -1682,6 +1727,9 @@ function AdminPage() {
           <option value="Commerce">Commerce</option>
           <option value="High School">High School</option>
           <option value="Nursery">Nursery</option>
+          <option value="Administration">Administration</option>
+          <option value="Support Staff">Support Staff</option>
+          <option value="Others">Others</option>
         </select>
         <input type="text" placeholder="Qualifications (e.g. MSc, PhD)" value={newFaculty.EduQua} onChange={e => setNewFaculty({...newFaculty, EduQua: e.target.value})} className="p-2 border rounded-lg" />
         <input type="text" placeholder="Total Experience (e.g. 5+ yrs exp)" value={newFaculty.title} onChange={e => setNewFaculty({...newFaculty, title: e.target.value})} className="p-2 border rounded-lg" />
@@ -1697,13 +1745,23 @@ function AdminPage() {
             className="w-full text-sm p-1 border rounded" 
           />
         </div>
-        <button 
-          onClick={handleAddFaculty} 
-          disabled={isFacultyUploading}
-          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-3 disabled:bg-gray-400"
-        >
-          <FaPlus className="inline mr-2"/> {isFacultyUploading ? 'Adding...' : 'Add Faculty Member'}
-        </button>
+        <div className="flex gap-2 md:col-span-3">
+          <button 
+            onClick={handleAddFaculty} 
+            disabled={isFacultyUploading}
+            className={`flex-1 ${editingFaculty ? 'bg-amber-500' : 'bg-tertiary'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400`}
+          >
+            {editingFaculty ? <><FaSave className="inline mr-2"/> {isFacultyUploading ? 'Updating...' : 'Update Faculty Member'}</> : <><FaPlus className="inline mr-2"/> {isFacultyUploading ? 'Adding...' : 'Add Faculty Member'}</>}
+          </button>
+          {editingFaculty && (
+            <button 
+              onClick={handleCancelEdit}
+              className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {Object.keys(faculty).filter(dept => dept !== 'Guest').map(dept => (
@@ -1717,7 +1775,10 @@ function AdminPage() {
                   <p className="font-bold text-sm">{f.name}</p>
                   <p className="text-xs text-gray-500">{f.Subject}</p>
                 </div>
-                <button onClick={() => handleDeleteFaculty(dept, f._id || f.id, idx)} className="text-red-500 hover:text-red-700 p-2"><FaTrash size={14}/></button>
+                <div className="flex gap-1">
+                  <button onClick={() => handleStartEdit(dept, idx, f)} className="text-blue-500 hover:text-blue-700 p-2"><FaEdit size={14}/></button>
+                  <button onClick={() => handleDeleteFaculty(dept, f._id || f.id, idx)} className="text-red-500 hover:text-red-700 p-2"><FaTrash size={14}/></button>
+                </div>
               </div>
             ))}
           </div>

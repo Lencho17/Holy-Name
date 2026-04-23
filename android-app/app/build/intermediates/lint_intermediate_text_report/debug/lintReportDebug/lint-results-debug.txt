@@ -1,0 +1,987 @@
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/build.gradle.kts:14: Warning: Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the android.os.Build.VERSION_CODES javadoc for details. [OldTargetApi]
+        targetSdk = 35
+        ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "OldTargetApi":
+   When your application or sdk runs on a version of Android that is more
+   recent than your targetSdkVersion specifies that it has been tested with,
+   various compatibility modes kick in. This ensures that your application
+   continues to work, but it may look out of place. For example, if the
+   targetSdkVersion is less than 14, your app may get an option button in the
+   UI.
+
+   To fix this issue, set the targetSdkVersion to the highest available value.
+   Then test your app to make sure everything works correctly. You may want to
+   consult the compatibility notes to see what changes apply to each version
+   you are adding support for:
+   https://developer.android.com/reference/android/os/Build.VERSION_CODES.html
+   as well as follow this guide:
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.
+   html
+
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.html
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/NoticesActivity.kt:107: Warning: Avoid passing null as the view root (needed to resolve layout parameters on the inflated layout's root element) [InflateParams]
+        val view = layoutInflater.inflate(R.layout.dialog_add_notice, null)
+                                                                      ~~~~
+
+   Explanation for issues of type "InflateParams":
+   When inflating a layout, avoid passing in null as the parent view, since
+   otherwise any layout parameters on the root of the inflated layout will be
+   ignored.
+
+   https://www.bignerdranch.com/blog/understanding-androids-layoutinflater-inflate/
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:2: Warning: A newer version of com.android.application than 8.13.2 is available: 9.1.1 [AndroidGradlePluginVersion]
+agp = "8.13.2"
+      ~~~~~~~~
+
+   Explanation for issues of type "AndroidGradlePluginVersion":
+   This detector looks for usage of the Android Gradle Plugin where the
+   version you are using is not the current stable release. Using older
+   versions is fine, and there are cases where you deliberately want to stick
+   with an older version. However, you may simply not be aware that a more
+   recent version is available, and that is what this lint check helps find.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/build.gradle.kts:9: Warning: A newer version of compileSdkVersion than 35 is available: 36 [GradleDependency]
+    compileSdk = 35
+    ~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:4: Warning: A newer version of androidx.core:core-ktx than 1.10.1 is available: 1.18.0 [GradleDependency]
+coreKtx = "1.10.1"
+          ~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:6: Warning: A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0 [GradleDependency]
+junitVersion = "1.1.5"
+               ~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:7: Warning: A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0 [GradleDependency]
+espressoCore = "3.5.1"
+               ~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:8: Warning: A newer version of androidx.appcompat:appcompat than 1.6.1 is available: 1.7.1 [GradleDependency]
+appcompat = "1.6.1"
+            ~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:9: Warning: A newer version of com.google.android.material:material than 1.10.0 is available: 1.13.0 [GradleDependency]
+material = "1.10.0"
+           ~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:10: Warning: A newer version of androidx.activity:activity than 1.8.0 is available: 1.13.0 [GradleDependency]
+activity = "1.8.0"
+           ~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:11: Warning: A newer version of androidx.constraintlayout:constraintlayout than 2.1.4 is available: 2.2.1 [GradleDependency]
+constraintlayout = "2.1.4"
+                   ~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:14: Warning: A newer version of androidx.swiperefreshlayout:swiperefreshlayout than 1.1.0 is available: 1.2.0 [GradleDependency]
+swiperefreshlayout = "1.1.0"
+                     ~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:16: Warning: A newer version of com.google.devtools.ksp than 2.0.21-1.0.25 is available: 2.2.21-2.0.4 [GradleDependency]
+ksp = "2.0.21-1.0.25"
+      ~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "GradleDependency":
+   This detector looks for usages of libraries where the version you are using
+   is not the current stable release. Using older versions is fine, and there
+   are cases where you deliberately want to stick with an older version.
+   However, you may simply not be aware that a more recent version is
+   available, and that is what this lint check helps find.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:3: Warning: A newer version of org.jetbrains.kotlin.android than 2.0.21 is available: 2.3.20 [NewerVersionAvailable]
+kotlin = "2.0.21"
+         ~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:12: Warning: A newer version of com.squareup.retrofit2:converter-gson than 2.11.0 is available: 3.0.0 [NewerVersionAvailable]
+retrofit = "2.11.0"
+           ~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:12: Warning: A newer version of com.squareup.retrofit2:retrofit than 2.11.0 is available: 3.0.0 [NewerVersionAvailable]
+retrofit = "2.11.0"
+           ~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:13: Warning: A newer version of com.squareup.okhttp3:logging-interceptor than 4.12.0 is available: 5.3.2 [NewerVersionAvailable]
+okhttp = "4.12.0"
+         ~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:15: Warning: A newer version of com.github.bumptech.glide:glide than 4.16.0 is available: 5.0.5 [NewerVersionAvailable]
+glide = "4.16.0"
+        ~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/gradle/libs.versions.toml:15: Warning: A newer version of com.github.bumptech.glide:ksp than 4.16.0 is available: 5.0.5 [NewerVersionAvailable]
+glide = "4.16.0"
+        ~~~~~~~~
+
+   Explanation for issues of type "NewerVersionAvailable":
+   This detector checks with a central repository to see if there are newer
+   versions available for the dependencies used by this project. This is
+   similar to the GradleDependency check, which checks for newer versions
+   available in the Android SDK tools and libraries, but this works with any
+   MavenCentral dependency, and connects to the library every time, which
+   makes it more flexible but also much slower.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/GalleryAdapter.kt:45: Warning: It will always be more efficient to use more specific change events if you can. Rely on notifyDataSetChanged as a last resort. [NotifyDataSetChanged]
+        notifyDataSetChanged()
+        ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/NoticeAdapter.kt:46: Warning: It will always be more efficient to use more specific change events if you can. Rely on notifyDataSetChanged as a last resort. [NotifyDataSetChanged]
+        notifyDataSetChanged()
+        ~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "NotifyDataSetChanged":
+   The RecyclerView adapter's onNotifyDataSetChanged method does not specify
+   what about the data set has changed, forcing any observers to assume that
+   all existing items and structure may no longer be valid. `LayoutManager`s
+   will be forced to fully rebind and relayout all visible views.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:219: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:237: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:255: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:273: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:291: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:309: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:327: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:345: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:363: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:381: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:399: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:417: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:435: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:453: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:491: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:509: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:527: Warning: This tag and its children can be replaced by one <TextView/> and a compound drawable [UseCompoundDrawables]
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical">
+                         ~~~~~~~~~~~~
+
+   Explanation for issues of type "UseCompoundDrawables":
+   A LinearLayout which contains an ImageView and a TextView can be more
+   efficiently handled as a compound drawable (a single TextView, using the
+   drawableTop, drawableLeft, drawableRight and/or drawableBottom attributes
+   to draw one or more images adjacent to the text).
+
+   If the two widgets are offset from each other with margins, this can be
+   replaced with a drawablePadding attribute.
+
+   There's a lint quickfix to perform this conversion in the Eclipse plugin.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_about_page_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_admissions.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light"
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_alumni_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_careers.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light"
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:8: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_events_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_faculty_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_gallery.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light"
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_highlights_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_home_stats_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_inquiries.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light"
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_notices.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light"
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_popup_banner_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_principal_desk_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_school_profile_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_social_media_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_students.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light"
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_video_blog_activity.xml:7: Warning: Possible overdraw: Root element paints background @color/surface_light with a theme that also paints a background (inferred theme is @style/Theme.MyApplication) [Overdraw]
+    android:background="@color/surface_light">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "Overdraw":
+   If you set a background drawable on a root view, then you should use a
+   custom theme where the theme background is null. Otherwise, the theme
+   background will be painted first, only to have your custom background
+   completely cover it; this is called "overdraw".
+
+   NOTE: This detector relies on figuring out which layouts are associated
+   with which activities based on scanning the Java code, and it's currently
+   doing that using an inexact pattern matching algorithm. Therefore, it can
+   incorrectly conclude which activity the layout is associated with and then
+   wrongly complain that a background-theme is hidden.
+
+   If you want your custom background on multiple pages, then you should
+   consider making a custom theme with your custom background and just using
+   that theme instead of a root element background.
+
+   Of course it's possible that your custom drawable is translucent and you
+   want it to be mixed with the background. However, you will get better
+   performance if you pre-mix the background with your drawable and use that
+   resulting image or color as a custom theme background instead.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/drawable/bg_button_gradient.xml:2: Warning: The resource R.drawable.bg_button_gradient appears to be unused [UnusedResources]
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+^
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/drawable/bg_card_premium.xml:2: Warning: The resource R.drawable.bg_card_premium appears to be unused [UnusedResources]
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+^
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/drawable/bg_dashboard_card.xml:2: Warning: The resource R.drawable.bg_dashboard_card appears to be unused [UnusedResources]
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+^
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/drawable/bg_header_gradient.xml:2: Warning: The resource R.drawable.bg_header_gradient appears to be unused [UnusedResources]
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+^
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/values/colors.xml:3: Warning: The resource R.color.black appears to be unused [UnusedResources]
+    <color name="black">#FF000000</color>
+           ~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/values/colors.xml:13: Warning: The resource R.color.majestic_gold_glimmer appears to be unused [UnusedResources]
+    <color name="majestic_gold_glimmer">#FFECB3</color>
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/values/colors.xml:20: Warning: The resource R.color.surface_container_low appears to be unused [UnusedResources]
+    <color name="surface_container_low">#F5F3F7</color>
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/values/colors.xml:21: Warning: The resource R.color.surface_container_high appears to be unused [UnusedResources]
+    <color name="surface_container_high">#E9E7EB</color>
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/values/colors.xml:30: Warning: The resource R.color.status_waitlisted appears to be unused [UnusedResources]
+    <color name="status_waitlisted">#F5F5F5</color>
+           ~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/values/colors.xml:31: Warning: The resource R.color.status_waitlisted_text appears to be unused [UnusedResources]
+    <color name="status_waitlisted_text">#616161</color>
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/mipmap-hdpi/ic_launcher.webp: Warning: The resource R.mipmap.ic_launcher appears to be unused [UnusedResources]
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/drawable/ic_launcher_background.xml:2: Warning: The resource R.drawable.ic_launcher_background appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/drawable/ic_launcher_foreground.xml:1: Warning: The resource R.drawable.ic_launcher_foreground appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/mipmap-hdpi/ic_launcher_round.webp: Warning: The resource R.mipmap.ic_launcher_round appears to be unused [UnusedResources]
+
+   Explanation for issues of type "UnusedResources":
+   Unused resources make applications larger and slow down builds.
+
+
+   The unused resource check can ignore tests. If you want to include
+   resources that are only referenced from tests, consider packaging them in a
+   test source set instead.
+
+   You can include test sources in the unused resource check by setting the
+   system property lint.unused-resources.include-tests =true, and to exclude
+   them (usually for performance reasons), use
+   lint.unused-resources.exclude-tests =true.
+   ,
+
+   Available options:
+
+   **skip-libraries** (default is true):
+   Whether the unused resource check should skip reporting unused resources in libraries.
+
+   Many libraries will declare resources that are part of the library surface; other modules depending on the library will also reference the resources. To avoid reporting all these resources as unused (in the context of a library), the unused resource check normally skips reporting unused resources in libraries. Instead, run the unused resource check on the consuming app module (along with `checkDependencies=true`).
+
+   However, there are cases where you want to check that all the resources declared in a library are used; in that case, you can disable the skip option.
+
+   To configure this option, use a `lint.xml` file with an <option> like this:
+
+   ```xml
+   <lint>
+       <issue id="UnusedResources">
+           <option name="skip-libraries" value="true" />
+       </issue>
+   </lint>
+   ```
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:461: Warning: activity_dashboard.xml has more than 80 views, bad for performance [TooManyViews]
+                <TextView
+                 ~~~~~~~~
+
+   Explanation for issues of type "TooManyViews":
+   Using too many views in a single layout is bad for performance. Consider
+   using compound drawables or other tricks for reducing the number of views
+   in this layout.
+
+   The maximum view count defaults to 80 but can be configured with the
+   environment variable ANDROID_LINT_MAX_VIEW_COUNT.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/drawable/school_logo.jpg: Warning: Launcher icon used as round icon did not have a circular shape [IconLauncherShape]
+
+   Explanation for issues of type "IconLauncherShape":
+   According to the Android Design Guide
+   (https://d.android.com/r/studio-ui/designer/material/iconography) your
+   launcher icons should "use a distinct silhouette", a "three-dimensional,
+   front view, with a slight perspective as if viewed from above, so that
+   users perceive some depth."
+
+   The unique silhouette implies that your launcher icon should not be a
+   filled square.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/drawable/school_logo.jpg: Warning: Found bitmap drawable res/drawable/school_logo.jpg in densityless folder [IconLocation]
+
+   Explanation for issues of type "IconLocation":
+   The res/drawable folder is intended for density-independent graphics such
+   as shapes defined in XML. For bitmaps, move it to drawable-mdpi and
+   consider providing higher and lower resolution versions in drawable-ldpi,
+   drawable-hdpi and drawable-xhdpi. If the icon really is density independent
+   (for example a solid color) you can place it in drawable-nodpi.
+
+   https://developer.android.com/guide/practices/screens_support.html
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_admission.xml:63: Warning: Avoid using sizes smaller than 11sp: 10sp [SmallSp]
+            android:textSize="10sp"
+            ~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_career.xml:47: Warning: Avoid using sizes smaller than 11sp: 10sp [SmallSp]
+            android:textSize="10sp"
+            ~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_career.xml:61: Warning: Avoid using sizes smaller than 11sp: 10sp [SmallSp]
+            android:textSize="10sp"
+            ~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_inquiry.xml:68: Warning: Avoid using sizes smaller than 11sp: 10sp [SmallSp]
+            android:textSize="10sp"
+            ~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "SmallSp":
+   Avoid using sizes smaller than 11sp.
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/DashboardActivity.kt:152: Warning: Use the KTX extension function SharedPreferences.edit instead? [UseKtx]
+        sharedPref.edit().remove("auth_token").apply()
+        ~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/MainActivity.kt:69: Warning: Use the KTX extension function SharedPreferences.edit instead? [UseKtx]
+                        sharedPref.edit().putString("auth_token", token).apply()
+                        ~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "UseKtx":
+   The Android KTX libraries decorates the Android platform SDK as well as
+   various libraries with more convenient extension functions available from
+   Kotlin, allowing you to use default parameters, named parameters, and
+   more.
+
+   Available options:
+
+   **remove-defaults** (default is true):
+   Whether to skip arguments that match the defaults provided by the extension.
+
+   Extensions often provide default values for some of the parameters. For example:
+   ```kotlin
+   fun Path.readLines(charset: Charset = Charsets.UTF_8): List<String> { return Files.readAllLines(this, charset) }
+   ```
+   This lint check will by default automatically omit parameters that match the default, so if your code was calling
+
+   ```kotlin
+   Files.readAllLines(file, Charset.UTF_8)
+   ```
+   lint would replace this with
+   ```kotlin
+   file.readLines()
+   ```
+   rather than
+
+   ```kotlin
+   file.readLines(Charset.UTF_8
+   ```
+   You can turn this behavior off using this option.
+
+   To configure this option, use a `lint.xml` file with an <option> like this:
+
+   ```xml
+   <lint>
+       <issue id="UseKtx">
+           <option name="remove-defaults" value="true" />
+       </issue>
+   </lint>
+   ```
+
+   **require-present** (default is true):
+   Whether to only offer extensions already available.
+
+   This option lets you only have lint suggest extension replacements if those extensions are already available on the class path (in other words, you're already depending on the library containing the extension method.)
+
+   To configure this option, use a `lint.xml` file with an <option> like this:
+
+   ```xml
+   <lint>
+       <issue id="UseKtx">
+           <option name="require-present" value="true" />
+       </issue>
+   </lint>
+   ```
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_about_page_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_about_page_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_alumni_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_alumni_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:220: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_info_details" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:238: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_gallery" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:256: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_camera" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:274: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_view" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:292: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/btn_star" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:310: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_today" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:328: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_dialog_info" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:346: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_myplaces" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:364: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_edit" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:382: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_my_calendar" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:400: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_recent_history" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:418: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_share" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:436: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_sort_alphabetically" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:454: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_help" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:492: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_edit" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:510: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_menu_my_calendar" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:528: Warning: Missing contentDescription attribute on image [ContentDescription]
+                            <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@android:drawable/ic_dialog_email" app:tint="@color/primary_purple" />
+                             ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_events_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_events_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_faculty_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_faculty_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_highlights_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_highlights_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_home_stats_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_home_stats_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:12: Warning: Missing contentDescription attribute on image [ContentDescription]
+    <ImageView
+     ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:47: Warning: Missing contentDescription attribute on image [ContentDescription]
+                <ImageView
+                 ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:166: Warning: Missing contentDescription attribute on image [ContentDescription]
+                <ImageView
+                 ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_popup_banner_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_popup_banner_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_principal_desk_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_principal_desk_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_school_profile_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_school_profile_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_social_media_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_social_media_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_video_blog_activity.xml:16: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_video_blog_activity.xml:49: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_admission.xml:68: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_gallery.xml:15: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_gallery.xml:29: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageButton
+         ~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_notice.xml:21: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_notice.xml:57: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageView
+         ~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_notice.xml:65: Warning: Missing contentDescription attribute on image [ContentDescription]
+        <ImageButton
+         ~~~~~~~~~~~
+
+   Explanation for issues of type "ContentDescription":
+   Non-textual widgets like ImageViews and ImageButtons should use the
+   contentDescription attribute to specify a textual description of the widget
+   such that screen readers and other accessibility tools can adequately
+   describe the user interface.
+
+   Note that elements in application screens that are purely decorative and do
+   not provide any content or enable a user action should not have
+   accessibility content descriptions. In this case, set their descriptions to
+   @null. If your app's minSdkVersion is 16 or higher, you can instead set
+   these graphical elements' android:importantForAccessibility attributes to
+   no.
+
+   Note that for text fields, you should not set both the hint and the
+   contentDescription attributes since the hint will never be shown. Just set
+   the hint.
+
+   https://developer.android.com/guide/topics/ui/accessibility/apps#special-cases
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/AdmissionAdapter.kt:29: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        holder.referenceNumber.text = "REF: ${admission.referenceNumber}"
+                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/AdmissionAdapter.kt:29: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        holder.referenceNumber.text = "REF: ${admission.referenceNumber}"
+                                       ~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/AdmissionAdapter.kt:30: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        holder.grade.text = "Grade: ${admission.gradeApplied}"
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/AdmissionAdapter.kt:30: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        holder.grade.text = "Grade: ${admission.gradeApplied}"
+                             ~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/CareerAdapter.kt:29: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        holder.qualification.text = "Qual: ${app.qualification}"
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/CareerAdapter.kt:29: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        holder.qualification.text = "Qual: ${app.qualification}"
+                                     ~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/CareerAdapter.kt:30: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        holder.ref.text = "REF: ${app.referenceNumber}"
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/CareerAdapter.kt:30: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        holder.ref.text = "REF: ${app.referenceNumber}"
+                           ~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/DashboardActivity.kt:139: Warning: Number formatting does not take into account locale settings. Consider using String.format instead. [SetTextI18n]
+                    unreadInquiriesText.text = unreadCount.toString()
+                                               ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/InquiryAdapter.kt:30: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        holder.sender.text = "From: ${inquiry.name}"
+                             ~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/InquiryAdapter.kt:30: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        holder.sender.text = "From: ${inquiry.name}"
+                              ~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/StudentAdapter.kt:28: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        holder.gradeSection.text = "${student.grade} - ${student.section ?: "N/A"}"
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/StudentAdapter.kt:29: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        holder.rollNo.text = "Roll No: ${student.rollNumber ?: "N/A"}"
+                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/java/com/example/myapplication/StudentAdapter.kt:29: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        holder.rollNo.text = "Roll No: ${student.rollNumber ?: "N/A"}"
+                              ~~~~~~~~~
+
+   Explanation for issues of type "SetTextI18n":
+   When calling TextView#setText
+   * Never call Number#toString() to format numbers; it will not handle
+   fraction separators and locale-specific digits properly. Consider using
+   String#format with proper format specifications (%d or %f) instead.
+   * Do not pass a string literal (e.g. "Hello") to display text. Hardcoded
+   text can not be properly translated to other languages. Consider using
+   Android resource strings instead.
+   * Do not build messages by concatenating text chunks. Such messages can not
+   be properly translated.
+
+   https://developer.android.com/guide/topics/resources/localization.html
+
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_about_page_activity.xml:30: Warning: Hardcoded string "About Page", should use @string resource [HardcodedText]
+            android:text="About Page"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_about_page_activity.xml:59: Warning: Hardcoded string "About Page Configuration", should use @string resource [HardcodedText]
+            android:text="About Page Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_about_page_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_admissions.xml:38: Warning: Hardcoded string "Search Applicants...", should use @string resource [HardcodedText]
+                android:hint="Search Applicants..."
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_admissions.xml:68: Warning: Hardcoded string "All Applicants", should use @string resource [HardcodedText]
+                        android:text="All Applicants"
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_admissions.xml:77: Warning: Hardcoded string "Pending Review", should use @string resource [HardcodedText]
+                        android:text="Pending Review" />
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_admissions.xml:83: Warning: Hardcoded string "Waitlisted", should use @string resource [HardcodedText]
+                        android:text="Waitlisted" />
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_admissions.xml:111: Warning: Hardcoded string "No applications found", should use @string resource [HardcodedText]
+        android:text="No applications found"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_admissions.xml:120: Warning: Hardcoded string "New App", should use @string resource [HardcodedText]
+        android:text="New App"
+        ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_alumni_activity.xml:30: Warning: Hardcoded string "Alumni", should use @string resource [HardcodedText]
+            android:text="Alumni"
+            ~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_alumni_activity.xml:59: Warning: Hardcoded string "Alumni Configuration", should use @string resource [HardcodedText]
+            android:text="Alumni Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_alumni_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:47: Warning: Hardcoded string "HOLY NAME ADMIN PORTAL", should use @string resource [HardcodedText]
+                        android:text="HOLY NAME ADMIN PORTAL"
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:60: Warning: Hardcoded string "Good Morning,", should use @string resource [HardcodedText]
+                        android:text="Good Morning,"
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:70: Warning: Hardcoded string "Administrator", should use @string resource [HardcodedText]
+                        android:text="Administrator"
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:130: Warning: Hardcoded string "Admissions", should use @string resource [HardcodedText]
+                                android:text="Admissions"
+                                ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:141: Warning: Hardcoded string "--", should use @string resource [HardcodedText]
+                                android:text="--"
+                                ~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:169: Warning: Hardcoded string "Inquiries", should use @string resource [HardcodedText]
+                                android:text="Inquiries"
+                                ~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:180: Warning: Hardcoded string "--", should use @string resource [HardcodedText]
+                                android:text="--"
+                                ~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:193: Warning: Hardcoded string "Content Management", should use @string resource [HardcodedText]
+                    android:text="Content Management"
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:221: Warning: Hardcoded string "School Profile", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="School Profile" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:239: Warning: Hardcoded string "Gallery", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Gallery" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:257: Warning: Hardcoded string "Video Blog", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Video Blog" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:275: Warning: Hardcoded string "Popup Banner", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Popup Banner" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:293: Warning: Hardcoded string "Highlights", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Highlights" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:311: Warning: Hardcoded string "Events", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Events" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:329: Warning: Hardcoded string "Notices", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Notices" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:347: Warning: Hardcoded string "Faculty", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Faculty" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:365: Warning: Hardcoded string "Principal Desk", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Principal Desk" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:383: Warning: Hardcoded string "Alumni", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Alumni" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:401: Warning: Hardcoded string "Career Ads", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Career Ads" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:419: Warning: Hardcoded string "Social Media", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Social Media" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:437: Warning: Hardcoded string "Home Stats", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Home Stats" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:455: Warning: Hardcoded string "About Page", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="About Page" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:465: Warning: Hardcoded string "School Data", should use @string resource [HardcodedText]
+                    android:text="School Data"
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:493: Warning: Hardcoded string "Applications", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Applications" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:511: Warning: Hardcoded string "Students", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Students" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:529: Warning: Hardcoded string "Inquiries", should use @string resource [HardcodedText]
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Inquiries" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/on_surface" />
+                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_dashboard.xml:543: Warning: Hardcoded string "Sign Out", should use @string resource [HardcodedText]
+                    android:text="Sign Out"
+                    ~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_events_activity.xml:30: Warning: Hardcoded string "Events", should use @string resource [HardcodedText]
+            android:text="Events"
+            ~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_events_activity.xml:59: Warning: Hardcoded string "Events Configuration", should use @string resource [HardcodedText]
+            android:text="Events Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_events_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_faculty_activity.xml:30: Warning: Hardcoded string "Faculty", should use @string resource [HardcodedText]
+            android:text="Faculty"
+            ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_faculty_activity.xml:59: Warning: Hardcoded string "Faculty Configuration", should use @string resource [HardcodedText]
+            android:text="Faculty Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_faculty_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_gallery.xml:37: Warning: Hardcoded string "Manage website photos and event media", should use @string resource [HardcodedText]
+                android:text="Manage website photos and event media"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_gallery.xml:69: Warning: Hardcoded string "No photos found", should use @string resource [HardcodedText]
+        android:text="No photos found"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_gallery.xml:78: Warning: Hardcoded string "Upload Photo", should use @string resource [HardcodedText]
+        android:text="Upload Photo"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_highlights_activity.xml:30: Warning: Hardcoded string "Highlights", should use @string resource [HardcodedText]
+            android:text="Highlights"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_highlights_activity.xml:59: Warning: Hardcoded string "Highlights Configuration", should use @string resource [HardcodedText]
+            android:text="Highlights Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_highlights_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_home_stats_activity.xml:30: Warning: Hardcoded string "Home Stats", should use @string resource [HardcodedText]
+            android:text="Home Stats"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_home_stats_activity.xml:59: Warning: Hardcoded string "Home Stats Configuration", should use @string resource [HardcodedText]
+            android:text="Home Stats Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_home_stats_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:59: Warning: Hardcoded string "Admin Portal", should use @string resource [HardcodedText]
+                android:text="Admin Portal"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:69: Warning: Hardcoded string "Holy Name Senior Secondary School", should use @string resource [HardcodedText]
+                android:text="Holy Name Senior Secondary School"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:80: Warning: Hardcoded string "Email Address", should use @string resource [HardcodedText]
+                android:hint="Email Address"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:103: Warning: Hardcoded string "Password", should use @string resource [HardcodedText]
+                android:hint="Password"
+                ~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:128: Warning: Hardcoded string "Forgot Password?", should use @string resource [HardcodedText]
+                android:text="Forgot Password?"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:139: Warning: Hardcoded string "Sign In", should use @string resource [HardcodedText]
+                android:text="Sign In"
+                ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_main.xml:175: Warning: Hardcoded string "System Status: Operational", should use @string resource [HardcodedText]
+                    android:text="System Status: Operational"
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_notices.xml:37: Warning: Hardcoded string "Official Announcements & PDF Notices", should use @string resource [HardcodedText]
+                android:text="Official Announcements &amp; PDF Notices"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_notices.xml:66: Warning: Hardcoded string "No notices published yet", should use @string resource [HardcodedText]
+        android:text="No notices published yet"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_notices.xml:75: Warning: Hardcoded string "Post Notice", should use @string resource [HardcodedText]
+        android:text="Post Notice"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_popup_banner_activity.xml:30: Warning: Hardcoded string "Popup Banner", should use @string resource [HardcodedText]
+            android:text="Popup Banner"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_popup_banner_activity.xml:59: Warning: Hardcoded string "Popup Banner Configuration", should use @string resource [HardcodedText]
+            android:text="Popup Banner Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_popup_banner_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_principal_desk_activity.xml:30: Warning: Hardcoded string "Principal Desk", should use @string resource [HardcodedText]
+            android:text="Principal Desk"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_principal_desk_activity.xml:59: Warning: Hardcoded string "Principal Desk Configuration", should use @string resource [HardcodedText]
+            android:text="Principal Desk Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_principal_desk_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_school_profile_activity.xml:30: Warning: Hardcoded string "School Profile", should use @string resource [HardcodedText]
+            android:text="School Profile"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_school_profile_activity.xml:59: Warning: Hardcoded string "School Profile Configuration", should use @string resource [HardcodedText]
+            android:text="School Profile Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_school_profile_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_social_media_activity.xml:30: Warning: Hardcoded string "Social Media", should use @string resource [HardcodedText]
+            android:text="Social Media"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_social_media_activity.xml:59: Warning: Hardcoded string "Social Media Configuration", should use @string resource [HardcodedText]
+            android:text="Social Media Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_social_media_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_students.xml:38: Warning: Hardcoded string "Search Student...", should use @string resource [HardcodedText]
+                android:hint="Search Student..."
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_video_blog_activity.xml:30: Warning: Hardcoded string "Video Blog", should use @string resource [HardcodedText]
+            android:text="Video Blog"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_video_blog_activity.xml:59: Warning: Hardcoded string "Video Blog Configuration", should use @string resource [HardcodedText]
+            android:text="Video Blog Configuration"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/activity_video_blog_activity.xml:69: Warning: Hardcoded string "This functionality has been scaffolded and is preparing for production integration.", should use @string resource [HardcodedText]
+            android:text="This functionality has been scaffolded and is preparing for production integration."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/dialog_add_notice.xml:13: Warning: Hardcoded string "Post New Notice", should use @string resource [HardcodedText]
+        android:text="Post New Notice"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/dialog_add_notice.xml:23: Warning: Hardcoded string "Notice Title (e.g. Exam Schedule)", should use @string resource [HardcodedText]
+        android:hint="Notice Title (e.g. Exam Schedule)"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/dialog_add_notice.xml:39: Warning: Hardcoded string "Attach PDF Document", should use @string resource [HardcodedText]
+        android:text="Attach PDF Document"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/dialog_add_notice.xml:47: Warning: Hardcoded string "Publish Notice", should use @string resource [HardcodedText]
+        android:text="Publish Notice"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_admission.xml:22: Warning: Hardcoded string "Aarav Sharma", should use @string resource [HardcodedText]
+            android:text="Aarav Sharma"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_admission.xml:35: Warning: Hardcoded string "Grade 9", should use @string resource [HardcodedText]
+            android:text="Grade 9"
+            ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_admission.xml:46: Warning: Hardcoded string "REF: HNS-2024-0415", should use @string resource [HardcodedText]
+            android:text="REF: HNS-2024-0415"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_admission.xml:61: Warning: Hardcoded string "PENDING", should use @string resource [HardcodedText]
+            android:text="PENDING"
+            ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_career.xml:21: Warning: Hardcoded string "Applicant Name", should use @string resource [HardcodedText]
+            android:text="Applicant Name"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_career.xml:34: Warning: Hardcoded string "Qualification: M.A, B.Ed", should use @string resource [HardcodedText]
+            android:text="Qualification: M.A, B.Ed"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_career.xml:45: Warning: Hardcoded string "REF: JOB-2024-XXXX", should use @string resource [HardcodedText]
+            android:text="REF: JOB-2024-XXXX"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_career.xml:59: Warning: Hardcoded string "PENDING", should use @string resource [HardcodedText]
+            android:text="PENDING"
+            ~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_inquiry.xml:21: Warning: Hardcoded string "Inquiry Subject", should use @string resource [HardcodedText]
+            android:text="Inquiry Subject"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_inquiry.xml:34: Warning: Hardcoded string "From: Rahul Verma", should use @string resource [HardcodedText]
+            android:text="From: Rahul Verma"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_inquiry.xml:47: Warning: Hardcoded string "This is a sample inquiry message that might be quite long and needs to be truncated for better visual aesthetics in the list view...", should use @string resource [HardcodedText]
+            android:text="This is a sample inquiry message that might be quite long and needs to be truncated for better visual aesthetics in the list view..."
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_inquiry.xml:66: Warning: Hardcoded string "15 Apr 2024", should use @string resource [HardcodedText]
+            android:text="15 Apr 2024"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_notice.xml:41: Warning: Hardcoded string "Summer Vacation Notice", should use @string resource [HardcodedText]
+                android:text="Summer Vacation Notice"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_notice.xml:51: Warning: Hardcoded string "April 15, 2026", should use @string resource [HardcodedText]
+                android:text="April 15, 2026"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_student.xml:34: Warning: Hardcoded string "Student Name", should use @string resource [HardcodedText]
+            android:text="Student Name"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_student.xml:48: Warning: Hardcoded string "Grade 10 - Sec A", should use @string resource [HardcodedText]
+            android:text="Grade 10 - Sec A"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/ce4785fb-47ab-41bf-8715-d03587bbddaf/Holy-Name/android-app/app/src/main/res/layout/item_student.xml:59: Warning: Hardcoded string "Roll No: 24", should use @string resource [HardcodedText]
+            android:text="Roll No: 24"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "HardcodedText":
+   Hardcoding text attributes directly in layout files is bad for several
+   reasons:
+
+   * When creating configuration variations (for example for landscape or
+   portrait) you have to repeat the actual text (and keep it up to date when
+   making changes)
+
+   * The application cannot be translated to other languages by just adding
+   new translations for existing string resources.
+
+   There are quickfixes to automatically extract this hardcoded string into a
+   resource lookup.
+
+0 errors, 242 warnings

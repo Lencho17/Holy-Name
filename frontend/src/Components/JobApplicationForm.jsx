@@ -126,6 +126,7 @@ function JobApplicationForm() {
     policeStation: "",
     pincode: "",
     address: "",
+    experienceType: "Teacher", // "Teacher" or "Other"
   });
 
   const [files, setFiles] = useState({
@@ -433,25 +434,73 @@ function JobApplicationForm() {
               </div>
 
               {formData.isExperienced && (
+                <div className="flex gap-6 mb-8 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm animate-fadeIn">
+                  <label className="flex items-center cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="experienceType" 
+                      value="Teacher" 
+                      checked={formData.experienceType === "Teacher"} 
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-primary focus:ring-primary mr-2"
+                    />
+                    <span className="text-sm font-bold text-gray-700">Teaching Experience</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="experienceType" 
+                      value="Other" 
+                      checked={formData.experienceType === "Other"} 
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-primary focus:ring-primary mr-2"
+                    />
+                    <span className="text-sm font-bold text-gray-700">Other Professional Experience</span>
+                  </label>
+                </div>
+              )}
+
+              {formData.isExperienced && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">School Name *</label>
-                    <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Experience Range *</label>
-                    <select name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all">
-                      <option value="0-3">0-3 Years</option>
-                      <option value="4-5">4-5 Years</option>
-                      <option value="6-10">6-10 Years</option>
-                      <option value="10-15">10-15 Years</option>
-                      <option value="16-20">16-20 Years</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">UDISE Teacher Code *</label>
-                    <input required={formData.isExperienced} name="udiseCode" value={formData.udiseCode} onChange={handleInputChange} placeholder="Alpha-numeric" className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
-                  </div>
+                  {formData.experienceType === "Teacher" ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">School Name *</label>
+                        <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Experience Range *</label>
+                        <select name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all">
+                          <option value="0-3">0-3 Years</option>
+                          <option value="4-5">4-5 Years</option>
+                          <option value="6-10">6-10 Years</option>
+                          <option value="10-15">10-15 Years</option>
+                          <option value="16-20">16-20 Years</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">UDISE Teacher Code *</label>
+                        <input required={formData.isExperienced} name="udiseCode" value={formData.udiseCode} onChange={handleInputChange} placeholder="Alpha-numeric" className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Previous Organisation *</label>
+                        <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} placeholder="E.G. GOOGLE, TATA, ETC." className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Experience Range *</label>
+                        <select name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all">
+                          <option value="0-3">0-3 Years</option>
+                          <option value="4-5">4-5 Years</option>
+                          <option value="6-10">6-10 Years</option>
+                          <option value="10-15">10-15 Years</option>
+                          <option value="16-20">16-20 Years</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </section>

@@ -10,7 +10,7 @@ const generateToken = (id) => {
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not configured');
   }
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30m' }); // Strict 30 minute session
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '2h' }); // Extended 2 hour session
 };
 
 // GET /api/auth/me

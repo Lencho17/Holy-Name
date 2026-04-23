@@ -12,7 +12,7 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 const defaultEvents = [];
 const defaultHighlights = [];
 const defaultGallery = [];
-const defaultFaculty = { Commerce: [], Science: [], Arts: [], "High School": [], Nursery: [] };
+const defaultFaculty = { Commerce: [], Science: [], Arts: [], "High School": [], Nursery: [], Administration: [], "Support Staff": [], Others: [] };
 const defaultPrincipal = {
   name: "Fr. Hemanta Pegu",
   title: "Principal",

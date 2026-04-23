@@ -18,6 +18,11 @@ const jobApplicationSchema = new mongoose.Schema({
     default: 'Fresher'
   },
   udiseCode: String, // Teacher National Code from UDISE (alpha numeric)
+  experienceType: { 
+    type: String, 
+    enum: ['Teacher', 'Other'],
+    default: 'Teacher'
+  },
   
   // Contact & Personal
   email: { type: String, required: true },
@@ -65,7 +70,7 @@ const jobApplicationSchema = new mongoose.Schema({
 // Uppercase Normalization: Convert all relevant fields to uppercase before saving
 jobApplicationSchema.pre('save', function(next) {
   const stringFields = [
-    'fullName', 'gender', 'qualification', 'schoolName', 'udiseCode',
+    'fullName', 'gender', 'qualification', 'schoolName', 'udiseCode', 'experienceType',
     'caste', 'religion', 'postOffice', 'policeStation', 'pincode', 'address'
   ];
 

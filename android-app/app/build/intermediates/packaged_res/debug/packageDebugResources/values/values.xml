@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent_gold">#FFD700</color>
+    <color name="accent_gold_dark">#C5A000</color>
+    <color name="black">#FF000000</color>
+    <color name="deep_academic_purple">#2A004D</color>
+    <color name="imperial_cream">#FDFCF0</color>
+    <color name="majestic_gold">#D4AF37</color>
+    <color name="majestic_gold_glimmer">#FFECB3</color>
+    <color name="on_surface">#1B1B1E</color>
+    <color name="on_surface_variant">#4A4452</color>
+    <color name="primary_purple">#4A148C</color>
+    <color name="primary_purple_dark">#310065</color>
+    <color name="primary_purple_light">#7B1FA2</color>
+    <color name="status_accepted">#E1BEE7</color>
+    <color name="status_accepted_text">#4A148C</color>
+    <color name="status_pending">#FFF9C4</color>
+    <color name="status_pending_text">#7D6B00</color>
+    <color name="status_waitlisted">#F5F5F5</color>
+    <color name="status_waitlisted_text">#616161</color>
+    <color name="surface_container">#EFEDF1</color>
+    <color name="surface_container_high">#E9E7EB</color>
+    <color name="surface_container_low">#F5F3F7</color>
+    <color name="surface_light">#FAF9FC</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_name">Admin Panel</string>
+    <style name="Base.Theme.MyApplication" parent="Theme.Material3.DayNight.NoActionBar">
+        
+        <item name="colorPrimary">@color/primary_purple</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/primary_purple_light</item>
+        
+        <item name="colorSecondary">@color/accent_gold</item>
+        <item name="colorOnSecondary">@color/primary_purple_dark</item>
+        
+        <item name="android:windowBackground">@color/surface_light</item>
+        <item name="colorSurface">@color/surface_container</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
+        
+        
+        <item name="android:statusBarColor">@color/primary_purple_dark</item>
+        
+        
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+    <style name="Theme.MyApplication" parent="Base.Theme.MyApplication"/>
+</resources>

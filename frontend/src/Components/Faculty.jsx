@@ -195,6 +195,57 @@ function Faculty() {
             </div>
           </section>
         )}
+        
+        {facultyData.Administration?.length > 0 && (
+          <section>
+            <div className="text-center mb-12">
+              <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
+                School <span className="text-amber-600 italic">Administration</span>
+              </h2>
+              <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Ensuring smooth operational management and excellence in institutional governance.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {facultyData.Administration.map((faculty, index) => (
+                <FacultyCard key={`admin-${index}`} member={faculty} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {facultyData["Support Staff"]?.length > 0 && (
+          <section>
+            <div className="text-center mb-12">
+              <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
+                Support <span className="text-amber-600 italic">Staff</span>
+              </h2>
+              <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              <p className="mt-4 text-gray-600 max-w-2xl mx-auto">The backbone of our institution, providing essential support services for our community.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {facultyData["Support Staff"].map((faculty, index) => (
+                <FacultyCard key={`support-${index}`} member={faculty} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {facultyData.Others?.length > 0 && (
+          <section>
+            <div className="text-center mb-12">
+              <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
+                Other <span className="text-amber-600 italic">Staff</span>
+              </h2>
+              <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Valued members of our team contributing to various specialized areas of school life.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {facultyData.Others.map((faculty, index) => (
+                <FacultyCard key={`others-${index}`} member={faculty} />
+              ))}
+            </div>
+          </section>
+        )}
 
       </div>
     </div>

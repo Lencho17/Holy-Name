@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -11,7 +11,7 @@ function AdminPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -2840,6 +2840,30 @@ function AdminPage() {
     }
   }, [schoolProfile, loading]);
 
+  const [localVisionStatement, setLocalVisionStatement] = useState(visionStatement);
+  const [localAimsAndObjectives, setLocalAimsAndObjectives] = useState(aimsAndObjectives);
+  const [localHeadMistress, setLocalHeadMistress] = useState(headMistress);
+  const localAboutInitRef = useRef(false);
+
+  useEffect(() => {
+    if (!localAboutInitRef.current && !loading) {
+      if (visionStatement !== undefined) setLocalVisionStatement(visionStatement);
+      if (aimsAndObjectives !== undefined) setLocalAimsAndObjectives(aimsAndObjectives);
+      if (headMistress !== undefined) setLocalHeadMistress(headMistress);
+      localAboutInitRef.current = true;
+    }
+  }, [visionStatement, aimsAndObjectives, headMistress, loading]);
+
+  const [localCoursesPage, setLocalCoursesPage] = useState(coursesPage);
+  const localCoursesInitRef = useRef(false);
+
+  useEffect(() => {
+    if (!localCoursesInitRef.current && !loading && coursesPage) {
+      setLocalCoursesPage(coursesPage);
+      localCoursesInitRef.current = true;
+    }
+  }, [coursesPage, loading]);
+
   const renderSchoolProfileTab = () => {
     const handleProfileChange = (field, value) => {
       setLocalProfile(prev => ({ ...prev, [field]: value }));
@@ -3297,19 +3321,36 @@ function AdminPage() {
   };
 
   const renderAboutTab = () => {
+    const handleAboutSave = async () => {
+      await updateSiteContent({
+        visionStatement: localVisionStatement,
+        aimsAndObjectives: localAimsAndObjectives,
+        headMistress: localHeadMistress
+      });
+      alert('About page updated successfully!');
+    };
+
     return (
       <div className="space-y-8 animate-fadeIn">
-        <header className="mb-8">
-          <h2 className="text-3xl font-headline font-bold text-gray-800">About Page Management</h2>
-          <p className="text-gray-500 mt-2">Manage the content displayed on the public About page.</p>
+        <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-headline font-bold text-gray-800">About Page Management</h2>
+            <p className="text-gray-500 mt-2">Manage the content displayed on the public About page.</p>
+          </div>
+          <button 
+            onClick={handleAboutSave} 
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-md"
+          >
+            <FaSave /> Save All Changes
+          </button>
         </header>
 
         {/* Vision Statement Section */}
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Vision Statement</h3>
           <textarea
-            value={visionStatement}
-            onChange={(e) => setVisionStatement(e.target.value)}
+            value={localVisionStatement}
+            onChange={(e) => setLocalVisionStatement(e.target.value)}
             className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent min-h-[150px]"
             placeholder="Enter the school's vision statement..."
           />
@@ -3320,23 +3361,23 @@ function AdminPage() {
           <div className="flex justify-between items-center border-b pb-4 mb-4">
             <h3 className="text-xl font-bold text-gray-800">Aims & Objectives</h3>
             <button
-              onClick={() => setAimsAndObjectives([...(aimsAndObjectives || []), { title: 'New Aim', description: 'Description here' }])}
+              onClick={() => setLocalAimsAndObjectives([...(localAimsAndObjectives || []), { title: 'New Aim', description: 'Description here' }])}
               className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
             >
               <FaPlus className="mr-2" /> Add Aim
             </button>
           </div>
           <div className="space-y-4">
-            {(aimsAndObjectives || []).map((aim, index) => (
+            {(localAimsAndObjectives || []).map((aim, index) => (
               <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
                 <div className="flex-1 space-y-3">
                   <input
                     type="text"
                     value={aim.title}
                     onChange={(e) => {
-                      const newAims = [...aimsAndObjectives];
+                      const newAims = [...localAimsAndObjectives];
                       newAims[index].title = e.target.value;
-                      setAimsAndObjectives(newAims);
+                      setLocalAimsAndObjectives(newAims);
                     }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold"
                     placeholder="Aim Title"
@@ -3344,9 +3385,9 @@ function AdminPage() {
                   <textarea
                     value={aim.description}
                     onChange={(e) => {
-                      const newAims = [...aimsAndObjectives];
+                      const newAims = [...localAimsAndObjectives];
                       newAims[index].description = e.target.value;
-                      setAimsAndObjectives(newAims);
+                      setLocalAimsAndObjectives(newAims);
                     }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[80px]"
                     placeholder="Aim Description"
@@ -3354,8 +3395,8 @@ function AdminPage() {
                 </div>
                 <button
                   onClick={() => {
-                    const newAims = aimsAndObjectives.filter((_, i) => i !== index);
-                    setAimsAndObjectives(newAims);
+                    const newAims = localAimsAndObjectives.filter((_, i) => i !== index);
+                    setLocalAimsAndObjectives(newAims);
                   }}
                   className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
                   title="Remove Aim"
@@ -3364,7 +3405,7 @@ function AdminPage() {
                 </button>
               </div>
             ))}
-            {(!aimsAndObjectives || aimsAndObjectives.length === 0) && (
+            {(!localAimsAndObjectives || localAimsAndObjectives.length === 0) && (
               <p className="text-center text-gray-500 py-4 italic">No aims and objectives added yet.</p>
             )}
           </div>
@@ -3380,8 +3421,8 @@ function AdminPage() {
                 <label className="block text-sm font-bold text-gray-700 mb-1">Greeting</label>
                 <input
                   type="text"
-                  value={headMistress?.greeting || ''}
-                  onChange={(e) => setHeadMistress({...headMistress, greeting: e.target.value})}
+                  value={localHeadMistress?.greeting || ''}
+                  onChange={(e) => setLocalHeadMistress({...localHeadMistress, greeting: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
                   placeholder="e.g., Message from the Head Mistress"
                 />
@@ -3391,8 +3432,8 @@ function AdminPage() {
                 <label className="block text-sm font-bold text-gray-700 mb-1">Signature (Name)</label>
                 <input
                   type="text"
-                  value={headMistress?.signature || ''}
-                  onChange={(e) => setHeadMistress({...headMistress, signature: e.target.value})}
+                  value={localHeadMistress?.signature || ''}
+                  onChange={(e) => setLocalHeadMistress({...localHeadMistress, signature: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
                   placeholder="e.g., Sr. Name"
                 />
@@ -3401,8 +3442,8 @@ function AdminPage() {
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Photo</label>
                 <div className="flex items-center gap-4">
-                  {headMistress?.photo && (
-                    <img src={headMistress.photo} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+                  {localHeadMistress?.photo && (
+                    <img src={localHeadMistress.photo} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
                   )}
                   <div className="relative overflow-hidden">
                     <button className="px-6 py-2 bg-primary/10 text-primary rounded-lg border border-primary/20 hover:bg-primary/20 font-medium transition-colors flex items-center gap-2">
@@ -3418,7 +3459,7 @@ function AdminPage() {
                         if (!file) return;
                         const uploadedUrl = await uploadImage(file);
                         if (uploadedUrl) {
-                          setHeadMistress({...headMistress, photo: uploadedUrl});
+                          setLocalHeadMistress({...localHeadMistress, photo: uploadedUrl});
                         }
                       }}
                     />
@@ -3430,13 +3471,162 @@ function AdminPage() {
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Message</label>
               <textarea
-                value={headMistress?.message || ''}
-                onChange={(e) => setHeadMistress({...headMistress, message: e.target.value})}
+                value={localHeadMistress?.message || ''}
+                onChange={(e) => setLocalHeadMistress({...localHeadMistress, message: e.target.value})}
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[250px]"
                 placeholder="Enter the message paragraphs here..."
               />
               <p className="text-xs text-gray-500 mt-2">Line breaks will be converted to paragraphs on the public page.</p>
             </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderCoursesPageTab = () => {
+    const handleCoursesSave = async () => {
+      await updateSiteContent({ coursesPage: localCoursesPage });
+      alert('Courses page updated successfully!');
+    };
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-headline font-bold text-gray-800">Courses Page Management</h2>
+            <p className="text-gray-500 mt-2">Manage streams, wings, and rules on the Courses page.</p>
+          </div>
+          <button 
+            onClick={handleCoursesSave} 
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-md"
+          >
+            <FaSave /> Save All Changes
+          </button>
+        </header>
+
+        {/* Streams Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Streams (Higher Secondary)</h3>
+          {['Science', 'Commerce', 'Arts'].map((stream) => (
+            <div key={stream} className="mb-6 last:mb-0">
+              <h4 className="font-bold text-primary mb-2">{stream} Subjects</h4>
+              <textarea
+                value={(localCoursesPage?.streams?.[stream] || []).join('\n')}
+                onChange={(e) => {
+                  const newStreams = { ...(localCoursesPage?.streams || {}) };
+                  newStreams[stream] = e.target.value.split('\n').filter(s => s.trim());
+                  setLocalCoursesPage({ ...localCoursesPage, streams: newStreams });
+                }}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+                placeholder="Enter subjects, one per line"
+              />
+              <p className="text-xs text-gray-500 mt-1">Enter one subject per line.</p>
+            </div>
+          ))}
+        </section>
+
+        {/* Levels Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Educational Wings (Levels)</h3>
+            <button
+              onClick={() => setLocalCoursesPage({...localCoursesPage, levels: [...(localCoursesPage?.levels || []), { title: 'New Level', desc: '', iconType: 'FaBookOpen' }]})}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Level
+            </button>
+          </div>
+          <div className="space-y-4">
+            {(localCoursesPage?.levels || []).map((level, index) => (
+              <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
+                <div className="flex-1 space-y-3">
+                  <input
+                    type="text"
+                    value={level.title}
+                    onChange={(e) => {
+                      const newLevels = [...localCoursesPage.levels];
+                      newLevels[index].title = e.target.value;
+                      setLocalCoursesPage({...localCoursesPage, levels: newLevels});
+                    }}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold"
+                    placeholder="Level Title"
+                  />
+                  <textarea
+                    value={level.desc}
+                    onChange={(e) => {
+                      const newLevels = [...localCoursesPage.levels];
+                      newLevels[index].desc = e.target.value;
+                      setLocalCoursesPage({...localCoursesPage, levels: newLevels});
+                    }}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[60px]"
+                    placeholder="Description"
+                  />
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-semibold text-gray-600">Icon Name:</label>
+                    <input
+                      type="text"
+                      value={level.iconType}
+                      onChange={(e) => {
+                        const newLevels = [...localCoursesPage.levels];
+                        newLevels[index].iconType = e.target.value;
+                        setLocalCoursesPage({...localCoursesPage, levels: newLevels});
+                      }}
+                      className="px-3 py-1 border border-gray-200 rounded-lg text-sm w-48"
+                      placeholder="e.g. FaChild, FaBookOpen"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const newLevels = localCoursesPage.levels.filter((_, i) => i !== index);
+                    setLocalCoursesPage({...localCoursesPage, levels: newLevels});
+                  }}
+                  className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Rules Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Code of Conduct (Rules)</h3>
+            <button
+              onClick={() => setLocalCoursesPage({...localCoursesPage, rules: [...(localCoursesPage?.rules || []), "New Rule"]})}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Rule
+            </button>
+          </div>
+          <div className="space-y-3">
+            {(localCoursesPage?.rules || []).map((rule, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <span className="font-bold text-gray-400 w-6">{index + 1}.</span>
+                <input
+                  type="text"
+                  value={rule}
+                  onChange={(e) => {
+                    const newRules = [...localCoursesPage.rules];
+                    newRules[index] = e.target.value;
+                    setLocalCoursesPage({...localCoursesPage, rules: newRules});
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  onClick={() => {
+                    const newRules = localCoursesPage.rules.filter((_, i) => i !== index);
+                    setLocalCoursesPage({...localCoursesPage, rules: newRules});
+                  }}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            ))}
           </div>
         </section>
       </div>
@@ -3696,7 +3886,8 @@ function AdminPage() {
             { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase /> },
             { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt /> },
             { id: 'stats', label: 'Home Stats', icon: <FaChartLine /> },
-            { id: 'about', label: 'About Page', icon: <FaInfoCircle /> }
+            { id: 'about', label: 'About Page', icon: <FaInfoCircle /> },
+            { id: 'courses', label: 'Courses Page', icon: <FaBookOpen /> }
           ].map(item => (
             <button 
               key={item.id}
@@ -3842,6 +4033,7 @@ function AdminPage() {
           { activeTab === 'stats' && renderStatsTab() }
           {activeTab === 'schoolProfile' && renderSchoolProfileTab()}
           {activeTab === 'about' && renderAboutTab()}
+          {activeTab === 'courses' && renderCoursesPageTab()}
           {activeTab === 'careerAds' && renderCareersTab()}
           {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
           {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}

@@ -42,7 +42,7 @@ function Home() {
                 }`}
               />
             ))}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1E40AF]/75 via-[#1E40AF]/40 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1E40AF]/90 from-10% via-[#1E40AF]/60 via-35% to-transparent to-55%"></div>
           </div>
           <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
             <motion.div
@@ -51,7 +51,7 @@ function Home() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="space-y-8"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary-container/20 text-secondary border border-secondary/30">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-2xl border-[0.5px] border-white/30 shadow-lg">
                 <span className="material-symbols-outlined text-sm text-white">
                   stars
                 </span>
@@ -74,7 +74,7 @@ function Home() {
               <div className="flex flex-wrap gap-4 pt-4">
                 <Link
                   to="/admission"
-                  className="bg-secondary-container text-on-secondary-container font-bold px-8 py-4 rounded-xl flex items-center gap-3 hover:-translate-y-1 transition-all duration-300 shadow-xl shadow-primary/20"
+                  className="bg-white text-primary font-bold px-8 py-4 rounded-xl flex items-center gap-3 hover:-translate-y-1 transition-all duration-300 shadow-xl"
                 >
                   Apply for Admission
                   <span className="material-symbols-outlined">
@@ -83,7 +83,7 @@ function Home() {
                 </Link>
                 <Link
                   to="/courses"
-                  className="bg-white/10 backdrop-blur-md text-white border border-white/20 font-bold px-8 py-4 rounded-xl hover:bg-white/20 transition-all duration-300"
+                  className="bg-white/10 backdrop-blur-2xl text-white border-[0.5px] border-white/30 shadow-lg font-bold px-8 py-4 rounded-xl hover:bg-white/20 transition-all duration-300"
                 >
                   Explore Curriculum
                 </Link>
@@ -97,18 +97,18 @@ function Home() {
               transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
               className="hidden lg:grid grid-cols-2 gap-4 h-[500px]"
             >
-              <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 flex flex-col justify-end border border-white/10 hover:bg-white/10 transition-all">
-                <span className="material-symbols-outlined text-secondary-container text-4xl mb-4">
+              <div className="bg-white/10 backdrop-blur-2xl rounded-3xl p-6 flex flex-col justify-end border-[0.5px] border-white/30 shadow-xl hover:bg-white/20 transition-all">
+                <span className="material-symbols-outlined text-white text-4xl mb-4">
                   science
                 </span>
                 <h4 className="text-white font-bold text-xl uppercase tracking-wider">
                   Advanced Labs
                 </h4>
-                <p className="text-primary-fixed/80 text-sm mt-2">
+                <p className="text-white/90 text-sm mt-2">
                   Equipped with the latest research technologies.
                 </p>
               </div>
-              <div className="bg-white/80 backdrop-blur-md rounded-3xl p-6 flex flex-col justify-between hover:scale-[1.02] shadow-xl shadow-primary/20 transition-all">
+              <div className="bg-white/90 backdrop-blur-md rounded-3xl p-6 flex flex-col justify-between hover:scale-[1.02] shadow-xl shadow-primary/20 transition-all border border-white/20">
                 <div className="flex justify-between items-center">
                   <span className="material-symbols-outlined text-primary text-4xl">
                     workspace_premium
@@ -119,8 +119,8 @@ function Home() {
                   Top Rated School
                 </h4>
               </div>
-              <div className="col-span-2 bg-white/5 backdrop-blur-lg rounded-3xl p-6 flex items-center gap-6 border border-white/10">
-                <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center border border-white/20">
+              <div className="col-span-2 bg-white/10 backdrop-blur-2xl rounded-3xl p-6 flex items-center gap-6 border-[0.5px] border-white/30 shadow-xl">
+                <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-xl flex items-center justify-center border-[0.5px] border-white/40">
                   <span className="material-symbols-outlined text-white text-3xl">
                     history_edu
                   </span>
@@ -129,7 +129,7 @@ function Home() {
                   <h4 className="text-white font-bold text-lg uppercase tracking-wider">
                     Rich Heritage
                   </h4>
-                  <p className="text-primary-fixed/80 text-sm">
+                  <p className="text-white/90 text-sm">
                     38 years of academic excellence in Sivasagar.
                   </p>
                 </div>

@@ -3,53 +3,25 @@ import { SiteDataContext } from "../context/SiteDataContext";
 import { FaBookOpen, FaAtom, FaBalanceScale, FaLandmark, FaChild, FaGraduationCap, FaShieldAlt } from "react-icons/fa";
 
 function Courses() {
-  const { schoolProfile } = useContext(SiteDataContext);
+  const { schoolProfile, coursesPage } = useContext(SiteDataContext);
   const [selectedCategory, setSelectedCategory] = useState("Science");
 
-  const courses = {
-    Science: [
-      "Physics",
-      "Chemistry",
-      "Biology",
-      "Mathematics",
-      "Computer Science",
-    ],
-    Commerce: [
-      "Accountancy",
-      "Business Studies",
-      "Economics",
-      "Mathematics",
-      "Informatics Practices",
-    ],
-    Arts: [
-      "History",
-      "Geography",
-      "Political Science",
-      "Sociology",
-      "Psychology",
-    ],
+  const getIcon = (iconName, className) => {
+    switch (iconName) {
+      case "FaChild": return <FaChild className={className} />;
+      case "FaBookOpen": return <FaBookOpen className={className} />;
+      case "FaGraduationCap": return <FaGraduationCap className={className} />;
+      case "FaAtom": return <FaAtom className={className} />;
+      case "FaBalanceScale": return <FaBalanceScale className={className} />;
+      case "FaLandmark": return <FaLandmark className={className} />;
+      case "FaShieldAlt": return <FaShieldAlt className={className} />;
+      default: return <FaBookOpen className={className} />;
+    }
   };
 
-  const levels = [
-    { title: "Play School", desc: "A nurturing environment where early learning meets structured play, setting the foundational stones for lifelong curiosity.", icon: <FaChild className="text-3xl text-amber-500" /> },
-    { title: "Nursery", desc: "Fostering social skills, early literacy, and numeracy through engaging and interactive activities.", icon: <FaChild className="text-3xl text-amber-500" /> },
-    { title: "Lower Primary", desc: "Building core academic competencies in a supportive setting, encouraging independent thought and collaborative learning.", icon: <FaBookOpen className="text-3xl text-amber-500" /> },
-    { title: "Upper Primary", desc: "Expanding knowledge horizons with a diverse curriculum designed to challenge and inspire growing minds.", icon: <FaBookOpen className="text-3xl text-amber-500" /> },
-    { title: "Secondary School", desc: "Preparing students for rigorous academic challenges and holistic personal development ahead of crucial board examinations.", icon: <FaGraduationCap className="text-3xl text-amber-500" /> },
-    { title: "HS Science", desc: "Specialized focus on Physics, Chemistry, Biology, and Mathematics to prepare students for engineering, medical, and research careers.", icon: <FaAtom className="text-3xl text-amber-500" /> },
-    { title: "HS Commerce", desc: "In-depth study of Accountancy, Business Studies, and Economics, building a strong foundation for future business and financial leaders.", icon: <FaBalanceScale className="text-3xl text-amber-500" /> },
-    { title: "HS Arts", desc: "Comprehensive exploration of Humanities, History, and Political Science, fostering critical thinking and social awareness.", icon: <FaLandmark className="text-3xl text-amber-500" /> },
-    { title: "NCC 11th Assam Battalion", desc: "Elite membership program focused on discipline, leadership, and national service, building character through rigorous training.", icon: <FaShieldAlt className="text-3xl text-amber-500" /> },
-  ];
-
-  const rules = [
-    "Students must maintain 80% attendance throughout the academic year.",
-    "Strict adherence to the school uniform policy is mandatory at all times.",
-    "Mobile phones and electronic gadgets are strictly prohibited on campus.",
-    "Respectful code of conduct towards peers, faculty, and administrative staff.",
-    "Participation in at least one extracurricular activity is highly encouraged.",
-    "Timely submission of assignments and project work is essential.",
-  ];
+  const courses = coursesPage?.streams || {};
+  const levels = coursesPage?.levels || [];
+  const rules = coursesPage?.rules || [];
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
@@ -97,7 +69,7 @@ function Courses() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
               <div className="relative z-10">
                 <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-6 shadow-md">
-                  {level.icon}
+                  {getIcon(level.iconType, "text-3xl text-amber-500")}
                 </div>
                 <h3 className="text-2xl font-serif font-bold text-primary mb-3">{level.title}</h3>
                 <p className="text-gray-600 leading-relaxed group-hover:text-gray-800:text-gray-100:text-gray-100 transition-colors">
@@ -153,7 +125,7 @@ function Courses() {
                   {selectedCategory} Stream
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {courses[selectedCategory].map((subject, index) => (
+                  {(courses[selectedCategory] || []).map((subject, index) => (
                     <div key={index} className="flex items-center bg-[#F9F9FB] p-4 rounded-xl border border-gray-100 hover:border-amber-300 transition-colors">
                       <div className="w-2 h-2 rounded-full bg-amber-500 mr-3 hidden sm:block"></div>
                       <span className="text-gray-800 font-medium">{subject}</span>

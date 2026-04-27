@@ -152,6 +152,19 @@ const siteContentSchema = new mongoose.Schema({
       principal: { type: String, default: "" },
       studentPortal: { type: String, default: "" }
     }
+  },
+  coursesPage: {
+    streams: { type: mongoose.Schema.Types.Mixed, default: {
+      Science: ["Physics", "Chemistry", "Biology", "Mathematics", "Computer Science"],
+      Commerce: ["Accountancy", "Business Studies", "Economics", "Mathematics", "Informatics Practices"],
+      Arts: ["History", "Geography", "Political Science", "Sociology", "Psychology"]
+    } },
+    levels: [{
+      title: String,
+      desc: String,
+      iconType: String
+    }],
+    rules: [String]
   }
 }, { timestamps: true });
 

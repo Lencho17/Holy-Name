@@ -72,6 +72,33 @@ const defaultSchoolProfile = {
   affiliation: []
 };
 
+const defaultCoursesPage = {
+  streams: {
+    Science: ["Physics", "Chemistry", "Biology", "Mathematics", "Computer Science"],
+    Commerce: ["Accountancy", "Business Studies", "Economics", "Mathematics", "Informatics Practices"],
+    Arts: ["History", "Geography", "Political Science", "Sociology", "Psychology"]
+  },
+  levels: [
+    { title: "Play School", desc: "A nurturing environment where early learning meets structured play, setting the foundational stones for lifelong curiosity.", iconType: "FaChild" },
+    { title: "Nursery", desc: "Fostering social skills, early literacy, and numeracy through engaging and interactive activities.", iconType: "FaChild" },
+    { title: "Lower Primary", desc: "Building core academic competencies in a supportive setting, encouraging independent thought and collaborative learning.", iconType: "FaBookOpen" },
+    { title: "Upper Primary", desc: "Expanding knowledge horizons with a diverse curriculum designed to challenge and inspire growing minds.", iconType: "FaBookOpen" },
+    { title: "Secondary School", desc: "Preparing students for rigorous academic challenges and holistic personal development ahead of crucial board examinations.", iconType: "FaGraduationCap" },
+    { title: "HS Science", desc: "Specialized focus on Physics, Chemistry, Biology, and Mathematics to prepare students for engineering, medical, and research careers.", iconType: "FaAtom" },
+    { title: "HS Commerce", desc: "In-depth study of Accountancy, Business Studies, and Economics, building a strong foundation for future business and financial leaders.", iconType: "FaBalanceScale" },
+    { title: "HS Arts", desc: "Comprehensive exploration of Humanities, History, and Political Science, fostering critical thinking and social awareness.", iconType: "FaLandmark" },
+    { title: "NCC 11th Assam Battalion", desc: "Elite membership program focused on discipline, leadership, and national service, building character through rigorous training.", iconType: "FaShieldAlt" }
+  ],
+  rules: [
+    "Students must maintain 80% attendance throughout the academic year.",
+    "Strict adherence to the school uniform policy is mandatory at all times.",
+    "Mobile phones and electronic gadgets are strictly prohibited on campus.",
+    "Respectful code of conduct towards peers, faculty, and administrative staff.",
+    "Participation in at least one extracurricular activity is highly encouraged.",
+    "Timely submission of assignments and project work is essential."
+  ]
+};
+
 export const SiteDataProvider = ({ children }) => {
   const [videos, setVideos] = useState([]);
   const [highlights, setHighlights] = useState(defaultHighlights);
@@ -89,6 +116,7 @@ export const SiteDataProvider = ({ children }) => {
   const [aimsAndObjectives, setAimsAndObjectives] = useState(defaultAimsAndObjectives);
   const [headMistress, setHeadMistress] = useState(defaultHeadMistress);
   const [schoolProfile, setSchoolProfile] = useState(defaultSchoolProfile);
+  const [coursesPage, setCoursesPage] = useState(defaultCoursesPage);
   const [loading, setLoading] = useState(true);
 
 
@@ -116,9 +144,10 @@ export const SiteDataProvider = ({ children }) => {
         if (Array.isArray(data.alumni)) setAlumni(data.alumni);
         if (Array.isArray(data.stats)) setStats(data.stats);
         if (data.visionStatement !== undefined) setVisionStatement(data.visionStatement);
-        if (Array.isArray(data.aimsAndObjectives)) setAimsAndObjectives(data.aimsAndObjectives);
+        if (data.aimsAndObjectives) setAimsAndObjectives(data.aimsAndObjectives);
         if (data.headMistress && typeof data.headMistress === 'object') setHeadMistress(data.headMistress);
         if (data.schoolProfile && typeof data.schoolProfile === 'object') setSchoolProfile(data.schoolProfile);
+        if (data.coursesPage && typeof data.coursesPage === 'object') setCoursesPage(data.coursesPage);
       } catch (error) {
         console.warn('Backend polling error or using local defaults:', error.message);
       } finally {
@@ -185,6 +214,7 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.aimsAndObjectives) setAimsAndObjectives(updatedData.aimsAndObjectives);
       if (updatedData.headMistress) setHeadMistress(updatedData.headMistress);
       if (updatedData.schoolProfile) setSchoolProfile(updatedData.schoolProfile);
+      if (updatedData.coursesPage) setCoursesPage(updatedData.coursesPage);
 
       // console.log("Auto-save successful");
     } catch (err) {
@@ -213,6 +243,7 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.aimsAndObjectives !== undefined) setAimsAndObjectives(updates.aimsAndObjectives);
     if (updates.headMistress !== undefined) setHeadMistress(updates.headMistress);
     if (updates.schoolProfile !== undefined) setSchoolProfile(updates.schoolProfile);
+    if (updates.coursesPage !== undefined) setCoursesPage(updates.coursesPage);
 
     // 2. Persist to backend in ONE request
     saveToBackend(updates);
@@ -286,6 +317,7 @@ export const SiteDataProvider = ({ children }) => {
   const wrapSetAimsAndObjectives = (val) => { setAimsAndObjectives(val); saveToBackend({ aimsAndObjectives: val }); };
   const wrapSetHeadMistress = (val) => { setHeadMistress(val); saveToBackend({ headMistress: val }); };
   const wrapSetSchoolProfile = (val) => { setSchoolProfile(val); saveToBackend({ schoolProfile: val }); };
+  const wrapSetCoursesPage = (val) => { setCoursesPage(val); saveToBackend({ coursesPage: val }); };
 
   return (
     <SiteDataContext.Provider value={{
@@ -306,6 +338,7 @@ export const SiteDataProvider = ({ children }) => {
       aimsAndObjectives, setAimsAndObjectives: wrapSetAimsAndObjectives,
       headMistress, setHeadMistress: wrapSetHeadMistress,
       schoolProfile, setSchoolProfile: wrapSetSchoolProfile,
+      coursesPage, setCoursesPage: wrapSetCoursesPage,
       updateSiteContent,
       uploadImage,
       uploadEventPhotos,

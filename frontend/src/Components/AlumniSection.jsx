@@ -43,16 +43,16 @@ const AlumniSection = () => {
   const loopAlumni = [...baseAlumni, ...baseAlumni];
 
   return (
-    <section className="py-8 relative overflow-hidden bg-gradient-to-br from-[#CCFFFF]/35 via-[#CCFFFF]/20 to-[#CCFFFF]/5 border-y border-slate-100 my-4 border-t-4 border-t-primary/40 shadow-[0_-4px_20px_rgba(204,255,255,0.3)]">
+    <section className="py-8 relative overflow-hidden bg-gradient-to-br from-[#CCFFFF]/10 via-[#CCFFFF]/5 to-transparent border-y border-slate-100 my-4 border-t-4 border-t-primary/40 shadow-[0_-4px_20px_rgba(204,255,255,0.1)]">
       {/* Decorative background elements - optimized for WHITE page background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 -left-32 w-[700px] h-[700px] bg-blue-400/[0.35] rounded-full blur-[120px] animate-pulse"></div>
+        <div className="absolute -top-20 -left-32 w-[700px] h-[700px] bg-blue-400/[0.10] rounded-full blur-[120px] animate-pulse"></div>
         <div
-          className="absolute -bottom-20 -right-32 w-[650px] h-[650px] bg-blue-400/[0.30] rounded-full blur-[120px] animate-pulse"
+          className="absolute -bottom-20 -right-32 w-[650px] h-[650px] bg-blue-400/[0.10] rounded-full blur-[120px] animate-pulse"
           style={{ animationDelay: "2.5s" }}
         ></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-sky-300/[0.20] rounded-full blur-[140px]"></div>
-        <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-indigo-400/[0.15] rounded-full blur-[100px]"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-sky-300/[0.05] rounded-full blur-[140px]"></div>
+        <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-indigo-400/[0.05] rounded-full blur-[100px]"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 relative z-10 text-center">

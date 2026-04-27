@@ -42,7 +42,7 @@ function Home() {
                 }`}
               />
             ))}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1E40AF]/90 from-10% via-[#1E40AF]/60 via-35% to-transparent to-55%"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-[#3B82F6]/60 from-10% via-[#3B82F6]/30 via-35% to-transparent to-55%"></div>
           </div>
           <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
             <motion.div
@@ -51,11 +51,11 @@ function Home() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="space-y-8"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-2xl border-[0.5px] border-white/30 shadow-lg">
-                <span className="material-symbols-outlined text-sm text-white">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)]">
+                <span className="material-symbols-outlined text-sm text-white drop-shadow-md">
                   stars
                 </span>
-                <span className="text-xs font-bold tracking-[0.2em] uppercase text-white">
+                <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-md">
                   Established 1986
                 </span>
               </div>

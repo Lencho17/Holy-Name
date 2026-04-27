@@ -7,7 +7,11 @@ import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
 
 function AdminPage() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('adminActiveTab') || 'dashboard');
+
+  useEffect(() => {
+    localStorage.setItem('adminActiveTab', activeTab);
+  }, [activeTab]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);

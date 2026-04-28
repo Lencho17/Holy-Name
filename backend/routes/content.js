@@ -87,7 +87,7 @@ router.put('/', protect, async (req, res) => {
       
       // If it's a simple object (like schoolProfile, socialLinks, principal, headMistress)
       // we merge it to prevent blowing away existing fields if the frontend only sends a partial update.
-      if (val && typeof val === 'object' && !Array.isArray(val) && ['schoolProfile', 'socialLinks', 'principal', 'headMistress', 'coursesPage'].includes(key)) {
+      if (val && typeof val === 'object' && !Array.isArray(val) && ['schoolProfile', 'socialLinks', 'principal', 'headMistress', 'coursesPage', 'faculty'].includes(key)) {
         // Merge key-by-key into the existing Mongoose subdocument.
         // Spreading Mongoose subdocuments is unreliable for nested arrays.
         if (!content[key]) content[key] = {};

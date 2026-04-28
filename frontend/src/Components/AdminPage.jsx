@@ -1648,7 +1648,7 @@ function AdminPage() {
   );
 
   // --- Faculty Tab ---
-  const [newFaculty, setNewFaculty] = useState({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', classes: '', department: 'Science' });
+  const [newFaculty, setNewFaculty] = useState({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: 'Science' });
   const [facultyFile, setFacultyFile] = useState(null);
   const [isFacultyUploading, setIsFacultyUploading] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState(null); // { dept, index }
@@ -1693,7 +1693,7 @@ function AdminPage() {
         });
       }
       
-      setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', classes: '', department: dept });
+      setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: dept });
       setFacultyFile(null);
     } catch (err) {
       alert("Faculty update failed: " + err.message);
@@ -1710,7 +1710,7 @@ function AdminPage() {
 
   const handleCancelEdit = () => {
     setEditingFaculty(null);
-    setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', classes: '', department: 'Science' });
+    setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: 'Science' });
     setFacultyFile(null);
   };
   const handleDeleteFaculty = (dept, idToRemove, indexToRemove) => {
@@ -1739,6 +1739,7 @@ function AdminPage() {
         <input type="text" placeholder="Total Experience (e.g. 5+ yrs exp)" value={newFaculty.title} onChange={e => setNewFaculty({...newFaculty, title: e.target.value})} className="p-2 border rounded-lg" />
         <input type="url" placeholder="Facebook Profile Link" value={newFaculty.facebook || ''} onChange={e => setNewFaculty({...newFaculty, facebook: e.target.value})} className="p-2 border rounded-lg" />
         <input type="url" placeholder="Instagram Profile Link" value={newFaculty.instagram || ''} onChange={e => setNewFaculty({...newFaculty, instagram: e.target.value})} className="p-2 border rounded-lg" />
+        <input type="url" placeholder="WhatsApp Link (e.g. https://wa.me/91XXXXXXXXXX)" value={newFaculty.whatsapp || ''} onChange={e => setNewFaculty({...newFaculty, whatsapp: e.target.value})} className="p-2 border rounded-lg" />
         <textarea placeholder="Classes Taught (e.g. IX, X, XI)" value={newFaculty.classes || ''} onChange={e => setNewFaculty({...newFaculty, classes: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows={2} />
         <div className="p-2 border rounded-lg bg-white flex flex-col">
           <label className="text-gray-400 text-sm mb-1">Teacher Photo:</label>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { FaChevronLeft, FaChevronRight, FaGraduationCap, FaUserTie, FaFacebook, FaInstagram, FaChalkboardTeacher } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaGraduationCap, FaUserTie, FaFacebook, FaInstagram, FaWhatsapp, FaChalkboardTeacher } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Faculty() {
@@ -61,7 +61,7 @@ function Faculty() {
 
       {/* Social Links Footer */}
       <div className="relative z-10 w-full mt-auto pt-6 flex flex-col justify-end">
-        {(member.facebook || member.instagram) && (
+        {(member.facebook || member.instagram || member.whatsapp) && (
           <div className="flex items-center justify-center gap-3 pt-4 border-t border-gray-100 w-full">
             {member.facebook && (
               <a href={member.facebook} target="_blank" rel="noreferrer" className="w-9 h-9 rounded-full bg-blue-50/50 flex items-center justify-center text-blue-600 hover:bg-blue-600 hover:text-white transition-all transform hover:-translate-y-1 hover:shadow-md border border-blue-100 hover:border-blue-600">
@@ -71,6 +71,11 @@ function Faculty() {
             {member.instagram && (
               <a href={member.instagram} target="_blank" rel="noreferrer" className="w-9 h-9 rounded-full bg-pink-50/50 flex items-center justify-center text-pink-600 hover:bg-gradient-to-tr hover:from-orange-500 hover:via-pink-500 hover:to-purple-600 hover:text-white transition-all transform hover:-translate-y-1 hover:shadow-md border border-pink-100 hover:border-transparent">
                 <FaInstagram size={16} />
+              </a>
+            )}
+            {member.whatsapp && (
+              <a href={member.whatsapp.startsWith('http') ? member.whatsapp : `https://wa.me/${member.whatsapp}`} target="_blank" rel="noreferrer" className="w-9 h-9 rounded-full bg-green-50/50 flex items-center justify-center text-green-600 hover:bg-green-500 hover:text-white transition-all transform hover:-translate-y-1 hover:shadow-md border border-green-100 hover:border-green-500">
+                <FaWhatsapp size={16} />
               </a>
             )}
           </div>

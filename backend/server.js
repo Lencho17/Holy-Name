@@ -90,6 +90,7 @@ app.use('/api/students', apiLimiter, studentsRoutes);
 app.use('/api/inquiries', submissionLimiter, inquiriesRoutes);
 app.use('/api/jobs', apiLimiter, jobRoutes);
 app.use('/api/job-applications', apiLimiter, jobApplicationRoutes);
+app.use('/api/payment', apiLimiter, require('./routes/payment'));
 
 // Health check
 app.get('/api/health', (req, res) => {

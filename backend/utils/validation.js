@@ -50,9 +50,11 @@ exports.sanitizeString = (str) => {
 
 exports.validateGrade = (grade) => {
   const validGrades = [
-    'nursery', 'lkg', 'ukg', 
+    'pre-nursery', 'kg1', 'kg2',
+    'nursery', 'lkg', 'ukg', // backward compat
     'class1', 'class2', 'class3', 'class4', 'class5', 
     'class6', 'class7', 'class8', 'class9', 'class10',
+    'class11', 'class12',
     'class11-science', 'class11-commerce', 'class11-arts',
     'class12-science', 'class12-commerce', 'class12-arts'
   ];

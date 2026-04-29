@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { NavLink } from "react-router-dom";
 import axios from "axios";
 import { jsPDF } from "jspdf";
@@ -29,8 +29,9 @@ function Admission() {
 
   const STATUS_STEPS = [
     { key: "pending", label: "Submitted", icon: FaFileAlt },
-    { key: "reviewed", label: "Reviewed", icon: FaClipboardCheck },
-    { key: "accepted", label: "Accepted", icon: FaUserCheck },
+    { key: "entrance-exam", label: "Entrance Exam", icon: FaClipboardCheck },
+    { key: "interview", label: "Interview", icon: FaUserCheck },
+    { key: "accepted", label: "Accepted", icon: FaCheckCircle },
   ];
 
   const handleStatusSearch = async (e) => {
@@ -58,7 +59,8 @@ function Admission() {
     switch (status) {
       case 'accepted': return { color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', ring: 'ring-green-500/20', label: 'Accepted', icon: '✅', desc: 'Congratulations! Your application has been accepted. Please visit the school office with original documents.' };
       case 'rejected': return { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', ring: 'ring-red-500/20', label: 'Rejected', icon: '❌', desc: 'We regret to inform you that your application was not accepted. Please contact the admissions office.' };
-      case 'reviewed': return { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', ring: 'ring-blue-500/20', label: 'Under Review', icon: '📋', desc: 'Your application has been reviewed. An interview date will be allotted shortly.' };
+      case 'entrance-exam': return { color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', ring: 'ring-purple-500/20', label: 'Entrance Exam', icon: '📝', desc: 'Your application has been reviewed. You have been scheduled for an entrance examination. Please check your email for details.' };
+      case 'interview': return { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', ring: 'ring-blue-500/20', label: 'Interview Scheduled', icon: '🎤', desc: 'You have cleared the entrance exam. An interview has been scheduled. Please check your email for the date and time.' };
       default: return { color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', ring: 'ring-amber-500/20', label: 'Pending', icon: '⏳', desc: 'Your application is being processed. Please check back later.' };
     }
   };
@@ -76,8 +78,109 @@ function Admission() {
   const [selectedStream, setSelectedStream] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [nccInterest, setNccInterest] = useState(false);
+  const [sportsActive, setSportsActive] = useState(false);
+  const [sportsType, setSportsType] = useState("");
+  const [boardMarks, setBoardMarks] = useState("");
+  const [boardDivision, setBoardDivision] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [caste, setCaste] = useState("General");
+  const [errorField, setErrorField] = useState(null); // which field has a backend error
+  const [filePreviews, setFilePreviews] = useState({}); // { fieldName: { name, size, type, url } }
+  const [paymentId, setPaymentId] = useState(null); // Razorpay payment ID
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => { document.body.removeChild(script); };
+  }, []);
+
+  const admissionFee = schoolProfile?.admissionFee || 250;
+  const paymentEnabled = schoolProfile?.admissionPaymentEnabled !== false; // default true
+
+  const handlePayment = async () => {
+    if (paymentProcessing) return;
+    setPaymentProcessing(true);
+    setSubmitError(null);
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const form = document.getElementById('admission-form');
+      const studentName = form?.querySelector('[name="studentName"]')?.value || '';
+      const email = form?.querySelector('[name="email"]')?.value || '';
+
+      const orderRes = await axios.post(`${apiBase}/payment/create-order`, {
+        amount: admissionFee,
+        studentName,
+        email
+      });
+
+      const { orderId, keyId } = orderRes.data;
+
+      const options = {
+        key: keyId,
+        amount: admissionFee * 100,
+        currency: 'INR',
+        name: schoolProfile?.name || 'Holy Name School',
+        description: 'Admission Application Fee',
+        order_id: orderId,
+        handler: async (response) => {
+          try {
+            const verifyRes = await axios.post(`${apiBase}/payment/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            if (verifyRes.data.verified) {
+              setPaymentId(response.razorpay_payment_id);
+            } else {
+              setSubmitError('Payment verification failed. Please contact the school.');
+            }
+          } catch {
+            setSubmitError('Payment verification failed. Please contact the school.');
+          }
+          setPaymentProcessing(false);
+        },
+        prefill: {
+          name: studentName,
+          email: email
+        },
+        theme: {
+          color: '#3B82F6'
+        },
+        modal: {
+          ondismiss: () => {
+            setPaymentProcessing(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (resp) => {
+        setSubmitError(`Payment failed: ${resp.error.description}`);
+        setPaymentProcessing(false);
+      });
+      rzp.open();
+    } catch (err) {
+      setSubmitError('Could not initiate payment: ' + (err.response?.data?.message || err.message));
+      setPaymentProcessing(false);
+    }
+  };
+
+  const handleFilePreview = (e, fieldName) => {
+    const file = e.target.files[0];
+    if (!file) {
+      setFilePreviews(prev => { const n = { ...prev }; delete n[fieldName]; return n; });
+      return;
+    }
+    const info = { name: file.name, size: file.size, type: file.type };
+    if (file.type.startsWith('image/')) {
+      info.url = URL.createObjectURL(file);
+    }
+    setFilePreviews(prev => ({ ...prev, [fieldName]: info }));
+  };
 
   const handlePhoneChange = (e) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -102,10 +205,23 @@ function Admission() {
     });
   };
 
+  // Division calculator for Class XI board marks
+  const getBoardDivision = (pct) => {
+    const p = parseFloat(pct);
+    if (p >= 95) return 'Rank';
+    if (p >= 85) return 'Distinction';
+    if (p >= 75) return 'Star';
+    if (p >= 60) return '1st Division';
+    if (p >= 50) return '2nd Division';
+    if (p >= 30) return '3rd Division';
+    return 'Below Pass';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setSubmitError(null);
+    setErrorField(null);
 
     const form = e.target;
     const formData = new FormData();
@@ -127,6 +243,14 @@ function Admission() {
     formData.append('gradeApplied', gradeApplied);
     formData.append('stream', getUVal('stream'));
     formData.append('nccInterest', nccInterest);
+    formData.append('sportsActive', sportsActive);
+    if (sportsActive && sportsType) formData.append('sportsType', sportsType.toUpperCase());
+    if (gradeApplied === 'class11' && boardMarks) {
+      formData.append('boardMarks', boardMarks);
+      const pct = ((parseFloat(boardMarks) / 600) * 100).toFixed(2);
+      formData.append('boardPercentage', pct);
+      formData.append('boardDivision', boardDivision);
+    }
 
     formData.append('fatherName', getUVal('fatherName'));
     formData.append('fatherOccupation', getUVal('fatherOccupation'));
@@ -180,6 +304,9 @@ function Admission() {
     if (photoFile) formData.append('studentPhoto', photoFile);
     if (birthFile) formData.append('birthCertificate', birthFile);
     if (casteFile) formData.append('casteCertificate', casteFile);
+    const paymentFile = form.querySelector('[name="paymentReceipt"]')?.files[0];
+    if (paymentFile) formData.append('paymentReceipt', paymentFile);
+    if (paymentId) formData.append('razorpayPaymentId', paymentId);
 
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
@@ -203,7 +330,23 @@ function Admission() {
       });
       window.scrollTo({ top: document.getElementById('apply').offsetTop - 100, behavior: 'smooth' });
     } catch (err) {
-      setSubmitError(err.response?.data?.message || 'Submission failed. Please try again.');
+      const data = err.response?.data;
+      const msg = data?.message || 'Submission failed. Please try again.';
+      setSubmitError(msg);
+      
+      // Detect file upload errors and mark the documents section
+      const isUploadError = msg.toLowerCase().includes('upload') || msg.toLowerCase().includes('file') || msg.toLowerCase().includes('resource');
+      setErrorField(isUploadError ? 'documents' : (data?.field || (data?.fields?.[0]) || null));
+      
+      // Scroll to the relevant section
+      setTimeout(() => {
+        if (isUploadError) {
+          const docErr = document.getElementById('documents-error');
+          if (docErr) { docErr.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+        }
+        const errEl = document.getElementById('form-error-banner');
+        if (errEl) errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
     } finally {
       setSubmitting(false);
     }
@@ -471,13 +614,16 @@ function Admission() {
             <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6">
               {/* Submission Error Display */}
               {submitError && (
-                <div className="bg-red-50 border-2 border-red-100 p-6 rounded-2xl flex items-start animate-fade-in mb-8">
+                <div id="form-error-banner" className="bg-red-50 border-2 border-red-200 p-6 rounded-2xl flex items-start animate-fade-in mb-8 shadow-lg shadow-red-100/50">
                   <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center text-xl mr-4 flex-shrink-0">
                     <FaExclamationCircle />
                   </div>
                   <div>
                     <h3 className="text-red-800 font-bold text-lg mb-1">Submission Error</h3>
                     <p className="text-red-600 font-medium">{submitError}</p>
+                    {errorField && (
+                      <p className="text-red-500 text-xs mt-2 font-bold">⚠ Please check the highlighted field below and correct your input.</p>
+                    )}
                     <p className="text-red-500/70 text-xs mt-2 uppercase tracking-widest font-black">Please review your details and try again</p>
                   </div>
                 </div>
@@ -485,11 +631,13 @@ function Admission() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Student Name (As per Aadhaar) *</label>
-                  <input name="studentName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER FULL NAME" required />
+                  <input name="studentName" type="text" className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase ${errorField === 'studentName' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`} placeholder="ENTER FULL NAME" required />
+                  {errorField === 'studentName' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ This field requires attention</p>}
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Date of Birth *</label>
-                  <input name="dateOfBirth" type="date" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required />
+                  <input name="dateOfBirth" type="date" className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${errorField === 'dateOfBirth' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`} required />
+                  {errorField === 'dateOfBirth' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Age must be between 3–120 years</p>}
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Aadhaar Number</label>
@@ -508,12 +656,13 @@ function Admission() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Gender *</label>
-                  <select name="gender" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" required>
+                  <select name="gender" className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase ${errorField === 'gender' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`} required>
                     <option value="">SELECT GENDER</option>
                     <option value="male">MALE</option>
                     <option value="female">FEMALE</option>
                     <option value="other">OTHER</option>
                   </select>
+                  {errorField === 'gender' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Please select a valid gender</p>}
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Blood Group</label>
@@ -564,13 +713,13 @@ function Admission() {
                     name="gradeApplied"
                     value={gradeApplied}
                     onChange={(e) => setGradeApplied(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
+                    className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase ${errorField === 'gradeApplied' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`}
                     required
                   >
                     <option value="">SELECT GRADE</option>
-                    <option value="nursery">NURSERY</option>
-                    <option value="lkg">LKG</option>
-                    <option value="ukg">UKG</option>
+                    <option value="pre-nursery">PRE-NURSERY</option>
+                    <option value="kg1">KG I (LKG)</option>
+                    <option value="kg2">KG II (UKG)</option>
                     <option value="class1">CLASS I</option>
                     <option value="class2">CLASS II</option>
                     <option value="class3">CLASS III</option>
@@ -587,7 +736,7 @@ function Admission() {
                 </div>
 
                 {/* Conditional PEN Number for Class 2+ */}
-                {gradeApplied && !["nursery", "lkg", "ukg", "class1"].includes(gradeApplied) && (
+                {gradeApplied && !["pre-nursery", "kg1", "kg2", "class1"].includes(gradeApplied) && (
                   <div>
                     <label className="block text-gray-700 font-medium mb-2">PEN (Permanent Education Number) *</label>
                     <input name="penNumber" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER PEN NUMBER" required />
@@ -769,28 +918,66 @@ function Admission() {
                   </>
                 )}
 
-                {/* NCC Interest Section */}
-                <div className="md:col-span-2 bg-amber-50 p-6 rounded-2xl border border-amber-100 mt-4">
+                {/* Sports Interest Section */}
+                <div className="md:col-span-2 bg-emerald-50 p-6 rounded-2xl border border-emerald-100 mt-4">
                   <label className="flex items-center cursor-pointer group">
                     <div className="relative">
                       <input
                         type="checkbox"
                         className="sr-only"
-                        checked={nccInterest}
-                        onChange={() => setNccInterest(!nccInterest)}
+                        checked={sportsActive}
+                        onChange={() => { setSportsActive(!sportsActive); if (sportsActive) setSportsType(''); }}
                       />
-                      <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${nccInterest ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
-                      <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${nccInterest ? 'translate-x-6' : ''}`}></div>
+                      <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${sportsActive ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                      <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${sportsActive ? 'translate-x-6' : ''}`}></div>
                     </div>
                     <div className="ml-4">
                       <h4 className="text-lg font-bold text-primary flex items-center">
-                        <FaShieldAlt className="mr-2 text-amber-600" />
-                        Interested in joining NCC?
+                        🏅 Are you active in Sports?
                       </h4>
-                      <p className="text-sm text-gray-600">Join the 11th Assam Battalion membership program for leadership and discipline training.</p>
+                      <p className="text-sm text-gray-600">Let us know if the student participates in any sports activities.</p>
                     </div>
                   </label>
+                  {sportsActive && (
+                    <div className="mt-4 ml-16">
+                      <label className="block text-gray-700 font-medium mb-2">Sport(s) Played *</label>
+                      <input
+                        name="sportsType"
+                        type="text"
+                        value={sportsType}
+                        onChange={(e) => setSportsType(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-emerald-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors uppercase"
+                        placeholder="E.G. FOOTBALL, CRICKET, ATHLETICS"
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {/* NCC Interest Section — Only for Class VIII to XII */}
+                {["class8", "class9", "class10", "class11", "class12"].includes(gradeApplied) && (
+                  <div className="md:col-span-2 bg-amber-50 p-6 rounded-2xl border border-amber-100 mt-4">
+                    <label className="flex items-center cursor-pointer group">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={nccInterest}
+                          onChange={() => setNccInterest(!nccInterest)}
+                        />
+                        <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${nccInterest ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
+                        <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${nccInterest ? 'translate-x-6' : ''}`}></div>
+                      </div>
+                      <div className="ml-4">
+                        <h4 className="text-lg font-bold text-primary flex items-center">
+                          <FaShieldAlt className="mr-2 text-amber-600" />
+                          Interested in joining NCC?
+                        </h4>
+                        <p className="text-sm text-gray-600">Join the 11th Assam Battalion membership program for leadership and discipline training.</p>
+                      </div>
+                    </label>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Previous School Attended (If any)</label>
@@ -848,7 +1035,8 @@ function Admission() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Email Address *</label>
-                  <input name="email" type="email" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter email address" required />
+                  <input name="email" type="email" className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${errorField === 'email' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`} placeholder="Enter email address" required />
+                  {errorField === 'email' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Please enter a valid email address</p>}
                 </div>
               </div>
 
@@ -882,28 +1070,160 @@ function Admission() {
                 </div>
               </div>
 
+              {/* Class XI — Board Examination Marks */}
+              {gradeApplied === 'class11' && (
+                <div className="mt-8 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200">
+                  <h3 className="text-xl font-serif font-bold text-indigo-900 mb-1 flex items-center">
+                    <FaGraduationCap className="mr-2 text-indigo-500" />
+                    Class X Board Examination Results
+                  </h3>
+                  <p className="text-sm text-indigo-600/70 mb-6">Enter total marks obtained in your Class X board examination (out of 600).</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    <div>
+                      <label className="block text-gray-700 font-medium mb-2">Total Marks Obtained *</label>
+                      <input
+                        name="boardMarks"
+                        type="number"
+                        min="0"
+                        max="600"
+                        value={boardMarks}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '' || (Number(val) >= 0 && Number(val) <= 600)) setBoardMarks(val);
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors text-lg font-bold text-center"
+                        placeholder="e.g. 450"
+                        required
+                      />
+                      <p className="text-xs text-indigo-400 mt-1 text-center">Out of 600</p>
+                    </div>
+
+                    {boardMarks && parseFloat(boardMarks) > 0 && (
+                      <>
+                        <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm text-center">
+                          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Percentage</p>
+                          <p className="text-3xl font-black text-indigo-700">
+                            {((parseFloat(boardMarks) / 600) * 100).toFixed(2)}%
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-700 font-medium mb-2">Division *</label>
+                          <select
+                            name="boardDivision"
+                            value={boardDivision}
+                            onChange={(e) => setBoardDivision(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors font-bold uppercase"
+                            required
+                          >
+                            <option value="">SELECT DIVISION</option>
+                            <option value="Rank">🏆 Rank (95%+)</option>
+                            <option value="Distinction">⭐ Distinction (85–94%)</option>
+                            <option value="Star">✨ Star (75–84%)</option>
+                            <option value="1st Division">1st Division (60–74%)</option>
+                            <option value="2nd Division">2nd Division (50–59%)</option>
+                            <option value="3rd Division">3rd Division (30–49%)</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b pb-2">Documents to Upload</h3>
+              {errorField === 'documents' && (
+                <div id="documents-error" className="bg-red-50 border-2 border-red-200 p-4 rounded-2xl flex items-start mb-6 animate-pulse shadow-md shadow-red-100/50">
+                  <div className="w-9 h-9 bg-red-100 text-red-500 rounded-xl flex items-center justify-center text-lg mr-3 flex-shrink-0">
+                    <FaExclamationCircle />
+                  </div>
+                  <div>
+                    <h4 className="text-red-800 font-bold text-sm mb-0.5">Document Upload Failed</h4>
+                    <p className="text-red-600 text-xs font-medium">{submitError}</p>
+                    <p className="text-red-400 text-[10px] mt-1 font-semibold">Please ensure files are JPG, PNG, or PDF and under 5MB each. Try re-selecting your files.</p>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Student Passport Photo *</label>
-                  <input name="studentPhoto" type="file" accept=".jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
+                  <input name="studentPhoto" type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'studentPhoto')} className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
                   <p className="text-xs text-gray-500 mt-1">JPG or PNG (Max 2MB)</p>
+                  {filePreviews.studentPhoto && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
+                      {filePreviews.studentPhoto.url ? (
+                        <img src={filePreviews.studentPhoto.url} alt="Preview" className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                      ) : (
+                        <div className="w-14 h-14 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 text-lg"><FaFileAlt /></div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-700 truncate">{filePreviews.studentPhoto.name}</p>
+                        <p className="text-[10px] text-gray-400">{(filePreviews.studentPhoto.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Birth Certificate *</label>
-                  <input name="birthCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
+                  <input name="birthCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'birthCertificate')} className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
                   <p className="text-xs text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
+                  {filePreviews.birthCertificate && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
+                      {filePreviews.birthCertificate.url ? (
+                        <img src={filePreviews.birthCertificate.url} alt="Preview" className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                      ) : (
+                        <div className="w-14 h-14 bg-red-50 rounded-lg flex items-center justify-center text-red-400 text-lg"><FaFileAlt /></div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-700 truncate">{filePreviews.birthCertificate.name}</p>
+                        <p className="text-[10px] text-gray-400">{(filePreviews.birthCertificate.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
+                {/* Transfer Certificate — Not applicable for Pre-Nursery and KG I */}
+                {!["pre-nursery", "kg1"].includes(gradeApplied) && (
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Transfer Certificate {previousSchool ? '*' : '(If applicable)'}</label>
-                  <input name="transferCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!!previousSchool} />
+                  <input name="transferCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'transferCertificate')} className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!!previousSchool} />
                   <p className="text-xs text-gray-500 mt-1">Required if you attended a previous school</p>
+                  {filePreviews.transferCertificate && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
+                      {filePreviews.transferCertificate.url ? (
+                        <img src={filePreviews.transferCertificate.url} alt="Preview" className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                      ) : (
+                        <div className="w-14 h-14 bg-green-50 rounded-lg flex items-center justify-center text-green-400 text-lg"><FaFileAlt /></div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-700 truncate">{filePreviews.transferCertificate.name}</p>
+                        <p className="text-[10px] text-gray-400">{(filePreviews.transferCertificate.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
+                )}
+                {/* Marksheet — Not applicable for Pre-Nursery and KG I */}
+                {!["pre-nursery", "kg1"].includes(gradeApplied) && (
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Previous Class Marksheet *</label>
-                  <input name="marksheet" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
+                  <input name="marksheet" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'marksheet')} className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
                   <p className="text-xs text-gray-500 mt-1">PDF, JPG, or PNG</p>
+                  {filePreviews.marksheet && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
+                      {filePreviews.marksheet.url ? (
+                        <img src={filePreviews.marksheet.url} alt="Preview" className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                      ) : (
+                        <div className="w-14 h-14 bg-purple-50 rounded-lg flex items-center justify-center text-purple-400 text-lg"><FaFileAlt /></div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-700 truncate">{filePreviews.marksheet.name}</p>
+                        <p className="text-[10px] text-gray-400">{(filePreviews.marksheet.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
+                )}
                 {caste !== 'General' && (
                   <div className="md:col-span-2 p-6 bg-amber-50 rounded-2xl border border-amber-200 animate-fadeIn transition-all">
                     <h3 className="font-bold text-amber-800 mb-4 flex items-center">
@@ -911,15 +1231,28 @@ function Admission() {
                     </h3>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-amber-600 uppercase tracking-widest">Upload Certificate ({caste})</label>
-                      <input required={caste !== 'General'} type="file" name="casteCertificate" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" />
+                      <input required={caste !== 'General'} type="file" name="casteCertificate" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'casteCertificate')} className="w-full px-4 py-[9px] rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" />
                       <p className="text-xs text-amber-700/70 mt-1">Required for {caste} category. (Max 5MB)</p>
+                      {filePreviews.casteCertificate && (
+                        <div className="mt-2 p-2 bg-white rounded-xl border border-amber-200 flex items-center gap-3">
+                          {filePreviews.casteCertificate.url ? (
+                            <img src={filePreviews.casteCertificate.url} alt="Preview" className="w-14 h-14 object-cover rounded-lg border border-amber-200 shadow-sm" />
+                          ) : (
+                            <div className="w-14 h-14 bg-amber-50 rounded-lg flex items-center justify-center text-amber-500 text-lg"><FaFileAlt /></div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-700 truncate">{filePreviews.casteCertificate.name}</p>
+                            <p className="text-[10px] text-gray-400">{(filePreviews.casteCertificate.size / 1024).toFixed(1)} KB</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
 
                 <div className="md:col-span-2">
                   <label className="block text-gray-700 font-medium mb-2">Aadhaar Card / VID Photo {AadhaarNumber ? '' : '*'}</label>
-                  <input name="AadhaarVidOrReceipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!AadhaarNumber} />
+                  <input name="AadhaarVidOrReceipt" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'AadhaarVidOrReceipt')} className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!AadhaarNumber} />
                   {!AadhaarNumber && (
                     <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start mt-2">
                       <div className="text-amber-500 mr-2 mt-0.5 text-sm">💡</div>
@@ -928,14 +1261,94 @@ function Admission() {
                       </p>
                     </div>
                   )}
+                  {filePreviews.AadhaarVidOrReceipt && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
+                      {filePreviews.AadhaarVidOrReceipt.url ? (
+                        <img src={filePreviews.AadhaarVidOrReceipt.url} alt="Preview" className="w-14 h-14 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                      ) : (
+                        <div className="w-14 h-14 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-400 text-lg"><FaFileAlt /></div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-700 truncate">{filePreviews.AadhaarVidOrReceipt.name}</p>
+                        <p className="text-[10px] text-gray-400">{(filePreviews.AadhaarVidOrReceipt.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Application Fee Payment Section */}
+              {paymentEnabled && admissionFee > 0 && (
+                <div className="mt-8 p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 shadow-sm">
+                  <h3 className="text-xl font-serif font-bold text-green-900 mb-1 flex items-center">
+                    <span className="material-symbols-outlined mr-2 text-green-600">payments</span>
+                    Application Fee Payment
+                  </h3>
+                  <p className="text-sm text-green-700/70 mb-6">A non-refundable application fee is required to process your admission.</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    {/* Fee Amount */}
+                    <div className="bg-white p-5 rounded-xl border border-green-100 shadow-sm text-center">
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Application Fee</p>
+                      <p className="text-4xl font-black text-green-700">
+                        ₹{admissionFee}
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-1 font-bold">NON-REFUNDABLE</p>
+                    </div>
+
+                    {/* Pay / Status */}
+                    <div className="text-center">
+                      {paymentId ? (
+                        <div className="bg-green-100 p-5 rounded-xl border border-green-300">
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <FaCheckCircle className="text-green-600 text-2xl" />
+                            <span className="text-lg font-black text-green-800">Payment Successful</span>
+                          </div>
+                          <p className="text-xs text-green-600 font-mono font-bold bg-green-50 px-3 py-1 rounded-lg inline-block">
+                            ID: {paymentId}
+                          </p>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handlePayment}
+                          disabled={paymentProcessing}
+                          className={`w-full md:w-auto px-10 py-4 rounded-xl font-black text-lg transition-all duration-300 transform hover:-translate-y-1 shadow-lg flex items-center justify-center mx-auto gap-3 ${
+                            paymentProcessing
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-xl hover:shadow-green-200'
+                          }`}
+                        >
+                          {paymentProcessing ? (
+                            <>
+                              <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined">lock</span>
+                              Pay ₹{admissionFee} Securely
+                            </>
+                          )}
+                        </button>
+                      )}
+                      <p className="text-[10px] text-gray-400 mt-3 font-bold flex items-center justify-center gap-1">
+                        <span className="material-symbols-outlined text-xs">verified_user</span>
+                        Secured by Razorpay
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="text-center pt-6">
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className={`text-white font-bold px-10 py-4 rounded-full transition-all duration-300 transform hover:-translate-y-1 text-lg flex items-center justify-center mx-auto ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-opacity-90 hover:shadow-lg:shadow-none:shadow-none'}`}
+                  disabled={submitting || (paymentEnabled && admissionFee > 0 && !paymentId)}
+                  className={`text-white font-bold px-10 py-4 rounded-full transition-all duration-300 transform hover:-translate-y-1 text-lg flex items-center justify-center mx-auto ${(submitting || (paymentEnabled && admissionFee > 0 && !paymentId)) ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-opacity-90 hover:shadow-lg'}`}
                 >
                   {submitting ? (
                     <>

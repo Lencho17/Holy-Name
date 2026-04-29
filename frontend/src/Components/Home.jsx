@@ -56,7 +56,7 @@ function Home() {
                   stars
                 </span>
                 <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-md">
-                  Established 1986
+                  Established {schoolProfile?.establishedYear || 1986}
                 </span>
               </div>
               <h2 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter">
@@ -130,7 +130,7 @@ function Home() {
                     Rich Heritage
                   </h4>
                   <p className="text-white/90 text-sm">
-                    38 years of academic excellence in Sivasagar.
+                    {new Date().getFullYear() - (schoolProfile?.establishedYear || 1986)} years of academic excellence in Sivasagar.
                   </p>
                 </div>
               </div>

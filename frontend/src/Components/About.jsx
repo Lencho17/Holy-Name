@@ -23,14 +23,14 @@ const About = () => {
               info
             </span>
             <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-sm">
-              Established 1986
+              Established {schoolProfile?.establishedYear || 1986}
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
             About <span className="text-amber-400 italic drop-shadow-md">Us</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
-            Discover our journey of 38 years in academic excellence and holistic student development.
+            Discover our journey of {new Date().getFullYear() - (schoolProfile?.establishedYear || 1986)} years in academic excellence and holistic student development.
           </p>
         </div>
       </section>

@@ -199,39 +199,62 @@ router.get('/status', async (req, res) => {
 router.post(
   '/',
   submissionLimiter,
-  upload.fields([
-    { name: 'transferCertificate', maxCount: 1 },
-    { name: 'marksheet', maxCount: 1 },
-    { name: 'aadharVidOrReceipt', maxCount: 1 },
-    { name: 'studentPhoto', maxCount: 1 },
-    { name: 'birthCertificate', maxCount: 1 },
-    { name: 'casteCertificate', maxCount: 1 }
-  ]),
+  (req, res, next) => {
+    // Wrap multer to catch Cloudinary upload errors gracefully
+    const uploadFields = upload.fields([
+      { name: 'transferCertificate', maxCount: 1 },
+      { name: 'marksheet', maxCount: 1 },
+      { name: 'AadhaarVidOrReceipt', maxCount: 1 },
+      { name: 'studentPhoto', maxCount: 1 },
+      { name: 'birthCertificate', maxCount: 1 },
+      { name: 'casteCertificate', maxCount: 1 },
+      { name: 'paymentReceipt', maxCount: 1 }
+    ]);
+    uploadFields(req, res, (err) => {
+      if (err) {
+        console.error('[Upload Error] Message:', err.message);
+        console.error('[Upload Error] Full:', JSON.stringify({ name: err.name, code: err.code, http_code: err.http_code, storageErrors: err.storageErrors }, null, 2));
+        if (err.name === 'MulterError') {
+          return res.status(400).json({ message: `File upload error: ${err.message}` });
+        }
+        return res.status(400).json({ message: `Document upload failed: ${err.message}. Please check your files and try again.` });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
       const validation = require('../utils/validation');
       const data = req.body;
 
       // Validate required fields
-      if (!data.studentName || !data.dateOfBirth || !data.gender || !data.gradeApplied || !data.contactNumber || !data.email || !data.address) {
-        return res.status(400).json({ message: 'Missing required fields' });
+      const missingFields = [];
+      if (!data.studentName) missingFields.push('studentName');
+      if (!data.dateOfBirth) missingFields.push('dateOfBirth');
+      if (!data.gender) missingFields.push('gender');
+      if (!data.gradeApplied) missingFields.push('gradeApplied');
+      if (!data.contactNumber) missingFields.push('contactNumber');
+      if (!data.email) missingFields.push('email');
+      if (!data.address) missingFields.push('address');
+      if (missingFields.length > 0) {
+        return res.status(400).json({ message: `Missing required fields: ${missingFields.join(', ')}`, fields: missingFields });
       }
 
       // Validate data formats
       if (!validation.validateEmail(data.email)) {
-        return res.status(400).json({ message: 'Invalid email format' });
+        return res.status(400).json({ message: 'Please enter a valid email address (e.g. name@example.com)', field: 'email' });
       }
       if (!validation.validatePhone(data.contactNumber)) {
-        return res.status(400).json({ message: 'Invalid phone number' });
+        return res.status(400).json({ message: 'Please enter a valid 10-digit phone number', field: 'contactNumber' });
       }
       if (!validation.validateDateOfBirth(data.dateOfBirth)) {
-        return res.status(400).json({ message: 'Invalid date of birth or age out of range' });
+        return res.status(400).json({ message: 'Invalid date of birth — student age must be between 3 and 120 years', field: 'dateOfBirth' });
       }
       if (!validation.validateGrade(data.gradeApplied)) {
-        return res.status(400).json({ message: 'Invalid grade' });
+        return res.status(400).json({ message: 'Invalid grade selection. Please select a valid class/grade', field: 'gradeApplied' });
       }
       if (!validation.validateGender(data.gender)) {
-        return res.status(400).json({ message: 'Invalid gender' });
+        return res.status(400).json({ message: 'Please select a valid gender (Male, Female, or Other)', field: 'gender' });
       }
 
       // Sanitize string inputs
@@ -241,12 +264,16 @@ router.post(
       
       // Validate pincode if provided
       if (data.pincode && !validation.validatePincode(data.pincode)) {
-        return res.status(400).json({ message: 'Invalid pincode' });
+        return res.status(400).json({ message: 'Please enter a valid 6-digit pincode', field: 'pincode' });
       }
 
       // Validate aadhar if provided
-      if (data.aadharNumber && !validation.validateAadhar(data.aadharNumber)) {
-        return res.status(400).json({ message: 'Invalid Aadhar number' });
+      if (data.AadhaarNumber && !validation.validateAadhar(data.AadhaarNumber)) {
+        return res.status(400).json({ message: 'Please enter a valid 12-digit Aadhaar number', field: 'AadhaarNumber' });
+      }
+      // Map frontend field name to model field
+      if (data.AadhaarNumber) {
+        data.aadharNumber = data.AadhaarNumber;
       }
 
       if (req.files) {
@@ -256,8 +283,8 @@ router.post(
         if (req.files.marksheet) {
           data.marksheet = req.files.marksheet[0].path;
         }
-        if (req.files.aadharVidOrReceipt) {
-          data.aadharVidOrReceipt = req.files.aadharVidOrReceipt[0].path;
+        if (req.files.AadhaarVidOrReceipt) {
+          data.aadharVidOrReceipt = req.files.AadhaarVidOrReceipt[0].path;
         }
         if (req.files.studentPhoto) {
           data.studentPhoto = req.files.studentPhoto[0].path;
@@ -267,6 +294,9 @@ router.post(
         }
         if (req.files.casteCertificate) {
           data.casteCertificate = req.files.casteCertificate[0].path;
+        }
+        if (req.files.paymentReceipt) {
+          data.paymentReceipt = req.files.paymentReceipt[0].path;
         }
       }
 

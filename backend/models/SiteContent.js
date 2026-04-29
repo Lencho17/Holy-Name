@@ -119,6 +119,10 @@ const siteContentSchema = new mongoose.Schema({
   },
   schoolProfile: {
     name: { type: String, default: "" },
+    establishedYear: { type: Number, default: 1986 },
+    admissionFee: { type: Number, default: 250 },
+    admissionPaymentEnabled: { type: Boolean, default: true },
+    admissionUpiId: { type: String, default: "" },
     logo: { type: String, default: "" },
     punchLine: { type: String, default: "" },
     phone: { type: String, default: "" },

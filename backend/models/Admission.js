@@ -34,7 +34,14 @@ const admissionSchema = new mongoose.Schema({
   transferCertificate: String, // file path
   marksheet: String, // file path
   casteCertificate: String, // file path (compulsory if not General)
+  paymentReceipt: String, // file path for fee payment proof
+  razorpayPaymentId: String, // Razorpay payment ID after successful payment
   nccInterest: { type: Boolean, default: false },
+  sportsActive: { type: Boolean, default: false },
+  sportsType: String,
+  boardMarks: Number,
+  boardPercentage: String,
+  boardDivision: String,
   status: { type: String, enum: ['pending', 'entrance-exam', 'interview', 'accepted', 'rejected'], default: 'pending' },
   referenceNumber: { type: String, required: true, unique: true },
 }, { timestamps: true });

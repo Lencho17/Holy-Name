@@ -2989,6 +2989,25 @@ function AdminPage() {
               />
             </div>
             <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Year Established</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1800"
+                  max={new Date().getFullYear()}
+                  value={localProfile.establishedYear || ''}
+                  onChange={(e) => handleProfileChange('establishedYear', parseInt(e.target.value) || '')}
+                  className="w-32 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary text-center font-bold"
+                  placeholder="e.g. 1986"
+                />
+                {localProfile.establishedYear && (
+                  <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                    {new Date().getFullYear() - localProfile.establishedYear} years
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">School Logo</label>
               <div className="flex items-center gap-4">
                 {localProfile.logo && (
@@ -3006,6 +3025,49 @@ function AdminPage() {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Admission Fee Settings</h3>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <span className={`text-sm font-bold ${localProfile.admissionPaymentEnabled !== false ? 'text-green-600' : 'text-gray-400'}`}>
+                {localProfile.admissionPaymentEnabled !== false ? 'Payment ON' : 'Payment OFF'}
+              </span>
+              <div className="relative" onClick={() => handleProfileChange('admissionPaymentEnabled', !(localProfile.admissionPaymentEnabled !== false))}>
+                <div className={`w-14 h-7 rounded-full transition-colors duration-300 ${localProfile.admissionPaymentEnabled !== false ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                <div className={`absolute left-1 top-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow ${localProfile.admissionPaymentEnabled !== false ? 'translate-x-7' : ''}`}></div>
+              </div>
+            </label>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Application Fee (₹)</label>
+              <div className="flex items-center gap-3">
+                <span className="text-lg font-bold text-gray-400">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={localProfile.admissionFee ?? 250}
+                  onChange={(e) => handleProfileChange('admissionFee', parseInt(e.target.value) || 0)}
+                  className="w-40 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary text-center font-bold text-lg"
+                  placeholder="250"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Set to 0 to disable fee collection</p>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">UPI ID (for payment)</label>
+              <input
+                type="text"
+                value={localProfile.admissionUpiId || ''}
+                onChange={(e) => handleProfileChange('admissionUpiId', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. schoolname@upi"
+              />
+              <p className="text-xs text-gray-400 mt-1">Students will pay via this UPI ID and upload the receipt</p>
             </div>
           </div>
         </section>

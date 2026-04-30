@@ -1,50 +1,64 @@
 const express = require('express');
+const crypto = require('crypto');
+const ShareLink = require('../models/ShareLink');
 const router = express.Router();
 
 /**
- * GET /api/share
- * Serves an HTML page with Open Graph meta tags for rich link previews
- * on WhatsApp, Facebook, Twitter, etc.
- * 
- * Query params:
- *   title    – Content title (e.g. "Annual Sports Day")
- *   desc     – Description text
- *   image    – Cover image URL
- *   page     – Frontend page to redirect to (e.g. "/gallery", "/")
+ * POST /api/share
+ * Creates a short share link. Body: { title, desc, image, page }
+ * Returns: { id, url }
  */
-router.get('/', (req, res) => {
-  const {
-    title = 'Holy Name School',
-    desc = 'Holy Name Senior Secondary School — Let Your Light Shine',
-    image = '',
-    page = '/'
-  } = req.query;
+router.post('/', async (req, res) => {
+  try {
+    const { title, desc, image, page } = req.body;
+    const shortId = crypto.randomBytes(3).toString('hex'); // 6 chars
 
-  // Build the frontend redirect URL
-  const clientUrl = (process.env.CLIENT_URL || 'https://holynamehsschool.in').replace(/\/$/, '');
-  const redirectUrl = `${clientUrl}${page.startsWith('/') ? page : '/' + page}`;
+    await ShareLink.create({ shortId, title, desc, image, page });
 
-  // Sanitize values to prevent XSS in the HTML output
-  const safe = (str) => String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    const clientUrl = (process.env.CLIENT_URL || 'https://holynamehsschool.in').replace(/\/$/, '');
+    res.json({ id: shortId, url: `${clientUrl}/s/${shortId}` });
+  } catch (error) {
+    console.error('Share create error:', error.message);
+    res.status(500).json({ message: 'Failed to create share link' });
+  }
+});
 
-  const safeTitle = safe(title);
-  const safeDesc = safe(desc);
-  const safeImage = safe(image);
-  const safeRedirect = safe(redirectUrl);
+/**
+ * GET /api/share/:id
+ * Serves HTML with OG meta tags for rich link previews, then redirects.
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const link = await ShareLink.findOne({ shortId: req.params.id }).lean();
+    if (!link) {
+      const clientUrl = (process.env.CLIENT_URL || 'https://holynamehsschool.in').replace(/\/$/, '');
+      return res.redirect(clientUrl);
+    }
 
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(`<!DOCTYPE html>
+    const { title = 'Holy Name School', desc = '', image = '', page = '/' } = link;
+    const clientUrl = (process.env.CLIENT_URL || 'https://holynamehsschool.in').replace(/\/$/, '');
+    const redirectUrl = `${clientUrl}${page.startsWith('/') ? page : '/' + page}`;
+
+    const safe = (str) => String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    const safeTitle = safe(title);
+    const safeDesc = safe(desc || `${title} — Holy Name School`);
+    const safeImage = safe(image);
+    const safeRedirect = safe(redirectUrl);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${safeTitle} — Holy Name School</title>
 
-  <!-- Open Graph (Facebook, WhatsApp, etc.) -->
+  <!-- Open Graph -->
   <meta property="og:type" content="article" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
@@ -60,7 +74,7 @@ router.get('/', (req, res) => {
   <meta name="twitter:description" content="${safeDesc}" />
   <meta name="twitter:image" content="${safeImage}" />
 
-  <!-- Auto-redirect for real users (not crawlers) -->
+  <!-- Redirect -->
   <meta http-equiv="refresh" content="0; url=${safeRedirect}" />
   <script>window.location.replace("${redirectUrl.replace(/"/g, '\\"')}");</script>
 </head>
@@ -72,6 +86,11 @@ router.get('/', (req, res) => {
   </div>
 </body>
 </html>`);
+  } catch (error) {
+    console.error('Share get error:', error.message);
+    const clientUrl = (process.env.CLIENT_URL || 'https://holynamehsschool.in').replace(/\/$/, '');
+    res.redirect(clientUrl);
+  }
 });
 
 module.exports = router;

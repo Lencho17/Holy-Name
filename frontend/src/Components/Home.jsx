@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 
 import Items from "./Items";
@@ -13,7 +13,8 @@ import { SiteDataContext } from "../context/SiteDataContext";
 function Home() {
   const { videos, stats, schoolProfile } = useContext(SiteDataContext);
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+  const location = useLocation();
+
   const images = schoolProfile?.heroImages?.length > 0 ? schoolProfile.heroImages : ["https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop", "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2070&auto=format&fit=crop"];
 
   useEffect(() => {
@@ -23,6 +24,17 @@ function Home() {
 
     return () => clearInterval(interval);
   }, [images.length]);
+
+  // Scroll to hash section (e.g. /#highlights, /#events)
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace('#', '');
+      setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 600); // Wait for lazy-loaded content to render
+    }
+  }, [location.hash]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -194,7 +206,9 @@ function Home() {
 
         {/* Existing Component Grid */}
         <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-10 py-6">
-          <HighlightsSection />
+          <div id="highlights">
+            <HighlightsSection />
+          </div>
 
           <motion.section
             initial={{ opacity: 0, y: 40 }}
@@ -210,6 +224,7 @@ function Home() {
           </motion.section>
 
           <motion.section
+            id="events"
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}

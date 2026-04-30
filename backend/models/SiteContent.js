@@ -11,6 +11,7 @@ const siteContentSchema = new mongoose.Schema({
       featured: { type: Boolean, default: false },
       description: String,
       eventId: { type: Number, default: null },
+      views: { type: Number, default: 0 },
     },
   ],
   events: [

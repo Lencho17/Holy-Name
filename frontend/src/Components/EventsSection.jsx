@@ -13,9 +13,15 @@ const EventsSection = () => {
 
   const handleShare = async (e, imageUrl, title, description) => {
     e?.stopPropagation();
-    const origin = window.location.origin;
-    const shareUrl = `${origin}/share?${new URLSearchParams({ title, desc: description || `${title} — Holy Name School`, image: imageUrl, page: '/' })}`;
     try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, desc: description || `${title} — Holy Name School`, image: imageUrl, page: '/#events' }),
+      });
+      const { url } = await res.json();
+      const shareUrl = url || window.location.href;
       if (navigator.share) { await navigator.share({ title, text: description || title, url: shareUrl }); }
       else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }
     } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }

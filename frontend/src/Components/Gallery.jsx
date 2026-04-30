@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useMemo } from "react";
-import { FaImages, FaSearchPlus, FaArrowLeft, FaShareAlt } from "react-icons/fa";
+import { FaImages, FaSearchPlus, FaArrowLeft, FaShareAlt, FaEye } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
@@ -10,12 +10,32 @@ function Gallery() {
   const navigate = useNavigate();
 
   const handleShare = async (imageUrl, title) => {
-    const origin = window.location.origin;
-    const shareUrl = `${origin}/share?${new URLSearchParams({ title, desc: `${title} — Holy Name School`, image: imageUrl, page: '/gallery' })}`;
     try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, desc: `${title} — Holy Name School`, image: imageUrl, page: '/gallery' }),
+      });
+      const { url } = await res.json();
+      const shareUrl = url || window.location.href;
       if (navigator.share) { await navigator.share({ title, text: `${title} — Holy Name School`, url: shareUrl }); }
       else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }
     } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
+
+  const trackView = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const validIds = ids.filter(id => id && !String(id).startsWith('temp-') && !String(id).startsWith('album-') && !String(id).startsWith('event-'));
+    if (validIds.length === 0) return;
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      await fetch(`${apiBase}/content/gallery-view`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: validIds }),
+      });
+    } catch (err) { /* silent */ }
   };
 
   const categories = ["All", "Campus Life", "Academic Events", "Sports", "Cultural Programs"];
@@ -105,6 +125,12 @@ function Gallery() {
 
     displayItems = [...eventAlbums, ...titleAlbums];
   }
+
+  // Compute total views for album tiles
+  const getViews = (item) => {
+    if (item._albumPhotos) return item._albumPhotos.reduce((sum, p) => sum + (p.views || 0), 0);
+    return item.views || 0;
+  };
 
   // Ensure current image's collection is used for lightbox navigation
   const lightboxItems = useMemo(() => {
@@ -216,10 +242,13 @@ function Gallery() {
               className="relative flex items-center justify-center shrink-0 snap-start w-[40vw] sm:w-auto h-auto transition-transform"
               onClick={() => {
                 if (item._isAlbum && item._albumEventId) {
+                  trackView(item._albumPhotos ? item._albumPhotos.map(p => p._id) : [item._id]);
                   navigate(`/gallery?event=${item._albumEventId}`);
                 } else if (item._isAlbum && item._albumPhotos) {
+                  trackView(item._albumPhotos.map(p => p._id));
                   setSelectedImage(item._albumPhotos[0]);
                 } else {
+                  trackView([item._id]);
                   setSelectedImage(item);
                 }
               }}
@@ -248,6 +277,11 @@ function Gallery() {
                   <p className="text-amber-300 text-[9px] md:text-sm font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
                     {item.category}
                   </p>
+                  {getViews(item) > 0 && (
+                    <span className="flex items-center gap-1 text-white/70 text-[9px] md:text-xs mt-0.5">
+                      <FaEye className="text-[8px] md:text-[10px]" /> {getViews(item)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

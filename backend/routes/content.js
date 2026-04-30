@@ -219,4 +219,33 @@ router.post('/upload-event', protect, (req, res) => {
   });
 });
 
+// POST /api/content/gallery-view — public, increment view count for gallery items
+router.post('/gallery-view', async (req, res) => {
+  try {
+    const { ids } = req.body; // array of gallery item _id values
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'ids array required' });
+    }
+
+    // Increment views for all matching gallery sub-documents atomically
+    await SiteContent.updateOne(
+      {},
+      { $inc: Object.fromEntries(ids.slice(0, 50).map((id, i) => {
+        // Find index is unreliable, use positional filtered update
+        return [`gallery.$[elem${i}].views`, 1];
+      })) },
+      { arrayFilters: ids.slice(0, 50).map((id, i) => ({ [`elem${i}._id`]: id })) }
+    );
+
+    // Bust cache so views are reflected
+    contentCache.data = null;
+    contentCache.lastFetched = 0;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Gallery view error:', error.message);
+    res.status(500).json({ message: 'Error tracking view' });
+  }
+});
+
 module.exports = router;

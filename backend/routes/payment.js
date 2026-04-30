@@ -93,6 +93,9 @@ router.post('/check-status', async (req, res) => {
 
       const checkRes = await axios.post('https://merchant.upigateway.com/api/check_order_status', payload);
       
+      console.log(`[UPIGateway] Checking status for ${admissionId} on ${date}`);
+      console.log(`[UPIGateway] Response:`, JSON.stringify(checkRes.data, null, 2));
+      
       if (checkRes.data.status === true && checkRes.data.data.status === 'success') {
           // Update admission status
           const admission = await Admission.findById(admissionId);

@@ -13,8 +13,8 @@ const EventsSection = () => {
 
   const handleShare = async (e, imageUrl, title, description) => {
     e?.stopPropagation();
-    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
-    const shareUrl = `${apiBase}/api/share?${new URLSearchParams({ title, desc: description || `${title} — Holy Name School`, image: imageUrl, page: '/' })}`;
+    const origin = window.location.origin;
+    const shareUrl = `${origin}/share?${new URLSearchParams({ title, desc: description || `${title} — Holy Name School`, image: imageUrl, page: '/' })}`;
     try {
       if (navigator.share) { await navigator.share({ title, text: description || title, url: shareUrl }); }
       else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }

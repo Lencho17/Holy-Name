@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/share",
+      "destination": "https://holy-name-np4x.onrender.com/api/share"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

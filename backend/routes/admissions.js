@@ -215,9 +215,17 @@ router.post(
         console.error('[Upload Error] Message:', err.message);
         console.error('[Upload Error] Full:', JSON.stringify({ name: err.name, code: err.code, http_code: err.http_code, storageErrors: err.storageErrors }, null, 2));
         if (err.name === 'MulterError') {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ message: 'File too large. Please ensure files are JPG, PNG or PDF and under 5MB each. Try re-saving your file.' });
+          }
           return res.status(400).json({ message: `File upload error: ${err.message}` });
         }
-        return res.status(400).json({ message: `Document upload failed: ${err.message}. Please check your files and try again.` });
+        // Cloudinary-specific errors
+        const msg = (err.message || '').toLowerCase();
+        if (msg.includes('resource is invalid') || msg.includes('invalid image')) {
+          return res.status(400).json({ message: 'One or more uploaded files could not be processed. Please ensure files are valid JPG, PNG or PDF and under 5MB each. Try re-saving your file as a standard JPG/PNG.' });
+        }
+        return res.status(400).json({ message: `Document upload failed. Please ensure files are JPG, PNG or PDF and under 5MB each. Try re-saving your file.` });
       }
       next();
     });

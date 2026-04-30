@@ -15,22 +15,12 @@ const createStorage = (defaultFolder) => {
         ? `${defaultFolder}/${req.body.eventTitle.replace(/\s+/g, "-").toLowerCase()}`
         : defaultFolder;
 
-      const isPdf = file.mimetype === "application/pdf" || (file.originalname && file.originalname.toLowerCase().endsWith(".pdf"));
       const baseName = file.originalname?.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || 'file';
       const uniqueId = `${baseName}_${Date.now()}`;
       
-      if (isPdf) {
-        return {
-          folder,
-          resource_type: "raw",
-          public_id: uniqueId,
-          format: "pdf"
-        };
-      }
-
       return {
         folder,
-        resource_type: "image",
+        resource_type: "auto",
         public_id: uniqueId
       };
     },

@@ -25,7 +25,11 @@ router.post('/create-order', async (req, res) => {
     }
 
     // Setup redirect URL (frontend success page)
-    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    let clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    // UPIGateway does not accept 'localhost' in redirect URLs, replace with '127.0.0.1' for local dev
+    if (clientUrl.includes('localhost')) {
+        clientUrl = clientUrl.replace('localhost', '127.0.0.1');
+    }
     const redirectUrl = `${clientUrl}/admission?verified=true&ref=${admission.referenceNumber}`;
 
     const orderData = {

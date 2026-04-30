@@ -11,12 +11,13 @@ const EventsSection = () => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const navigate = useNavigate();
 
-  const handleShare = async (e, imageUrl, title) => {
+  const handleShare = async (e, imageUrl, title, description) => {
     e?.stopPropagation();
-    const shareData = { title, text: `${title} — Holy Name School`, url: imageUrl };
+    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+    const shareUrl = `${apiBase}/api/share?${new URLSearchParams({ title, desc: description || `${title} — Holy Name School`, image: imageUrl, page: '/' })}`;
     try {
-      if (navigator.share) { await navigator.share(shareData); }
-      else { await navigator.clipboard.writeText(imageUrl); alert('Link copied to clipboard!'); }
+      if (navigator.share) { await navigator.share({ title, text: description || title, url: shareUrl }); }
+      else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }
     } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
   };
 
@@ -124,7 +125,7 @@ const EventsSection = () => {
                 )}
                 {/* Share button */}
                 <button
-                  onClick={(e) => handleShare(e, event.image, event.title)}
+                  onClick={(e) => handleShare(e, event.image, event.title, event.description)}
                   className="absolute top-3 right-3 z-30 p-2 bg-black/40 backdrop-blur-sm hover:bg-amber-500 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 border border-white/10"
                   title="Share"
                 >
@@ -291,7 +292,7 @@ const EventsSection = () => {
                           </div>
                         )}
                       </div>
-                      <button onClick={(e) => handleShare(e, gallery[currentPhotoIndex], selectedEvent.title)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
+                      <button onClick={(e) => handleShare(e, selectedEvent.image, selectedEvent.title, selectedEvent.description)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share">
                         <FaShareAlt className="text-sm" />
                       </button>
                     </div>

@@ -9,12 +9,13 @@ export default function HighlightsSection() {
   const [showAll, setShowAll] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  const handleShare = async (e, imageUrl, title) => {
+  const handleShare = async (e, imageUrl, title, description) => {
     e?.stopPropagation();
-    const shareData = { title, text: `${title} — Holy Name School`, url: imageUrl };
+    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+    const shareUrl = `${apiBase}/api/share?${new URLSearchParams({ title, desc: description || `${title} — Holy Name School`, image: imageUrl, page: '/gallery' })}`;
     try {
-      if (navigator.share) { await navigator.share(shareData); }
-      else { await navigator.clipboard.writeText(imageUrl); alert('Link copied to clipboard!'); }
+      if (navigator.share) { await navigator.share({ title, text: description || title, url: shareUrl }); }
+      else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }
     } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
   };
 
@@ -148,7 +149,7 @@ export default function HighlightsSection() {
                   <button className="text-secondary text-[11px] font-bold flex items-center gap-1 group-hover:gap-1.5 transition-all w-fit">
                     Read More <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
                   </button>
-                  <button onClick={(e) => handleShare(e, item.image, item.title)} className="p-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all" title="Share">
+                  <button onClick={(e) => handleShare(e, item.image, item.title, item.description)} className="p-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all" title="Share">
                     <FaShareAlt className="text-[10px]" />
                   </button>
                 </div>
@@ -304,7 +305,7 @@ export default function HighlightsSection() {
                           </div>
                         )}
                       </div>
-                      <button onClick={(e) => handleShare(e, gallery[currentPhotoIndex], selectedHighlight.title)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
+                      <button onClick={(e) => handleShare(e, selectedHighlight.image, selectedHighlight.title, selectedHighlight.description)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share">
                         <FaShareAlt className="text-sm" />
                       </button>
                     </div>

@@ -10,10 +10,11 @@ function Gallery() {
   const navigate = useNavigate();
 
   const handleShare = async (imageUrl, title) => {
-    const shareData = { title, text: `${title} — Holy Name School`, url: imageUrl };
+    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+    const shareUrl = `${apiBase}/api/share?${new URLSearchParams({ title, desc: `${title} — Holy Name School`, image: imageUrl, page: '/gallery' })}`;
     try {
-      if (navigator.share) { await navigator.share(shareData); }
-      else { await navigator.clipboard.writeText(imageUrl); alert('Link copied to clipboard!'); }
+      if (navigator.share) { await navigator.share({ title, text: `${title} — Holy Name School`, url: shareUrl }); }
+      else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }
     } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
   };
 

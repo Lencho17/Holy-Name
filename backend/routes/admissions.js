@@ -271,6 +271,12 @@ router.post(
       if (data.AadhaarNumber && !validation.validateAadhar(data.AadhaarNumber)) {
         return res.status(400).json({ message: 'Please enter a valid 12-digit Aadhaar number', field: 'AadhaarNumber' });
       }
+      
+      // Validate upiTransactionId if provided (must be exactly 12 digits)
+      if (data.upiTransactionId && !/^\d{12}$/.test(data.upiTransactionId)) {
+        return res.status(400).json({ message: 'Please enter a valid 12-digit UPI Transaction ID (UTR number).', field: 'upiTransactionId' });
+      }
+
       // Map frontend field name to model field
       if (data.AadhaarNumber) {
         data.aadharNumber = data.AadhaarNumber;

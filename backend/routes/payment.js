@@ -1,82 +1,114 @@
 const express = require('express');
-const Razorpay = require('razorpay');
-const crypto = require('crypto');
+const axios = require('axios');
+const Admission = require('../models/Admission');
 
 const router = express.Router();
 
-// Initialize Razorpay instance
-const getRazorpayInstance = () => {
-  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    throw new Error('Razorpay credentials not configured');
-  }
-  return new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET
-  });
-};
-
-// POST /api/payment/create-order — Create a Razorpay order
+// POST /api/payment/create-order — Create a UPIGateway order
 router.post('/create-order', async (req, res) => {
   try {
-    const { amount, studentName, email } = req.body;
+    const { admissionId, amount, studentName, email, contactNumber } = req.body;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ message: 'Invalid amount' });
     }
 
-    const razorpay = getRazorpayInstance();
+    const admission = await Admission.findById(admissionId);
+    if (!admission) {
+      return res.status(404).json({ message: 'Admission application not found' });
+    }
 
-    const options = {
-      amount: Math.round(amount * 100), // Razorpay expects amount in paise
-      currency: 'INR',
-      receipt: `admission_${Date.now()}`,
-      notes: {
-        purpose: 'Admission Application Fee',
-        studentName: studentName || 'N/A',
-        email: email || 'N/A'
-      }
+    // Call UPIGateway
+    const upiGatewayKey = process.env.UPIGATEWAY_KEY;
+    if (!upiGatewayKey) {
+        throw new Error('UPIGateway key is missing in environment variables.');
+    }
+
+    // Setup redirect URL (frontend success page)
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const redirectUrl = `${clientUrl}/admission?verified=true&ref=${admission.referenceNumber}`;
+
+    const orderData = {
+      key: upiGatewayKey,
+      client_txn_id: admission._id.toString(),
+      amount: amount.toString(),
+      p_info: 'Admission Fee',
+      customer_name: studentName || 'Applicant',
+      customer_email: email || 'applicant@example.com',
+      customer_mobile: contactNumber || '0000000000',
+      redirect_url: redirectUrl
     };
 
-    const order = await razorpay.orders.create(options);
+    const gatewayRes = await axios.post('https://merchant.upigateway.com/api/create_order', orderData);
 
-    res.json({
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      keyId: process.env.RAZORPAY_KEY_ID
-    });
+    if (gatewayRes.data.status === true) {
+      res.json({
+        payment_url: gatewayRes.data.data.payment_url,
+        order_id: gatewayRes.data.data.order_id
+      });
+    } else {
+      throw new Error(gatewayRes.data.msg || 'Failed to create UPIGateway order');
+    }
   } catch (error) {
-    console.error('[Razorpay] Order creation error:', error.message);
-    res.status(500).json({ message: 'Failed to create payment order. ' + error.message });
+    console.error('[UPIGateway] Order creation error:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Failed to initiate payment. ' + (error.response?.data?.msg || error.message) });
   }
 });
 
-// POST /api/payment/verify — Verify Razorpay payment signature
-router.post('/verify', async (req, res) => {
+// POST /api/payment/check-status — Check status of order
+router.post('/check-status', async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+      const { admissionId } = req.body;
+      const date = new Date().toLocaleDateString('en-CA'); // format: YYYY-MM-DD
+      
+      const payload = {
+          key: process.env.UPIGATEWAY_KEY,
+          client_txn_id: admissionId,
+          txn_date: date
+      };
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ message: 'Missing payment verification data', verified: false });
-    }
-
-    // Verify signature
-    const body = razorpay_order_id + '|' + razorpay_payment_id;
-    const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
-      .digest('hex');
-
-    const isValid = expectedSignature === razorpay_signature;
-
-    if (isValid) {
-      res.json({ verified: true, paymentId: razorpay_payment_id });
-    } else {
-      res.status(400).json({ verified: false, message: 'Payment verification failed' });
-    }
+      const checkRes = await axios.post('https://merchant.upigateway.com/api/check_order_status', payload);
+      
+      if (checkRes.data.status === true && checkRes.data.data.status === 'success') {
+          // Update admission status
+          const admission = await Admission.findById(admissionId);
+          if (admission && !admission.upiTransactionId) {
+             admission.upiTransactionId = checkRes.data.data.upi_txn_id || 'AUTO_VERIFIED';
+             await admission.save();
+          }
+          res.json({ verified: true, data: checkRes.data.data });
+      } else {
+          res.json({ verified: false, data: checkRes.data.data });
+      }
   } catch (error) {
-    console.error('[Razorpay] Verification error:', error.message);
-    res.status(500).json({ verified: false, message: 'Verification failed. ' + error.message });
+      console.error('[UPIGateway] Status check error:', error.message);
+      res.status(500).json({ message: 'Failed to verify payment status.' });
+  }
+});
+
+// POST /api/payment/webhook — UPIGateway Webhook
+router.post('/webhook', async (req, res) => {
+  try {
+    const data = req.body;
+    console.log('[UPIGateway Webhook Received]', data);
+
+    if (data.status === 'success') {
+      const admissionId = data.client_txn_id;
+      if (admissionId) {
+        const admission = await Admission.findById(admissionId);
+        if (admission) {
+          admission.upiTransactionId = data.upi_txn_id;
+          await admission.save();
+          console.log(`[UPIGateway] Payment verified for Admission ID: ${admissionId}`);
+        }
+      }
+    }
+    
+    // Always return 200 OK so gateway knows we received it
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('[UPIGateway] Webhook processing error:', error.message);
+    res.status(500).send('Error');
   }
 });
 

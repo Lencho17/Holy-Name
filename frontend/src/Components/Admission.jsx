@@ -86,88 +86,33 @@ function Admission() {
   const [caste, setCaste] = useState("General");
   const [errorField, setErrorField] = useState(null); // which field has a backend error
   const [filePreviews, setFilePreviews] = useState({}); // { fieldName: { name, size, type, url } }
-  const [paymentId, setPaymentId] = useState(null); // Razorpay payment ID
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
-
-  // Load Razorpay script
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => { document.body.removeChild(script); };
-  }, []);
 
   const admissionFee = schoolProfile?.admissionFee || 250;
   const paymentEnabled = schoolProfile?.admissionPaymentEnabled !== false; // default true
 
-  const handlePayment = async () => {
-    if (paymentProcessing) return;
-    setPaymentProcessing(true);
-    setSubmitError(null);
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || '/api';
-      const form = document.getElementById('admission-form');
-      const studentName = form?.querySelector('[name="studentName"]')?.value || '';
-      const email = form?.querySelector('[name="email"]')?.value || '';
-
-      const orderRes = await axios.post(`${apiBase}/payment/create-order`, {
-        amount: admissionFee,
-        studentName,
-        email
-      });
-
-      const { orderId, keyId } = orderRes.data;
-
-      const options = {
-        key: keyId,
-        amount: admissionFee * 100,
-        currency: 'INR',
-        name: schoolProfile?.name || 'Holy Name School',
-        description: 'Admission Application Fee',
-        order_id: orderId,
-        handler: async (response) => {
-          try {
-            const verifyRes = await axios.post(`${apiBase}/payment/verify`, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            });
-            if (verifyRes.data.verified) {
-              setPaymentId(response.razorpay_payment_id);
-            } else {
-              setSubmitError('Payment verification failed. Please contact the school.');
-            }
-          } catch {
-            setSubmitError('Payment verification failed. Please contact the school.');
-          }
-          setPaymentProcessing(false);
-        },
-        prefill: {
-          name: studentName,
-          email: email
-        },
-        theme: {
-          color: '#3B82F6'
-        },
-        modal: {
-          ondismiss: () => {
-            setPaymentProcessing(false);
-          }
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', (resp) => {
-        setSubmitError(`Payment failed: ${resp.error.description}`);
-        setPaymentProcessing(false);
-      });
-      rzp.open();
-    } catch (err) {
-      setSubmitError('Could not initiate payment: ' + (err.response?.data?.message || err.message));
-      setPaymentProcessing(false);
+  useEffect(() => {
+    // Check if returning from UPIGateway
+    const urlParams = new URLSearchParams(window.location.search);
+    const verified = urlParams.get('verified');
+    const ref = urlParams.get('ref');
+    
+    if (verified === 'true' && ref) {
+      axios.get(`${apiBase}/admissions/status?q=${ref}`)
+        .then(res => {
+          setSubmittedData({
+             referenceNumber: res.data.referenceNumber,
+             studentName: res.data.studentName,
+             gradeApplied: res.data.gradeApplied,
+             dateOfApplication: new Date(res.data.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+          });
+          setTimeout(() => {
+            window.scrollTo({ top: document.getElementById('apply')?.offsetTop - 100, behavior: 'smooth' });
+          }, 500);
+        })
+        .catch(err => console.error(err));
     }
-  };
+  }, [apiBase]);
+
 
   const handleFilePreview = (e, fieldName) => {
     const file = e.target.files[0];
@@ -306,13 +251,38 @@ function Admission() {
     if (casteFile) formData.append('casteCertificate', casteFile);
     const paymentFile = form.querySelector('[name="paymentReceipt"]')?.files[0];
     if (paymentFile) formData.append('paymentReceipt', paymentFile);
-    if (paymentId) formData.append('razorpayPaymentId', paymentId);
+    const upiTransactionId = form.querySelector('[name="upiTransactionId"]')?.value;
+    if (upiTransactionId) formData.append('upiTransactionId', upiTransactionId);
 
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
       const res = await axios.post(`${apiBase}/admissions`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      
+      // If payment is enabled, redirect to UPIGateway
+      if (paymentEnabled && admissionFee > 0) {
+          try {
+              const paymentRes = await axios.post(`${apiBase}/payment/create-order`, {
+                  admissionId: res.data.id,
+                  amount: admissionFee,
+                  studentName: formData.get('studentName'),
+                  email: formData.get('email'),
+                  contactNumber: formData.get('contactNumber')
+              });
+              
+              if (paymentRes.data.payment_url) {
+                  window.location.href = paymentRes.data.payment_url;
+                  return; // Stop execution here and let the browser redirect
+              }
+          } catch (paymentErr) {
+              console.error('Payment initiation failed:', paymentErr);
+              setSubmitError('Application saved, but payment initiation failed. Please contact the school.');
+              setSubmitting(false);
+              return;
+          }
+      }
+
       setSubmittedData({
         referenceNumber: res.data.referenceNumber,
         studentName: formData.get('studentName'),
@@ -611,8 +581,8 @@ function Admission() {
           </div>
 
           {!submittedData ? (
-            <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6">
-              {/* Submission Error Display */}
+            <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6" id="admission-form">
+              {/* Submission Error Display (Visible on all steps) */}
               {submitError && (
                 <div id="form-error-banner" className="bg-red-50 border-2 border-red-200 p-6 rounded-2xl flex items-start animate-fade-in mb-8 shadow-lg shadow-red-100/50">
                   <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center text-xl mr-4 flex-shrink-0">
@@ -622,12 +592,14 @@ function Admission() {
                     <h3 className="text-red-800 font-bold text-lg mb-1">Submission Error</h3>
                     <p className="text-red-600 font-medium">{submitError}</p>
                     {errorField && (
-                      <p className="text-red-500 text-xs mt-2 font-bold">⚠ Please check the highlighted field below and correct your input.</p>
+                      <p className="text-red-500 text-xs mt-2 font-bold">⚠ Please check the highlighted field and correct your input.</p>
                     )}
                     <p className="text-red-500/70 text-xs mt-2 uppercase tracking-widest font-black">Please review your details and try again</p>
                   </div>
                 </div>
               )}
+
+              <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Student Name (As per Aadhaar) *</label>
@@ -1277,78 +1249,11 @@ function Admission() {
                 </div>
               </div>
 
-              {/* Application Fee Payment Section */}
-              {paymentEnabled && admissionFee > 0 && (
-                <div className="mt-8 p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 shadow-sm">
-                  <h3 className="text-xl font-serif font-bold text-green-900 mb-1 flex items-center">
-                    <span className="material-symbols-outlined mr-2 text-green-600">payments</span>
-                    Application Fee Payment
-                  </h3>
-                  <p className="text-sm text-green-700/70 mb-6">A non-refundable application fee is required to process your admission.</p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                    {/* Fee Amount */}
-                    <div className="bg-white p-5 rounded-xl border border-green-100 shadow-sm text-center">
-                      <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Application Fee</p>
-                      <p className="text-4xl font-black text-green-700">
-                        ₹{admissionFee}
-                      </p>
-                      <p className="text-[10px] text-gray-400 mt-1 font-bold">NON-REFUNDABLE</p>
-                    </div>
-
-                    {/* Pay / Status */}
-                    <div className="text-center">
-                      {paymentId ? (
-                        <div className="bg-green-100 p-5 rounded-xl border border-green-300">
-                          <div className="flex items-center justify-center gap-2 mb-2">
-                            <FaCheckCircle className="text-green-600 text-2xl" />
-                            <span className="text-lg font-black text-green-800">Payment Successful</span>
-                          </div>
-                          <p className="text-xs text-green-600 font-mono font-bold bg-green-50 px-3 py-1 rounded-lg inline-block">
-                            ID: {paymentId}
-                          </p>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handlePayment}
-                          disabled={paymentProcessing}
-                          className={`w-full md:w-auto px-10 py-4 rounded-xl font-black text-lg transition-all duration-300 transform hover:-translate-y-1 shadow-lg flex items-center justify-center mx-auto gap-3 ${
-                            paymentProcessing
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-xl hover:shadow-green-200'
-                          }`}
-                        >
-                          {paymentProcessing ? (
-                            <>
-                              <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined">lock</span>
-                              Pay ₹{admissionFee} Securely
-                            </>
-                          )}
-                        </button>
-                      )}
-                      <p className="text-[10px] text-gray-400 mt-3 font-bold flex items-center justify-center gap-1">
-                        <span className="material-symbols-outlined text-xs">verified_user</span>
-                        Secured by Razorpay
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div className="text-center pt-6">
                 <button
                   type="submit"
-                  disabled={submitting || (paymentEnabled && admissionFee > 0 && !paymentId)}
-                  className={`text-white font-bold px-10 py-4 rounded-full transition-all duration-300 transform hover:-translate-y-1 text-lg flex items-center justify-center mx-auto ${(submitting || (paymentEnabled && admissionFee > 0 && !paymentId)) ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-opacity-90 hover:shadow-lg'}`}
+                  disabled={submitting}
+                  className={`text-white font-bold px-10 py-4 rounded-full transition-all duration-300 transform hover:-translate-y-1 text-lg flex items-center justify-center mx-auto shadow-lg ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-opacity-90'}`}
                 >
                   {submitting ? (
                     <>
@@ -1356,12 +1261,13 @@ function Admission() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Submitting Application...
+                      {paymentEnabled && admissionFee > 0 ? 'Redirecting to Payment...' : 'Submitting Application...'}
                     </>
                   ) : (
-                    "Submit Application"
+                    paymentEnabled && admissionFee > 0 ? 'Pay Application Fee & Submit' : 'Submit Application'
                   )}
                 </button>
+              </div>
               </div>
             </form>
           ) : (

@@ -35,7 +35,7 @@ const admissionSchema = new mongoose.Schema({
   marksheet: String, // file path
   casteCertificate: String, // file path (compulsory if not General)
   paymentReceipt: String, // file path for fee payment proof
-  razorpayPaymentId: String, // Razorpay payment ID after successful payment
+  upiTransactionId: String, // 12-digit UTR/Transaction ID for manual verification
   nccInterest: { type: Boolean, default: false },
   sportsActive: { type: Boolean, default: false },
   sportsType: String,

@@ -183,7 +183,7 @@ router.get('/status', async (req, res) => {
         { referenceNumber: q.toUpperCase() },
         { email: q.toLowerCase() }
       ]
-    }).select('studentName gradeApplied status createdAt referenceNumber');
+    }).select('studentName gradeApplied status createdAt referenceNumber gender caste email contactNumber penNumber stream mil elective selectedSubjects');
 
     if (!application) {
       return res.status(404).json({ message: 'No application found with these details.' });

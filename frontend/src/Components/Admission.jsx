@@ -107,6 +107,15 @@ function Admission() {
              referenceNumber: res.data.referenceNumber,
              studentName: res.data.studentName,
              gradeApplied: res.data.gradeApplied,
+             gender: res.data.gender,
+             caste: res.data.caste,
+             email: res.data.email,
+             contactNumber: res.data.contactNumber,
+             penNumber: res.data.penNumber,
+             stream: res.data.stream,
+             mil: res.data.mil,
+             elective: res.data.elective,
+             selectedSubjects: res.data.selectedSubjects,
              dateOfApplication: new Date(res.data.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
           });
           setTimeout(() => {
@@ -131,6 +140,15 @@ function Admission() {
                    referenceNumber: paymentSession.referenceNumber,
                    studentName: paymentSession.studentName,
                    gradeApplied: paymentSession.gradeApplied,
+                   gender: paymentSession.gender,
+                   caste: paymentSession.caste,
+                   email: paymentSession.email,
+                   contactNumber: paymentSession.contactNumber,
+                   penNumber: paymentSession.penNumber,
+                   stream: paymentSession.stream,
+                   mil: paymentSession.mil,
+                   elective: paymentSession.elective,
+                   selectedSubjects: paymentSession.selectedSubjects,
                    dateOfApplication: paymentSession.dateOfApplication
                 });
                 window.scrollTo({ top: document.getElementById('apply')?.offsetTop - 100, behavior: 'smooth' });
@@ -309,6 +327,15 @@ function Admission() {
                       referenceNumber: res.data.referenceNumber,
                       studentName: formData.get('studentName'),
                       gradeApplied: formData.get('gradeApplied'),
+                      gender: formData.get('gender'),
+                      caste: formData.get('caste'),
+                      email: formData.get('email'),
+                      contactNumber: formData.get('contactNumber'),
+                      penNumber: formData.get('penNumber'),
+                      stream: formData.get('stream'),
+                      mil: formData.get('mil'),
+                      elective: formData.get('elective'),
+                      selectedSubjects: [...selectedSubjects],
                       dateOfApplication: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
                   });
                   setPaymentStatus('pending');
@@ -431,13 +458,13 @@ function Admission() {
     yPos += 35;
 
     const tableBody = [
-      ["Student Name", submittedData.studentName],
-      ["Grade Applied", submittedData.gradeApplied.toUpperCase()],
-      ["Gender", submittedData.gender.toUpperCase()],
-      ["Category / Caste", submittedData.caste],
-      ["Date of Application", submittedData.dateOfApplication],
-      ["Contact Email", submittedData.email],
-      ["Contact Phone", submittedData.contactNumber]
+      ["Student Name", submittedData.studentName || ''],
+      ["Grade Applied", (submittedData.gradeApplied || '').toUpperCase()],
+      ["Gender", (submittedData.gender || '').toUpperCase()],
+      ["Category / Caste", submittedData.caste || ''],
+      ["Date of Application", submittedData.dateOfApplication || ''],
+      ["Contact Email", submittedData.email || ''],
+      ["Contact Phone", submittedData.contactNumber || '']
     ];
 
     if (submittedData.penNumber) tableBody.splice(2, 0, ["PEN Number", submittedData.penNumber]);

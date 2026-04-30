@@ -46,10 +46,21 @@ router.post('/create-order', async (req, res) => {
     const gatewayRes = await axios.post('https://merchant.upigateway.com/api/create_order', orderData);
 
     if (gatewayRes.data.status === true) {
+      // Override Payee Name (pn) in the UPI intent links so it doesn't show the merchant's personal name
+      const upi_intent = gatewayRes.data.data.upi_intent;
+      const schoolName = 'Holy%20Name%20School';
+      if (upi_intent) {
+          for (const key in upi_intent) {
+              if (upi_intent[key]) {
+                  upi_intent[key] = upi_intent[key].replace(/pn=[^&]+/, `pn=${schoolName}`);
+              }
+          }
+      }
+
       res.json({
         payment_url: gatewayRes.data.data.payment_url,
         order_id: gatewayRes.data.data.order_id,
-        upi_intent: gatewayRes.data.data.upi_intent
+        upi_intent: upi_intent
       });
     } else {
       throw new Error(gatewayRes.data.msg || 'Failed to create UPIGateway order');
@@ -64,7 +75,11 @@ router.post('/create-order', async (req, res) => {
 router.post('/check-status', async (req, res) => {
   try {
       const { admissionId } = req.body;
-      const date = new Date().toLocaleDateString('en-CA'); // format: YYYY-MM-DD
+      const now = new Date();
+      // UPIGateway expects date in DD-MM-YYYY format, and since transactions happen in IST, we must use IST
+      const istDateString = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' });
+      // en-IN returns DD/MM/YYYY, we need to replace / with -
+      const date = istDateString.replace(/\//g, '-');
       
       const payload = {
           key: process.env.UPIGATEWAY_KEY,

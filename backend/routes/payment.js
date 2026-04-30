@@ -48,7 +48,8 @@ router.post('/create-order', async (req, res) => {
     if (gatewayRes.data.status === true) {
       res.json({
         payment_url: gatewayRes.data.data.payment_url,
-        order_id: gatewayRes.data.data.order_id
+        order_id: gatewayRes.data.data.order_id,
+        upi_intent: gatewayRes.data.data.upi_intent
       });
     } else {
       throw new Error(gatewayRes.data.msg || 'Failed to create UPIGateway order');

@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import axios from "axios";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { QRCodeSVG } from 'qrcode.react';
 import { FaLaptop, FaBuilding, FaClipboardList, FaGraduationCap, FaPhoneAlt, FaEnvelope, FaCheckCircle, FaSearch, FaExclamationCircle, FaIdBadge, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUserCheck, FaClipboardCheck, FaPrint, FaShieldAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
@@ -86,6 +87,9 @@ function Admission() {
   const [caste, setCaste] = useState("General");
   const [errorField, setErrorField] = useState(null); // which field has a backend error
   const [filePreviews, setFilePreviews] = useState({}); // { fieldName: { name, size, type, url } }
+  
+  const [paymentSession, setPaymentSession] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState('pending');
 
   const admissionFee = schoolProfile?.admissionFee || 250;
   const paymentEnabled = schoolProfile?.admissionPaymentEnabled !== false; // default true
@@ -112,6 +116,33 @@ function Admission() {
         .catch(err => console.error(err));
     }
   }, [apiBase]);
+
+  useEffect(() => {
+    let intervalId;
+    if (paymentSession && paymentStatus === 'pending') {
+      intervalId = setInterval(async () => {
+        try {
+          const res = await axios.post(`${apiBase}/payment/check-status`, { admissionId: paymentSession.admissionId });
+          if (res.data.verified) {
+            setPaymentStatus('success');
+            setTimeout(() => {
+                setPaymentSession(null);
+                setSubmittedData({
+                   referenceNumber: paymentSession.referenceNumber,
+                   studentName: paymentSession.studentName,
+                   gradeApplied: paymentSession.gradeApplied,
+                   dateOfApplication: paymentSession.dateOfApplication
+                });
+                window.scrollTo({ top: document.getElementById('apply')?.offsetTop - 100, behavior: 'smooth' });
+            }, 2000);
+          }
+        } catch (err) {
+          console.error('Polling error', err);
+        }
+      }, 3000); // Check every 3 seconds
+    }
+    return () => clearInterval(intervalId);
+  }, [paymentSession, paymentStatus, apiBase]);
 
 
   const handleFilePreview = (e, fieldName) => {
@@ -260,7 +291,7 @@ function Admission() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       
-      // If payment is enabled, redirect to UPIGateway
+      // If payment is enabled, process UPIGateway Payment
       if (paymentEnabled && admissionFee > 0) {
           try {
               const paymentRes = await axios.post(`${apiBase}/payment/create-order`, {
@@ -271,7 +302,18 @@ function Admission() {
                   contactNumber: formData.get('contactNumber')
               });
               
-              if (paymentRes.data.payment_url) {
+              if (paymentRes.data.upi_intent) {
+                  setPaymentSession({
+                      ...paymentRes.data,
+                      admissionId: res.data.id,
+                      referenceNumber: res.data.referenceNumber,
+                      studentName: formData.get('studentName'),
+                      gradeApplied: formData.get('gradeApplied'),
+                      dateOfApplication: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+                  });
+                  setPaymentStatus('pending');
+                  return; // Halt and show modal
+              } else if (paymentRes.data.payment_url) {
                   window.location.href = paymentRes.data.payment_url;
                   return; // Stop execution here and let the browser redirect
               }
@@ -456,6 +498,58 @@ function Admission() {
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
+      {/* Payment Overlay Modal */}
+      {paymentSession && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden text-center animate-fade-in">
+             <h3 className="text-2xl font-black text-gray-800 mb-2">Complete Payment</h3>
+             <p className="text-gray-500 mb-6">Scan the QR code or tap a button below to pay ₹{admissionFee}</p>
+             
+             {paymentStatus === 'success' ? (
+                <div className="text-green-500 flex flex-col items-center py-10">
+                   <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                     <FaCheckCircle className="text-5xl" />
+                   </div>
+                   <h4 className="text-xl font-bold">Payment Successful!</h4>
+                   <p className="text-gray-500 text-sm mt-2">Redirecting to your receipt...</p>
+                </div>
+             ) : (
+                <>
+                 <div className="bg-gray-50 p-6 rounded-2xl flex justify-center mb-6 border border-gray-100 shadow-inner">
+                   <QRCodeSVG value={paymentSession.upi_intent?.bhim_link || paymentSession.payment_url} size={220} level="H" includeMargin={true} />
+                 </div>
+                 
+                 {paymentSession.upi_intent && (
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      <a href={paymentSession.upi_intent.gpay_link} className="bg-white border border-gray-200 py-3 rounded-xl font-bold flex flex-col items-center justify-center text-sm hover:bg-gray-50 transition-colors shadow-sm">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="GPay" className="w-6 h-6 mb-1" /> GPay
+                      </a>
+                      <a href={paymentSession.upi_intent.phonepe_link} className="bg-white border border-gray-200 py-3 rounded-xl font-bold flex flex-col items-center justify-center text-sm hover:bg-gray-50 transition-colors shadow-sm">
+                        <span className="text-purple-600 text-lg mb-1 font-black">P</span> PhonePe
+                      </a>
+                      <a href={paymentSession.upi_intent.paytm_link} className="bg-white border border-gray-200 py-3 rounded-xl font-bold flex flex-col items-center justify-center text-sm hover:bg-gray-50 transition-colors shadow-sm">
+                         <span className="text-blue-500 font-black mb-1">Paytm</span> Paytm
+                      </a>
+                      <a href={paymentSession.upi_intent.bhim_link} className="bg-white border border-gray-200 py-3 rounded-xl font-bold flex flex-col items-center justify-center text-sm hover:bg-gray-50 transition-colors shadow-sm">
+                         <span className="text-orange-500 font-black mb-1">BHIM</span> BHIM UPI
+                      </a>
+                    </div>
+                 )}
+                 
+                 <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 bg-gray-50 py-3 rounded-lg border border-gray-100 mb-4">
+                    <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span className="font-medium">Waiting for payment confirmation...</span>
+                 </div>
+                 
+                 <button onClick={() => { setPaymentSession(null); setPaymentStatus('pending'); }} className="text-gray-400 text-sm font-medium hover:text-gray-700 underline underline-offset-2">
+                    Cancel & Edit Form
+                 </button>
+                </>
+             )}
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">

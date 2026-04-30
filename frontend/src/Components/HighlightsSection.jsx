@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaCalendarAlt, FaStar, FaChevronLeft, FaChevronRight, FaImages } from 'react-icons/fa';
+import { FaCalendarAlt, FaStar, FaChevronLeft, FaChevronRight, FaImages, FaShareAlt } from 'react-icons/fa';
 import { SiteDataContext } from '../context/SiteDataContext';
 
 export default function HighlightsSection() {
@@ -8,6 +8,15 @@ export default function HighlightsSection() {
   const [selectedHighlight, setSelectedHighlight] = useState(null);
   const [showAll, setShowAll] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  const handleShare = async (e, imageUrl, title) => {
+    e?.stopPropagation();
+    const shareData = { title, text: `${title} — Holy Name School`, url: imageUrl };
+    try {
+      if (navigator.share) { await navigator.share(shareData); }
+      else { await navigator.clipboard.writeText(imageUrl); alert('Link copied to clipboard!'); }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
 
 
   const handleOpen = (item) => {
@@ -135,9 +144,14 @@ export default function HighlightsSection() {
                 <p className="text-on-surface-variant text-[11px] line-clamp-2 mb-3 flex-1 leading-snug">
                   {item.description}
                 </p>
-                <button className="text-secondary text-[11px] font-bold flex items-center gap-1 group-hover:gap-1.5 transition-all mt-auto w-fit">
-                  Read More <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
-                </button>
+                <div className="flex items-center justify-between mt-auto">
+                  <button className="text-secondary text-[11px] font-bold flex items-center gap-1 group-hover:gap-1.5 transition-all w-fit">
+                    Read More <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
+                  </button>
+                  <button onClick={(e) => handleShare(e, item.image, item.title)} className="p-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all" title="Share">
+                    <FaShareAlt className="text-[10px]" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           );
@@ -290,6 +304,9 @@ export default function HighlightsSection() {
                           </div>
                         )}
                       </div>
+                      <button onClick={(e) => handleShare(e, gallery[currentPhotoIndex], selectedHighlight.title)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
+                        <FaShareAlt className="text-sm" />
+                      </button>
                     </div>
                   </div>
                 </div>

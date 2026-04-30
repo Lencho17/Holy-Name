@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useMemo } from "react";
-import { FaImages, FaSearchPlus, FaArrowLeft } from "react-icons/fa";
+import { FaImages, FaSearchPlus, FaArrowLeft, FaShareAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
@@ -9,6 +9,14 @@ function Gallery() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const handleShare = async (imageUrl, title) => {
+    const shareData = { title, text: `${title} — Holy Name School`, url: imageUrl };
+    try {
+      if (navigator.share) { await navigator.share(shareData); }
+      else { await navigator.clipboard.writeText(imageUrl); alert('Link copied to clipboard!'); }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
+
   const categories = ["All", "Campus Life", "Academic Events", "Sports", "Cultural Programs"];
 
   const { gallery: galleryItems, events, schoolProfile } = useContext(SiteDataContext);
@@ -17,23 +25,23 @@ function Gallery() {
   const eventId = searchParams.get("event") || null;
 
   // Find the event details for the heading
-  const currentEvent = eventId ? events.find(e => e._id === eventId) : null;
+  const currentEvent = eventId ? events.find(e => String(e._id) === String(eventId) || String(e.id) === String(eventId)) : null;
 
 
   // Build the display items — if filtered by event, show only that event's gallery images
   let displayItems = galleryItems;
 
-  if (eventId && currentEvent) {
+  if (eventId) {
     // Filter gallery items that belong to this event
-    const eventGalleryItems = galleryItems.filter(item => item.eventId === eventId);
+    const eventGalleryItems = galleryItems.filter(item => String(item.eventId) === String(eventId));
     
     // Also include galleryImages from the event itself (auto-generated entries)
-    const eventExtraImages = (currentEvent.galleryImages || []).map((src, idx) => ({
+    const eventExtraImages = (currentEvent?.galleryImages || []).map((src, idx) => ({
       _id: `event-${eventId}-${idx}`,
       src,
-      title: `${currentEvent.title}`,
+      title: currentEvent?.title || 'Event Photo',
       category: "Events",
-      description: currentEvent.description || "",
+      description: currentEvent?.description || "",
       eventId: eventId,
     }));
 
@@ -55,16 +63,54 @@ function Gallery() {
       events.some(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId))
     );
     
-    displayItems = activeCategory === "All"
+    const filtered = activeCategory === "All"
       ? validGalleryItems
       : validGalleryItems.filter(item => item.category === activeCategory);
+
+    // Group photos into album tiles — by eventId for events, by title+category for regular uploads
+    const eventGroups = {};
+    const titleGroups = {};
+    filtered.forEach(item => {
+      if (item.eventId) {
+        const key = String(item.eventId);
+        if (!eventGroups[key]) eventGroups[key] = [];
+        eventGroups[key].push(item);
+      } else {
+        const key = `${item.title}|||${item.category}`;
+        if (!titleGroups[key]) titleGroups[key] = [];
+        titleGroups[key].push(item);
+      }
+    });
+
+    const eventAlbums = Object.entries(eventGroups).map(([eid, photos]) => ({
+      ...photos[0],
+      _id: `album-${eid}`,
+      _isAlbum: true,
+      _albumEventId: eid,
+      _albumPhotos: photos,
+      _photoCount: photos.length,
+    }));
+
+    const titleAlbums = Object.entries(titleGroups).map(([, photos]) => {
+      if (photos.length === 1) return photos[0]; // single photo, no album
+      return {
+        ...photos[0],
+        _id: `album-title-${photos[0]._id}`,
+        _isAlbum: true,
+        _albumPhotos: photos,
+        _photoCount: photos.length,
+      };
+    });
+
+    displayItems = [...eventAlbums, ...titleAlbums];
   }
 
   // Ensure current image's collection is used for lightbox navigation
   const lightboxItems = useMemo(() => {
     if (!selectedImage) return [];
     if (eventId) return displayItems; // Stay in the event
-    return galleryItems.filter(i => i.category === selectedImage.category);
+    // Show all photos with same title+category (album browsing)
+    return galleryItems.filter(i => i.title === selectedImage.title && i.category === selectedImage.category);
   }, [selectedImage, galleryItems, eventId, displayItems]);
 
   const handleNext = (e) => {
@@ -167,10 +213,18 @@ function Gallery() {
             <div 
               key={item._id} 
               className="relative flex items-center justify-center shrink-0 snap-start w-[40vw] sm:w-auto h-auto transition-transform"
-              onClick={() => setSelectedImage(item)}
+              onClick={() => {
+                if (item._isAlbum && item._albumEventId) {
+                  navigate(`/gallery?event=${item._albumEventId}`);
+                } else if (item._isAlbum && item._albumPhotos) {
+                  setSelectedImage(item._albumPhotos[0]);
+                } else {
+                  setSelectedImage(item);
+                }
+              }}
             >
               {/* Card Container */ }
-              <div className="relative overflow-hidden group cursor-pointer w-full aspect-[2/3] bg-white rounded-xl border border-gray-200 shadow-lg transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0 hover:border-primary/40 hover:shadow-xl:shadow-none:shadow-none">
+              <div className="relative overflow-hidden group cursor-pointer w-full aspect-[2/3] bg-white rounded-xl border border-gray-200 shadow-lg transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0 hover:border-primary/40 hover:shadow-xl">
                 <img 
                   src={item.src || null} 
                   alt={item.title} 
@@ -178,6 +232,14 @@ function Gallery() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500"></div>
                 
+                {/* Album photo count badge */}
+                {item._isAlbum && item._photoCount > 1 && (
+                  <div className="absolute top-3 right-3 z-30 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
+                    <FaImages className="text-[10px]" />
+                    {item._photoCount}
+                  </div>
+                )}
+
                 <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end p-2 md:p-6 text-center z-20 transition-transform duration-500 translate-y-1 group-hover:translate-y-0">
                   <h3 className="text-white text-xs md:text-xl font-sans font-bold mb-1 shadow-black drop-shadow-2xl tracking-wide leading-tight px-1 line-clamp-2">
                     {item.title}
@@ -215,17 +277,17 @@ function Gallery() {
             {/* Main Image Area */}
             <div className="relative w-full h-[65vh] flex items-center justify-center group/lightbox">
               {/* Navigation Arrows */}
-              {displayItems.length > 1 && (
+              {lightboxItems.length > 1 && (
                 <>
                   <button 
                     onClick={handlePrev}
-                    className="absolute left-0 z-[60] text-white/50 hover:text-white bg-black/20 hover:bg-black/40 p-4 rounded-full transition-all border border-white/10 opacity-0 group-hover/lightbox:opacity-100 hidden md:flex"
+                    className="absolute left-0 z-[60] text-white/70 hover:text-white bg-black/30 hover:bg-black/50 p-4 rounded-full transition-all border border-white/10 hidden md:flex"
                   >
                     <span className="material-symbols-outlined text-4xl">chevron_left</span>
                   </button>
                   <button 
                     onClick={handleNext}
-                    className="absolute right-0 z-[60] text-white/50 hover:text-white bg-black/20 hover:bg-black/40 p-4 rounded-full transition-all border border-white/10 opacity-0 group-hover/lightbox:opacity-100 hidden md:flex"
+                    className="absolute right-0 z-[60] text-white/70 hover:text-white bg-black/30 hover:bg-black/50 p-4 rounded-full transition-all border border-white/10 hidden md:flex"
                   >
                     <span className="material-symbols-outlined text-4xl">chevron_right</span>
                   </button>
@@ -264,6 +326,9 @@ function Gallery() {
                     <button onClick={handlePrev} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_left</span></button>
                     <button onClick={handleNext} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_right</span></button>
                   </div>
+                  <button onClick={() => handleShare(selectedImage.src, selectedImage.title)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
+                    <FaShareAlt className="text-sm" />
+                  </button>
                 </div>
               </div>
             </div>

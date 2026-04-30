@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaImages } from "react-icons/fa";
+import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaImages, FaShareAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 import { useNavigate } from "react-router-dom";
 
@@ -10,6 +10,15 @@ const EventsSection = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const navigate = useNavigate();
+
+  const handleShare = async (e, imageUrl, title) => {
+    e?.stopPropagation();
+    const shareData = { title, text: `${title} — Holy Name School`, url: imageUrl };
+    try {
+      if (navigator.share) { await navigator.share(shareData); }
+      else { await navigator.clipboard.writeText(imageUrl); alert('Link copied to clipboard!'); }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
 
   const visibleEvents = showAll ? events : events.slice(0, 4);
 
@@ -113,6 +122,14 @@ const EventsSection = () => {
                     {event.galleryImages.length} Photos
                   </span>
                 )}
+                {/* Share button */}
+                <button
+                  onClick={(e) => handleShare(e, event.image, event.title)}
+                  className="absolute top-3 right-3 z-30 p-2 bg-black/40 backdrop-blur-sm hover:bg-amber-500 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 border border-white/10"
+                  title="Share"
+                >
+                  <FaShareAlt className="text-xs" />
+                </button>
               </div>
             </motion.div>
           ))}
@@ -274,7 +291,9 @@ const EventsSection = () => {
                           </div>
                         )}
                       </div>
-
+                      <button onClick={(e) => handleShare(e, gallery[currentPhotoIndex], selectedEvent.title)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
+                        <FaShareAlt className="text-sm" />
+                      </button>
                     </div>
                   </div>
                 </div>

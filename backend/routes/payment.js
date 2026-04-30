@@ -26,6 +26,10 @@ router.post('/create-order', async (req, res) => {
 
     // Setup redirect URL (frontend success page)
     let clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    // Remove trailing slash if present
+    if (clientUrl.endsWith('/')) {
+        clientUrl = clientUrl.slice(0, -1);
+    }
     // UPIGateway does not accept 'localhost' in redirect URLs, replace with '127.0.0.1' for local dev
     if (clientUrl.includes('localhost')) {
         clientUrl = clientUrl.replace('localhost', '127.0.0.1');

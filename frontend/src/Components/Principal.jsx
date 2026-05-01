@@ -1,8 +1,34 @@
 import React, { useContext } from "react";
 import { SiteDataContext } from "../context/SiteDataContext";
+import { FaShareAlt } from "react-icons/fa";
 
 function Principal() {
   const { principal, schoolProfile } = useContext(SiteDataContext);
+
+  const handleShare = async (e) => {
+    e?.preventDefault();
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: `Message from the Principal - ${principal.name}`, 
+          desc: principal.introQuote, 
+          image: principal.photo || schoolProfile?.pageHeroImages?.principal || "", 
+          page: '/principal' 
+        }),
+      });
+      const { url } = await res.json();
+      const shareUrl = url || window.location.href;
+      if (navigator.share) { 
+        await navigator.share({ title: `Principal's Message`, text: `Read the message from the Principal of Holy Name School`, url: shareUrl }); 
+      } else { 
+        await navigator.clipboard.writeText(shareUrl); 
+        alert('Link copied to clipboard!'); 
+      }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
 
   if (!principal) return null;
 
@@ -27,12 +53,23 @@ function Principal() {
               Leadership Message
             </span>
           </div>
-          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            From the <span className="text-amber-400 italic drop-shadow-md">Principal's Desk</span>
-          </h1>
-          <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
-            A message from our Principal on our vision, values, and commitment to excellence.
-          </p>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+              <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
+                From the <span className="text-amber-400 italic drop-shadow-md">Principal's Desk</span>
+              </h1>
+              <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
+                A message from our Principal on our vision, values, and commitment to excellence.
+              </p>
+            </div>
+            <button 
+              onClick={handleShare}
+              className="flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-md text-white rounded-2xl font-bold hover:bg-white/20 transition-all border border-white/20 shadow-lg group mb-2"
+            >
+              <FaShareAlt size={14} className="group-hover:scale-110 transition-transform" />
+              <span>Share Message</span>
+            </button>
+          </div>
         </div>
       </section>
 

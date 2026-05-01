@@ -1,11 +1,36 @@
 import React, { useContext } from "react";
-import { FaFilePdf, FaDownload, FaBell, FaCalendarAlt } from "react-icons/fa";
+import { FaFilePdf, FaDownload, FaBell, FaCalendarAlt, FaShareAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Notice() {
   const { notices, schoolProfile } = useContext(SiteDataContext);
   const latestNotice = notices && notices.length > 0 ? notices[0] : null;
   const previousNotices = notices && notices.length > 1 ? notices.slice(1) : [];
+
+  const handleShare = async (e, notice) => {
+    e?.preventDefault();
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: notice.title, 
+          desc: `Notice published on ${notice.date} — Holy Name School`, 
+          image: schoolProfile?.pageHeroImages?.notice || "", 
+          page: '/notice' 
+        }),
+      });
+      const { url } = await res.json();
+      const shareUrl = url || window.location.href;
+      if (navigator.share) { 
+        await navigator.share({ title: notice.title, text: notice.title, url: shareUrl }); 
+      } else { 
+        await navigator.clipboard.writeText(shareUrl); 
+        alert('Link copied to clipboard!'); 
+      }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
@@ -66,9 +91,18 @@ function Notice() {
                     <h3 className="text-2xl font-bold text-gray-800 mb-3">{latestNotice.title}</h3>
                     <p className="text-gray-500 mb-8 font-medium bg-white inline-block px-4 py-1 rounded-full shadow-sm">Published on {latestNotice.date}</p>
                     <div>
-                      <a href={latestNotice.pdfLink} target="_blank" rel="noreferrer" className="bg-primary hover:bg-primary-container text-white px-8 py-3 rounded-full font-medium transition-all shadow-md hover:shadow-lg:shadow-none:shadow-none inline-flex items-center transform hover:scale-105">
-                        <FaDownload className="mr-3" /> View / Download PDF
-                      </a>
+                      <div className="flex gap-4 items-center justify-center">
+                        <a href={latestNotice.pdfLink} target="_blank" rel="noreferrer" className="bg-primary hover:bg-primary-container text-white px-8 py-3 rounded-full font-medium transition-all shadow-md hover:shadow-lg inline-flex items-center transform hover:scale-105">
+                          <FaDownload className="mr-3" /> View / Download PDF
+                        </a>
+                        <button 
+                          onClick={(e) => handleShare(e, latestNotice)}
+                          className="p-3.5 rounded-full bg-white border border-gray-200 text-primary hover:bg-primary hover:text-white transition-all shadow-sm hover:shadow-md"
+                          title="Share Notice"
+                        >
+                          <FaShareAlt />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -121,15 +155,24 @@ function Notice() {
                         </div>
                       </td>
                       <td className="py-5 px-6 text-right">
-                        <a
-                          href={notice.pdfLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center justify-center bg-white border border-gray-200 hover:border-primary hover:bg-primary hover:text-white text-gray-700 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-md"
-                        >
-                          <FaDownload className="mr-2" />
-                          <span className="text-xs">{notice.size || 'View'}</span>
-                        </a>
+                        <div className="flex items-center justify-end gap-2">
+                          <a
+                            href={notice.pdfLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center bg-white border border-gray-200 hover:border-primary hover:bg-primary hover:text-white text-gray-700 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-md whitespace-nowrap"
+                          >
+                            <FaDownload className="mr-2" />
+                            <span className="text-xs">{notice.size || 'View'}</span>
+                          </a>
+                          <button 
+                            onClick={(e) => handleShare(e, notice)}
+                            className="inline-flex items-center justify-center bg-white border border-gray-200 text-gray-400 hover:text-primary hover:border-primary p-2.5 rounded-xl transition-all shadow-sm hover:shadow-md"
+                            title="Share"
+                          >
+                            <FaShareAlt size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

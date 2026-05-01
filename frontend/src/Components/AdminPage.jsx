@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -15,7 +15,7 @@ function AdminPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -27,6 +27,21 @@ function AdminPage() {
   const [admins, setAdmins] = useState([]);
   const [students, setStudents] = useState([]);
   const [mapExtracted, setMapExtracted] = useState(false);
+  const [tenders, setTenders] = useState([]);
+  const [tenderApplications, setTenderApplications] = useState([]);
+  const [tenderSearch, setTenderSearch] = useState("");
+  const [newTender, setNewTender] = useState({
+    title: '',
+    tenderNumber: '',
+    category: 'Other',
+    description: '',
+    estimatedValue: '',
+    closingDate: '',
+    documentUrl: ''
+  });
+  const [isTenderUploading, setIsTenderUploading] = useState(false);
+  const [editingTenderId, setEditingTenderId] = useState(null);
+  const [tenderFile, setTenderFile] = useState(null);
 
   useEffect(() => {
     const restoreSession = () => {
@@ -142,41 +157,46 @@ function AdminPage() {
   const [jobApplications, setJobApplications] = useState([]);
   const [jobApplicationsLoading, setJobApplicationsLoading] = useState(false);
   const [selectedJobApp, setSelectedJobApp] = useState(null);
+  
+  const [editingExcellenceId, setEditingExcellenceId] = useState(null);
+  const [excellenceForm, setExcellenceForm] = useState({ _id: null, title: '', name: '', passedYear: '', designation: '', company: '', location: '', message: '', photo: '' });
+  const [alumniForm, setAlumniForm] = useState({ _id: null, name: '', passedYear: '', rank: '', percentage: '', level: 'HSLC', stream: 'Arts', subjects: [], photo: '', description: '' });
+  const [isEditingExcellence, setIsEditingExcellence] = useState(false);
+  const [excellenceFile, setExcellenceFile] = useState(null);
+  const [isExcellenceUploading, setIsExcellenceUploading] = useState(false);
+  
+  const resetExcellenceForm = () => {
+    setExcellenceForm({ _id: null, title: '', name: '', passedYear: '', designation: '', company: '', location: '', message: '', photo: '' });
+    setIsEditingExcellence(false);
+    setExcellenceFile(null);
+  };
 
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const [isExportingStudents, setIsExportingStudents] = useState(false);
+  const [isExportingAdmissions, setIsExportingAdmissions] = useState(false);
+  const [isExportingJobs, setIsExportingJobs] = useState(false);
+  const [isExportingTenders, setIsExportingTenders] = useState(false);
 
-  const handleExportStudents = async () => {
-    setIsExportingStudents(true);
+  const handleExportData = async (endpoint, fileNamePrefix, setLoading) => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/students/export`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // Use direct window location for download to ensure browser uses server headers for filename
+      window.location.href = `${API_URL}/${endpoint}/export?token=${token}`;
       
-      if (response.status === 401) return handleLogout();
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const fileName = `students_export_${new Date().toISOString().split('T')[0]}.csv`;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      } else {
-        alert("Failed to export students.");
-      }
+      // Delay resetting loading so user sees something is happening
+      setTimeout(() => setLoading(false), 2000);
     } catch (error) {
       console.error("Export error:", error);
-      alert("An error occurred during export.");
-    } finally {
-      setIsExportingStudents(false);
+      alert(`An error occurred during ${fileNamePrefix} export.`);
+      setLoading(false);
     }
   };
+
+  const handleExportStudents = () => handleExportData('students', 'students', setIsExportingStudents);
+  const handleExportAdmissions = () => handleExportData('admissions', 'admissions', setIsExportingAdmissions);
+  const handleExportJobs = () => handleExportData('job-applications', 'job_apps', setIsExportingJobs);
+  const handleExportTenders = () => handleExportData('tender-applications', 'tender_apps', setIsExportingTenders);
 
   const fetchApps = async (page = appPage, search = searchQuery) => {
     try {
@@ -634,6 +654,102 @@ function AdminPage() {
     setJobsLoading(false);
   };
 
+  const fetchTenders = async () => {
+    try {
+      const res = await fetch(`${API_URL}/tenders`);
+      if (res.ok) setTenders(await res.json());
+    } catch (e) { console.warn('Could not fetch tenders'); }
+  };
+
+  const fetchTenderApplications = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/tender-applications`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) setTenderApplications(await res.json());
+    } catch (e) { console.warn('Could not fetch tender applications'); }
+  };
+
+  const handleTenderSubmit = async (e) => {
+    e.preventDefault();
+    if (!newTender.title || !newTender.tenderNumber) {
+      alert("Title and Tender Number are required.");
+      return;
+    }
+    
+    setIsTenderUploading(true);
+    try {
+      let docUrl = newTender.documentUrl;
+      if (tenderFile) {
+        docUrl = await uploadImage(tenderFile); // Reusing uploadImage for PDFs is usually fine if backend allows
+      }
+
+      const token = localStorage.getItem('adminToken');
+      const method = editingTenderId ? 'PUT' : 'POST';
+      const url = editingTenderId ? `${API_URL}/tenders/${editingTenderId}` : `${API_URL}/tenders`;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...newTender, documentUrl: docUrl })
+      });
+
+      if (res.ok) {
+        alert(editingTenderId ? "Tender updated!" : "Tender created!");
+        setNewTender({ title: '', tenderNumber: '', category: 'Other', description: '', estimatedValue: '', closingDate: '', documentUrl: '' });
+        setEditingTenderId(null);
+        setTenderFile(null);
+        fetchTenders();
+      } else {
+        const error = await res.json();
+        alert("Failed to save tender: " + error.message);
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsTenderUploading(false);
+    }
+  };
+
+  const handleDeleteTender = async (id) => {
+    if (window.confirm('Delete this tender?')) {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch(`${API_URL}/tenders/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setTenders(tenders.filter(t => t._id !== id));
+        }
+      } catch (err) {
+        alert("Delete failed: " + err.message);
+      }
+    }
+  };
+
+  const handleTenderAppStatus = async (id, status) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/tender-applications/${id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        setTenderApplications(tenderApplications.map(app => app._id === id ? { ...app, status } : app));
+      }
+    } catch (err) {
+      alert("Update failed: " + err.message);
+    }
+  };
+
   const handleJobSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('adminToken');
@@ -733,6 +849,9 @@ function AdminPage() {
       fetchJobs();
     } else if (activeTab === 'jobApplications') {
       fetchJobApplications();
+    } else if (activeTab === 'tenders') {
+      fetchTenders();
+      fetchTenderApplications();
     }
 
     if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') fetchAdmins();
@@ -1030,6 +1149,8 @@ function AdminPage() {
   const [newGalleryItem, setNewGalleryItem] = useState({ title: '', category: 'Campus Life', src: '', description: '' });
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [isGalleryUploading, setIsGalleryUploading] = useState(false);
+  const [editingAlbumId, setEditingAlbumId] = useState(null);
+  const [albumEditForm, setAlbumEditForm] = useState({ title: '', category: '', description: '' });
 
   const handleAddGallery = async () => {
     if (!newGalleryItem.title || (!galleryFiles.length && !newGalleryItem.src)) {
@@ -1042,15 +1163,19 @@ function AdminPage() {
 
     setIsGalleryUploading(true);
     try {
-      const filesToUpload = galleryFiles.slice(0, 10);
+      const filesToUpload = galleryFiles.slice(0, 30);
       const newItems = [];
+      const albumId = `album-${Date.now()}`; // Always generate albumId
 
-      for (const file of filesToUpload) {
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
         const url = await uploadImage(file);
         newItems.push({
           ...newGalleryItem,
           id: Date.now() + Math.random(),
           src: url,
+          albumId: albumId,
+          isAlbumCover: albumId ? (i === 0) : false,
           _id: `temp-${Date.now()}-${Math.random()}`
         });
       }
@@ -1095,7 +1220,68 @@ function AdminPage() {
     
     alert("Gallery item deleted successfully.");
   };
-  const renderGalleryTab = () => (
+
+  const handleUpdateAlbum = async () => {
+    if (!editingAlbumId) return;
+    
+    const newAlbumId = editingAlbumId.startsWith('album-') ? editingAlbumId : `album-${Date.now()}`;
+    
+    const updatedGallery = gallery.map(item => {
+      const itemEffectiveId = item.albumId || `${item.title}-${item.category}`;
+      if (itemEffectiveId === editingAlbumId) {
+        return { ...item, ...albumEditForm, albumId: newAlbumId };
+      }
+      return item;
+    });
+
+    updateSiteContent({ gallery: updatedGallery });
+    alert("Album updated successfully.");
+    setEditingAlbumId(null);
+  };
+
+  const handleDeleteAlbum = async (albumId) => {
+    if (!window.confirm("Are you sure you want to delete this entire album?")) return;
+    
+    const updatedGallery = gallery.filter(item => {
+      const itemEffectiveId = item.albumId || `${item.title}-${item.category}`;
+      return itemEffectiveId !== albumId;
+    });
+    updateSiteContent({ gallery: updatedGallery });
+    alert("Album deleted successfully.");
+  };
+
+  const renderGalleryTab = () => {
+    // Group gallery items by albumId
+    const groups = gallery.reduce((acc, item) => {
+      // Exclude items linked to active events (handled in Events tab)
+      const isLinkedToEvent = item.eventId && events.find(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId));
+      if (isLinkedToEvent) return acc;
+
+      const effectiveAlbumId = item.albumId || `${item.title}-${item.category}`;
+
+      if (!acc.albums[effectiveAlbumId]) {
+        acc.albums[effectiveAlbumId] = {
+          id: effectiveAlbumId,
+          title: item.title,
+          category: item.category,
+          description: item.description,
+          cover: item.src,
+          items: [],
+          isLegacy: !item.albumId
+        };
+      }
+      acc.albums[effectiveAlbumId].items.push(item);
+      if (item.isAlbumCover) acc.albums[effectiveAlbumId].cover = item.src;
+      
+      return acc;
+    }, { albums: {} });
+
+    // Ensure all albums have a cover if none marked
+    Object.values(groups.albums).forEach(album => {
+      if (!album.cover && album.items.length > 0) album.cover = album.items[0].src;
+    });
+
+    return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Gallery</h3>
       <div className="flex flex-col gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -1143,29 +1329,110 @@ function AdminPage() {
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {gallery.filter(item => 
-          !item.eventId || 
-          item.eventId === null || 
-          !events.find(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId))
-        ).map(item => (
-          <div key={item._id} className="relative group rounded-xl overflow-hidden border">
-            <img src={item.src} alt={item.title} className="w-full h-32 object-cover" />
-            <div className="p-2 bg-white text-sm">
-                <p className="font-bold truncate">{item.title}</p>
-                <div className="flex justify-between items-center">
-                  <p className="text-gray-500 text-xs">{item.category}</p>
-                  {item.eventId && (
-                    <span className="text-[10px] bg-red-100 text-red-700 px-1 rounded">Orphaned Event Photo</span>
-                  )}
+      {/* Albums Section (Everything is an album now) */}
+      <div className="mb-10">
+        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <FaImage className="text-primary" /> Gallery Albums ({Object.values(groups.albums).length})
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Object.values(groups.albums).sort((a,b) => {
+            // Sort by most recent photo in album
+            const latestA = Math.max(...a.items.map(i => new Date(i.createdAt || 0)));
+            const latestB = Math.max(...b.items.map(i => new Date(i.createdAt || 0)));
+            return latestB - latestA;
+          }).map(album => (
+            <div key={album.id} className="group relative bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
+              <div className="relative aspect-video overflow-hidden">
+                <img src={album.cover} alt={album.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        setEditingAlbumId(album.id);
+                        setAlbumEditForm({ title: album.title, category: album.category, description: album.description });
+                      }}
+                      className="bg-white text-gray-800 px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-primary hover:text-white transition-all shadow-lg"
+                    >
+                      <FaEdit /> Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteAlbum(album.id)}
+                      className="bg-red-500 text-white p-2 rounded-xl hover:bg-red-600 transition-all shadow-lg"
+                      title="Delete Entire Album"
+                    >
+                      <FaTrash size={14} />
+                    </button>
+                  </div>
                 </div>
+                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg shadow-sm">
+                  <span className="text-[10px] font-black text-primary uppercase">{album.items.length} {album.items.length === 1 ? 'Photo' : 'Photos'}</span>
+                </div>
+              </div>
+              <div className="p-4">
+                <h5 className="font-bold text-gray-800 truncate">{album.title}</h5>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{album.category}</p>
+              </div>
             </div>
-            <button onClick={() => handleDeleteGallery(item._id)} className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><FaTrash size={12} /></button>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
+      {/* Edit Album Modal */}
+      {editingAlbumId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in duration-300">
+            <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="text-xl font-bold text-gray-800">Edit Album</h3>
+              <button onClick={() => setEditingAlbumId(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><FaTimes /></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Album Title</label>
+                  <input type="text" value={albumEditForm.title} onChange={e => setAlbumEditForm({...albumEditForm, title: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 focus:bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Category</label>
+                  <select value={albumEditForm.category} onChange={e => setAlbumEditForm({...albumEditForm, category: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 focus:bg-white">
+                    <option>Campus Life</option><option>Academic Events</option><option>Sports</option><option>Cultural Programs</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
+                  <input type="text" value={albumEditForm.description} onChange={e => setAlbumEditForm({...albumEditForm, description: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 focus:bg-white" />
+                </div>
+              </div>
+
+              <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Photos in this Album</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                {gallery.filter(item => (item.albumId || `${item.title}-${item.category}`) === editingAlbumId).map(item => (
+                  <div key={item._id} className="relative group rounded-xl overflow-hidden border aspect-square">
+                    <img src={item.src} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button onClick={() => handleDeleteGallery(item._id)} className="bg-red-500 text-white p-2 rounded-lg shadow-lg"><FaTrash size={12} /></button>
+                    </div>
+                    {item.isAlbumCover && <div className="absolute top-1 left-1 bg-yellow-400 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Cover</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 bg-gray-50 border-t flex justify-between gap-4">
+              <button onClick={() => handleDeleteAlbum(editingAlbumId)} className="bg-red-100 text-red-600 px-6 py-2 rounded-xl font-bold hover:bg-red-200 transition-all flex items-center gap-2">
+                <FaTrash /> Delete Entire Album
+              </button>
+              <div className="flex gap-4">
+                <button onClick={() => setEditingAlbumId(null)} className="bg-white text-gray-600 px-6 py-2 rounded-xl font-bold border hover:bg-gray-50 transition-all">Cancel</button>
+                <button onClick={handleUpdateAlbum} className="bg-primary text-white px-8 py-2 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">Save Album Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+    );
+  };
 
   // --- Highlights Tab ---
   const [newHighlight, setNewHighlight] = useState({ title: '', date: '', category: 'Academic', image: '', description: '', galleryImages: [] });
@@ -1276,6 +1543,7 @@ function AdminPage() {
   const [newEvent, setNewEvent] = useState({ title: '', date: '', image: '', description: '', galleryImages: [] });
   const [eventGalleryFiles, setEventGalleryFiles] = useState([]);
   const [isEventUploading, setIsEventUploading] = useState(false);
+  const [editingEventId, setEditingEventId] = useState(null);
   const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.date || !newEvent.description) {
       alert("Please fill in title, date, and description.");
@@ -1291,22 +1559,45 @@ function AdminPage() {
 
     setIsEventUploading(true);
     try {
+      let coverUrl = newEvent.image;
+      let galleryPhotoUrls = [...(newEvent.galleryImages || [])];
+      let eventIdForLinking = newEvent.id;
+
       const filesToUpload = eventGalleryFiles.slice(0, 10);
-      const coverFile = filesToUpload.length > 0 ? filesToUpload[0] : null;
-      const galleryFilesToUpload = filesToUpload.length > 1 ? filesToUpload.slice(1) : [];
       
-      // 1. Upload photos first
-      const response = await uploadEventPhotos(coverFile, galleryFilesToUpload, newEvent.title);
-      
-      if (response) {
-        const coverUrl = response.cover?.url || newEvent.image;
-        const galleryPhotoUrls = response.gallery ? response.gallery.map(img => img.url) : [];
-        if (coverUrl && filesToUpload.length > 0) {
-          galleryPhotoUrls.unshift(coverUrl);
-        }
-        const eventIdForLinking = Date.now();
+      if (filesToUpload.length > 0) {
+        const coverFile = filesToUpload[0];
+        const galleryFilesToUpload = filesToUpload.length > 1 ? filesToUpload.slice(1) : [];
         
-        // 2. Create the event object
+        // 1. Upload photos first
+        const response = await uploadEventPhotos(coverFile, galleryFilesToUpload, newEvent.title);
+        
+        if (response) {
+          coverUrl = response.cover?.url || coverUrl;
+          const newGalleryUrls = response.gallery ? response.gallery.map(img => img.url) : [];
+          galleryPhotoUrls = [...galleryPhotoUrls, ...newGalleryUrls];
+          
+          // If we uploaded a new cover, and it's not in gallery already, add it
+          if (response.cover?.url) {
+            galleryPhotoUrls.unshift(response.cover.url);
+          }
+        }
+      }
+
+      if (editingEventId) {
+        // UPDATE MODE
+        const updatedEvents = events.map(ev => 
+          (ev._id === editingEventId || ev.id === editingEventId)
+            ? { ...ev, ...newEvent, image: coverUrl, galleryImages: galleryPhotoUrls }
+            : ev
+        );
+
+        updateSiteContent({ events: updatedEvents });
+        alert(`Event "${newEvent.title}" updated successfully!`);
+        setEditingEventId(null);
+      } else {
+        // CREATE MODE
+        eventIdForLinking = Date.now();
         const createdEvent = {
           ...newEvent,
           id: eventIdForLinking,
@@ -1315,7 +1606,6 @@ function AdminPage() {
           galleryImages: galleryPhotoUrls
         };
         
-        // 3. Create associated gallery items for unified management
         const newGalleryItems = galleryPhotoUrls.map(url => ({
           id: Date.now() + Math.random(),
           title: newEvent.title,
@@ -1325,20 +1615,19 @@ function AdminPage() {
           _id: `temp-g-${Date.now()}-${Math.random()}`
         }));
 
-        // 4. Update events and gallery state ATOMICALLY to prevent race conditions
         updateSiteContent({
           events: [createdEvent, ...events],
           gallery: [...newGalleryItems, ...gallery]
         });
 
         alert(`Event "${createdEvent.title}" created successfully!`);
-        
-        // Reset form
-        setNewEvent({ title: '', date: '', image: '', description: '', galleryImages: [] });
-        setEventGalleryFiles([]);
       }
+      
+      // Reset form
+      setNewEvent({ title: '', date: '', image: '', description: '', galleryImages: [] });
+      setEventGalleryFiles([]);
     } catch (err) {
-      alert("Failed to create event: " + err.message);
+      alert("Failed to process event: " + err.message);
     }
     setIsEventUploading(false);
   };
@@ -1435,13 +1724,28 @@ function AdminPage() {
           )}
         </div>
         <textarea placeholder="Event Description" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="3"></textarea>
-        <button 
-          onClick={handleAddEvent} 
-          disabled={isEventUploading}
-          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 disabled:bg-gray-400"
-        >
-          <FaPlus className="inline mr-2"/> {isEventUploading ? 'Adding...' : 'Add Event'}
-        </button>
+        <div className="flex gap-2 md:col-span-2">
+          <button 
+            onClick={handleAddEvent} 
+            disabled={isEventUploading}
+            className={`flex-1 ${editingEventId ? 'bg-blue-600' : 'bg-tertiary'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400 flex items-center justify-center`}
+          >
+            {isEventUploading ? <FaSpinner className="animate-spin mr-2" /> : (editingEventId ? <FaEdit className="mr-2" /> : <FaPlus className="mr-2" />)}
+            {editingEventId ? 'Update Event' : 'Add Event'}
+          </button>
+          {editingEventId && (
+            <button 
+              onClick={() => {
+                setEditingEventId(null);
+                setNewEvent({ title: '', date: '', image: '', description: '', galleryImages: [] });
+                setEventGalleryFiles([]);
+              }}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
       <div className="space-y-4">
         {events.map(item => (
@@ -1456,12 +1760,30 @@ function AdminPage() {
               </div>
               <div className="flex gap-2">
                 <button 
+                  onClick={() => {
+                    setEditingEventId(item._id);
+                    setNewEvent({
+                      title: item.title,
+                      date: item.date,
+                      description: item.description,
+                      image: item.image,
+                      galleryImages: item.galleryImages,
+                      id: item.id
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="text-blue-500 hover:text-blue-700 p-2"
+                  title="Edit Event Details"
+                >
+                  <FaEdit />
+                </button>
+                <button 
                   onClick={() => setExpandedEventId(expandedEventId === item._id ? null : item._id)}
                   className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-sm font-bold hover:bg-blue-100"
                 >
                   <FaImage className="inline mr-1" /> {expandedEventId === item._id ? 'Hide Photos' : 'Manage Photos'}
                 </button>
-                <button onClick={() => handleDeleteEvent(item._id)} className="text-red-500 hover:text-red-700 p-2"><FaTrash /></button>
+                <button onClick={() => handleDeleteEvent(item._id)} className="text-red-500 hover:text-red-700 p-2" title="Delete Event"><FaTrash /></button>
               </div>
             </div>
             
@@ -1994,14 +2316,25 @@ function AdminPage() {
   );
 
   // --- Alumni Tab ---
-  const [alumniForm, setAlumniForm] = useState({ _id: null, name: '', passedYear: '', rank: '', percentage: '', level: 'HSLC', stream: 'Arts', subjects: [], photo: '' });
   const [isEditingAlumni, setIsEditingAlumni] = useState(false);
   const [subjectInput, setSubjectInput] = useState('');
 
   const resetAlumniForm = () => {
-    setAlumniForm({ _id: null, name: '', passedYear: '', rank: '', percentage: '', level: 'HSLC', stream: 'Arts', subjects: [], photo: '' });
+    setAlumniForm({ _id: null, name: '', passedYear: '', rank: '', percentage: '', level: 'HSLC', stream: 'Arts', subjects: [], photo: '', description: '' });
     setIsEditingAlumni(false);
     setSubjectInput('');
+  };
+
+  // --- Legacy Wall Tab ---
+  const [emeritusForm, setEmeritusForm] = useState({ _id: null, name: '', role: '', tenure: '', message: '', photo: '', category: 'Staff', status: 'Retired', causeOfDeath: '' });
+  const [isEditingEmeritus, setIsEditingEmeritus] = useState(false);
+  const [emeritusFile, setEmeritusFile] = useState(null);
+  const [isEmeritusUploading, setIsEmeritusUploading] = useState(false);
+
+  const resetEmeritusForm = () => {
+    setEmeritusForm({ _id: null, name: '', role: '', tenure: '', message: '', photo: '', category: 'Staff', status: 'Retired', causeOfDeath: '' });
+    setIsEditingEmeritus(false);
+    setEmeritusFile(null);
   };
 
   const [alumniFile, setAlumniFile] = useState(null);
@@ -2108,6 +2441,17 @@ function AdminPage() {
         )}
 
         <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description / Achievement Details</label>
+          <textarea 
+            value={alumniForm.description} 
+            onChange={e => setAlumniForm({...alumniForm, description: e.target.value})} 
+            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+            placeholder="e.g. Secured highest marks in Mathematics across the state..."
+            rows={3}
+          />
+        </div>
+
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Alumni Photo *</label>
           <div className="flex flex-col gap-2">
             {alumniForm.photo && <img src={alumniForm.photo} alt="Preview" className="w-16 h-16 object-cover rounded shadow border" />}
@@ -2162,6 +2506,138 @@ function AdminPage() {
             ))}
             {(!alumni || alumni.length === 0) && (
               <tr><td colSpan="6" className="p-6 text-center text-gray-500">No alumni records found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // --- Center of Excellence Tab ---
+  const handleExcellenceSubmit = async (e) => {
+    e.preventDefault();
+    if (!excellenceForm.name || (!excellenceFile && !excellenceForm.photo)) {
+      alert("Name and Photo are required.");
+      return;
+    }
+    
+    setIsExcellenceUploading(true);
+    try {
+      let photoUrl = excellenceForm.photo;
+      if (excellenceFile) {
+        photoUrl = await uploadImage(excellenceFile);
+      }
+
+      if (isEditingExcellence) {
+        setCenterOfExcellence(centerOfExcellence.map(item => (item._id || item.id) === (excellenceForm._id || excellenceForm.id) ? { ...excellenceForm, photo: photoUrl } : item));
+      } else {
+        setCenterOfExcellence([...(centerOfExcellence || []), { ...excellenceForm, _id: `temp-${Date.now()}`, id: Date.now(), photo: photoUrl }]);
+      }
+      resetExcellenceForm();
+    } catch (err) {
+      alert("Excellence record update failed: " + err.message);
+    }
+    setIsExcellenceUploading(false);
+  };
+
+  const handleEditExcellence = (item) => {
+    setExcellenceForm(item);
+    setIsEditingExcellence(true);
+  };
+
+  const handleDeleteExcellence = async (id) => {
+    if(window.confirm('Delete this excellence record?')) {
+      setCenterOfExcellence(centerOfExcellence.filter(item => (item._id || item.id) !== id));
+    }
+  };
+
+  const renderExcellenceTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8 max-w-5xl">
+      <h3 className="text-xl font-bold text-gray-800 mb-6">{isEditingExcellence ? 'Edit Excellence Record' : 'Add Notable Alumni'}</h3>
+      <form onSubmit={handleExcellenceSubmit} className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input type="text" placeholder="e.g. Mr. / Dr." value={excellenceForm.title} onChange={e => setExcellenceForm({...excellenceForm, title: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" />
+          </div>
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+            <input required type="text" value={excellenceForm.name} onChange={e => setExcellenceForm({...excellenceForm, name: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Passed Year</label>
+          <input type="text" value={excellenceForm.passedYear} onChange={e => setExcellenceForm({...excellenceForm, passedYear: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. 2010" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Designation / Role</label>
+          <input type="text" value={excellenceForm.designation} onChange={e => setExcellenceForm({...excellenceForm, designation: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. Software Engineer" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company / Organization</label>
+          <input type="text" value={excellenceForm.company} onChange={e => setExcellenceForm({...excellenceForm, company: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. Google" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+          <input type="text" value={excellenceForm.location} onChange={e => setExcellenceForm({...excellenceForm, location: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. California, USA" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Short Message / Achievement</label>
+          <textarea value={excellenceForm.message} onChange={e => setExcellenceForm({...excellenceForm, message: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" rows="2" placeholder="Describe their journey or achievement..."></textarea>
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Photo *</label>
+          <div className="flex flex-col gap-2">
+            {excellenceForm.photo && <img src={excellenceForm.photo} alt="Preview" className="w-16 h-16 object-cover rounded shadow border" />}
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={e => setExcellenceFile(e.target.files[0])} 
+              className="w-full p-2 border bg-white rounded-lg text-sm" 
+            />
+            {isExcellenceUploading && <span className="text-xs text-blue-500">Uploading...</span>}
+          </div>
+        </div>
+
+        <div className="md:col-span-2 flex gap-2 pt-4">
+          <button 
+            type="submit" 
+            disabled={isExcellenceUploading}
+            className="bg-primary text-white px-6 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors disabled:bg-gray-400"
+          >
+            {isExcellenceUploading ? 'Processing...' : (isEditingExcellence ? 'Update Record' : 'Add Notable Alumni')}
+          </button>
+          {isEditingExcellence && <button type="button" onClick={resetExcellenceForm} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>}
+        </div>
+      </form>
+
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Notable Alumni Directory</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
+              <th className="p-3">Photo</th>
+              <th className="p-3">Name</th>
+              <th className="p-3">Designation / Company</th>
+              <th className="p-3">Location</th>
+              <th className="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {centerOfExcellence?.map(item => (
+              <tr key={item._id || item.id} className="hover:bg-gray-50/50 transition-colors">
+                <td className="p-3"><img src={item.photo} alt={item.name} className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-200 bg-white" /></td>
+                <td className="p-3 font-medium text-gray-800">{item.name} <span className="text-xs text-gray-400">({item.passedYear})</span></td>
+                <td className="p-3 text-sm text-gray-600 font-bold">{item.designation} <span className="font-normal text-xs text-gray-500">at {item.company}</span></td>
+                <td className="p-3 text-sm text-gray-600">{item.location || '-'}</td>
+                <td className="p-3 text-right">
+                  <button onClick={() => handleEditExcellence(item)} className="text-blue-600 hover:text-blue-800 font-bold text-xs uppercase mr-4 transition-colors">Edit</button>
+                  <button onClick={() => handleDeleteExcellence(item._id || item.id)} className="text-red-500 hover:text-red-700 p-1 flex items-center justify-end font-bold text-xs uppercase transition-colors max-w-min ml-auto"><FaTrash /></button>
+                </td>
+              </tr>
+            ))}
+            {(!centerOfExcellence || centerOfExcellence.length === 0) && (
+              <tr><td colSpan="5" className="p-6 text-center text-gray-500">No notable alumni found.</td></tr>
             )}
           </tbody>
         </table>
@@ -2939,6 +3415,7 @@ function AdminPage() {
     const PAGES_REQUIRING_HERO = [
       { id: 'about', label: 'About Us' },
       { id: 'admission', label: 'Admissions' },
+      { id: 'alumestron', label: 'Alumestron' },
       { id: 'career', label: 'Career' },
       { id: 'complaints', label: 'Complaints' },
       { id: 'contact', label: 'Contact' },
@@ -2947,7 +3424,8 @@ function AdminPage() {
       { id: 'gallery', label: 'Gallery' },
       { id: 'notice', label: 'Notice Board' },
       { id: 'principal', label: "Principal's Desk" },
-      { id: 'studentPortal', label: 'Student Portal' }
+      { id: 'studentPortal', label: 'Student Portal' },
+      { id: 'tenders', label: 'Tenders' }
     ];
 
     return (
@@ -3898,79 +4376,515 @@ function AdminPage() {
     }
   }, [faqs, loading]);
 
-  const [localEmeritus, setLocalEmeritus] = useState(emeritus || []);
-  const localEmeritusInitRef = useRef(false);
+  const [editingEmeritusIndex, setEditingEmeritusIndex] = useState(null);
 
-  useEffect(() => {
-    if (!localEmeritusInitRef.current && !loading && emeritus) {
-      setLocalEmeritus(emeritus);
-      localEmeritusInitRef.current = true;
+  const handleEmeritusSubmit = async (e) => {
+    e.preventDefault();
+    if (!emeritusForm.name || !emeritusForm.role || !emeritusForm.category || !emeritusForm.status) {
+      alert("Name, Role, Category and Status are required.");
+      return;
     }
-  }, [emeritus, loading]);
-
-  const handleEmeritusImageUpload = async (e, index) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    
+    if (emeritusForm.status === 'Deceased' && !emeritusForm.causeOfDeath) {
+      alert("Please provide the cause of death for deceased members.");
+      return;
+    }
+    
+    setIsEmeritusUploading(true);
     try {
-      const url = await uploadImage(file);
-      const newE = [...localEmeritus];
-      newE[index].photo = url;
-      setLocalEmeritus(newE);
+      let photoUrl = emeritusForm.photo;
+      if (emeritusFile) {
+        photoUrl = await uploadImage(emeritusFile);
+      }
+
+      let newEmeritus;
+      if (isEditingEmeritus) {
+        newEmeritus = emeritus.map((item, idx) => 
+          idx === editingEmeritusIndex ? { ...emeritusForm, photo: photoUrl } : item
+        );
+      } else {
+        newEmeritus = [...(emeritus || []), { ...emeritusForm, photo: photoUrl }];
+      }
+
+      await updateSiteContent({ emeritus: newEmeritus });
+      resetEmeritusForm();
+      alert(isEditingEmeritus ? "Emeritus updated successfully!" : "Emeritus added successfully!");
     } catch (err) {
-      alert("Image upload failed: " + err.message);
+      alert("Emeritus save failed: " + err.message);
+    }
+    setIsEmeritusUploading(false);
+  };
+
+  const handleEditEmeritus = (member, index) => {
+    setEmeritusForm(member);
+    setEditingEmeritusIndex(index);
+    setIsEditingEmeritus(true);
+    // Scroll to form
+    const formElement = document.getElementById('emeritus-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleDeleteEmeritus = async (index) => {
+    if (window.confirm('Delete this emeritus member?')) {
+      const newEmeritus = emeritus.filter((_, i) => i !== index);
+      await updateSiteContent({ emeritus: newEmeritus });
     }
   };
 
   const renderEmeritusTab = () => {
-    const handleSaveEmeritus = async () => {
-      await updateSiteContent({ emeritus: localEmeritus });
-      alert('Emeritus updated successfully!');
-    };
-
     return (
       <div className="space-y-8 animate-fadeIn">
-        <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-3xl font-headline font-bold text-gray-800">Emeritus Management</h2>
-            <p className="text-gray-500 mt-2">Manage the list of retired/former staff and leadership.</p>
-          </div>
-          <button onClick={handleSaveEmeritus} className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-md">
-            <FaSave /> Save All Changes
-          </button>
+        <header className="mb-8">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">Alumestron Management</h2>
+          <p className="text-gray-500 mt-2">Manage the list of retired/deceased staff, teachers, and students.</p>
         </header>
 
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center border-b pb-4 mb-4">
-            <h3 className="text-xl font-bold text-gray-800">Emeritus Members</h3>
-            <button onClick={() => setLocalEmeritus([...(localEmeritus || []), { name: '', role: '', tenure: '', message: '', photo: '' }])} className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold">
-              <FaPlus className="mr-2" /> Add Emeritus
-            </button>
-          </div>
-          <div className="space-y-4">
-            {(localEmeritus || []).map((member, index) => (
-              <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start flex-col md:flex-row">
-                <div className="flex-1 space-y-3 w-full">
-                  <input type="text" value={member.name || ''} onChange={(e) => { const n = [...localEmeritus]; n[index].name = e.target.value; setLocalEmeritus(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold" placeholder="Name (e.g. Fr. Alex Kapiarumala)" />
-                  <input type="text" value={member.role || ''} onChange={(e) => { const n = [...localEmeritus]; n[index].role = e.target.value; setLocalEmeritus(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary" placeholder="Role (e.g. Former Principal)" />
-                  <input type="text" value={member.tenure || ''} onChange={(e) => { const n = [...localEmeritus]; n[index].tenure = e.target.value; setLocalEmeritus(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary" placeholder="Tenure (e.g. 1986-1992)" />
-                  <textarea value={member.message || ''} onChange={(e) => { const n = [...localEmeritus]; n[index].message = e.target.value; setLocalEmeritus(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[80px]" placeholder="Short Description / Message" />
-                </div>
-                <div className="w-full md:w-48 flex flex-col items-center gap-2">
-                  <label className="text-sm font-bold text-gray-700">Photo</label>
-                  {member.photo && <img src={member.photo} alt="Preview" className="w-24 h-24 object-cover rounded-xl shadow-sm border bg-white" />}
-                  <input type="file" accept="image/*" onChange={(e) => handleEmeritusImageUpload(e, index)} className="w-full p-2 border bg-white rounded-lg text-xs" />
-                </div>
-                <button onClick={() => { const n = [...localEmeritus]; n.splice(index, 1); setLocalEmeritus(n); }} className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors mt-4 md:mt-0">
-                  <FaTrash />
-                </button>
-              </div>
-            ))}
-            {(!localEmeritus || localEmeritus.length === 0) && (
-              <div className="text-center py-10 text-gray-500">
-                <FaUserTie className="mx-auto text-4xl mb-3 text-gray-300" />
-                <p>No Emeritus members added yet.</p>
+        {/* Form Section */}
+        <section id="emeritus-form" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">{isEditingEmeritus ? 'Edit Alumestron Member' : 'Add New Alumestron Member'}</h3>
+          <form onSubmit={handleEmeritusSubmit} className="bg-gray-50 p-6 rounded-xl border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Name *</label>
+              <input 
+                required 
+                type="text" 
+                value={emeritusForm.name} 
+                onChange={e => setEmeritusForm({...emeritusForm, name: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+                placeholder="e.g. Fr. Alex Kapiarumala"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Role *</label>
+              <input 
+                required 
+                type="text" 
+                value={emeritusForm.role} 
+                onChange={e => setEmeritusForm({...emeritusForm, role: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+                placeholder="e.g. Former Principal / Senior Teacher"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Category *</label>
+              <select 
+                required 
+                value={emeritusForm.category} 
+                onChange={e => setEmeritusForm({...emeritusForm, category: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white"
+              >
+                <option value="Staff">Staff</option>
+                <option value="Teacher">Teacher</option>
+                <option value="Student">Student</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Status *</label>
+              <select 
+                required 
+                value={emeritusForm.status} 
+                onChange={e => setEmeritusForm({...emeritusForm, status: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white"
+              >
+                <option value="Retired">Retired</option>
+                <option value="Deceased">Deceased</option>
+              </select>
+            </div>
+            {emeritusForm.status === 'Deceased' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-gray-700 mb-1">Cause of Death *</label>
+                <input 
+                  required 
+                  type="text" 
+                  value={emeritusForm.causeOfDeath} 
+                  onChange={e => setEmeritusForm({...emeritusForm, causeOfDeath: e.target.value})} 
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+                  placeholder="e.g. Natural Causes / Accident"
+                />
               </div>
             )}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Tenure</label>
+              <input 
+                type="text" 
+                value={emeritusForm.tenure} 
+                onChange={e => setEmeritusForm({...emeritusForm, tenure: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+                placeholder="e.g. 1986 - 1992"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Message / Description</label>
+              <textarea 
+                value={emeritusForm.message} 
+                onChange={e => setEmeritusForm({...emeritusForm, message: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white min-h-[100px]" 
+                placeholder="A short message or description about their contribution..."
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Photo *</label>
+              <div className="flex flex-col gap-3">
+                {emeritusForm.photo && <img src={emeritusForm.photo} alt="Preview" className="w-24 h-24 object-cover rounded-xl shadow-sm border bg-white" />}
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => setEmeritusFile(e.target.files[0])} 
+                  className="w-full p-2 border bg-white rounded-lg text-sm" 
+                />
+                {isEmeritusUploading && <span className="text-xs text-blue-500 font-bold flex items-center gap-2"><FaSpinner className="animate-spin" /> Processing...</span>}
+              </div>
+            </div>
+            <div className="md:col-span-2 flex gap-3 pt-4 border-t mt-2">
+              <button 
+                type="submit" 
+                disabled={isEmeritusUploading}
+                className="bg-primary text-white px-8 py-3 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-md flex items-center gap-2 disabled:bg-gray-400"
+              >
+                {isEmeritusUploading ? <FaSpinner className="animate-spin" /> : (isEditingEmeritus ? <FaSave /> : <FaPlus />)}
+                {isEditingEmeritus ? 'Update Member' : 'Add Member'}
+              </button>
+              {isEditingEmeritus && (
+                <button type="button" onClick={resetEmeritusForm} className="bg-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold hover:bg-gray-300 transition-all">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        {/* List Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Existing Alumestron Members</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {emeritus?.map((member, index) => (
+              <div key={index} className="group relative bg-gray-50 rounded-2xl p-5 border border-gray-100 hover:border-primary/30 hover:shadow-md transition-all">
+                <div className="flex items-center gap-4 mb-4">
+                  <img src={member.photo || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150"} alt={member.name} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-gray-800 truncate text-sm">{member.name}</h4>
+                    <p className="text-[10px] text-primary font-bold uppercase tracking-wider">{member.role} • {member.category}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">
+                      {member.status} {member.tenure ? `(${member.tenure})` : ''}
+                    </p>
+                    {member.status === 'Deceased' && (
+                      <p className="text-[9px] text-red-500 font-bold mt-0.5">Cause: {member.causeOfDeath}</p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-500 line-clamp-3 mb-4 italic bg-white/50 p-2 rounded-lg border border-gray-100">"{member.message || 'No message provided.'}"</p>
+                <div className="flex gap-2 justify-end pt-3 border-t border-gray-200/50">
+                  <button 
+                    onClick={() => handleEditEmeritus(member, index)}
+                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest"
+                    title="Edit"
+                  >
+                    <FaEdit /> Edit
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteEmeritus(index)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest"
+                    title="Delete"
+                  >
+                    <FaTrash /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+            {(!emeritus || emeritus.length === 0) && (
+              <div className="col-span-full py-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                <FaUserTie className="mx-auto text-5xl mb-4 text-gray-300" />
+                <p className="text-gray-500 font-medium">No legacy members found. Add one above!</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderTendersTab = () => {
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-4">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">Tender Management</h2>
+          <p className="text-gray-500 mt-2">Manage school tender notices and review vendor applications.</p>
+        </header>
+
+        {/* Post/Edit Tender Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <FaGavel className="text-primary" /> {editingTenderId ? 'Edit Tender Notice' : 'Post New Tender'}
+          </h3>
+          <form onSubmit={handleTenderSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Tender Title *</label>
+              <input 
+                type="text" 
+                value={newTender.title} 
+                onChange={e => setNewTender({...newTender, title: e.target.value})}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+                placeholder="e.g. Supply of Science Laboratory Equipment"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Tender Number *</label>
+              <input 
+                type="text" 
+                value={newTender.tenderNumber} 
+                onChange={e => setNewTender({...newTender, tenderNumber: e.target.value})}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+                placeholder="e.g. HNS/2025/T-04"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Category</label>
+              <select 
+                value={newTender.category} 
+                onChange={e => setNewTender({...newTender, category: e.target.value})}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-white"
+              >
+                <option value="Construction">Construction</option>
+                <option value="Supplies">Supplies</option>
+                <option value="Services">Services</option>
+                <option value="IT & Computers">IT & Computers</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Estimated Value (₹)</label>
+              <input 
+                type="text" 
+                value={newTender.estimatedValue} 
+                onChange={e => setNewTender({...newTender, estimatedValue: e.target.value})}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+                placeholder="e.g. 5,00,000"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Closing Date *</label>
+              <input 
+                type="date" 
+                value={newTender.closingDate} 
+                onChange={e => setNewTender({...newTender, closingDate: e.target.value})}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+                required
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+              <textarea 
+                value={newTender.description} 
+                onChange={e => setNewTender({...newTender, description: e.target.value})}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none min-h-[100px]"
+                placeholder="Brief description of the tender requirements..."
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Tender Document (PDF)</label>
+              <div className="flex items-center gap-4">
+                <input 
+                  type="file" 
+                  accept=".pdf"
+                  onChange={e => setTenderFile(e.target.files[0])}
+                  className="flex-1 p-2 border border-dashed border-gray-300 rounded-xl text-sm"
+                />
+                {newTender.documentUrl && !tenderFile && (
+                  <span className="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded">Current Doc Exists</span>
+                )}
+              </div>
+            </div>
+            <div className="md:col-span-2 flex gap-3">
+              <button 
+                type="submit" 
+                disabled={isTenderUploading}
+                className="bg-primary text-white px-8 py-3 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-md flex items-center gap-2 disabled:bg-gray-400"
+              >
+                {isTenderUploading ? <FaSpinner className="animate-spin" /> : (editingTenderId ? <FaEdit /> : <FaPlus />)}
+                {editingTenderId ? 'Update Tender' : 'Post Tender'}
+              </button>
+              {editingTenderId && (
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setEditingTenderId(null);
+                    setNewTender({ title: '', tenderNumber: '', category: 'Other', description: '', estimatedValue: '', closingDate: '', documentUrl: '' });
+                    setTenderFile(null);
+                  }}
+                  className="bg-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold hover:bg-gray-300 transition-all"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        {/* Tenders List */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Active Tender Notices</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                  <th className="pb-3 px-2">Tender No.</th>
+                  <th className="pb-3">Title</th>
+                  <th className="pb-3">Closing Date</th>
+                  <th className="pb-3">Applications</th>
+                  <th className="pb-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {tenders.map(tender => {
+                  const appCount = tenderApplications.filter(a => a.tender?._id === tender._id || a.tender === tender._id).length;
+                  return (
+                    <tr key={tender._id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-2 font-mono text-xs font-bold text-blue-600">{tender.tenderNumber}</td>
+                      <td className="py-4 font-bold text-gray-800">{tender.title}</td>
+                      <td className="py-4 text-sm text-gray-600">
+                        {new Date(tender.closingDate).toLocaleDateString()}
+                        {new Date(tender.closingDate) < new Date() && (
+                          <span className="ml-2 bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-black uppercase">Expired</span>
+                        )}
+                      </td>
+                      <td className="py-4 text-sm font-bold text-gray-500">{appCount} Received</td>
+                      <td className="py-4 text-right">
+                        <button 
+                          onClick={() => {
+                            setEditingTenderId(tender._id);
+                            setNewTender({
+                              title: tender.title,
+                              tenderNumber: tender.tenderNumber,
+                              category: tender.category,
+                              description: tender.description || '',
+                              estimatedValue: tender.estimatedValue || '',
+                              closingDate: tender.closingDate ? new Date(tender.closingDate).toISOString().split('T')[0] : '',
+                              documentUrl: tender.documentUrl
+                            });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="text-blue-500 hover:text-blue-700 mr-4"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteTender(tender._id)}
+                          className="text-red-400 hover:text-red-600"
+                        >
+                          <FaTrash />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {tenders.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="py-12 text-center text-gray-400 italic">No tenders posted yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Tender Applications Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              Tender Submissions (Bids)
+            </h3>
+            <div className="flex items-center gap-4">
+              <div className="text-xs font-black uppercase text-gray-400">Total: {tenderApplications.length}</div>
+              <button 
+                onClick={handleExportTenders}
+                disabled={isExportingTenders || tenderApplications.length === 0}
+                className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isExportingTenders ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                {isExportingTenders ? 'Exporting...' : 'Export to Excel'}
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                  <th className="pb-3 px-2">Ref No.</th>
+                  <th className="pb-3">Company</th>
+                  <th className="pb-3">Tender</th>
+                  <th className="pb-3">Bid Details</th>
+                  <th className="pb-3">Status</th>
+                  <th className="pb-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {tenderApplications.map(app => (
+                  <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="py-4 px-2 font-mono text-xs font-bold text-green-600">{app.referenceNumber}</td>
+                    <td className="py-4">
+                      <div className="font-bold text-gray-800">{app.companyName}</div>
+                      <div className="text-[10px] text-gray-400">{app.contactPerson} | {app.phone}</div>
+                    </td>
+                    <td className="py-4 text-sm text-gray-600 max-w-[200px] truncate">
+                      {app.tender?.title || 'Unknown Tender'}
+                    </td>
+                    <td className="py-4 text-sm text-gray-600">
+                       <div className="font-bold text-primary">₹{app.bidAmount}</div>
+                       <div className="flex gap-2 mt-1">
+                          <a href={app.technicalProposalUrl} target="_blank" rel="noreferrer" className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 transition-colors">Technical</a>
+                          <a href={app.financialProposalUrl} target="_blank" rel="noreferrer" className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 hover:bg-green-100 transition-colors">Financial</a>
+                       </div>
+                    </td>
+                    <td className="py-4">
+                      <select 
+                        value={app.status} 
+                        onChange={(e) => handleTenderAppStatus(app._id, e.target.value)}
+                        className={`text-[10px] font-black uppercase px-2 py-1 rounded-full border bg-white focus:ring-1 outline-none ${
+                          app.status === 'awarded' ? 'text-green-700 border-green-200' :
+                          app.status === 'rejected' ? 'text-red-700 border-red-200' :
+                          'text-amber-700 border-amber-200'
+                        }`}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="reviewed">Reviewed</option>
+                        <option value="shortlisted">Shortlisted</option>
+                        <option value="awarded">Awarded</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    </td>
+                    <td className="py-4 text-right">
+                       <button 
+                         onClick={() => {
+                           if(window.confirm('Delete this application?')) {
+                             const token = localStorage.getItem('adminToken');
+                             fetch(`${API_URL}/tender-applications/${app._id}`, {
+                               method: 'DELETE',
+                               headers: { Authorization: `Bearer ${token}` }
+                             }).then(res => {
+                               if(res.ok) setTenderApplications(tenderApplications.filter(a => a._id !== app._id));
+                             });
+                           }
+                         }}
+                         className="text-red-400 hover:text-red-600"
+                       >
+                         <FaTrash />
+                       </button>
+                    </td>
+                  </tr>
+                ))}
+                {tenderApplications.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="py-12 text-center text-gray-400 italic">No tender applications received yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
@@ -4128,7 +5042,8 @@ function AdminPage() {
             { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher /> },
             { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList /> },
             { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap /> },
-            { id: 'emeritus', label: 'Emeritus', icon: <FaUserTie /> },
+            { id: 'excellence', label: 'Excellence', icon: <FaAward /> },
+            { id: 'emeritus', label: 'Alumestron', icon: <FaUserTie /> },
             { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase /> },
             { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt /> },
             { id: 'stats', label: 'Home Stats', icon: <FaChartLine /> },
@@ -4154,7 +5069,8 @@ function AdminPage() {
             { id: 'applications', label: 'Applications', icon: <FaClipboardList /> },
             { id: 'students', label: 'Students', icon: <FaUsers /> },
             { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots />, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
-            { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase /> }
+            { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase /> },
+            { id: 'tenders', label: 'Tenders', icon: <FaGavel /> }
           ].map(item => (
             <button 
               key={item.id}
@@ -4230,7 +5146,11 @@ function AdminPage() {
             </button>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-gray-800 capitalize tracking-tight">
-                {activeTab === 'dashboard' ? `Welcome back, ${adminUser?.name?.split(' ')[0] || 'Admin'}` : activeTab.replace(/([A-Z])/g, ' $1').trim()}
+                {activeTab === 'dashboard' 
+                  ? `Welcome back, ${adminUser?.name?.split(' ')[0] || 'Admin'}` 
+                  : activeTab === 'emeritus' 
+                    ? 'Alumestron' 
+                    : activeTab.replace(/([A-Z])/g, ' $1').trim()}
               </h1>
               <p className="text-xs text-gray-400 hidden sm:block">
                 {activeTab === 'dashboard' 
@@ -4268,6 +5188,7 @@ function AdminPage() {
         <main className="flex-1 overflow-y-auto p-4 md:p-8" style={{ backgroundColor: '#F8FAFC' }}>
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'gallery' && renderGalleryTab()}
+          {activeTab === 'tenders' && renderTendersTab()}
           {activeTab === 'videos' && renderVideosTab()}
           {activeTab === 'banner' && renderBannerTab()}
           {activeTab === 'highlights' && renderHighlightsTab()}
@@ -4276,6 +5197,7 @@ function AdminPage() {
           {activeTab === 'faculty' && renderFacultyTab()}
           { activeTab === 'principal' && renderPrincipalTab() }
           { activeTab === 'alumni' && renderAlumniTab() }
+          { activeTab === 'excellence' && renderExcellenceTab() }
           { activeTab === 'emeritus' && renderEmeritusTab() }
           { activeTab === 'socialMedia' && renderSocialMediaTab() }
           { activeTab === 'stats' && renderStatsTab() }
@@ -4290,15 +5212,25 @@ function AdminPage() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h3 className="text-xl font-bold text-gray-800">Admission Applications</h3>
-                <div className="relative w-full sm:w-64">
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Search by name or reference..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-64">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Search by name or reference..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleExportAdmissions}
+                    disabled={isExportingAdmissions || filteredApps.length === 0}
+                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {isExportingAdmissions ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                    {isExportingAdmissions ? 'Exporting...' : 'Export to Excel'}
+                  </button>
                 </div>
               </div>
               {filteredApps.length === 0 ? (
@@ -4724,8 +5656,18 @@ function AdminPage() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Job Applications</h3>
-                <div className="flex gap-2 text-xs font-black uppercase text-gray-400">
-                   Total Received: {jobApplications.length}
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-2 text-xs font-black uppercase text-gray-400">
+                     Total Received: {jobApplications.length}
+                  </div>
+                  <button 
+                    onClick={handleExportJobs}
+                    disabled={isExportingJobs || jobApplications.length === 0}
+                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isExportingJobs ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                    {isExportingJobs ? 'Exporting...' : 'Export to Excel'}
+                  </button>
                 </div>
               </div>
 

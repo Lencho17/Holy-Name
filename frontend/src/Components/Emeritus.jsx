@@ -1,16 +1,24 @@
 import React, { useContext } from "react";
-import { FaUserTie, FaCalendarAlt } from "react-icons/fa";
+import { FaUserTie, FaCalendarAlt, FaSkullCrossbones, FaRibbon } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Emeritus() {
   const { emeritus, schoolProfile } = useContext(SiteDataContext);
 
-  const EmeritusCard = ({ member }) => (
+  const categories = ["Staff", "Teacher", "Student"];
+
+  const LegacyCard = ({ member }) => (
     <div className="relative bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100/80 group overflow-hidden flex flex-col items-center flex-1 transform hover:-translate-y-2 h-full">
       
       {/* Decorative background elements */}
       <div className="absolute -top-24 -right-24 w-48 h-48 bg-gradient-to-br from-indigo-100/40 to-blue-50/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700 pointer-events-none z-0"></div>
       <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-gradient-to-br from-amber-100/40 to-orange-50/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700 pointer-events-none z-0"></div>
+
+      {/* Status Badge (Top Left) */}
+      <div className={`absolute top-4 left-4 z-20 flex items-center ${member.status === 'Deceased' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'} text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-sm border border-current/10 backdrop-blur-sm`}>
+        {member.status === 'Deceased' ? <FaSkullCrossbones className="mr-1.5" /> : <FaRibbon className="mr-1.5" />}
+        {member.status}
+      </div>
 
       {/* Role Badge (Top Right) */}
       {member.role && (
@@ -21,14 +29,14 @@ function Emeritus() {
       )}
 
       {/* Profile Image with animated ring on hover */}
-      <div className="relative z-10 w-32 h-32 mb-5 mt-4 group">
-        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-[2px] -m-[2px]"></div>
+      <div className="relative z-10 w-32 h-32 mb-5 mt-10 group">
+        <div className={`absolute inset-0 rounded-full bg-gradient-to-tr ${member.status === 'Deceased' ? 'from-gray-400 via-gray-600 to-gray-400' : 'from-indigo-500 via-purple-500 to-amber-400'} opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-[2px] -m-[2px]`}></div>
         <div className="absolute inset-0 rounded-full border-2 border-dashed border-gray-200 group-hover:border-transparent transition-colors duration-300"></div>
         <div className="absolute inset-0 bg-white rounded-full m-[1px]"></div>
         <img
           src={member.photo || "https://images.unsplash.com/photo-1544717302-de2939b7ef71?w=150&h=150&fit=crop"}
           alt={member.name}
-          className="w-full h-full object-cover rounded-full shadow-inner relative z-10 p-[2px]"
+          className={`w-full h-full object-cover rounded-full shadow-inner relative z-10 p-[2px] ${member.status === 'Deceased' ? 'grayscale group-hover:grayscale-0 transition-all duration-700' : ''}`}
         />
       </div>
 
@@ -37,10 +45,14 @@ function Emeritus() {
         <h3 className="text-xl font-bold text-gray-800 mb-1 group-hover:text-indigo-600 transition-colors text-center">{member.name}</h3>
         
         {member.tenure && (
-          <div className="flex items-center text-[12px] font-bold text-amber-500 tracking-wider uppercase mb-5 mt-1 bg-amber-50 px-3 py-1 rounded-full">
+          <div className="flex items-center text-[12px] font-bold text-amber-500 tracking-wider uppercase mb-3 mt-1 bg-amber-50 px-3 py-1 rounded-full">
             <FaCalendarAlt className="mr-1.5" size={10} />
             {member.tenure}
           </div>
+        )}
+
+        {member.status === 'Deceased' && member.causeOfDeath && (
+          <p className="text-[10px] text-red-500 font-bold uppercase tracking-tighter mb-4 opacity-80">Cause: {member.causeOfDeath}</p>
         )}
 
         {member.message && (
@@ -58,11 +70,11 @@ function Emeritus() {
       <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
         <div className="absolute inset-0 z-0">
           <img
-            src={schoolProfile?.pageHeroImages?.emeritus || "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop"}
-            alt="Emeritus"
+            src={schoolProfile?.pageHeroImages?.alumestron || schoolProfile?.pageHeroImages?.legacyWall || schoolProfile?.pageHeroImages?.emeritus || "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop"}
+            alt="Alumestron"
             className="w-full h-full object-cover opacity-95"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-700/60 via-blue-700/30 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-blue-800/40 to-transparent"></div>
         </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 w-full text-left">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50/30 text-white border border-white/20 backdrop-blur-sm shadow-sm mb-4">
@@ -70,41 +82,49 @@ function Emeritus() {
               history_edu
             </span>
             <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-sm">
-              Honoring Our Past
+              Honoring Our Eternal Community
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Our <span className="text-amber-400 italic drop-shadow-md">Emeritus</span>
+            Alumestron
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
-            Honoring the distinguished leadership and foundational figures who have shaped our institution's legacy.
+            Celebrating the lives, contributions, and enduring impact of the staff, teachers, and students who remain forever a part of our school's heart.
           </p>
         </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 mt-16 space-y-24">
-        <section>
-          <div className="text-center mb-12">
-            <h2 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-8">
-              Legacy of <span className="text-amber-600 italic">Excellence</span>
-            </h2>
-            <div className="h-1 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
-            <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Celebrating the contributions of our retired staff and visionaries who dedicated their lives to education and the growth of our community.</p>
+        {categories.map(cat => {
+          const filteredMembers = (emeritus || []).filter(m => m.category === cat);
+          if (filteredMembers.length === 0) return null;
+
+          return (
+            <section key={cat} className="animate-fade-in-up">
+              <div className="flex items-center gap-4 mb-12">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-gray-200"></div>
+                <h2 className="font-serif text-3xl md:text-4xl font-black text-gray-900 px-6 py-3 bg-white rounded-2xl shadow-sm border border-gray-50">
+                  <span className="text-amber-600 italic">Distinguished</span> {cat}s
+                </h2>
+                <div className="h-px flex-1 bg-gradient-to-l from-transparent via-gray-200 to-gray-200"></div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {filteredMembers.map((member, index) => (
+                  <LegacyCard key={`${cat}-${index}`} member={member} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        {(!emeritus || emeritus.length === 0) && (
+          <div className="text-center py-20 bg-white rounded-[3rem] shadow-sm border border-gray-100">
+            <FaUserTie className="mx-auto text-6xl text-gray-200 mb-4" />
+            <p className="text-xl text-gray-500 font-medium">Alumestron is being prepared.</p>
+            <p className="text-sm text-gray-400 mt-2">Check back soon as we honor our community members.</p>
           </div>
-          
-          {(!emeritus || emeritus.length === 0) ? (
-            <div className="text-center py-20">
-              <FaUserTie className="mx-auto text-6xl text-gray-200 mb-4" />
-              <p className="text-xl text-gray-500 font-medium">No emeritus members have been added yet.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {emeritus.map((member, index) => (
-                <EmeritusCard key={`emeritus-${index}`} member={member} />
-              ))}
-            </div>
-          )}
-        </section>
+        )}
       </div>
     </div>
   );

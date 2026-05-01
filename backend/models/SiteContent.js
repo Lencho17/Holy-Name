@@ -11,6 +11,8 @@ const siteContentSchema = new mongoose.Schema({
       featured: { type: Boolean, default: false },
       description: String,
       eventId: { type: Number, default: null },
+      albumId: { type: String, default: null },
+      isAlbumCover: { type: Boolean, default: false },
       views: { type: Number, default: 0 },
     },
   ],
@@ -61,6 +63,19 @@ const siteContentSchema = new mongoose.Schema({
       level: String, // 'HSLC' or 'HS'
       stream: String, // 'Arts', 'Science', 'Commerce'
       subjects: [String],
+      photo: String,
+      description: String,
+    }
+  ],
+  centerOfExcellence: [
+    {
+      id: Number,
+      name: String,
+      passedYear: String,
+      designation: String,
+      company: String,
+      location: String,
+      message: String,
       photo: String,
     }
   ],
@@ -116,6 +131,9 @@ const siteContentSchema = new mongoose.Schema({
       tenure: String,
       message: String,
       photo: String,
+      category: { type: String, enum: ['Staff', 'Teacher', 'Student'], default: 'Staff' },
+      status: { type: String, enum: ['Retired', 'Deceased'], default: 'Retired' },
+      causeOfDeath: String,
     }
   ],
   visionStatement: {
@@ -171,7 +189,8 @@ const siteContentSchema = new mongoose.Schema({
       gallery: { type: String, default: "" },
       notice: { type: String, default: "" },
       principal: { type: String, default: "" },
-      studentPortal: { type: String, default: "" }
+      studentPortal: { type: String, default: "" },
+      alumestron: { type: String, default: "" }
     }
   },
   coursesPage: {

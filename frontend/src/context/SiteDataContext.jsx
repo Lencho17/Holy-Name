@@ -141,6 +141,7 @@ export const SiteDataProvider = ({ children }) => {
   const [headMistress, setHeadMistress] = useState(defaultHeadMistress);
   const [schoolProfile, setSchoolProfile] = useState(defaultSchoolProfile);
   const [emeritus, setEmeritus] = useState([]);
+  const [centerOfExcellence, setCenterOfExcellence] = useState([]);
   const [coursesPage, setCoursesPage] = useState(defaultCoursesPage);
   const [loading, setLoading] = useState(true);
 
@@ -174,6 +175,7 @@ export const SiteDataProvider = ({ children }) => {
         if (data.headMistress && typeof data.headMistress === 'object') setHeadMistress(data.headMistress);
         if (data.schoolProfile && typeof data.schoolProfile === 'object') setSchoolProfile(data.schoolProfile);
         if (Array.isArray(data.emeritus)) setEmeritus(data.emeritus);
+        if (Array.isArray(data.centerOfExcellence)) setCenterOfExcellence(data.centerOfExcellence);
         if (data.coursesPage && typeof data.coursesPage === 'object') setCoursesPage(data.coursesPage);
       } catch (error) {
         console.warn('Backend polling error or using local defaults:', error.message);
@@ -243,6 +245,7 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.headMistress) setHeadMistress(updatedData.headMistress);
       if (updatedData.schoolProfile) setSchoolProfile(updatedData.schoolProfile);
       if (updatedData.emeritus) setEmeritus(updatedData.emeritus);
+      if (updatedData.centerOfExcellence) setCenterOfExcellence(updatedData.centerOfExcellence);
       if (updatedData.coursesPage) setCoursesPage(updatedData.coursesPage);
 
       // console.log("Auto-save successful");
@@ -274,6 +277,7 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.headMistress !== undefined) setHeadMistress(updates.headMistress);
     if (updates.schoolProfile !== undefined) setSchoolProfile(updates.schoolProfile);
     if (updates.emeritus !== undefined) setEmeritus(updates.emeritus);
+    if (updates.centerOfExcellence !== undefined) setCenterOfExcellence(updates.centerOfExcellence);
     if (updates.coursesPage !== undefined) setCoursesPage(updates.coursesPage);
 
     // 2. Persist to backend in ONE request
@@ -350,6 +354,7 @@ export const SiteDataProvider = ({ children }) => {
   const wrapSetHeadMistress = (val) => { setHeadMistress(val); saveToBackend({ headMistress: val }); };
   const wrapSetSchoolProfile = (val) => { setSchoolProfile(val); saveToBackend({ schoolProfile: val }); };
   const wrapSetEmeritus = (val) => { setEmeritus(val); saveToBackend({ emeritus: val }); };
+  const wrapSetCenterOfExcellence = (val) => { setCenterOfExcellence(val); saveToBackend({ centerOfExcellence: val }); };
   const wrapSetCoursesPage = (val) => { setCoursesPage(val); saveToBackend({ coursesPage: val }); };
 
   return (
@@ -373,6 +378,7 @@ export const SiteDataProvider = ({ children }) => {
       headMistress, setHeadMistress: wrapSetHeadMistress,
       schoolProfile, setSchoolProfile: wrapSetSchoolProfile,
       emeritus, setEmeritus: wrapSetEmeritus,
+      centerOfExcellence, setCenterOfExcellence: wrapSetCenterOfExcellence,
       coursesPage, setCoursesPage: wrapSetCoursesPage,
       updateSiteContent,
       uploadImage,

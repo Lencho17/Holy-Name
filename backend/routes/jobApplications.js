@@ -18,191 +18,156 @@ const sendApplicationEmail = async (appData) => {
     const mailOptions = {
       from: `"Holy Name Recruitment" <${process.env.EMAIL_USER}>`,
       to: receiverEmail,
-      subject: `New Job Application: ${appData.fullName}`,
+      subject: `New Job Application: ${appData.referenceNumber}`,
       html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <h2 style="color: #1e40af;">New Job Application Received</h2>
-          <p><strong>Reference:</strong> ${appData.referenceNumber}</p>
-          <p><strong>Name:</strong> ${appData.fullName}</p>
-          <p><strong>Qualification:</strong> ${appData.qualification}</p>
-          <p><strong>Experience:</strong> ${appData.totalExperience}</p>
-          <p><strong>Email:</strong> ${appData.email}</p>
-          <p><strong>Phone:</strong> ${appData.phone}</p>
-          <br/>
-          <p><a href="${process.env.CLIENT_URL}/admin" style="background-color: #1e40af; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View in Admin Panel</a></p>
-        </div>
+        <h2>New Job Application Received</h2>
+        <p><strong>Reference Number:</strong> ${appData.referenceNumber}</p>
+        <p><strong>Applicant Name:</strong> ${appData.fullName}</p>
+        <p><strong>Qualification:</strong> ${appData.qualification}</p>
+        <p><strong>Experience:</strong> ${appData.isExperienced ? `${appData.totalExperience} Years` : 'Fresher'}</p>
+        <p><strong>Contact:</strong> ${appData.phone} | ${appData.email}</p>
+        <p>View all applications in the Admin Dashboard.</p>
+        <p><a href="${process.env.CLIENT_URL}/admin">Go to Admin Dashboard</a></p>
       `,
     };
     await transporter.sendMail(mailOptions);
   } catch (err) {
-    console.error('Failed to send application alert email:', err.message);
+    console.error('Failed to send recruitment alert email:', err.message);
   }
 };
 
-const sendApplicantConfirmationEmail = async (appData) => {
-  try {
-    const siteContent = await SiteContent.findOne();
-    const schoolLogo = siteContent?.schoolProfile?.logo || 'https://holynamehsschool.in/logo.png';
-    const schoolName = siteContent?.schoolProfile?.name || 'Holy Name High School';
-    const schoolTagline = siteContent?.schoolProfile?.punchLine || 'Excellence in Education';
-
-    const mailOptions = {
-      from: `"${schoolName}" <${process.env.EMAIL_USER}>`,
-      to: appData.email,
-      subject: `Application Received: ${appData.referenceNumber}`,
-      html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
-          <div style="background-color: #1e3a8a; color: white; padding: 30px; text-align: center;">
-            ${schoolLogo ? `<img src="${schoolLogo}" alt="${schoolName}" style="max-height: 80px; margin-bottom: 15px; border-radius: 8px;">` : ''}
-            <h1 style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">${schoolName}</h1>
-            <p style="margin: 5px 0 0 0; opacity: 0.9; font-style: italic;">${schoolTagline}</p>
-          </div>
-          
-          <div style="padding: 30px; background-color: white;">
-            <h2 style="color: #1e3a8a; margin-top: 0; text-align: center;">Recruitment Acknowledgment</h2>
-            <p>Dear <strong>${appData.fullName}</strong>,</p>
-            <p>We have successfully received your job application at <strong>${schoolName}</strong>. Thank you for your interest in joining our academic community.</p>
-            
-            <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; margin: 20px 0; text-align: center; border-radius: 8px;">
-              <p style="margin: 0; font-size: 14px; text-transform: uppercase; color: #64748b; font-weight: bold;">Your Reference Number</p>
-              <p style="margin: 5px 0 0 0; font-size: 24px; color: #1e293b; font-weight: bold; font-family: monospace;">${appData.referenceNumber}</p>
-            </div>
-
-            <p>Our recruitment team will review your qualifications and experience. If your profile matches our requirements, we will contact you for a demo class and interview.</p>
-            
-            <p>In the meantime, feel free to visit our <a href="${process.env.CLIENT_URL || 'https://holynamehsschool.in'}" style="color: #2563eb;">official website</a> to learn more about our school's culture and values.</p>
-            
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0;" />
-            
-            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
-              This is an automated confirmation. Please do not reply to this email.<br/>
-              &copy; ${new Date().getFullYear()} ${schoolName}, Sivasagar.
-            </p>
-          </div>
-        </div>
-      `,
-    };
-    await transporter.sendMail(mailOptions);
-    console.log(`Confirmation email sent to ${appData.email}`);
-  } catch (err) {
-    console.error('Failed to send applicant confirmation email:', err.message);
-  }
-};
-
-// Storage Config
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => {
-    return {
-      folder: 'holyname/recruitment',
-      resource_type: 'auto',
-      allowed_formats: ['jpeg', 'jpg', 'png', 'pdf'],
-    };
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for resumes
-});
-
-// @desc    Submit job application
+// @desc    Submit a job application
 // @route   POST /api/job-applications
 // @access  Public
-router.post(
-  '/',
-  submissionLimiter,
-  upload.fields([
-    { name: 'marksheet10', maxCount: 1 }, { name: 'cert10', maxCount: 1 },
-    { name: 'marksheet12', maxCount: 1 }, { name: 'cert12', maxCount: 1 },
-    { name: 'marksheetUG', maxCount: 1 }, { name: 'certUG', maxCount: 1 },
-    { name: 'marksheetPG', maxCount: 1 }, { name: 'certPG', maxCount: 1 },
-    { name: 'marksheetBEd', maxCount: 1 }, { name: 'certBEd', maxCount: 1 },
-    { name: 'marksheetDLed', maxCount: 1 }, { name: 'certDLed', maxCount: 1 },
-    { name: 'expCertificate', maxCount: 1 },
-    { name: 'resume', maxCount: 1 },
-    { name: 'photo', maxCount: 1 },
-    { name: 'signature', maxCount: 1 },
-    { name: 'casteCertificate', maxCount: 1 }
-  ]),
-  async (req, res) => {
-    try {
-      const data = { ...req.body };
-      
-      // Map file paths
-      if (req.files) {
-        Object.keys(req.files).forEach(key => {
-          data[key] = req.files[key][0].path;
-        });
-      }
-
-      // Generate Reference
-      const year = new Date().getFullYear();
-      const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
-      data.referenceNumber = `JOB-${year}-${rand}`;
-
-      const application = await JobApplication.create(data);
-      
-      // Notify Admin & Applicant
-      sendApplicationEmail(application);
-      sendApplicantConfirmationEmail(application);
-
-      res.status(201).json({ 
-        message: 'Application submitted successfully', 
-        referenceNumber: application.referenceNumber 
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(400).json({ message: err.message });
-    }
-  }
-);
-
-// @desc    Track application status
-// @route   GET /api/job-applications/track/:referenceNumber
-// @access  Public
-router.get('/track/:referenceNumber', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const { email } = req.query;
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required for tracking.' });
+    // Generate Reference Number
+    const lastApp = await JobApplication.findOne().sort({ createdAt: -1 });
+    let nextNum = 1;
+    if (lastApp && lastApp.referenceNumber) {
+      const lastNum = parseInt(lastApp.referenceNumber.split('-')[2]);
+      if (!isNaN(lastNum)) nextNum = lastNum + 1;
     }
+    const refNum = `JOB-${new Date().getFullYear()}-${nextNum.toString().padStart(4, '0')}`;
 
-    const application = await JobApplication.findOne({ 
-      referenceNumber: req.params.referenceNumber,
-      email: email.toLowerCase()
-    }).populate('appliedFor', 'title');
-
-    if (!application) {
-      return res.status(404).json({ message: 'Application not found with provided Reference Number and Email.' });
-    }
-
-    res.json({
-      fullName: application.fullName,
-      status: application.status,
-      appliedForTitle: application.appliedFor?.title || 'General Application',
-      createdAt: application.createdAt
+    const application = new JobApplication({
+      ...req.body,
+      referenceNumber: refNum
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error while tracking application.' });
+
+    await application.save();
+    
+    // Send email alert to admin
+    await sendApplicationEmail(application);
+
+    res.status(201).json({
+      success: true,
+      message: 'Application submitted successfully',
+      referenceNumber: refNum
+    });
+  } catch (error) {
+    console.error('Job Submission Error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
-// @desc    Get all applications
+// @desc    Export all job applications to XLS (Must be before parameterized routes)
+router.get('/export', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  console.log('Export Job Applications triggered (HTML Table mode)');
+  try {
+    const applications = await JobApplication.find().sort({ createdAt: -1 });
+    
+    let html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <style>
+          .text { mso-number-format:"\\@"; }
+          th { background-color: #1e3a8a; color: white; font-weight: bold; }
+          td, th { border: 0.5pt solid #ccc; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr>
+            <th>Reference Number</th>
+            <th>Full Name</th>
+            <th>Date of Birth</th>
+            <th>Age</th>
+            <th>Gender</th>
+            <th>Qualification</th>
+            <th>Experienced</th>
+            <th>Experience (Years)</th>
+            <th>UDISE Code</th>
+            <th>Aadhar</th>
+            <th>PAN</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Caste</th>
+            <th>Religion</th>
+            <th>Address</th>
+            <th>Status</th>
+            <th>Application Date</th>
+          </tr>
+    `;
+
+    applications.forEach(a => {
+      html += `
+        <tr>
+          <td class="text">${a.referenceNumber || ''}</td>
+          <td>${a.fullName || ''}</td>
+          <td>${a.dob || ''}</td>
+          <td>${a.age || ''}</td>
+          <td>${a.gender || ''}</td>
+          <td>${a.qualification || ''}</td>
+          <td>${a.isExperienced ? 'YES' : 'NO'}</td>
+          <td>${a.totalExperience || ''}</td>
+          <td class="text">${a.udiseCode || ''}</td>
+          <td class="text">${a.aadhar || ''}</td>
+          <td class="text">${a.pan || ''}</td>
+          <td>${a.email || ''}</td>
+          <td class="text">${a.phone || ''}</td>
+          <td>${a.caste || ''}</td>
+          <td>${a.religion || ''}</td>
+          <td>${a.address || ''}</td>
+          <td>${a.status || ''}</td>
+          <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ''}</td>
+        </tr>
+      `;
+    });
+
+    html += `</table></body></html>`;
+
+    const fileName = `job_applications_export_${new Date().toISOString().split('T')[0]}.xls`;
+    
+    res.set('Content-Type', 'application/vnd.ms-excel');
+    res.set('Content-Disposition', `attachment; filename=${fileName}`);
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.removeHeader('ETag');
+
+    res.send(html);
+  } catch (error) {
+    console.error('Export Job Applications Error:', error.message);
+    res.status(500).json({ message: 'Failed to export job applications', error: error.message });
+  }
+});
+
+// @desc    Get all job applications
 // @route   GET /api/job-applications
 // @access  Private (Admin)
 router.get('/', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    const applications = await JobApplication.find().sort({ createdAt: -1 }).lean();
+    const applications = await JobApplication.find().sort({ createdAt: -1 });
     res.json(applications);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 // @desc    Update application status
-// @route   PATCH /api/job-applications/:id
+// @route   PATCH /api/job-applications/:id/status
 // @access  Private (Admin)
 router.patch('/:id/status', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
@@ -212,10 +177,29 @@ router.patch('/:id/status', protect, authorize('admin', 'superadmin'), async (re
       { status },
       { new: true }
     );
-    if (!application) return res.status(404).json({ message: 'Not found' });
+
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
     res.json(application);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @desc    Delete application
+// @route   DELETE /api/job-applications/:id
+// @access  Private (Admin)
+router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const application = await JobApplication.findByIdAndDelete(req.params.id);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+    res.json({ message: 'Application deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

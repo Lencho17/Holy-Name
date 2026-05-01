@@ -170,6 +170,88 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
+// --- Export Route (Must be before parameterized routes) ---
+// GET /api/admissions/export — protected, export all applications to XLS
+router.get('/export', protect, async (req, res) => {
+  console.log('Export Admissions triggered (HTML Table mode)');
+  try {
+    const applications = await Admission.find().sort({ createdAt: -1 });
+    
+    // Create HTML Table for Excel
+    let html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <style>
+          .text { mso-number-format:"\\@"; }
+          th { background-color: #1e3a8a; color: white; font-weight: bold; }
+          td, th { border: 0.5pt solid #ccc; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr>
+            <th>Reference Number</th>
+            <th>Student Name</th>
+            <th>Date of Birth</th>
+            <th>Class Applied</th>
+            <th>Gender</th>
+            <th>Religion</th>
+            <th>Father Name</th>
+            <th>Mother Name</th>
+            <th>Guardian Name</th>
+            <th>Contact Number</th>
+            <th>Email</th>
+            <th>Address</th>
+            <th>Aadhar Number</th>
+            <th>PEN Number</th>
+            <th>Status</th>
+            <th>Application Date</th>
+          </tr>
+    `;
+
+    applications.forEach(a => {
+      html += `
+        <tr>
+          <td class="text">${a.referenceNumber || ''}</td>
+          <td>${a.studentName || ''}</td>
+          <td>${a.dateOfBirth || ''}</td>
+          <td>${(a.gradeApplied || '').toUpperCase()}</td>
+          <td>${a.gender || ''}</td>
+          <td>${a.religion || ''}</td>
+          <td>${a.fatherName || ''}</td>
+          <td>${a.motherName || ''}</td>
+          <td>${a.guardianName || ''}</td>
+          <td class="text">${a.contactNumber || ''}</td>
+          <td>${a.email || ''}</td>
+          <td>${a.address || ''}</td>
+          <td class="text">${a.aadharNumber || ''}</td>
+          <td class="text">${a.penNumber || ''}</td>
+          <td>${a.status || ''}</td>
+          <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ''}</td>
+        </tr>
+      `;
+    });
+
+    html += `</table></body></html>`;
+
+    const fileName = `admissions_export_${new Date().toISOString().split('T')[0]}.xls`;
+    
+    res.set('Content-Type', 'application/vnd.ms-excel');
+    res.set('Content-Disposition', `attachment; filename=${fileName}`);
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    // Disable ETag to prevent 304
+    res.removeHeader('ETag');
+
+    res.send(html);
+  } catch (error) {
+    console.error('Export Admissions Error:', error.message);
+    res.status(500).json({ message: 'Failed to export admissions', error: error.message });
+  }
+});
+
 // GET /api/admissions/status — public, check application status
 router.get('/status', async (req, res) => {
   try {

@@ -1,10 +1,35 @@
 import React, { useState, useEffect, useContext } from "react";
-import { FaChevronLeft, FaChevronRight, FaGraduationCap, FaUserTie, FaFacebook, FaInstagram, FaWhatsapp, FaChalkboardTeacher } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaGraduationCap, FaUserTie, FaFacebook, FaInstagram, FaWhatsapp, FaChalkboardTeacher, FaShareAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Faculty() {
 
   const { faculty: facultyData , schoolProfile } = useContext(SiteDataContext);
+
+  const handleShare = async (e, member) => {
+    e?.preventDefault();
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: member.name, 
+          desc: `${member.Subject} — ${member.EduQua || 'Faculty member'} at Holy Name School`, 
+          image: member.photo || schoolProfile?.pageHeroImages?.faculty || "", 
+          page: '/faculty' 
+        }),
+      });
+      const { url } = await res.json();
+      const shareUrl = url || window.location.href;
+      if (navigator.share) { 
+        await navigator.share({ title: member.name, text: `${member.name} - ${member.Subject}`, url: shareUrl }); 
+      } else { 
+        await navigator.clipboard.writeText(shareUrl); 
+        alert('Link copied to clipboard!'); 
+      }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
 
   const FacultyCard = ({ member }) => (
     <div className="relative bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100/80 group overflow-hidden flex flex-col items-center flex-1 transform hover:-translate-y-2 h-full">
@@ -78,6 +103,13 @@ function Faculty() {
                 <FaWhatsapp size={16} />
               </a>
             )}
+            <button 
+              onClick={(e) => handleShare(e, member)}
+              className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-indigo-600 hover:text-white transition-all transform hover:-translate-y-1 hover:shadow-md border border-gray-100 hover:border-indigo-600"
+              title="Share Faculty Profile"
+            >
+              <FaShareAlt size={14} />
+            </button>
           </div>
         )}
       </div>

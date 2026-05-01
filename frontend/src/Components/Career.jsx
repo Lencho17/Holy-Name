@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { FaGraduationCap, FaChalkboardTeacher, FaBriefcase, FaEnvelopeOpenText, FaSpinner, FaArrowRight } from "react-icons/fa";
+import { FaGraduationCap, FaChalkboardTeacher, FaBriefcase, FaEnvelopeOpenText, FaSpinner, FaArrowRight, FaShareAlt } from "react-icons/fa";
 import { Link, NavLink } from "react-router-dom";
 import { SiteDataContext } from "../context/SiteDataContext";
 
@@ -7,6 +7,31 @@ function Career() {
   const { schoolProfile, API_URL } = useContext(SiteDataContext);
   const [vacancies, setVacancies] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleShare = async (e, job) => {
+    e?.preventDefault();
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: job.title, 
+          desc: `${job.department} — ${job.type}. Apply by ${job.deadline} at Holy Name School`, 
+          image: schoolProfile?.pageHeroImages?.career || "", 
+          page: '/career' 
+        }),
+      });
+      const { url } = await res.json();
+      const shareUrl = url || window.location.href;
+      if (navigator.share) { 
+        await navigator.share({ title: job.title, text: job.title, url: shareUrl }); 
+      } else { 
+        await navigator.clipboard.writeText(shareUrl); 
+        alert('Link copied to clipboard!'); 
+      }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
 
   // --- Tracking State ---
   const [trackingRef, setTrackingRef] = useState("");
@@ -147,6 +172,13 @@ function Career() {
                         <a href={`mailto:${schoolProfile?.email || ""}`} className="text-gray-400 hover:text-primary transition-colors text-sm font-medium">
                           Inquiry <FaEnvelopeOpenText className="ml-1 inline" />
                         </a>
+                        <button 
+                          onClick={(e) => handleShare(e, job)}
+                          className="ml-4 p-2.5 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary/10 hover:text-primary transition-all shadow-sm border border-gray-100 hover:border-primary/20"
+                          title="Share Vacancy"
+                        >
+                          <FaShareAlt size={14} />
+                        </button>
                       </div>
                     </div>
                   ))

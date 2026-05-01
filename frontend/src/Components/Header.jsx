@@ -124,7 +124,13 @@ function Header() {
                       <span className="material-symbols-outlined text-[18px]">
                         history_edu
                       </span>{" "}
-                      Emeritus
+                      Alumestron
+                    </NavLink>
+                    <NavLink to="/excellence" className={dropdownLinkClass}>
+                      <span className="material-symbols-outlined text-[18px]">
+                        workspace_premium
+                      </span>{" "}
+                      Excellence
                     </NavLink>
                     <NavLink to="/gallery" className={dropdownLinkClass}>
                       <span className="material-symbols-outlined text-[18px]">
@@ -137,6 +143,12 @@ function Header() {
                         work
                       </span>{" "}
                       Career
+                    </NavLink>
+                    <NavLink to="/tenders" className={dropdownLinkClass}>
+                      <span className="material-symbols-outlined text-[18px]">
+                        gavel
+                      </span>{" "}
+                      Tenders
                     </NavLink>
                     <NavLink to="/complaints" className={dropdownLinkClass}>
                       <span className="material-symbols-outlined text-[18px]">
@@ -255,9 +267,11 @@ function Header() {
 
                   {[
                     { to: "/faculty", label: "Faculty", icon: "groups" },
-                    { to: "/emeritus", label: "Emeritus", icon: "history_edu" },
+                    { to: "/excellence", label: "Excellence", icon: "workspace_premium" },
+                    { to: "/emeritus", label: "Alumestron", icon: "history_edu" },
                     { to: "/gallery", label: "Gallery", icon: "photo_library" },
                     { to: "/career", label: "Career", icon: "work" },
+                    { to: "/tenders", label: "Tenders", icon: "gavel" },
                     { to: "/complaints", label: "Feedback", icon: "forum" },
                     { to: "/contact", label: "Contact", icon: "mail" },
                   ].map((item) => (

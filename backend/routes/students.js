@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getAllStudents,
+  getStudents,
   getStudentById,
   createStudent,
   updateStudent,
@@ -14,7 +14,7 @@ const { protect } = require('../middleware/auth');
 router.use(protect);
 
 router.route('/')
-  .get(getAllStudents)
+  .get(getStudents)
   .post(createStudent);
 
 router.get('/export', exportStudents);

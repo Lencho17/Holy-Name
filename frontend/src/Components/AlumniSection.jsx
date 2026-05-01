@@ -1,4 +1,5 @@
 import React, { useContext, useRef, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { SiteDataContext } from "../context/SiteDataContext";
 import { FaGraduationCap, FaMedal } from "react-icons/fa";
 
@@ -70,10 +71,22 @@ const AlumniSection = () => {
           </span>
         </h3>
 
-        <p className="text-slate-500 max-w-2xl mx-auto text-sm md:text-lg font-light leading-relaxed italic">
+        <p className="text-slate-500 max-w-2xl mx-auto text-sm md:text-lg font-light leading-relaxed italic mb-8">
           "The future belongs to those who believe in the beauty of their
           dreams."
         </p>
+
+        <div className="flex justify-center mb-8">
+          <Link 
+            to="/excellence" 
+            className="group flex items-center gap-2 px-6 py-2.5 bg-white border border-primary/20 rounded-full font-bold text-primary hover:bg-primary hover:text-white transition-all duration-300 shadow-sm"
+          >
+            <span className="text-xs uppercase tracking-widest">Center of Excellence</span>
+            <div className="w-6 h-6 rounded-full bg-primary/10 group-hover:bg-white/20 flex items-center justify-center transition-colors">
+              <FaMedal className="text-[10px] group-hover:scale-110 transition-transform" />
+            </div>
+          </Link>
+        </div>
       </div>
 
       {/* Slider Wrapper */}

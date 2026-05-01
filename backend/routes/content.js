@@ -15,7 +15,7 @@ const router = express.Router();
 let contentCache = {
   data: null,
   lastFetched: 0,
-  ttl: 5 * 60 * 1000, // 5 minutes
+  ttl: 30 * 1000, // 30 seconds
 };
 
 // Multer memory storage for PDFs (no Cloudinary — goes to GitHub)
@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
 router.put('/', protect, async (req, res) => {
   try {
     const updateData = req.body;
-    const allowedFields = ['gallery', 'events', 'highlights', 'videos', 'faculty', 'principal', 'notices', 'notificationEmail', 'banner', 'socialLinks', 'alumni', 'stats', 'faqs', 'emeritus', 'schoolProfile', 'visionStatement', 'aimsAndObjectives', 'headMistress', 'coursesPage'];
+    const allowedFields = ['gallery', 'events', 'highlights', 'videos', 'faculty', 'principal', 'notices', 'notificationEmail', 'banner', 'socialLinks', 'alumni', 'stats', 'faqs', 'emeritus', 'centerOfExcellence', 'schoolProfile', 'visionStatement', 'aimsAndObjectives', 'headMistress', 'coursesPage'];
     
     // Pick only allowed fields
     const safeUpdateData = {};

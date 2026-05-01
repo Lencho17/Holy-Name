@@ -27,6 +27,9 @@ const Emeritus = React.lazy(() => import("./Components/Emeritus"));
 const Notice = React.lazy(() => import("./Components/Notice"));
 const StudentPortal = React.lazy(() => import("./Components/StudentPortal"));
 const JobApplicationForm = React.lazy(() => import("./Components/JobApplicationForm"));
+const Tenders = React.lazy(() => import("./Components/Tenders"));
+const TenderApply = React.lazy(() => import("./Components/TenderApply"));
+const CenterOfExcellence = React.lazy(() => import("./Components/CenterOfExcellence"));
 const BelowSocialbtn = React.lazy(() => import("./Components/BelowSocialbtn"));
 
 const AdminLogin = React.lazy(() => import("./Components/AdminLogin"));
@@ -114,11 +117,14 @@ function App() {
         <Route path="complaints" element={<Suspense fallback={<SuspenseFallback />}><Complaints /></Suspense>} />
         <Route path="admission" element={<Suspense fallback={<SuspenseFallback />}><Admission /></Suspense>} />
         <Route path="faculty" element={<Suspense fallback={<SuspenseFallback />}><Faculty /></Suspense>} />
+        <Route path="excellence" element={<Suspense fallback={<SuspenseFallback />}><CenterOfExcellence /></Suspense>} />
         <Route path="emeritus" element={<Suspense fallback={<SuspenseFallback />}><Emeritus /></Suspense>} />
         <Route path="notice" element={<Suspense fallback={<SuspenseFallback />}><Notice /></Suspense>} />
         <Route path="studentportal" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
         <Route path="apply" element={<Suspense fallback={<SuspenseFallback />}><JobApplicationForm /></Suspense>} />
         <Route path="apply/:jobId" element={<Suspense fallback={<SuspenseFallback />}><JobApplicationForm /></Suspense>} />
+        <Route path="tenders" element={<Suspense fallback={<SuspenseFallback />}><Tenders /></Suspense>} />
+        <Route path="tender-apply/:id" element={<Suspense fallback={<SuspenseFallback />}><TenderApply /></Suspense>} />
         <Route path="belowsocialbtn" element={<Suspense fallback={<SuspenseFallback />}><BelowSocialbtn /></Suspense>} />
       </Route>
 

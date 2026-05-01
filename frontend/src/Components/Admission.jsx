@@ -83,7 +83,23 @@ function Admission() {
   const [sportsType, setSportsType] = useState("");
   const [boardMarks, setBoardMarks] = useState("");
   const [boardDivision, setBoardDivision] = useState("");
+  const [darpanId, setDarpanId] = useState("");
+  const [penNumber, setPenNumber] = useState("");
   const [contactNumber, setContactNumber] = useState("");
+
+  // Verhoeff checksum for Aadhaar validation
+  const verhoeffD = [[0,1,2,3,4,5,6,7,8,9],[1,2,3,4,0,6,7,8,9,5],[2,3,4,0,1,7,8,9,5,6],[3,4,0,1,2,8,9,5,6,7],[4,0,1,2,3,9,5,6,7,8],[5,9,8,7,6,0,4,3,2,1],[6,5,9,8,7,1,0,4,3,2],[7,6,5,9,8,2,1,0,4,3],[8,7,6,5,9,3,2,1,0,4],[9,8,7,6,5,4,3,2,1,0]];
+  const verhoeffP = [[0,1,2,3,4,5,6,7,8,9],[1,5,7,6,2,8,3,0,9,4],[5,8,0,3,7,9,6,1,4,2],[8,9,1,6,0,4,3,5,2,7],[9,4,5,3,1,2,6,8,7,0],[4,2,8,6,5,7,3,9,0,1],[2,7,9,3,8,0,6,4,1,5],[7,0,4,6,9,1,3,2,5,8]];
+  const isValidAadhaar = (num) => {
+    if (!num || num.length !== 12 || /^[01]/.test(num)) return false;
+    const digits = num.split('').reverse().map(Number);
+    let c = 0;
+    for (let i = 0; i < digits.length; i++) c = verhoeffD[c][verhoeffP[i % 8][digits[i]]];
+    return c === 0;
+  };
+  const aadhaarStatus = AadhaarNumber.length === 0 ? 'empty' : AadhaarNumber.length < 12 ? 'incomplete' : isValidAadhaar(AadhaarNumber) ? 'valid' : 'invalid';
+  const penStatus = penNumber.length === 0 ? 'empty' : /^[A-Z0-9]{8,20}$/.test(penNumber) ? 'valid' : 'invalid';
+  const darpanStatus = darpanId.length === 0 ? 'empty' : darpanId.length >= 4 ? 'valid' : 'invalid';
   const [caste, setCaste] = useState("General");
   const [errorField, setErrorField] = useState(null); // which field has a backend error
   const [filePreviews, setFilePreviews] = useState({}); // { fieldName: { name, size, type, url } }
@@ -188,11 +204,12 @@ function Admission() {
   };
 
   const handleSubjectChange = (subject) => {
+    const maxSubjects = selectedStream === 'science' ? 2 : 4;
     setSelectedSubjects(prev => {
       if (prev.includes(subject)) {
         return prev.filter(s => s !== subject);
       }
-      if (prev.length < 4) {
+      if (prev.length < maxSubjects) {
         return [...prev, subject];
       }
       return prev;
@@ -244,6 +261,7 @@ function Admission() {
       const pct = ((parseFloat(boardMarks) / 600) * 100).toFixed(2);
       formData.append('boardPercentage', pct);
       formData.append('boardDivision', boardDivision);
+      formData.append('darpanId', darpanId);
     }
 
     formData.append('fatherName', getUVal('fatherName'));
@@ -262,12 +280,26 @@ function Admission() {
 
     // Class 11-12 specialized subjects
     if (gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12"))) {
-      if (selectedSubjects.length !== 4) {
-        setSubmitError('Please select exactly 4 elective subjects.');
+      const requiredCount = selectedStream === 'science' ? 2 : 4;
+      if (selectedSubjects.length !== requiredCount) {
+        setSubmitError(`Please select exactly ${requiredCount} elective subjects.`);
         setSubmitting(false);
         return;
       }
+      // For Science, auto-append compulsory Physics & Chemistry
+      if (selectedStream === 'science') {
+        formData.append('selectedSubjects[]', 'PHYSICS');
+        formData.append('selectedSubjects[]', 'CHEMISTRY');
+      }
       selectedSubjects.forEach(subject => formData.append('selectedSubjects[]', subject.toUpperCase()));
+    }
+
+    // Validate Aadhaar if provided
+    if (AadhaarNumber && AadhaarNumber.length > 0 && !isValidAadhaar(AadhaarNumber)) {
+      setSubmitError('The Aadhaar number entered is invalid. Please verify the 12-digit number.');
+      setErrorField('AadhaarNumber');
+      setSubmitting(false);
+      return;
     }
 
     // At least one parent/guardian check
@@ -734,14 +766,25 @@ function Admission() {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Aadhaar Number</label>
-                  <input
-                    name="AadhaarNumber"
-                    type="text"
-                    value={AadhaarNumber}
-                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
-                    placeholder="12-DIGIT Aadhaar NUMBER"
-                  />
+                  <div className="relative">
+                    <input
+                      name="AadhaarNumber"
+                      type="text"
+                      value={AadhaarNumber}
+                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                      className={`w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-colors uppercase pr-12 ${
+                        aadhaarStatus === 'valid' ? 'border-green-400 focus:ring-green-500 focus:border-green-500 bg-green-50/30' :
+                        aadhaarStatus === 'invalid' ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50/30' :
+                        'border-gray-300 focus:ring-amber-500 focus:border-amber-500'
+                      }`}
+                      placeholder="12-DIGIT Aadhaar NUMBER"
+                    />
+                    {aadhaarStatus === 'valid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✅</span>}
+                    {aadhaarStatus === 'invalid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">❌</span>}
+                  </div>
+                  {aadhaarStatus === 'invalid' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Invalid Aadhaar — checksum does not match. Please verify your number.</p>}
+                  {aadhaarStatus === 'valid' && <p className="text-green-600 text-xs mt-1 font-semibold">✓ Valid Aadhaar number format</p>}
+                  {aadhaarStatus === 'incomplete' && <p className="text-gray-400 text-xs mt-1">{AadhaarNumber.length}/12 digits entered</p>}
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Place of Birth</label>
@@ -832,7 +875,25 @@ function Admission() {
                 {gradeApplied && !["pre-nursery", "kg1", "kg2", "class1"].includes(gradeApplied) && (
                   <div>
                     <label className="block text-gray-700 font-medium mb-2">PEN (Permanent Education Number) *</label>
-                    <input name="penNumber" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER PEN NUMBER" required />
+                    <div className="relative">
+                      <input
+                        name="penNumber"
+                        type="text"
+                        value={penNumber}
+                        onChange={(e) => setPenNumber(e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 20))}
+                        className={`w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-colors uppercase pr-12 ${
+                          penStatus === 'valid' ? 'border-green-400 focus:ring-green-500 focus:border-green-500 bg-green-50/30' :
+                          penStatus === 'invalid' ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50/30' :
+                          'border-gray-300 focus:ring-amber-500 focus:border-amber-500'
+                        }`}
+                        placeholder="ENTER PEN NUMBER"
+                        required
+                      />
+                      {penStatus === 'valid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✅</span>}
+                      {penStatus === 'invalid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">❌</span>}
+                    </div>
+                    {penStatus === 'invalid' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ PEN must be 8–20 alphanumeric characters</p>}
+                    {penStatus === 'valid' && <p className="text-green-600 text-xs mt-1 font-semibold">✓ Valid PEN format</p>}
                   </div>
                 )}
 
@@ -906,6 +967,12 @@ function Admission() {
                       <div className="flex flex-wrap gap-2">
                         <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">English</span>
                         <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">Environmental Education</span>
+                        {selectedStream === 'science' && (
+                          <>
+                            <span className="px-3 py-1 bg-indigo-100 border border-indigo-300 rounded-full text-xs font-bold text-indigo-700">Physics</span>
+                            <span className="px-3 py-1 bg-indigo-100 border border-indigo-300 rounded-full text-xs font-bold text-indigo-700">Chemistry</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div>
@@ -951,20 +1018,21 @@ function Admission() {
                       <div className="md:col-span-2 mt-4">
                         <label className="block text-gray-700 font-bold mb-4 bg-amber-50 p-4 rounded-xl border border-amber-100 italic flex justify-between items-center flex-wrap gap-2">
                           <span>Please select your elective subjects:</span>
-                          <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest ${selectedSubjects.length === 4 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                            Selected: {selectedSubjects.length} / 4
+                          <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest ${selectedSubjects.length === (selectedStream === 'science' ? 2 : 4) ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            Selected: {selectedSubjects.length} / {selectedStream === 'science' ? 2 : 4}
                           </span>
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                           {/* Science Subjects */}
                           {selectedStream === 'science' && [
-                            'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'Geology'
+                            'Mathematics', 'Biology', 'Computer Science', 'Geology'
                           ].map(sub => (
                             <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
                               <input
                                 type="checkbox"
                                 checked={selectedSubjects.includes(sub)}
                                 onChange={() => handleSubjectChange(sub)}
+                                disabled={!selectedSubjects.includes(sub) && selectedSubjects.length >= 2}
                                 className="w-5 h-5 accent-amber-500 mr-3"
                               />
                               <span className="text-sm text-gray-700">{sub}</span>
@@ -1221,6 +1289,42 @@ function Admission() {
                         </div>
                       </>
                     )}
+                  </div>
+
+                  {/* DARPAN ID */}
+                  <div className="mt-6 p-5 bg-white rounded-xl border border-indigo-200 shadow-sm">
+                    <label className="block text-gray-700 font-medium mb-2 flex items-center justify-between flex-wrap gap-2">
+                      <span>DARPAN ID (AHSEC Registration) *</span>
+                      <a
+                        href="https://darpan.ahseconline.in/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline underline-offset-2 flex items-center gap-1 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-sm">open_in_new</span>
+                        Don't have one? Apply here
+                      </a>
+                    </label>
+                    <div className="relative">
+                      <input
+                        name="darpanId"
+                        type="text"
+                        value={darpanId}
+                        onChange={(e) => setDarpanId(e.target.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase())}
+                        className={`w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-colors uppercase font-semibold pr-12 ${
+                          darpanStatus === 'valid' ? 'border-green-400 focus:ring-green-500 focus:border-green-500 bg-green-50/30' :
+                          darpanStatus === 'invalid' ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50/30' :
+                          'border-indigo-300 focus:ring-indigo-500 focus:border-indigo-500'
+                        }`}
+                        placeholder="ENTER DARPAN ID"
+                        required
+                      />
+                      {darpanStatus === 'valid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✅</span>}
+                      {darpanStatus === 'invalid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">❌</span>}
+                    </div>
+                    {darpanStatus === 'invalid' && <p className="text-red-500 text-xs mt-1.5 font-semibold">⚠ DARPAN ID seems too short</p>}
+                    {darpanStatus === 'valid' && <p className="text-green-600 text-xs mt-1.5 font-semibold">✓ Valid DARPAN ID format</p>}
+                    {darpanStatus === 'empty' && <p className="text-xs text-indigo-400 mt-1.5">Your AHSEC DARPAN registration ID is required for Class XI admission.</p>}
                   </div>
                 </div>
               )}

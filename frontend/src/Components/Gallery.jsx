@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useMemo } from "react";
+import React, { useState, useContext, useEffect, useMemo, useRef } from "react";
 import { FaImages, FaSearchPlus, FaArrowLeft, FaShareAlt, FaEye } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -9,13 +9,16 @@ function Gallery() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const handleShare = async (imageUrl, title) => {
+  const handleShare = async (imageUrl, title, photoId) => {
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
+      let page = '/gallery';
+      if (eventId) page += `?event=${eventId}`;
+      if (photoId) page += `${eventId ? '&' : '?'}photo=${photoId}`;
       const res = await fetch(`${apiBase}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, desc: `${title} — Holy Name School`, image: imageUrl, page: '/gallery' }),
+        body: JSON.stringify({ title, desc: `${title} — Holy Name School`, image: imageUrl, page }),
       });
       const { url } = await res.json();
       const shareUrl = url || window.location.href;
@@ -47,6 +50,20 @@ function Gallery() {
 
   // Find the event details for the heading
   const currentEvent = eventId ? events.find(e => String(e._id) === String(eventId) || String(e.id) === String(eventId)) : null;
+
+  // Auto-open photo from share link
+  const shareHandled = useRef(false);
+  useEffect(() => {
+    const photoId = searchParams.get('photo');
+    if (photoId && galleryItems.length > 0 && !shareHandled.current) {
+      shareHandled.current = true;
+      const photo = galleryItems.find(item => String(item._id) === String(photoId));
+      if (photo) {
+        setSelectedImage(photo);
+        trackView([photoId]);
+      }
+    }
+  }, [galleryItems]);
 
 
   // Build the display items — if filtered by event, show only that event's gallery images
@@ -361,7 +378,7 @@ function Gallery() {
                     <button onClick={handlePrev} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_left</span></button>
                     <button onClick={handleNext} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_right</span></button>
                   </div>
-                  <button onClick={() => handleShare(selectedImage.src, selectedImage.title)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
+                  <button onClick={() => handleShare(selectedImage.src, selectedImage.title, selectedImage._id)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
                     <FaShareAlt className="text-sm" />
                   </button>
                 </div>

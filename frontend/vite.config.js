@@ -10,7 +10,7 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
       },
-      '/s': {
+      '^/s/': {
         target: 'http://localhost:5000',
         changeOrigin: true,
         rewrite: (path) => '/api/share' + path.slice(2),

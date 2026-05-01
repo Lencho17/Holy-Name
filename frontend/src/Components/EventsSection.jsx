@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaImages, FaShareAlt } from "react-icons/fa";
+import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaImages, FaShareAlt, FaDownload } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 import { useNavigate } from "react-router-dom";
 
@@ -25,6 +25,24 @@ const EventsSection = () => {
       if (navigator.share) { await navigator.share({ title, text: description || title, url: shareUrl }); }
       else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }
     } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
+
+  const handleDownload = async (e, url, filename) => {
+    e?.stopPropagation();
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'event-photo.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(url, '_blank');
+    }
   };
 
   const visibleEvents = showAll ? events : events.slice(0, 4);
@@ -129,14 +147,22 @@ const EventsSection = () => {
                     {event.galleryImages.length} Photos
                   </span>
                 )}
-                {/* Share button */}
-                <button
-                  onClick={(e) => handleShare(e, event.image, event.title, event.description)}
-                  className="absolute top-3 right-3 z-30 p-2 bg-black/40 backdrop-blur-sm hover:bg-amber-500 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 border border-white/10"
-                  title="Share"
-                >
-                  <FaShareAlt className="text-xs" />
-                </button>
+                <div className="absolute top-3 right-3 z-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                  <button
+                    onClick={(e) => handleDownload(e, event.image, `${event.title || 'event'}.jpg`)}
+                    className="p-2 bg-black/40 backdrop-blur-sm hover:bg-emerald-500 text-white rounded-full border border-white/10"
+                    title="Download Cover"
+                  >
+                    <FaDownload className="text-xs" />
+                  </button>
+                  <button
+                    onClick={(e) => handleShare(e, event.image, event.title, event.description)}
+                    className="p-2 bg-black/40 backdrop-blur-sm hover:bg-amber-500 text-white rounded-full border border-white/10"
+                    title="Share"
+                  >
+                    <FaShareAlt className="text-xs" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -298,9 +324,22 @@ const EventsSection = () => {
                           </div>
                         )}
                       </div>
-                      <button onClick={(e) => handleShare(e, selectedEvent.image, selectedEvent.title, selectedEvent.description)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share">
-                        <FaShareAlt className="text-sm" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={(e) => handleDownload(e, gallery[currentPhotoIndex], `${selectedEvent.title || 'event'}-${currentPhotoIndex + 1}.jpg`)} 
+                          className="p-2.5 bg-white/10 hover:bg-emerald-500 rounded-lg text-white transition-all" 
+                          title="Download this photo"
+                        >
+                          <FaDownload className="text-sm" />
+                        </button>
+                        <button 
+                          onClick={(e) => handleShare(e, gallery[currentPhotoIndex], selectedEvent.title, selectedEvent.description)} 
+                          className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" 
+                          title="Share"
+                        >
+                          <FaShareAlt className="text-sm" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

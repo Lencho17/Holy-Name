@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useMemo, useRef } from "react";
-import { FaImages, FaSearchPlus, FaArrowLeft, FaShareAlt, FaEye } from "react-icons/fa";
+import { FaImages, FaSearchPlus, FaArrowLeft, FaShareAlt, FaEye, FaDownload } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 import { useSearchParams, useNavigate } from "react-router-dom";
 
@@ -25,6 +25,23 @@ function Gallery() {
       if (navigator.share) { await navigator.share({ title, text: `${title} — Holy Name School`, url: shareUrl }); }
       else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }
     } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
+
+  const handleDownload = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'gallery-image.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(url, '_blank');
+    }
   };
 
   const trackView = async (ids) => {
@@ -378,6 +395,9 @@ function Gallery() {
                     <button onClick={handlePrev} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_left</span></button>
                     <button onClick={handleNext} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_right</span></button>
                   </div>
+                  <button onClick={() => handleDownload(selectedImage.src, `${selectedImage.title || 'gallery'}.jpg`)} className="p-2.5 bg-white/10 hover:bg-emerald-500 rounded-lg text-white transition-all" title="Download this photo">
+                    <FaDownload className="text-sm" />
+                  </button>
                   <button onClick={() => handleShare(selectedImage.src, selectedImage.title, selectedImage._id)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
                     <FaShareAlt className="text-sm" />
                   </button>

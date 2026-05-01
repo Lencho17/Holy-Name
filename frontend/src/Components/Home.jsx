@@ -8,7 +8,6 @@ import VideoBlogSection from "./VideoBlogSection";
 import HighlightsSection from "./HighlightsSection";
 import AlumniSection from "./AlumniSection";
 import HolidayCalendarSection from "./HolidayCalendarSection";
-import ExcellenceSection from "./ExcellenceSection";
 import { FaWhatsapp, FaInstagram, FaFacebook, FaYoutube } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
@@ -205,7 +204,6 @@ function Home() {
         </section>
 
         <AlumniSection />
-        <ExcellenceSection />
 
         {/* Existing Component Grid */}
         <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-10 py-6">

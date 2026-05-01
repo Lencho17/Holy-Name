@@ -1145,6 +1145,25 @@ function AdminPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleDownloadImage = async (url, filename = 'image.jpg') => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'download.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download failed:', err);
+      // Fallback: open in new tab
+      window.open(url, '_blank');
+    }
+  };
+
   // --- Gallery Tab ---
   const [newGalleryItem, setNewGalleryItem] = useState({ title: '', category: 'Campus Life', src: '', description: '' });
   const [galleryFiles, setGalleryFiles] = useState([]);
@@ -1409,8 +1428,21 @@ function AdminPage() {
                 {gallery.filter(item => (item.albumId || `${item.title}-${item.category}`) === editingAlbumId).map(item => (
                   <div key={item._id} className="relative group rounded-xl overflow-hidden border aspect-square">
                     <img src={item.src} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button onClick={() => handleDeleteGallery(item._id)} className="bg-red-500 text-white p-2 rounded-lg shadow-lg"><FaTrash size={12} /></button>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button 
+                        onClick={() => handleDownloadImage(item.src, `${item.title || 'gallery'}.jpg`)} 
+                        className="bg-white text-primary p-2 rounded-lg shadow-lg hover:bg-gray-100 transition-all"
+                        title="Download Photo"
+                      >
+                        <FaDownload size={12} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteGallery(item._id)} 
+                        className="bg-red-500 text-white p-2 rounded-lg shadow-lg hover:bg-red-600 transition-all"
+                        title="Delete Photo"
+                      >
+                        <FaTrash size={12} />
+                      </button>
                     </div>
                     {item.isAlbumCover && <div className="absolute top-1 left-1 bg-yellow-400 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Cover</div>}
                   </div>
@@ -1532,7 +1564,16 @@ function AdminPage() {
                 <p className="text-sm text-gray-500">{item.date} • {item.category} • {(item.galleryImages?.length || 1)} photo(s)</p>
               </div>
             </div>
-            <button onClick={() => handleDeleteHighlight(item._id)} className="text-red-500 hover:text-red-700 p-2"><FaTrash /></button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleDownloadImage(item.image, `${item.title || 'highlight'}.jpg`)} 
+                className="text-emerald-500 hover:text-emerald-700 p-2"
+                title="Download Cover Image"
+              >
+                <FaDownload />
+              </button>
+              <button onClick={() => handleDeleteHighlight(item._id)} className="text-red-500 hover:text-red-700 p-2"><FaTrash /></button>
+            </div>
           </div>
         ))}
       </div>
@@ -1758,7 +1799,14 @@ function AdminPage() {
                   <p className="text-sm text-gray-500">{item.date}</p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <button 
+                  onClick={() => handleDownloadImage(item.image, `${item.title || 'event'}.jpg`)}
+                  className="text-emerald-500 hover:text-emerald-700 p-2"
+                  title="Download Cover Image"
+                >
+                  <FaDownload />
+                </button>
                 <button 
                   onClick={() => {
                     setEditingEventId(item._id);

@@ -359,11 +359,9 @@ const About = () => {
                   </div>
                   {headMistress?.signature && (
                     <div className="flex flex-col items-start pt-4 border-t border-outline-variant mt-4">
-                      <img
-                        src={headMistress.signature || null}
-                        alt="Signature"
-                        className="h-16 mb-2 opacity-70 mix-blend-multiply flex-shrink-0"
-                      />
+                      <p className="font-serif italic text-xl text-primary font-bold tracking-wider mb-1">
+                        {headMistress.signature}
+                      </p>
                       <p className="font-bold text-primary italic text-sm">
                         Head Mistress
                       </p>

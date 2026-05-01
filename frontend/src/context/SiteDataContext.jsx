@@ -44,6 +44,29 @@ const defaultStats = [
   { label: "Pass Result", value: "100%" }
 ];
 
+const defaultFaqs = [
+  {
+    question: "What are the school's operating hours?",
+    answer: "Our office hours are from 8:00 AM to 4:00 PM, Monday through Friday. We are closed on weekends and public holidays."
+  },
+  {
+    question: "How can I apply for admission?",
+    answer: "You can apply for admission by navigating to the Admissions section on our website, where you can find detailed instructions and the application form."
+  },
+  {
+    question: "Do you offer transportation facilities?",
+    answer: "Yes, we offer safe and reliable bus transportation for our students across various routes. Please contact the main office for specific route details."
+  },
+  {
+    question: "How can I track my child's progress?",
+    answer: "Parents can track their child's academic progress, attendance, and behavioral reports through our secure parent portal."
+  },
+  {
+    question: "Are there extracurricular activities available?",
+    answer: "Absolutely! We believe in holistic development and offer a wide range of extracurricular activities including sports, arts, music, and various student clubs."
+  }
+];
+
 const defaultVisionStatement = "Holy Name High School, Sivasagar, envisions to be a center of excellence that imparts holistic education to its students. We strive to nurture the intellectual, physical, spiritual, and emotional growth of each child, preparing them to be responsible global citizens.";
 
 const defaultAimsAndObjectives = [
@@ -112,6 +135,7 @@ export const SiteDataProvider = ({ children }) => {
   const [socialLinks, setSocialLinks] = useState(defaultSocialLinks);
   const [alumni, setAlumni] = useState(defaultAlumni);
   const [stats, setStats] = useState(defaultStats);
+  const [faqs, setFaqs] = useState(defaultFaqs);
   const [visionStatement, setVisionStatement] = useState(defaultVisionStatement);
   const [aimsAndObjectives, setAimsAndObjectives] = useState(defaultAimsAndObjectives);
   const [headMistress, setHeadMistress] = useState(defaultHeadMistress);
@@ -143,6 +167,7 @@ export const SiteDataProvider = ({ children }) => {
         if (data.socialLinks && typeof data.socialLinks === 'object') setSocialLinks(data.socialLinks);
         if (Array.isArray(data.alumni)) setAlumni(data.alumni);
         if (Array.isArray(data.stats)) setStats(data.stats);
+        if (Array.isArray(data.faqs)) setFaqs(data.faqs);
         if (data.visionStatement !== undefined) setVisionStatement(data.visionStatement);
         if (data.aimsAndObjectives) setAimsAndObjectives(data.aimsAndObjectives);
         if (data.headMistress && typeof data.headMistress === 'object') setHeadMistress(data.headMistress);
@@ -210,6 +235,7 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.socialLinks) setSocialLinks(updatedData.socialLinks);
       if (updatedData.alumni) setAlumni(updatedData.alumni);
       if (updatedData.stats) setStats(updatedData.stats);
+      if (updatedData.faqs) setFaqs(updatedData.faqs);
       if (updatedData.visionStatement !== undefined) setVisionStatement(updatedData.visionStatement);
       if (updatedData.aimsAndObjectives) setAimsAndObjectives(updatedData.aimsAndObjectives);
       if (updatedData.headMistress) setHeadMistress(updatedData.headMistress);
@@ -239,6 +265,7 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.socialLinks !== undefined) setSocialLinks(updates.socialLinks);
     if (updates.alumni !== undefined) setAlumni(updates.alumni);
     if (updates.stats !== undefined) setStats(updates.stats);
+    if (updates.faqs !== undefined) setFaqs(updates.faqs);
     if (updates.visionStatement !== undefined) setVisionStatement(updates.visionStatement);
     if (updates.aimsAndObjectives !== undefined) setAimsAndObjectives(updates.aimsAndObjectives);
     if (updates.headMistress !== undefined) setHeadMistress(updates.headMistress);
@@ -313,6 +340,7 @@ export const SiteDataProvider = ({ children }) => {
   const wrapSetSocialLinks = (val) => { setSocialLinks(val); saveToBackend({ socialLinks: val }); };
   const wrapSetAlumni = (val) => { setAlumni(val); saveToBackend({ alumni: val }); };
   const wrapSetStats = (val) => { setStats(val); saveToBackend({ stats: val }); };
+  const wrapSetFaqs = (val) => { setFaqs(val); saveToBackend({ faqs: val }); };
   const wrapSetVisionStatement = (val) => { setVisionStatement(val); saveToBackend({ visionStatement: val }); };
   const wrapSetAimsAndObjectives = (val) => { setAimsAndObjectives(val); saveToBackend({ aimsAndObjectives: val }); };
   const wrapSetHeadMistress = (val) => { setHeadMistress(val); saveToBackend({ headMistress: val }); };
@@ -334,6 +362,7 @@ export const SiteDataProvider = ({ children }) => {
       socialLinks, setSocialLinks: wrapSetSocialLinks,
       alumni, setAlumni: wrapSetAlumni,
       stats, setStats: wrapSetStats,
+      faqs, setFaqs: wrapSetFaqs,
       visionStatement, setVisionStatement: wrapSetVisionStatement,
       aimsAndObjectives, setAimsAndObjectives: wrapSetAimsAndObjectives,
       headMistress, setHeadMistress: wrapSetHeadMistress,

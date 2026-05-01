@@ -102,6 +102,12 @@ const siteContentSchema = new mongoose.Schema({
       value: String
     }
   ],
+  faqs: [
+    {
+      question: String,
+      answer: String
+    }
+  ],
   visionStatement: {
     type: String,
     default: "Holy Name High School, Sivasagar, envisions to be a center of excellence that imparts holistic education to its students. We strive to nurture the intellectual, physical, spiritual, and emotional growth of each child, preparing them to be responsible global citizens."

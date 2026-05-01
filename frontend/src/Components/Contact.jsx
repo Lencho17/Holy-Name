@@ -1,9 +1,11 @@
-import React, { useContext } from "react";
-import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaClock, FaGlobe } from "react-icons/fa";
+import React, { useContext, useState } from "react";
+import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaClock, FaGlobe, FaChevronDown } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Contact() {
-  const { schoolProfile } = useContext(SiteDataContext);
+  const { schoolProfile, faqs } = useContext(SiteDataContext);
+  const [openFaq, setOpenFaq] = useState(null);
+
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
       {/* Hero Section */}
@@ -92,6 +94,48 @@ function Contact() {
             </div>
           </div>
 
+        </div>
+
+        {/* FAQ Section */}
+        <div className="mt-16 bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 relative z-20">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 text-amber-600 border border-amber-100 mb-4">
+              <span className="material-symbols-outlined text-sm">
+                quiz
+              </span>
+              <span className="text-xs font-bold tracking-[0.2em] uppercase">
+                FAQ
+              </span>
+            </div>
+            <h2 className="text-3xl font-black text-primary font-serif italic mb-4">Frequently Asked <span className="text-amber-600">Questions</span></h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">Find answers to some of the most common questions about our school.</p>
+          </div>
+          <div className="max-w-3xl mx-auto space-y-4">
+            {faqs?.map((faq, index) => (
+              <div key={index} className="border border-gray-100 rounded-2xl overflow-hidden hover:shadow-md transition-shadow bg-white">
+                <button
+                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  className="w-full px-6 py-4 text-left bg-gray-50/50 hover:bg-gray-50 flex justify-between items-center transition-colors"
+                >
+                  <span className={`font-bold text-lg transition-colors ${openFaq === index ? 'text-amber-600' : 'text-gray-800'}`}>{faq.question}</span>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${openFaq === index ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>
+                    <span className={`transition-transform duration-300 ${openFaq === index ? 'rotate-180' : ''}`}>
+                      <FaChevronDown className="text-sm" />
+                    </span>
+                  </div>
+                </button>
+                <div 
+                  className={`grid transition-all duration-300 ease-in-out ${openFaq === index ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="p-6 text-gray-600 bg-white border-t border-gray-50">
+                      {faq.answer}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-12 bg-white rounded-3xl shadow-xl border border-gray-100 p-4 h-[400px] overflow-hidden relative group">

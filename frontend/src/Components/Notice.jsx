@@ -105,7 +105,7 @@ function Notice() {
                       key={notice._id || index} 
                       className="border-b last:border-0 border-gray-100 hover:bg-primary/5 transition-colors group"
                     >
-                      <td className="py-5 px-6 text-gray-400 font-medium">#{index + 2}</td>
+                      <td className="py-5 px-6 text-gray-400 font-medium">#{index + 1}</td>
                       <td className="py-5 px-6 font-medium text-primary group-hover:text-amber-600 transition-colors">
                         <div className="flex items-center">
                           <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center mr-4">

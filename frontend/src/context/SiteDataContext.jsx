@@ -140,6 +140,7 @@ export const SiteDataProvider = ({ children }) => {
   const [aimsAndObjectives, setAimsAndObjectives] = useState(defaultAimsAndObjectives);
   const [headMistress, setHeadMistress] = useState(defaultHeadMistress);
   const [schoolProfile, setSchoolProfile] = useState(defaultSchoolProfile);
+  const [emeritus, setEmeritus] = useState([]);
   const [coursesPage, setCoursesPage] = useState(defaultCoursesPage);
   const [loading, setLoading] = useState(true);
 
@@ -172,6 +173,7 @@ export const SiteDataProvider = ({ children }) => {
         if (data.aimsAndObjectives) setAimsAndObjectives(data.aimsAndObjectives);
         if (data.headMistress && typeof data.headMistress === 'object') setHeadMistress(data.headMistress);
         if (data.schoolProfile && typeof data.schoolProfile === 'object') setSchoolProfile(data.schoolProfile);
+        if (Array.isArray(data.emeritus)) setEmeritus(data.emeritus);
         if (data.coursesPage && typeof data.coursesPage === 'object') setCoursesPage(data.coursesPage);
       } catch (error) {
         console.warn('Backend polling error or using local defaults:', error.message);
@@ -240,6 +242,7 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.aimsAndObjectives) setAimsAndObjectives(updatedData.aimsAndObjectives);
       if (updatedData.headMistress) setHeadMistress(updatedData.headMistress);
       if (updatedData.schoolProfile) setSchoolProfile(updatedData.schoolProfile);
+      if (updatedData.emeritus) setEmeritus(updatedData.emeritus);
       if (updatedData.coursesPage) setCoursesPage(updatedData.coursesPage);
 
       // console.log("Auto-save successful");
@@ -270,6 +273,7 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.aimsAndObjectives !== undefined) setAimsAndObjectives(updates.aimsAndObjectives);
     if (updates.headMistress !== undefined) setHeadMistress(updates.headMistress);
     if (updates.schoolProfile !== undefined) setSchoolProfile(updates.schoolProfile);
+    if (updates.emeritus !== undefined) setEmeritus(updates.emeritus);
     if (updates.coursesPage !== undefined) setCoursesPage(updates.coursesPage);
 
     // 2. Persist to backend in ONE request
@@ -345,6 +349,7 @@ export const SiteDataProvider = ({ children }) => {
   const wrapSetAimsAndObjectives = (val) => { setAimsAndObjectives(val); saveToBackend({ aimsAndObjectives: val }); };
   const wrapSetHeadMistress = (val) => { setHeadMistress(val); saveToBackend({ headMistress: val }); };
   const wrapSetSchoolProfile = (val) => { setSchoolProfile(val); saveToBackend({ schoolProfile: val }); };
+  const wrapSetEmeritus = (val) => { setEmeritus(val); saveToBackend({ emeritus: val }); };
   const wrapSetCoursesPage = (val) => { setCoursesPage(val); saveToBackend({ coursesPage: val }); };
 
   return (
@@ -367,6 +372,7 @@ export const SiteDataProvider = ({ children }) => {
       aimsAndObjectives, setAimsAndObjectives: wrapSetAimsAndObjectives,
       headMistress, setHeadMistress: wrapSetHeadMistress,
       schoolProfile, setSchoolProfile: wrapSetSchoolProfile,
+      emeritus, setEmeritus: wrapSetEmeritus,
       coursesPage, setCoursesPage: wrapSetCoursesPage,
       updateSiteContent,
       uploadImage,

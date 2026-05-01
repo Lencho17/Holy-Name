@@ -23,6 +23,7 @@ const Courses = React.lazy(() => import("./Components/Courses"));
 const Complaints = React.lazy(() => import("./Components/Complaints"));
 const Admission = React.lazy(() => import("./Components/Admission"));
 const Faculty = React.lazy(() => import("./Components/Faculty"));
+const Emeritus = React.lazy(() => import("./Components/Emeritus"));
 const Notice = React.lazy(() => import("./Components/Notice"));
 const StudentPortal = React.lazy(() => import("./Components/StudentPortal"));
 const JobApplicationForm = React.lazy(() => import("./Components/JobApplicationForm"));
@@ -113,6 +114,7 @@ function App() {
         <Route path="complaints" element={<Suspense fallback={<SuspenseFallback />}><Complaints /></Suspense>} />
         <Route path="admission" element={<Suspense fallback={<SuspenseFallback />}><Admission /></Suspense>} />
         <Route path="faculty" element={<Suspense fallback={<SuspenseFallback />}><Faculty /></Suspense>} />
+        <Route path="emeritus" element={<Suspense fallback={<SuspenseFallback />}><Emeritus /></Suspense>} />
         <Route path="notice" element={<Suspense fallback={<SuspenseFallback />}><Notice /></Suspense>} />
         <Route path="studentportal" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
         <Route path="apply" element={<Suspense fallback={<SuspenseFallback />}><JobApplicationForm /></Suspense>} />

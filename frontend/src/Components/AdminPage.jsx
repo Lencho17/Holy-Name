@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -15,7 +15,7 @@ function AdminPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -3898,6 +3898,85 @@ function AdminPage() {
     }
   }, [faqs, loading]);
 
+  const [localEmeritus, setLocalEmeritus] = useState(emeritus || []);
+  const localEmeritusInitRef = useRef(false);
+
+  useEffect(() => {
+    if (!localEmeritusInitRef.current && !loading && emeritus) {
+      setLocalEmeritus(emeritus);
+      localEmeritusInitRef.current = true;
+    }
+  }, [emeritus, loading]);
+
+  const handleEmeritusImageUpload = async (e, index) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const url = await uploadImage(file);
+      const newE = [...localEmeritus];
+      newE[index].photo = url;
+      setLocalEmeritus(newE);
+    } catch (err) {
+      alert("Image upload failed: " + err.message);
+    }
+  };
+
+  const renderEmeritusTab = () => {
+    const handleSaveEmeritus = async () => {
+      await updateSiteContent({ emeritus: localEmeritus });
+      alert('Emeritus updated successfully!');
+    };
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-headline font-bold text-gray-800">Emeritus Management</h2>
+            <p className="text-gray-500 mt-2">Manage the list of retired/former staff and leadership.</p>
+          </div>
+          <button onClick={handleSaveEmeritus} className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-md">
+            <FaSave /> Save All Changes
+          </button>
+        </header>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Emeritus Members</h3>
+            <button onClick={() => setLocalEmeritus([...(localEmeritus || []), { name: '', role: '', tenure: '', message: '', photo: '' }])} className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold">
+              <FaPlus className="mr-2" /> Add Emeritus
+            </button>
+          </div>
+          <div className="space-y-4">
+            {(localEmeritus || []).map((member, index) => (
+              <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start flex-col md:flex-row">
+                <div className="flex-1 space-y-3 w-full">
+                  <input type="text" value={member.name || ''} onChange={(e) => { const n = [...localEmeritus]; n[index].name = e.target.value; setLocalEmeritus(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold" placeholder="Name (e.g. Fr. Alex Kapiarumala)" />
+                  <input type="text" value={member.role || ''} onChange={(e) => { const n = [...localEmeritus]; n[index].role = e.target.value; setLocalEmeritus(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary" placeholder="Role (e.g. Former Principal)" />
+                  <input type="text" value={member.tenure || ''} onChange={(e) => { const n = [...localEmeritus]; n[index].tenure = e.target.value; setLocalEmeritus(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary" placeholder="Tenure (e.g. 1986-1992)" />
+                  <textarea value={member.message || ''} onChange={(e) => { const n = [...localEmeritus]; n[index].message = e.target.value; setLocalEmeritus(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[80px]" placeholder="Short Description / Message" />
+                </div>
+                <div className="w-full md:w-48 flex flex-col items-center gap-2">
+                  <label className="text-sm font-bold text-gray-700">Photo</label>
+                  {member.photo && <img src={member.photo} alt="Preview" className="w-24 h-24 object-cover rounded-xl shadow-sm border bg-white" />}
+                  <input type="file" accept="image/*" onChange={(e) => handleEmeritusImageUpload(e, index)} className="w-full p-2 border bg-white rounded-lg text-xs" />
+                </div>
+                <button onClick={() => { const n = [...localEmeritus]; n.splice(index, 1); setLocalEmeritus(n); }} className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors mt-4 md:mt-0">
+                  <FaTrash />
+                </button>
+              </div>
+            ))}
+            {(!localEmeritus || localEmeritus.length === 0) && (
+              <div className="text-center py-10 text-gray-500">
+                <FaUserTie className="mx-auto text-4xl mb-3 text-gray-300" />
+                <p>No Emeritus members added yet.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  };
+
   const renderFaqsTab = () => {
     const handleSaveFaqs = async () => {
       await updateSiteContent({ faqs: localFaqs });
@@ -3923,7 +4002,14 @@ function AdminPage() {
           <div className="flex justify-between items-center border-b pb-4 mb-4">
             <h3 className="text-xl font-bold text-gray-800">Frequently Asked Questions</h3>
             <button
-              onClick={() => setLocalFaqs([...(localFaqs || []), { question: '', answer: '' }])}
+              onClick={() => {
+                const newIndex = (localFaqs || []).length;
+                setLocalFaqs([...(localFaqs || []), { question: '', answer: '' }]);
+                setTimeout(() => {
+                  const el = document.getElementById(`faq-item-${newIndex}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+              }}
               className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
             >
               <FaPlus className="mr-2" /> Add FAQ
@@ -3931,7 +4017,7 @@ function AdminPage() {
           </div>
           <div className="space-y-4">
             {(localFaqs || []).map((faq, index) => (
-              <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
+              <div key={index} id={`faq-item-${index}`} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
                 <div className="font-bold text-gray-400 w-6 pt-2">{index + 1}.</div>
                 <div className="flex-1 space-y-3">
                   <input
@@ -4042,6 +4128,7 @@ function AdminPage() {
             { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher /> },
             { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList /> },
             { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap /> },
+            { id: 'emeritus', label: 'Emeritus', icon: <FaUserTie /> },
             { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase /> },
             { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt /> },
             { id: 'stats', label: 'Home Stats', icon: <FaChartLine /> },
@@ -4189,6 +4276,7 @@ function AdminPage() {
           {activeTab === 'faculty' && renderFacultyTab()}
           { activeTab === 'principal' && renderPrincipalTab() }
           { activeTab === 'alumni' && renderAlumniTab() }
+          { activeTab === 'emeritus' && renderEmeritusTab() }
           { activeTab === 'socialMedia' && renderSocialMediaTab() }
           { activeTab === 'stats' && renderStatsTab() }
           {activeTab === 'schoolProfile' && renderSchoolProfileTab()}

@@ -59,6 +59,7 @@ const Footer = () => {
           <div className="flex flex-col items-start gap-2.5">
             <h5 className="font-bold text-xs text-primary dark:text-blue-400 uppercase tracking-widest mb-1">Resources</h5>
             <Link to="/faculty" className={linkClass}>Faculty</Link>
+            <Link to="/emeritus" className={linkClass}>Emeritus</Link>
             <Link to="/gallery" className={linkClass}>Gallery</Link>
             <Link to="/career" className={linkClass}>Career</Link>
             <Link to="/complaints" className={linkClass}>Suggestions</Link>

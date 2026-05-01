@@ -120,6 +120,12 @@ function Header() {
                       </span>{" "}
                       Faculty
                     </NavLink>
+                    <NavLink to="/emeritus" className={dropdownLinkClass}>
+                      <span className="material-symbols-outlined text-[18px]">
+                        history_edu
+                      </span>{" "}
+                      Emeritus
+                    </NavLink>
                     <NavLink to="/gallery" className={dropdownLinkClass}>
                       <span className="material-symbols-outlined text-[18px]">
                         gallery_thumbnail
@@ -249,6 +255,7 @@ function Header() {
 
                   {[
                     { to: "/faculty", label: "Faculty", icon: "groups" },
+                    { to: "/emeritus", label: "Emeritus", icon: "history_edu" },
                     { to: "/gallery", label: "Gallery", icon: "photo_library" },
                     { to: "/career", label: "Career", icon: "work" },
                     { to: "/complaints", label: "Feedback", icon: "forum" },

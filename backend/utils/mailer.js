@@ -1,4 +1,10 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Force IPv4 resolution globally for this module to prevent ENETUNREACH over IPv6
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 const createTransporter = () => {
   // Using explicit host/port instead of 'service' for better control in production
@@ -6,8 +12,7 @@ const createTransporter = () => {
     host: 'smtp.gmail.com',
     port: 465, // SSL/TLS port
     secure: true, // true for 465, false for 587
-    // Absolutely force IPv4 to bypass Render IPv6 routing issues
-    lookup: (hostname, options, callback) => require('dns').lookup(hostname, { family: 4 }, callback),
+    // Use standard host resolution (now forced to IPv4 via dns.setDefaultResultOrder)
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,

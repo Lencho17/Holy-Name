@@ -34,8 +34,21 @@ const CenterOfExcellence = () => {
       {/* Hero Section */}
       <section className="relative py-24 overflow-hidden bg-slate-900">
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-slate-900 mix-blend-multiply" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(59,130,246,0.3),transparent)]" />
+          {schoolProfile?.pageHeroImages?.excellence ? (
+            <img
+              src={schoolProfile.pageHeroImages.excellence}
+              alt="Center of Excellence"
+              className="w-full h-full object-cover opacity-50"
+            />
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-slate-900 mix-blend-multiply" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(59,130,246,0.3),transparent)]" />
+            </>
+          )}
+          {schoolProfile?.pageHeroImages?.excellence && (
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 to-slate-900/60 mix-blend-multiply" />
+          )}
         </div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">

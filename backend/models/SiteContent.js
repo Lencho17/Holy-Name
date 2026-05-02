@@ -190,7 +190,9 @@ const siteContentSchema = new mongoose.Schema({
       notice: { type: String, default: "" },
       principal: { type: String, default: "" },
       studentPortal: { type: String, default: "" },
-      alumestron: { type: String, default: "" }
+      alumestron: { type: String, default: "" },
+      excellence: { type: String, default: "" },
+      tenders: { type: String, default: "" }
     }
   },
   coursesPage: {

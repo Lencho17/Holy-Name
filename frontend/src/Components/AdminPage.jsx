@@ -3488,7 +3488,8 @@ function AdminPage() {
       { id: 'notice', label: 'Notice Board' },
       { id: 'principal', label: "Principal's Desk" },
       { id: 'studentPortal', label: 'Student Portal' },
-      { id: 'tenders', label: 'Tenders' }
+      { id: 'tenders', label: 'Tenders' },
+      { id: 'excellence', label: 'Center of Excellence' }
     ];
 
     return (

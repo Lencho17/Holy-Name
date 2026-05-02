@@ -643,7 +643,10 @@ function AdminPage() {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/students`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) return handleLogout();
-      if (res.ok) setStudents(await res.json());
+      if (res.ok) {
+        const result = await res.json();
+        setStudents(result.data || result || []);
+      }
     } catch (e) { console.warn('Could not fetch students'); }
   };
 
@@ -1110,15 +1113,16 @@ function AdminPage() {
 
   const filteredApps = applications;
 
-  const totalApps = appStats.total;
-  const approvedApps = appStats.accepted;
-  const pendingApps = appStats.pending;
+  const totalApps = appStats?.total || 0;
+  const approvedApps = appStats?.accepted || 0;
+  const pendingApps = appStats?.pending || 0;
+  const studentCount = students?.length || 0;
 
   const dashboardStats = [
     { label: 'Total Applications', value: totalApps.toString(), icon: <FaClipboardList className="text-primary" />, bg: 'bg-primary/10' },
     { label: 'Approved', value: approvedApps.toString(), icon: <FaCheckCircle className="text-green-500" />, bg: 'bg-green-50' },
     { label: 'Pending Review', value: pendingApps.toString(), icon: <FaChartLine className="text-tertiary" />, bg: 'bg-tertiary/10' },
-    { label: 'Total Students', value: students.length.toString(), icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
+    { label: 'Total Students', value: studentCount.toString(), icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
   ];
 
   const recentApps = [...filteredApps]

@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -13,6 +13,17 @@ function AdminPage() {
     localStorage.setItem('adminActiveTab', activeTab);
   }, [activeTab]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null); // 'content', 'data', 'system', etc.
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.nav-dropdown-container')) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
   const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
@@ -5029,209 +5040,221 @@ function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen flex font-sans relative overflow-x-hidden" style={{ backgroundColor: '#F1F5F9' }}>
-      {/* Sidebar Overlay for Mobile */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-300"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 lg:relative z-50 lg:z-auto
-        w-72 lg:h-[100dvh] text-white flex flex-col shadow-2xl overflow-y-auto
-        transition-transform duration-300 ease-in-out lg:translate-x-0
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `} style={{ background: 'linear-gradient(180deg, #0F172A 0%, #1E293B 100%)' }}>
-        {/* Brand Area */}
-        <div className="p-6 shrink-0 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-700/80 flex items-center justify-center border border-slate-600/30">
-              <FaGraduationCap className="text-blue-300 text-lg" />
+    <div className="min-h-screen flex flex-col font-sans relative overflow-x-hidden" style={{ backgroundColor: '#F1F5F9' }}>
+      {/* Top Navbar */}
+      <nav className="bg-white/70 backdrop-blur-xl text-blue-950 shadow-[0_4px_30px_rgba(0,0,0,0.03)] border-b border-white/50 z-50 sticky top-0 w-full">
+        <div className="flex items-center justify-between px-4 lg:px-8 py-3 relative">
+          {/* Logo / Brand */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+              <FaGraduationCap className="text-primary text-lg" />
             </div>
-            <div>
-              <h2 className="text-sm font-semibold text-slate-200 leading-tight tracking-wide">
+            <div className="flex flex-col justify-center items-start">
+              <h2 className="text-sm font-bold text-blue-950 leading-none tracking-wide mb-0.5">
                 {schoolProfile?.name || "School"}
               </h2>
-              <span className="text-[10px] text-slate-500 font-medium uppercase tracking-[0.2em]">Admin Console</span>
+              <span className="text-[10px] text-blue-600/80 font-bold uppercase tracking-[0.2em] leading-none">Admin Console</span>
             </div>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors">
-            <FaTimes size={18} />
-          </button>
-        </div>
 
-        {/* Navigation */}
-        <div className="flex-1 py-4 flex flex-col gap-0.5 px-3 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
-          {/* Dashboard - Primary Action */}
-          <button 
-            onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
-            className={`group flex items-center w-full px-4 py-2.5 rounded-xl transition-all duration-200 ${activeTab === 'dashboard' ? 'bg-blue-600/20 text-white font-semibold shadow-sm shadow-blue-500/10' : 'hover:bg-white/5 text-slate-400 hover:text-white'}`}
-          >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors ${activeTab === 'dashboard' ? 'bg-blue-500 text-white shadow-md shadow-blue-500/40' : 'bg-slate-700/50 text-slate-400 group-hover:bg-slate-700 group-hover:text-white'}`}>
-              <FaChartLine className="text-sm" />
-            </div>
-            <span className="text-sm">Dashboard</span>
-            {activeTab === 'dashboard' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
-          </button>
-          
-          <div className="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-semibold mt-6 mb-2 px-4">Content Management</div>
-          
-          {[
-            { id: 'schoolProfile', label: 'School Profile', icon: <FaInfoCircle /> },
-            { id: 'gallery', label: 'Gallery', icon: <FaImage /> },
-            { id: 'videos', label: 'Video Blog', icon: <FaVideo /> },
-            { id: 'banner', label: 'Popup Banner', icon: <FaImage /> },
-            { id: 'highlights', label: 'Highlights', icon: <FaStar /> },
-            { id: 'events', label: 'Events', icon: <FaCalendarAlt /> },
-            { id: 'notices', label: 'Notices', icon: <FaClipboardList /> },
-            { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher /> },
-            { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList /> },
-            { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap /> },
-            { id: 'excellence', label: 'Excellence', icon: <FaAward /> },
-            { id: 'emeritus', label: 'Alumestron', icon: <FaUserTie /> },
-            { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase /> },
-            { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt /> },
-            { id: 'stats', label: 'Home Stats', icon: <FaChartLine /> },
-            { id: 'about', label: 'About Page', icon: <FaInfoCircle /> },
-            { id: 'courses', label: 'Courses Page', icon: <FaBookOpen /> },
-            { id: 'faqs', label: 'FAQs', icon: <FaQuestionCircle /> }
-          ].map(item => (
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center justify-center gap-4 absolute left-1/2 -translate-x-1/2">
             <button 
-              key={item.id}
-              onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
-              className={`group flex items-center w-full px-4 py-2.5 rounded-xl transition-all duration-200 ${activeTab === item.id ? 'bg-blue-600/20 text-white font-semibold' : 'hover:bg-white/5 text-slate-400 hover:text-white'}`}
+              onClick={() => { setActiveTab('dashboard'); setOpenDropdown(null); }}
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${activeTab === 'dashboard' ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
             >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors text-sm ${activeTab === item.id ? 'bg-blue-500 text-white shadow-md shadow-blue-500/40' : 'bg-slate-700/50 text-slate-400 group-hover:bg-slate-700 group-hover:text-white'}`}>
-                {item.icon}
-              </div>
-              <span className="text-sm">{item.label}</span>
-              {activeTab === item.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />}
+              <FaChartLine /> Dashboard
             </button>
-          ))}
 
-          <div className="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-semibold mt-6 mb-2 px-4">School Data</div>
-          {[
-            { id: 'applications', label: 'Applications', icon: <FaClipboardList /> },
-            { id: 'students', label: 'Students', icon: <FaUsers /> },
-            { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots />, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
-            { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase /> },
-            { id: 'tenders', label: 'Tenders', icon: <FaGavel /> }
-          ].map(item => (
-            <button 
-              key={item.id}
-              onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
-              className={`group flex items-center w-full px-4 py-2.5 rounded-xl transition-all duration-200 ${activeTab === item.id ? 'bg-blue-600/20 text-white font-semibold' : 'hover:bg-white/5 text-slate-400 hover:text-white'}`}
-            >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors text-sm ${activeTab === item.id ? 'bg-blue-500 text-white shadow-md shadow-blue-500/40' : 'bg-slate-700/50 text-slate-400 group-hover:bg-slate-700 group-hover:text-white'}`}>
-                {item.icon}
-              </div>
-              <span className="text-sm">{item.label}</span>
-              {item.badge > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm shadow-red-500/30 animate-pulse">
-                  {item.badge}
-                </span>
+            {/* Content Management Dropdown */}
+            <div className="relative nav-dropdown-container">
+              <button 
+                onClick={() => setOpenDropdown(openDropdown === 'content' ? null : 'content')}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+              >
+                <FaImage /> Content <FaAngleDown className={`transition-transform ${openDropdown === 'content' ? 'rotate-180' : ''}`} />
+              </button>
+              {openDropdown === 'content' && (
+                <div className="absolute top-full left-0 mt-2 w-[480px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-4 grid grid-cols-2 gap-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
+                  {[
+                    { id: 'schoolProfile', label: 'School Profile', icon: <FaInfoCircle className="text-blue-500"/> },
+                    { id: 'gallery', label: 'Gallery', icon: <FaImage className="text-purple-500"/> },
+                    { id: 'videos', label: 'Video Blog', icon: <FaVideo className="text-red-500"/> },
+                    { id: 'banner', label: 'Popup Banner', icon: <FaImage className="text-amber-500"/> },
+                    { id: 'highlights', label: 'Highlights', icon: <FaStar className="text-yellow-500"/> },
+                    { id: 'events', label: 'Events', icon: <FaCalendarAlt className="text-emerald-500"/> },
+                    { id: 'notices', label: 'Notices', icon: <FaClipboardList className="text-orange-500"/> },
+                    { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher className="text-indigo-500"/> },
+                    { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList className="text-slate-500"/> },
+                    { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap className="text-blue-400"/> },
+                    { id: 'excellence', label: 'Excellence', icon: <FaAward className="text-amber-600"/> },
+                    { id: 'emeritus', label: 'Alumestron', icon: <FaUserTie className="text-purple-600"/> },
+                    { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase className="text-cyan-600"/> },
+                    { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt className="text-blue-600"/> },
+                    { id: 'stats', label: 'Home Stats', icon: <FaChartLine className="text-green-600"/> },
+                    { id: 'about', label: 'About Page', icon: <FaInfoCircle className="text-indigo-400"/> },
+                    { id: 'courses', label: 'Courses Page', icon: <FaBookOpen className="text-orange-400"/> },
+                    { id: 'faqs', label: 'FAQs', icon: <FaQuestionCircle className="text-red-400"/> }
+                  ].map(item => (
+                    <button 
+                      key={item.id}
+                      onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
+                      className={`flex items-center gap-3 p-2 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-blue-50/80 text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-50/50 text-gray-600 font-medium'}`}
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-gray-100/50 flex items-center justify-center">
+                         {item.icon}
+                      </div>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               )}
-              {activeTab === item.id && !item.badge && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />}
-            </button>
-          ))}
+            </div>
 
-          {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
-            <>
-              <div className="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-semibold mt-6 mb-2 px-4">System Control</div>
-              {[
-                { id: 'adminRequests', label: 'Admin Requests', icon: <FaIdCard />, badge: inquiries.filter(i => i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
-                { id: 'admins', label: 'Manage Admins', icon: <FaUsers /> },
-                { id: 'settings', label: 'Settings', icon: <FaCog /> }
-              ].map(item => (
+            {/* School Data Dropdown */}
+            <div className="relative nav-dropdown-container">
+              <button 
+                onClick={() => setOpenDropdown(openDropdown === 'data' ? null : 'data')}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['applications', 'students', 'inquiries', 'jobApplications', 'tenders'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+              >
+                <FaUsers /> Data 
+                {(inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length > 0) && (
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-1" />
+                )}
+                <FaAngleDown className={`transition-transform ${openDropdown === 'data' ? 'rotate-180' : ''}`} />
+              </button>
+              {openDropdown === 'data' && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
+                  {[
+                    { id: 'applications', label: 'Applications', icon: <FaClipboardList className="text-blue-500"/> },
+                    { id: 'students', label: 'Students', icon: <FaUsers className="text-green-500"/> },
+                    { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots className="text-purple-500"/>, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
+                    { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase className="text-amber-500"/> },
+                    { id: 'tenders', label: 'Tenders', icon: <FaGavel className="text-slate-500"/> }
+                  ].map(item => (
+                    <button 
+                      key={item.id}
+                      onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
+                      className={`flex items-center gap-3 w-full p-3 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-blue-50/80 text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-50/50 text-gray-600 font-medium'}`}
+                    >
+                      {item.icon} {item.label}
+                      {item.badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* System Control Dropdown */}
+            {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
+              <div className="relative nav-dropdown-container">
                 <button 
-                  key={item.id}
-                  onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
-                  className={`group flex items-center w-full px-4 py-2.5 rounded-xl transition-all duration-200 ${activeTab === item.id ? 'bg-amber-500/20 text-amber-300 font-semibold' : 'hover:bg-white/5 text-slate-400 hover:text-white'}`}
+                  onClick={() => setOpenDropdown(openDropdown === 'system' ? null : 'system')}
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['adminRequests', 'admins', 'settings'].includes(activeTab) ? 'bg-amber-500/10 text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-amber-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors text-sm ${activeTab === item.id ? 'bg-amber-500 text-white shadow-md shadow-amber-500/40' : 'bg-slate-700/50 text-amber-400/70 group-hover:bg-slate-700 group-hover:text-amber-300'}`}>
-                    {item.icon}
-                  </div>
-                  <span className="text-sm">{item.label}</span>
-                  {activeTab === item.id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                  <FaCog /> System
+                  {(inquiries.filter(i => i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length > 0) && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-1" />
+                  )}
+                  <FaAngleDown className={`transition-transform ${openDropdown === 'system' ? 'rotate-180' : ''}`} />
                 </button>
-              ))}
-            </>
-          )}
-        </div>
+                {openDropdown === 'system' && (
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
+                    {[
+                      { id: 'adminRequests', label: 'Admin Requests', icon: <FaIdCard className="text-amber-500"/>, badge: inquiries.filter(i => i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
+                      { id: 'admins', label: 'Manage Admins', icon: <FaUsers className="text-blue-500"/> },
+                      { id: 'settings', label: 'Settings', icon: <FaCog className="text-slate-500"/> }
+                    ].map(item => (
+                      <button 
+                        key={item.id}
+                        onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
+                        className={`flex items-center gap-3 w-full p-3 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-amber-50/80 text-amber-700 font-bold shadow-sm' : 'hover:bg-amber-50/50 text-gray-600 font-medium'}`}
+                      >
+                        {item.icon} {item.label}
+                        {item.badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 pb-6 border-t border-slate-700/50 space-y-1.5 shrink-0">
-          <NavLink to="/" className="flex items-center w-full px-4 py-2.5 rounded-xl hover:bg-white/5 transition-colors text-slate-500 hover:text-white text-sm gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-sm">
-              <FaSignOutAlt />
-            </div>
-            Return to Website
-          </NavLink>
-          <button 
-            onClick={handleLogout}
-            className="flex items-center w-full px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all text-sm font-medium gap-3 group"
-          >
-            <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-sm group-hover:bg-red-500/30 transition-colors">
-              <FaSignOutAlt />
-            </div>
-            Logout Session
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white/80 backdrop-blur-xl px-4 md:px-8 py-3.5 flex justify-between items-center border-b border-gray-200/60 z-30">
+          {/* Right Side Actions */}
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2.5 hover:bg-gray-100 rounded-xl text-gray-500 transition-colors"
-            >
-              <FaBars size={18} />
-            </button>
-            <div>
-              <h1 className="text-lg md:text-xl font-bold text-gray-800 capitalize tracking-tight">
-                {activeTab === 'dashboard' 
-                  ? `Welcome back, ${adminUser?.name?.split(' ')[0] || 'Admin'}` 
-                  : activeTab === 'emeritus' 
-                    ? 'Alumestron' 
-                    : activeTab.replace(/([A-Z])/g, ' $1').trim()}
-              </h1>
-              <p className="text-xs text-gray-400 hidden sm:block">
-                {activeTab === 'dashboard' 
-                  ? `${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` 
-                  : 'Manage your content and settings'}
+            <div className="hidden md:flex items-center gap-2">
+               <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${sessionRemaining <= 120 ? 'bg-red-100 text-red-600 border-red-200 animate-pulse' : 'bg-white/60 backdrop-blur-md text-blue-800 border-white/50 shadow-sm'}`}>
+                 <FaClock /> <span>{formatTimer(sessionRemaining)}</span>
+               </div>
+            </div>
+
+            <div className="hidden sm:block text-right mr-2">
+              <p className="text-sm font-semibold text-blue-950 leading-tight">{adminUser?.name || 'Admin User'}</p>
+              <p className="text-[10px] text-primary font-medium uppercase tracking-wider">
+                {adminUser?.role === 'developer' ? 'System Developer' : 
+                 adminUser?.role === 'superadmin' ? 'Super Administrator' : 
+                 'Administrator'}
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-3 md:gap-4">
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col items-end mr-2">
-                 <div className={`flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-md border ${sessionRemaining <= 120 ? 'bg-red-50 text-red-500 border-red-100 animate-pulse' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
-                   <FaClock />
-                   <span>{formatTimer(sessionRemaining)}</span>
-                 </div>
-              </div>
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-semibold text-gray-800">{adminUser?.name || 'Admin User'}</p>
-                <p className="text-[10px] text-gray-400 font-medium">
-                  {adminUser?.role === 'developer' ? 'System Developer' : 
-                   adminUser?.role === 'superadmin' ? 'Super Administrator' : 
-                   'Administrator'}
-                </p>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-200">
+
+            <div className="relative group">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md cursor-pointer border border-blue-400/50">
                 {adminUser?.name?.charAt(0) || 'A'}
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
+              <div className="absolute top-full right-0 pt-2 w-48 hidden group-hover:block animate-in fade-in slide-in-from-top-2 z-50">
+                <div className="bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2">
+                   <NavLink to="/" className="flex items-center gap-3 w-full p-3 rounded-xl text-sm transition-colors text-gray-600 hover:bg-gray-50 hover:text-blue-600 font-medium">
+                     <FaLaptop /> View Website
+                   </NavLink>
+                   <div className="h-px bg-gray-100 my-1 w-full" />
+                   <button onClick={handleLogout} className="flex items-center gap-3 w-full p-3 rounded-xl text-sm transition-colors text-red-600 hover:bg-red-50 font-bold">
+                     <FaSignOutAlt /> Logout
+                   </button>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="lg:hidden p-2.5 hover:bg-blue-100/60 rounded-xl text-blue-800 transition-colors"
+            >
+              {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Menu */}
+        {isSidebarOpen && (
+          <div className="lg:hidden absolute top-full left-0 w-full bg-white/95 backdrop-blur-xl border-t border-white/50 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-top-2">
+            <div className="p-4 space-y-4">
+              <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-3 ${activeTab === 'dashboard' ? 'bg-primary text-white' : 'text-blue-800 hover:bg-blue-100/50'}`}>
+                <FaChartLine /> Dashboard
+              </button>
+              
+              <div className="space-y-1">
+                <p className="text-[10px] text-blue-500/80 uppercase tracking-widest font-bold px-4 mb-2">Content</p>
+                {['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs'].map(id => (
+                  <button key={id} onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2 rounded-xl text-sm flex items-center gap-3 ${activeTab === id ? 'bg-primary/10 text-primary' : 'text-blue-700 hover:bg-blue-100/50'}`}>
+                    {id.charAt(0).toUpperCase() + id.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] text-blue-500/80 uppercase tracking-widest font-bold px-4 mb-2 mt-4">Data</p>
+                {['applications', 'students', 'inquiries', 'jobApplications', 'tenders'].map(id => (
+                  <button key={id} onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2 rounded-xl text-sm flex items-center gap-3 ${activeTab === id ? 'bg-primary/10 text-primary' : 'text-blue-700 hover:bg-blue-100/50'}`}>
+                    {id.charAt(0).toUpperCase() + id.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </header>
+        )}
+      </nav>
+
+      {/* Main Content */}
+      <div className="flex-1 w-full overflow-y-auto">
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8" style={{ backgroundColor: '#F8FAFC' }}>
           {activeTab === 'dashboard' && renderDashboard()}

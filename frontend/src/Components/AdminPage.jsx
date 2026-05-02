@@ -5226,36 +5226,99 @@ function AdminPage() {
             </button>
           </div>
         </div>
+      </nav>
 
-        {/* Mobile Navigation Menu */}
-        {isSidebarOpen && (
-          <div className="lg:hidden absolute top-full left-0 w-full bg-white/95 backdrop-blur-xl border-t border-white/50 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-top-2">
-            <div className="p-4 space-y-4">
-              <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-3 ${activeTab === 'dashboard' ? 'bg-primary text-white' : 'text-blue-800 hover:bg-blue-100/50'}`}>
-                <FaChartLine /> Dashboard
+      {/* Mobile Navigation Drawer */}
+      {isSidebarOpen && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] lg:hidden animate-in fade-in duration-300"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white shadow-2xl z-[70] lg:hidden flex flex-col animate-in slide-in-from-left duration-300">
+            <div className="p-5 bg-gradient-to-br from-blue-600 to-blue-800 text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 text-lg font-bold">
+                  {adminUser?.name?.charAt(0) || 'A'}
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg leading-tight">Admin Menu</h2>
+                  <p className="text-blue-100 text-xs">{adminUser?.name || 'Administrator'}</p>
+                </div>
+              </div>
+              <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                <FaTimes size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-4 transition-all shadow-sm ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-500/30' : 'bg-gray-50 text-gray-700 hover:bg-blue-50'}`}>
+                <FaChartLine className={activeTab === 'dashboard' ? 'text-white' : 'text-blue-500'} size={18} /> 
+                Dashboard Overview
               </button>
               
-              <div className="space-y-1">
-                <p className="text-[10px] text-blue-500/80 uppercase tracking-widest font-bold px-4 mb-2">Content</p>
-                {['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs'].map(id => (
-                  <button key={id} onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2 rounded-xl text-sm flex items-center gap-3 ${activeTab === id ? 'bg-primary/10 text-primary' : 'text-blue-700 hover:bg-blue-100/50'}`}>
-                    {id.charAt(0).toUpperCase() + id.slice(1).replace(/([A-Z])/g, ' $1').trim()}
-                  </button>
-                ))}
+              <div>
+                <div className="flex items-center gap-2 px-2 mb-3">
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Data Management</p>
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'applications', label: 'Admissions' },
+                    { id: 'students', label: 'Students' },
+                    { id: 'inquiries', label: 'Inquiries' },
+                    { id: 'jobApplications', label: 'Job Apps' },
+                    { id: 'tenders', label: 'Tenders' }
+                  ].map(item => (
+                    <button key={item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl text-xs font-semibold gap-1 border transition-all ${activeTab === item.id ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-inner' : 'bg-white border-gray-100 text-gray-600 hover:border-blue-100 hover:bg-gray-50'}`}>
+                      <span className="text-center leading-tight">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <p className="text-[10px] text-blue-500/80 uppercase tracking-widest font-bold px-4 mb-2 mt-4">Data</p>
-                {['applications', 'students', 'inquiries', 'jobApplications', 'tenders'].map(id => (
-                  <button key={id} onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2 rounded-xl text-sm flex items-center gap-3 ${activeTab === id ? 'bg-primary/10 text-primary' : 'text-blue-700 hover:bg-blue-100/50'}`}>
-                    {id.charAt(0).toUpperCase() + id.slice(1).replace(/([A-Z])/g, ' $1').trim()}
-                  </button>
-                ))}
+              <div>
+                <div className="flex items-center gap-2 px-2 mb-3">
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Content Management</p>
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                </div>
+                <div className="space-y-1">
+                  {['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs'].map(id => (
+                    <button key={id} onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-2 h-2 rounded-full ${activeTab === id ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                      {id.charAt(0).toUpperCase() + id.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
+                <div>
+                  <div className="flex items-center gap-2 px-2 mb-3">
+                    <div className="h-px bg-gray-200 flex-1"></div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">System</p>
+                    <div className="h-px bg-gray-200 flex-1"></div>
+                  </div>
+                  <div className="space-y-1">
+                    <button onClick={() => { setActiveTab('admins'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'admins' ? 'bg-purple-50 text-purple-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-2 h-2 rounded-full ${activeTab === 'admins' ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                      Manage Admins
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 bg-gray-50 shrink-0 pb-8">
+               <button onClick={handleLogout} className="w-full py-3 px-4 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors border border-red-100">
+                 <FaSignOutAlt /> Sign Out
+               </button>
             </div>
           </div>
-        )}
-      </nav>
+        </>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 w-full overflow-y-auto">

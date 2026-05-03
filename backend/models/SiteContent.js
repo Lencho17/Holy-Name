@@ -207,7 +207,25 @@ const siteContentSchema = new mongoose.Schema({
       iconType: String
     }],
     rules: [String]
-  }
+  },
+  admissionFields: [
+    {
+      id: String,
+      name: String,
+      label: String,
+      type: { type: String, enum: ['text', 'number', 'email', 'date', 'select', 'file', 'checkbox', 'textarea'], default: 'text' },
+      required: { type: Boolean, default: false },
+      options: [String],
+      section: String,
+      order: Number,
+      isActive: { type: Boolean, default: true },
+      isSystemField: { type: Boolean, default: false },
+      placeholder: String,
+      helpText: String,
+      validationRegex: String,
+      errorMessage: String,
+    }
+  ]
 }, { timestamps: true });
 
 module.exports = mongoose.model('SiteContent', siteContentSchema);

@@ -40,17 +40,64 @@ router.get('/', async (req, res) => {
       return res.json(contentCache.data);
     }
 
-    let content = await SiteContent.findOne().lean();
+    let content = await SiteContent.findOne();
     if (!content) {
       content = await SiteContent.create({});
-      content = content.toObject();
+    }
+
+    // Auto-populate default admission fields if empty
+    if (!content.admissionFields || content.admissionFields.length === 0) {
+      const defaultFields = [
+        // Section: Student Information
+        { name: 'studentName', label: 'Student Name (As per Aadhaar)', type: 'text', required: true, section: 'Student Information', order: 1, isSystemField: true },
+        { name: 'dateOfBirth', label: 'Date of Birth', type: 'date', required: true, section: 'Student Information', order: 2, isSystemField: true },
+        { name: 'AadhaarNumber', label: 'Aadhaar Number', type: 'text', required: false, section: 'Student Information', order: 3, isSystemField: true, placeholder: '12-DIGIT AADHAAR NUMBER' },
+        { name: 'placeOfBirth', label: 'Place of Birth', type: 'text', required: false, section: 'Student Information', order: 4, isSystemField: true },
+        { name: 'gender', label: 'Gender', type: 'select', required: true, section: 'Student Information', order: 5, options: ['MALE', 'FEMALE', 'OTHER'], isSystemField: true },
+        { name: 'bloodGroup', label: 'Blood Group', type: 'select', required: false, section: 'Student Information', order: 6, options: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], isSystemField: true },
+        { name: 'religion', label: 'Religion', type: 'select', required: false, section: 'Student Information', order: 7, options: ['HINDUISM', 'ISLAM', 'CHRISTIANITY', 'SIKHISM', 'BUDDHISM', 'JAINISM', 'OTHER'], isSystemField: true },
+        { name: 'caste', label: 'Caste', type: 'select', required: true, section: 'Student Information', order: 8, options: ['GENERAL', 'OBC', 'SC', 'ST', 'MOBC'], isSystemField: true },
+        { name: 'gradeApplied', label: 'Grade/Class Applied For', type: 'select', required: true, section: 'Student Information', order: 9, options: ['PRE-NURSERY', 'KG I (LKG)', 'KG II (UKG)', 'CLASS I', 'CLASS II', 'CLASS III', 'CLASS IV', 'CLASS V', 'CLASS VI', 'CLASS VII', 'CLASS VIII', 'CLASS IX', 'CLASS X', 'CLASS XI', 'CLASS XII'], isSystemField: true },
+        
+        // Section: Parent/Guardian Info
+        { name: 'fatherName', label: "Father's Name", type: 'text', required: false, section: 'Parent/Guardian Info', order: 10, isSystemField: true },
+        { name: 'fatherOccupation', label: "Father's Occupation", type: 'text', required: false, section: 'Parent/Guardian Info', order: 11, isSystemField: true },
+        { name: 'motherName', label: "Mother's Name", type: 'text', required: false, section: 'Parent/Guardian Info', order: 12, isSystemField: true },
+        { name: 'motherOccupation', label: "Mother's Occupation", type: 'text', required: false, section: 'Parent/Guardian Info', order: 13, isSystemField: true },
+        { name: 'guardianName', label: "Guardian's Full Name", type: 'text', required: false, section: 'Parent/Guardian Info', order: 14, isSystemField: true },
+        { name: 'relationship', label: "Relationship to Student", type: 'text', required: false, section: 'Parent/Guardian Info', order: 15, isSystemField: true },
+        { name: 'contactNumber', label: "Contact Number", type: 'text', required: true, section: 'Parent/Guardian Info', order: 16, isSystemField: true, placeholder: '10-DIGIT PHONE NUMBER' },
+        { name: 'email', label: "Email Address", type: 'email', required: true, section: 'Parent/Guardian Info', order: 17, isSystemField: true },
+        
+        // Section: Address Details
+        { name: 'address', label: 'Residential Address', type: 'textarea', required: true, section: 'Address Details', order: 18, isSystemField: true },
+        { name: 'po', label: 'Post Office (PO)', type: 'text', required: true, section: 'Address Details', order: 19, isSystemField: true },
+        { name: 'ps', label: 'Police Station (PS)', type: 'text', required: true, section: 'Address Details', order: 20, isSystemField: true },
+        { name: 'pincode', label: 'Pincode', type: 'text', required: true, section: 'Address Details', order: 21, isSystemField: true },
+        
+        // Section: Academic Background
+        { name: 'previousSchool', label: 'Previous School Attended', type: 'text', required: false, section: 'Academic Background', order: 22, isSystemField: true },
+        { name: 'penNumber', label: 'PEN (Permanent Education Number)', type: 'text', required: false, section: 'Academic Background', order: 23, isSystemField: true },
+        { name: 'boardMarks', label: 'Total Marks Obtained (Class X)', type: 'number', required: false, section: 'Academic Background', order: 24, isSystemField: true },
+        { name: 'darpanId', label: 'DARPAN ID', type: 'text', required: false, section: 'Academic Background', order: 25, isSystemField: true },
+        
+        // Section: Documents
+        { name: 'studentPhoto', label: 'Student Passport Photo', type: 'file', required: true, section: 'Documents', order: 26, isSystemField: true },
+        { name: 'birthCertificate', label: 'Birth Certificate', type: 'file', required: true, section: 'Documents', order: 27, isSystemField: true },
+        { name: 'transferCertificate', label: 'Transfer Certificate', type: 'file', required: false, section: 'Documents', order: 28, isSystemField: true },
+        { name: 'marksheet', label: 'Previous Class Marksheet', type: 'file', required: false, section: 'Documents', order: 29, isSystemField: true },
+        { name: 'casteCertificate', label: 'Caste Certificate', type: 'file', required: false, section: 'Documents', order: 30, isSystemField: true },
+        { name: 'AadhaarVidOrReceipt', label: 'Aadhaar Card / VID Photo', type: 'file', required: false, section: 'Documents', order: 31, isSystemField: true },
+      ];
+      content.admissionFields = defaultFields;
+      await content.save();
     }
     
     // Update cache
-    contentCache.data = content;
+    contentCache.data = content.toObject();
     contentCache.lastFetched = now;
     
-    res.json(content);
+    res.json(contentCache.data);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -60,7 +107,7 @@ router.get('/', async (req, res) => {
 router.put('/', protect, async (req, res) => {
   try {
     const updateData = req.body;
-    const allowedFields = ['gallery', 'events', 'highlights', 'videos', 'faculty', 'principal', 'notices', 'notificationEmail', 'banner', 'socialLinks', 'alumni', 'stats', 'faqs', 'emeritus', 'centerOfExcellence', 'schoolProfile', 'visionStatement', 'aimsAndObjectives', 'headMistress', 'coursesPage'];
+    const allowedFields = ['gallery', 'events', 'highlights', 'videos', 'faculty', 'principal', 'notices', 'notificationEmail', 'banner', 'socialLinks', 'alumni', 'stats', 'faqs', 'emeritus', 'centerOfExcellence', 'schoolProfile', 'visionStatement', 'aimsAndObjectives', 'headMistress', 'coursesPage', 'admissionFields'];
     
     // Pick only allowed fields
     const safeUpdateData = {};

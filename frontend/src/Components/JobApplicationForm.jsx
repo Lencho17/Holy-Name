@@ -15,7 +15,11 @@ function JobApplicationForm() {
   const handleDownloadReceipt = async () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const primaryColor = [37, 99, 235]; // Blue 600
+    const primaryColor = [37, 99, 235]; // Beautiful Blue
+    const textColor = [50, 50, 50];
+    const accentColor = [191, 219, 254]; // Light Blue / Accent
+    const lightColor = [248, 250, 252]; // Off White / Light Section
+
 
     const loadImage = (url) => {
       return new Promise((resolve) => {
@@ -27,84 +31,265 @@ function JobApplicationForm() {
       });
     };
 
-    // Header Background
-    doc.setFillColor(...primaryColor);
-    doc.rect(0, 0, 210, 40, 'F');
+    // --- 1. Bold Header Bar ---
 
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, 210, 50, 'F');
+
+    // School Logo
     const logoImg = schoolProfile?.logo ? await loadImage(schoolProfile.logo) : null;
     if (logoImg) {
-      doc.addImage(logoImg, 'PNG', 15, 5, 30, 30);
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.8);
+      doc.roundedRect(12, 10, 30, 30, 2, 2, 'D');
+      doc.addImage(logoImg, 'PNG', 13, 11, 28, 28);
     }
 
+    // Header Text (White)
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
-    doc.text(schoolProfile?.name?.toUpperCase() || "HOLY NAME HIGH SCHOOL", 105, 15, { align: "center" });
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "italic");
-    doc.text(schoolProfile?.punchLine || "Excellence in Education", 105, 21, { align: "center" });
-
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("JOB APPLICATION RECEIPT", 105, 32, { align: "center" });
-
-    // Main Content
-    let yPos = 50;
-
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("APPLICATION SUCCESSFUL", 105, yPos, { align: "center" });
-    
-    yPos += 10;
-    doc.setFillColor(240, 240, 240);
-    doc.rect(15, yPos, pageWidth - 30, 20, 'F');
-    doc.setFontSize(10);
-    doc.text("REFERENCE NUMBER", 105, yPos + 7, { align: "center" });
-    doc.setFontSize(16);
-    doc.setTextColor(...primaryColor);
-    doc.text(submittedRef, 105, yPos + 15, { align: "center" });
-
-    yPos += 30;
-    doc.setTextColor(0, 0, 0);
-    
-    autoTable(doc, {
-      startY: yPos,
-      head: [["Candidate Details", ""]],
-      body: [
-        ["Full Name", formData.fullName],
-        ["Date of Birth", formData.dob],
-        ["Age", formData.age],
-        ["Gender", formData.gender || "Not specified"],
-        ["Highest Qualification", formData.qualification],
-        ["Experience Status", formData.isExperienced ? `Experienced (${formData.totalExperience} Yrs)` : "Fresher"],
-        ["Email", formData.email],
-        ["Phone", formData.phone],
-        ["Applied On", new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })]
-      ],
-      theme: 'striped',
-      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontSize: 10 },
-      bodyStyles: { fontSize: 9, cellPadding: 3 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
-      margin: { left: 15, right: 15 }
-    });
-
-    yPos = doc.lastAutoTable.finalY + 15;
+    doc.setFontSize(18);
+    doc.text(schoolProfile?.name?.toUpperCase() || "HOLY NAME HIGH SCHOOL", 110, 22, { align: "center" });
     
     doc.setFontSize(9);
-    doc.setFont("helvetica", "italic");
-    doc.text("Note: This is an auto-generated receipt. Please keep the reference number for future communication.", 15, yPos);
-    
     doc.setFont("helvetica", "normal");
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 15, yPos + 7);
+    doc.text(schoolProfile?.officeAddress || "", 110, 28, { align: "center" });
+    
+    const contactInfo = [schoolProfile?.email, schoolProfile?.phone].filter(Boolean).join(" | ");
+    doc.text(contactInfo, 110, 33, { align: "center" });
+    
+    doc.setFontSize(8);
+    doc.setTextColor(191, 219, 254);
+    doc.text(`Recruitment Portal | Generated on ${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN')}`, 110, 38, { align: "center" });
 
-    doc.save(`HolyName_Application_${submittedRef}.pdf`);
+    // --- 2. Title Section ---
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("JOB APPLICATION ACKNOWLEDGEMENT", 105, 65, { align: "center" });
+    
+    // Thin underline
+    doc.setDrawColor(...accentColor);
+    doc.setLineWidth(0.5);
+    doc.line(60, 68, 150, 68);
+
+    // --- 3. Reference & Photo Row ---
+    // Reference Box
+    doc.setFillColor(...lightColor);
+    doc.roundedRect(15, 75, 140, 30, 3, 3, 'F');
+    doc.setDrawColor(...accentColor);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, 75, 140, 30, 3, 3, 'D');
+    
+    doc.setFontSize(11);
+    doc.setTextColor(...primaryColor);
+    doc.text(`REFERENCE ID: ${submittedRef}`, 22, 85);
+    
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Applicant Name: ${formData.fullName}`, 22, 91);
+    doc.text(`Email: ${formData.email || 'N/A'}`, 22, 97);
+
+    // Passport Photo
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(165, 75, 30, 35, 2, 2, 'D');
+    
+    let studentPhotoUrl = null;
+    if (files?.passportPhoto) {
+      studentPhotoUrl = URL.createObjectURL(files.passportPhoto);
+    }
+
+    const studentImg = studentPhotoUrl ? await loadImage(studentPhotoUrl) : null;
+    if (studentImg) {
+      doc.addImage(studentImg, 'JPEG', 166, 76, 28, 33);
+    } else {
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text("PHOTO\nSPACE", 180, 92, { align: "center" });
+    }
+
+    // --- 4. Watermark (Brackets Removed) ---
+    doc.setTextColor(241, 245, 249);
+    doc.setFontSize(45);
+    doc.setFont("helvetica", "bold");
+    doc.text("VidyaBarta Lencho Solutions", 40, 220, { angle: 45 });
+
+    // --- 5. Fields Section ---
+    let leftColX = 15;
+    let rightColX = 110;
+    let startY = 120;
+    let yInc = 8;
+    let currY = startY;
+
+    const fieldsLeft = [
+      { label: "NAME OF CANDIDATE:", value: formData.fullName },
+      { label: "JOB APPLIED FOR:", value: jobId || "General Application" },
+      { label: "AADHAAR NO:", value: formData.aadhar },
+      { label: "PAN NO:", value: formData.pan },
+      { label: "GENDER:", value: formData.gender },
+      { label: "RELIGION:", value: formData.religion },
+      { label: "PO:", value: formData.postOffice },
+      { label: "PS:", value: formData.policeStation }
+    ];
+
+    const fieldsRight = [
+      { label: "DOB:", value: formData.dob },
+      { label: "AGE:", value: formData.age },
+      { label: "CASTE:", value: formData.caste },
+      { label: "EMAIL:", value: formData.email },
+      { label: "PHONE NO:", value: formData.phone },
+      { label: "PIN CODE:", value: formData.pincode },
+      { label: "ADDRESS:", value: formData.address }
+    ];
+
+    const formatValue = (val) => {
+      if (val === undefined || val === null || val === '') return 'N/A';
+      return val.toString().toUpperCase();
+    };
+
+    // Subheader
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("CANDIDATE INFORMATION", 15, currY - 5);
+    doc.setDrawColor(...accentColor);
+    doc.line(15, currY - 3, 60, currY - 3);
+
+    for (let i = 0; i < Math.max(fieldsLeft.length, fieldsRight.length); i++) {
+      let leftSplit = fieldsLeft[i] ? doc.splitTextToSize(formatValue(fieldsLeft[i].value), 42) : [];
+      let rightSplit = fieldsRight[i] ? doc.splitTextToSize(formatValue(fieldsRight[i].value), 42) : [];
+      let maxLines = Math.max(leftSplit.length || 1, rightSplit.length || 1);
+
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(12, currY - 5, 186, yInc + ((maxLines - 1) * 4) + 2, 'F');
+      }
+
+      if (fieldsLeft[i]) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(fieldsLeft[i].label, leftColX, currY);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text(leftSplit, leftColX + 48, currY);
+      }
+      if (fieldsRight[i]) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(fieldsRight[i].label, rightColX, currY);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text(rightSplit, rightColX + 48, currY);
+      }
+      currY += yInc + ((maxLines - 1) * 4);
+    }
+
+    currY += 10;
+    const renderField = (label, val, x, y, offset = 48, maxWidth = 42) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(label, x, y);
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      const splitVal = doc.splitTextToSize(formatValue(val), maxWidth);
+      doc.text(splitVal, x + offset, y);
+      return splitVal.length;
+    };
+
+    let qualLines = renderField("HIGHEST QUALIFICATION:", formData.qualification, leftColX, currY, 48, 130);
+    currY += yInc + ((qualLines - 1) * 4);
+
+    renderField("EXPERIENCE TYPE:", formData.isExperienced ? formData.experienceType : 'FRESHER', leftColX, currY);
+    const expYears = formData.isExperienced ? (formData.totalExperience ? `${formData.totalExperience} YRS` : 'N/A') : '0 YRS';
+    renderField("TOTAL EXPERIENCE:", expYears, rightColX, currY);
+    currY += yInc;
+
+    if (formData.isExperienced) {
+      let orgLines = renderField("PREVIOUS ORGANISATION:", formData.schoolName, leftColX, currY, 48, 130);
+      currY += yInc + ((orgLines - 1) * 4);
+
+      if (formData.experienceType === "Teacher") {
+        renderField("UDISE CODE:", formData.udiseCode, leftColX, currY);
+        currY += yInc;
+      }
+    }
+
+    // --- 6. Footer ---
+    doc.setDrawColor(226, 232, 240);
+    doc.line(15, 275, 195, 275);
+    
+    doc.setFontSize(8);
+    doc.setTextColor(...primaryColor);
+    doc.text(`${schoolProfile?.name || "Holy Name High School"} | Recruitment Cell | ${schoolProfile?.email || "N/A"}`, 105, 282, { align: "center" });
+    
+    doc.setTextColor(148, 163, 184);
+    doc.text("Secured by VidyaBarta Recruitment Portal - A Product of Lencho Solutions", 105, 287, { align: "center" });
+
+    doc.save(`Job_Application_${submittedRef}.pdf`);
+    doc.setFontSize(9);
+    doc.setTextColor(194, 65, 12); // Rust/Amber
+    doc.setFont("helvetica", "bold");
+    doc.text("NOTICE:", 20, currY + 8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Please present this receipt during your scheduled interview. The reference number is ", 20, currY + 13);
+    doc.text("required for all future correspondence regarding this application.", 20, currY + 17);
+
+    // Footer
+    currY += 28;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, currY, 195, currY);
+    currY += 5;
+
+    doc.setFontSize(8);
+    doc.setTextColor(...primaryColor); // Use beautiful blue for footer emphasis
+    const footerContactInfo = [schoolProfile?.name, schoolProfile?.phone, schoolProfile?.email].filter(Boolean).join(" | ");
+    doc.text(footerContactInfo, 105, currY, { align: "center" });
+    currY += 4;
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN')}, ${new Date().toLocaleTimeString('en-IN')}`, 105, currY, { align: "center" });
+    
+    // Software tag box
+    currY += 4;
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(60, currY, 90, 10);
+    doc.text("VidyaBarta School Management Software owned by LENCHO SOLUTIONS", 105, currY + 4, { align: "center" });
+    doc.text("Website: https://lenchosolutions.com, https://vidyabarta.com", 105, currY + 8, { align: "center" });
+
+    doc.save(`Job_Application_Receipt_${submittedRef}.pdf`);
   };
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submittedRef, setSubmittedRef] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const handleReview = (e) => {
+    e.preventDefault();
+    const form = e.target.closest('form');
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    setShowPreview(true);
+  };
+
+  const DetailRow = ({ label, value }) => (
+    <div className="flex justify-between items-start gap-4 text-sm py-1">
+      <span className="text-gray-400 font-bold uppercase text-[9px] tracking-widest pt-0.5">{label}</span>
+      <span className="text-slate-800 font-black text-right uppercase">{value || 'N/A'}</span>
+    </div>
+  );
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -314,13 +499,119 @@ function JobApplicationForm() {
             <p className="text-white/90 relative z-10 max-w-xl font-medium">Please provide accurate information for background verification and qualification matching.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-12">
+          <form id="job-form" onSubmit={handleSubmit} noValidate className="max-w-5xl mx-auto space-y-8">
             
-            {/* 1. Personal Details */}
-            <section>
-              <h2 className="text-xl font-bold text-primary flex items-center mb-6">
-                <FaUser className="mr-3" /> Personal Information
-              </h2>
+            {/* --- PREVIEW VIEW --- */}
+            <div className={`${showPreview ? 'block' : 'hidden'} animate-fade-in`}>
+              <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden text-left">
+                <div className="p-8 md:p-12 bg-gradient-to-br from-slate-50 to-white">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b border-slate-100 pb-8">
+                    <div>
+                      <h2 className="text-3xl font-black text-slate-800 tracking-tight">Review Your Profile</h2>
+                      <p className="text-slate-500 font-medium">Verify your information before finalizing the application.</p>
+                    </div>
+                    <div className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest border border-blue-200">
+                      Draft Preview
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-10">
+                      <section>
+                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4 flex items-center">
+                          <FaUser className="mr-2" /> Personal Details
+                        </h4>
+                        <div className="space-y-1 pl-1">
+                          <DetailRow label="Full Name" value={formData.fullName} />
+                          <DetailRow label="Date of Birth" value={formData.dob} />
+                          <DetailRow label="Age" value={formData.age} />
+                          <DetailRow label="Gender" value={formData.gender} />
+                          <DetailRow label="Religion" value={formData.religion} />
+                          <DetailRow label="Caste" value={formData.caste} />
+                          <DetailRow label="Aadhar No" value={formData.aadhar} />
+                          <DetailRow label="PAN No" value={formData.pan} />
+                        </div>
+                      </section>
+                      
+                      <section>
+                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4 flex items-center">
+                          <FaMapMarkerAlt className="mr-2" /> Address Information
+                        </h4>
+                        <div className="space-y-1 pl-1">
+                          <DetailRow label="Post Office" value={formData.postOffice} />
+                          <DetailRow label="Police Station" value={formData.policeStation} />
+                          <DetailRow label="Pincode" value={formData.pincode} />
+                          <DetailRow label="Full Address" value={formData.address} />
+                        </div>
+                      </section>
+                    </div>
+
+                    <div className="space-y-10">
+                      <section>
+                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4 flex items-center">
+                          <FaGraduationCap className="mr-2" /> Professional Profile
+                        </h4>
+                        <div className="space-y-1 pl-1">
+                          <DetailRow label="Highest Qual" value={formData.qualification} />
+                          <DetailRow label="Job Type" value={formData.experienceType} />
+                          <DetailRow label="Total Experience" value={formData.totalExperience} />
+                          {formData.isExperienced && (
+                            <>
+                              <DetailRow label="Last Organization" value={formData.schoolName} />
+                              <DetailRow label="UDISE Code" value={formData.udiseCode} />
+                            </>
+                          )}
+                        </div>
+                      </section>
+
+                      <section>
+                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4 flex items-center">
+                           <FaFileUpload className="mr-2" /> Uploaded Files
+                        </h4>
+                        <div className="flex flex-wrap gap-2 pt-2">
+                           {Object.entries(files).map(([key, file]) => file && (
+                             <div key={key} className="bg-white px-3 py-2 rounded-xl border border-slate-200 flex items-center gap-2 shadow-sm">
+                               <FaCheckCircle className="text-green-500 text-[10px]" />
+                               <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">{key.replace(/([A-Z])/g, ' $1')}</span>
+                             </div>
+                           ))}
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-slate-900 flex flex-col sm:flex-row items-center justify-center gap-6">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                       setShowPreview(false);
+                       window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="w-full sm:w-auto px-10 py-5 bg-white/10 text-white font-black rounded-3xl hover:bg-white/20 transition-all flex items-center justify-center gap-3 border border-white/10"
+                  >
+                    <span className="material-symbols-outlined">edit</span>
+                    Modify Application
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full sm:w-auto px-12 py-5 bg-primary text-white font-black rounded-3xl shadow-2xl shadow-blue-500/20 hover:shadow-blue-500/40 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
+                  >
+                    {submitting ? 'Submitting...' : 'Confirm & Final Submit'}
+                    <span className="material-symbols-outlined">send</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* --- EDITABLE VIEW --- */}
+            <div className={`${showPreview ? 'hidden' : 'block'}`}>
+                {/* 1. Personal Details */}
+                <section>
+                  <h2 className="text-xl font-bold text-primary flex items-center mb-6">
+                    <FaUser className="mr-3" /> Personal Information
+                  </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Full Name *</label>
@@ -650,7 +941,8 @@ function JobApplicationForm() {
                 By submitting this form, you certify that the information provided is true and accurate to the best of your knowledge.
               </p>
               <button 
-                type="submit" 
+                type="button" 
+                onClick={handleReview}
                 disabled={submitting}
                 className={`min-w-[200px] flex items-center justify-center bg-primary text-white font-bold py-4 px-8 rounded-2xl hover:bg-primary/90 transition-all shadow-xl hover:-translate-y-1 active:scale-95 ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
@@ -658,11 +950,12 @@ function JobApplicationForm() {
                   <>
                     <FaSpinner className="animate-spin mr-3" /> Processing...
                   </>
-                ) : "Submit Application"}
+                ) : "Review & Preview Application"}
               </button>
             </div>
 
-          </form>
+            </div>
+        </form>
         </div>
       </div>
     </div>

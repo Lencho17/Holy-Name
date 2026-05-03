@@ -188,6 +188,22 @@ router.patch('/:id/status', protect, authorize('admin', 'superadmin'), async (re
   }
 });
 
+// @desc    Delete multiple applications
+// @route   DELETE /api/job-applications/bulk
+// @access  Private (Admin)
+router.delete('/bulk', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No IDs provided' });
+    }
+    await JobApplication.deleteMany({ _id: { $in: ids } });
+    res.json({ message: `${ids.length} applications deleted successfully` });
+  } catch (error) {
+    res.status(500).json({ message: 'Bulk deletion failed', error: error.message });
+  }
+});
+
 // @desc    Delete application
 // @route   DELETE /api/job-applications/:id
 // @access  Private (Admin)

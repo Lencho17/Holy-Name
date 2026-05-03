@@ -91,7 +91,7 @@ function Complaints() {
     
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(schoolProfile?.officeAddress || "Cherekapar, Sivasagar, Assam", pageWidth / 2, 32, { align: "center" });
+    doc.text(schoolProfile?.officeAddress || "", pageWidth / 2, 32, { align: "center" });
     
     // Line separator
     doc.setDrawColor(200);

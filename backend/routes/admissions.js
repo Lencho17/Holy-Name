@@ -138,6 +138,20 @@ const sendStatusUpdateEmail = async (admissionData, newStatus) => {
               <p style="margin: 0; font-weight: bold; color: #1e3a8a; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Current Status:</p>
               <p style="margin: 5px 0 10px 0; font-size: 20px; font-weight: 800; color: #111;">${statusLabels[newStatus]?.toUpperCase() || newStatus.toUpperCase()}</p>
               <p style="margin: 0; font-size: 15px; color: #4b5563;">${statusMessages[newStatus] || 'Your application is currently being processed.'}</p>
+              
+              ${admissionData.statusDate ? `
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                  <p style="margin: 0; font-weight: bold; color: #1e3a8a; text-transform: uppercase; font-size: 11px;">Scheduled Date & Time:</p>
+                  <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: 700;">${admissionData.statusDate}</p>
+                </div>
+              ` : ''}
+
+              ${admissionData.statusRemark ? `
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                  <p style="margin: 0; font-weight: bold; color: #1e3a8a; text-transform: uppercase; font-size: 11px;">Note / Remark:</p>
+                  <p style="margin: 5px 0 0 0; font-size: 15px; color: #4b5563; font-style: italic;">"${admissionData.statusRemark}"</p>
+                </div>
+              ` : ''}
             </div>
 
             <p>If you have any questions, please visit our website or contact the admissions office during working hours.</p>
@@ -265,7 +279,7 @@ router.get('/status', async (req, res) => {
         { referenceNumber: q.toUpperCase() },
         { email: q.toLowerCase() }
       ]
-    }).select('studentName gradeApplied status createdAt referenceNumber gender caste email contactNumber penNumber stream mil elective selectedSubjects');
+    });
 
     if (!application) {
       return res.status(404).json({ message: 'No application found with these details.' });
@@ -404,7 +418,11 @@ router.post(
       const generateRef = () => {
         const year = new Date().getFullYear();
         const crypto = require('crypto');
-        const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let rand = '';
+        for (let i = 0; i < 6; i++) {
+          rand += chars[crypto.randomInt(0, chars.length)];
+        }
         return `HNS-${year}-${rand}`;
       };
       data.referenceNumber = generateRef();
@@ -431,10 +449,10 @@ router.post(
 // PATCH /api/admissions/:id/status — protected, update application status
 router.patch('/:id/status', protect, async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, statusRemark, statusDate } = req.body;
     const admission = await Admission.findByIdAndUpdate(
       req.params.id,
-      { status },
+      { status, statusRemark, statusDate },
       { new: true }
     );
     if (!admission) {
@@ -517,6 +535,20 @@ router.get('/', protect, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// DELETE /api/admissions/bulk — protected, delete multiple applications
+router.delete('/bulk', protect, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No IDs provided' });
+    }
+    await Admission.deleteMany({ _id: { $in: ids } });
+    res.json({ message: `${ids.length} applications deleted successfully` });
+  } catch (error) {
+    res.status(500).json({ message: 'Bulk deletion failed', error: error.message });
   }
 });
 

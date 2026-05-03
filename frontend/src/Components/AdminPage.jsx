@@ -26,7 +26,7 @@ function AdminPage() {
   }, []);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, admissionFields, setAdmissionFields, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -168,6 +168,35 @@ function AdminPage() {
   const [jobApplications, setJobApplications] = useState([]);
   const [jobApplicationsLoading, setJobApplicationsLoading] = useState(false);
   const [selectedJobApp, setSelectedJobApp] = useState(null);
+  const [selectedAppIds, setSelectedAppIds] = useState([]);
+  const [selectedJobAppIds, setSelectedJobAppIds] = useState([]);
+  const [classFilter, setClassFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [jobStatusFilter, setJobStatusFilter] = useState('All');
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusModalData, setStatusModalData] = useState({ id: null, currentStatus: '', newStatus: '', remark: '', date: '' });
+  const [admissionSubTab, setAdmissionSubTab] = useState('applications');
+  
+  // --- School Profile States (Moved to Top Level for Shared Access) ---
+  const [localProfile, setLocalProfile] = useState(schoolProfile);
+  const localProfileInitRef = useRef(false);
+
+  // Sync from context → local ONLY on initial load
+  useEffect(() => {
+    if (!localProfileInitRef.current && !loading && schoolProfile) {
+      setLocalProfile(schoolProfile);
+      localProfileInitRef.current = true;
+    }
+  }, [schoolProfile, loading]);
+
+  const handleProfileChange = (field, value) => {
+    setLocalProfile(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleProfileSave = async () => {
+    await updateSiteContent({ schoolProfile: localProfile });
+    alert('Settings updated successfully!');
+  };
   
   const [editingExcellenceId, setEditingExcellenceId] = useState(null);
   const [excellenceForm, setExcellenceForm] = useState({ _id: null, title: '', name: '', passedYear: '', designation: '', company: '', location: '', message: '', photo: '' });
@@ -1061,7 +1090,7 @@ function AdminPage() {
     }
   };
 
-  const handleStatusUpdate = async (id, newStatus) => {
+  const handleStatusUpdate = async (id, newStatus, remark = '', date = '') => {
     try {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/admissions/${id}/status`, {
@@ -1070,24 +1099,46 @@ function AdminPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ 
+          status: newStatus,
+          statusRemark: remark,
+          statusDate: date
+        })
       });
       if (res.ok) {
-        setApplications(apps => apps.map(app => app._id === id ? { ...app, status: newStatus } : app));
+        setApplications(apps => apps.map(app => app._id === id ? { ...app, status: newStatus, statusRemark: remark, statusDate: date } : app));
         // Update selectedApp if it's the one being modified
         if (selectedApp?._id === id) {
-          setSelectedApp(prev => ({ ...prev, status: newStatus }));
+          setSelectedApp(prev => ({ ...prev, status: newStatus, statusRemark: remark, statusDate: date }));
         }
         // If accepted, refresh the student directory
         if (newStatus === 'accepted') {
           fetchStudents();
         }
+        setShowStatusModal(false);
       } else {
         alert('Failed to update status');
       }
     } catch (error) {
       console.warn('Could not update status', error);
       alert('Error updating status');
+    }
+  };
+
+  const initiateStatusUpdate = (app, newStatus) => {
+    if (['entrance-exam', 'interview', 'rejected'].includes(newStatus)) {
+      setStatusModalData({ 
+        id: app._id, 
+        currentStatus: app.status, 
+        newStatus, 
+        remark: '', 
+        date: '' 
+      });
+      setShowStatusModal(true);
+    } else {
+      if (window.confirm(`Are you sure you want to change status to ${newStatus.toUpperCase()}?`)) {
+        handleStatusUpdate(app._id, newStatus);
+      }
     }
   };
 
@@ -1111,7 +1162,55 @@ function AdminPage() {
     }
   };
 
-  const filteredApps = applications;
+  const filteredApps = applications.filter(app => {
+    const matchesSearch = !searchQuery || 
+      (app.studentName && app.studentName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (app.referenceNumber && app.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesClass = classFilter === 'All' || app.gradeApplied === classFilter;
+    const matchesStatus = statusFilter === 'All' || app.status === statusFilter;
+    return matchesSearch && matchesClass && matchesStatus;
+  });
+
+  const filteredJobApps = jobApplications.filter(app => {
+    const matchesStatus = jobStatusFilter === 'All' || app.status === jobStatusFilter;
+    return matchesStatus;
+  });
+
+  const handleBulkDeleteAdmissions = async () => {
+    if (selectedAppIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedAppIds.length} selected applications?`)) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.delete(`${API_URL}/admissions/bulk`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { ids: selectedAppIds }
+      });
+      setApplications(prev => prev.filter(app => !selectedAppIds.includes(app._id)));
+      setSelectedAppIds([]);
+      alert(`${selectedAppIds.length} applications deleted successfully.`);
+    } catch (err) {
+      alert("Failed to delete selected applications: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteJobs = async () => {
+    if (selectedJobAppIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedJobAppIds.length} selected applications?`)) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.delete(`${API_URL}/job-applications/bulk`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { ids: selectedJobAppIds }
+      });
+      setJobApplications(prev => prev.filter(app => !selectedJobAppIds.includes(app._id)));
+      setSelectedJobAppIds([]);
+      alert(`${selectedJobAppIds.length} applications deleted successfully.`);
+    } catch (err) {
+      alert("Failed to delete selected applications: " + (err.response?.data?.message || err.message));
+    }
+  };
 
   const totalApps = appStats?.total || 0;
   const approvedApps = appStats?.accepted || 0;
@@ -1185,6 +1284,22 @@ function AdminPage() {
   const [isGalleryUploading, setIsGalleryUploading] = useState(false);
   const [editingAlbumId, setEditingAlbumId] = useState(null);
   const [albumEditForm, setAlbumEditForm] = useState({ title: '', category: '', description: '' });
+  
+  // --- Admission Fields Tab ---
+  const [editingFieldId, setEditingFieldId] = useState(null);
+  const [fieldEditForm, setFieldEditForm] = useState(null);
+  const [isAddingField, setIsAddingField] = useState(false);
+  const [newFieldForm, setNewFieldForm] = useState({
+    name: '',
+    label: '',
+    type: 'text',
+    section: 'Student Information',
+    required: false,
+    options: [],
+    placeholder: '',
+    isActive: true,
+    isSystemField: false
+  });
 
   const handleAddGallery = async () => {
     if (!newGalleryItem.title || (!galleryFiles.length && !newGalleryItem.src)) {
@@ -2785,25 +2900,31 @@ function AdminPage() {
   };
 
   const renderAdminsTab = () => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h3 className="text-xl font-bold text-gray-800 mb-6 font-serif">Administrative Staff Management</h3>
+    <div className="bg-white/80 backdrop-blur-xl p-10 rounded-[3rem] shadow-[0_30px_70px_rgba(0,0,0,0.06)] border border-white/50 relative overflow-hidden">
+      <div className="relative z-10 mb-10">
+        <h3 className="text-3xl font-black text-gray-900 tracking-tighter">Identity Management</h3>
+        <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Manage privileged access and system administrators</p>
+      </div>
       
       {/* Pending Approvals Section */}
       {admins.filter(a => !a.isApproved).length > 0 && (
-        <div className="mb-10 bg-amber-50/30 p-6 rounded-2xl border border-amber-100">
-          <h4 className="font-bold text-amber-800 mb-4 flex items-center text-sm uppercase tracking-wider">
-            <FaClock className="mr-2 animate-pulse" /> Pending Access Requests ({admins.filter(a => !a.isApproved).length})
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mb-12 bg-amber-50/50 p-8 rounded-[2rem] border-2 border-dashed border-amber-200/50 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="font-black text-amber-800 flex items-center text-[10px] uppercase tracking-[0.2em]">
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping mr-3" />
+              Pending Access Authorizations ({admins.filter(a => !a.isApproved).length})
+            </h4>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {admins.filter(a => !a.isApproved).map(pending => (
-              <div key={pending._id} className="bg-white p-4 rounded-xl shadow-sm border border-amber-100 flex items-center justify-between group hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
+              <div key={pending._id} className="bg-white p-5 rounded-2xl shadow-xl shadow-amber-900/5 border border-amber-100 flex items-center justify-between group hover:scale-[1.02] transition-all duration-500">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 text-amber-600 flex items-center justify-center font-black text-xl shadow-inner border border-amber-200/30">
                     {pending.name?.charAt(0) || pending.email?.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-bold text-gray-800 text-sm">{pending.name}</p>
-                    <p className="text-[10px] text-gray-500 font-mono">{pending.email}</p>
+                    <p className="font-black text-gray-900 text-sm tracking-tight">{pending.name}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{pending.email}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -2829,52 +2950,57 @@ function AdminPage() {
       )}
 
       {/* Create New Admin Form */}
-      <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8">
-        <h4 className="font-bold text-gray-700 mb-4 flex items-center">
-          <FaPlus className="mr-2 text-tertiary" /> Register New Administrator {adminUser?.role !== 'developer' && '(Dual OTP)'}
+      <div className="bg-gray-50/50 p-8 rounded-[2rem] border border-gray-100 mb-12 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-8 text-primary/5 group-hover:scale-110 transition-transform duration-700">
+           <FaPlus size={60} />
+        </div>
+        <h4 className="font-black text-gray-900 mb-6 flex items-center text-sm uppercase tracking-wider relative z-10">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center mr-3">
+             <FaPlus size={12} />
+          </div>
+          Register New Administrator {adminUser?.role !== 'developer' && <span className="ml-2 text-[10px] text-gray-400 font-bold lowercase tracking-normal">(Dual OTP Auth)</span>}
         </h4>
-        <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+        <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end relative z-10">
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
             <input 
               required
               type="text" 
               value={newAdmin.name} 
               onChange={e => setNewAdmin({...newAdmin, name: e.target.value})} 
-              className="w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20" 
+              className="w-full px-5 py-3.5 border-2 border-white bg-white rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-sm font-medium placeholder:text-gray-300" 
               placeholder="e.g. John Doe"
             />
           </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email / Username</label>
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email / Username</label>
             <input 
               required
               type="email" 
               value={newAdmin.email} 
               onChange={e => setNewAdmin({...newAdmin, email: e.target.value})} 
-              className="w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20" 
+              className="w-full px-5 py-3.5 border-2 border-white bg-white rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-sm font-medium placeholder:text-gray-300" 
               placeholder="admin@school.com"
             />
           </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number</label>
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone Number</label>
             <input 
               required
               type="text" 
               value={newAdmin.phone} 
               onChange={e => setNewAdmin({...newAdmin, phone: e.target.value})} 
-              className="w-full p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20" 
+              className="w-full px-5 py-3.5 border-2 border-white bg-white rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-sm font-medium placeholder:text-gray-300" 
               placeholder="e.g. 9876543210"
             />
           </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">&nbsp;</label>
+          <div className="pb-0.5">
               <button 
                 type="submit" 
                 disabled={isAdminFormLoading}
-                className="bg-primary text-white px-6 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition-all disabled:opacity-50 w-full"
+                className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50 active:scale-95"
               >
-                {isAdminFormLoading ? '...' : 'Create'}
+                {isAdminFormLoading ? <FaSpinner className="animate-spin mx-auto" /> : 'Confirm Registration'}
               </button>
           </div>
         </form>
@@ -3005,6 +3131,725 @@ function AdminPage() {
     }
   }, [notificationEmail]);
 
+  const renderAdmissionTab = () => {
+    return (
+      <div className="space-y-6">
+        <header className="mb-4">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">Admission Management</h2>
+          <p className="text-gray-500 mt-2">Manage student applications, customize the admission form, and set instructions.</p>
+        </header>
+
+        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 mb-8 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'applications', label: 'Applications', icon: <FaClipboardList /> },
+            { id: 'config', label: 'Form Configuration', icon: <FaEdit /> },
+            { id: 'instructions', label: 'Instructions & Fees', icon: <FaInfoCircle /> }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setAdmissionSubTab(tab.id)}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${admissionSubTab === tab.id ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {admissionSubTab === 'applications' && renderApplicationsSubTab()}
+        {admissionSubTab === 'config' && renderAdmissionFieldsSubTab()}
+        {admissionSubTab === 'instructions' && renderAdmissionInstructionsSubTab()}
+      </div>
+    );
+  };
+
+  const renderAdmissionFieldsSubTab = () => {
+    const sections = [...new Set(admissionFields.map(f => f.section))];
+    
+    const handleToggleActive = (field) => {
+      const updated = admissionFields.map(f => f.name === field.name ? { ...f, isActive: !f.isActive } : f);
+      setAdmissionFields(updated);
+    };
+
+    const handleEditField = (field) => {
+      setEditingFieldId(field.name);
+      setFieldEditForm({ ...field });
+    };
+
+    const handleSaveField = () => {
+      const updated = admissionFields.map(f => f.name === editingFieldId ? fieldEditForm : f);
+      setAdmissionFields(updated);
+      setEditingFieldId(null);
+      setFieldEditForm(null);
+      alert("Field configuration updated.");
+    };
+
+    const handleMoveField = (index, direction) => {
+      const newFields = [...admissionFields];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= newFields.length) return;
+      
+      const temp = newFields[index];
+      newFields[index] = newFields[targetIndex];
+      newFields[targetIndex] = temp;
+      
+      // Update order property
+      const orderedFields = newFields.map((f, idx) => ({ ...f, order: idx + 1 }));
+      setAdmissionFields(orderedFields);
+    };
+
+    const handleAddField = () => {
+      if (!newFieldForm.label || !newFieldForm.name) {
+        alert("Label and Name are required.");
+        return;
+      }
+      
+      // Check for duplicate name
+      if (admissionFields.find(f => f.name === newFieldForm.name)) {
+        alert("A field with this identifier already exists.");
+        return;
+      }
+
+      const newField = {
+        ...newFieldForm,
+        order: admissionFields.length + 1
+      };
+
+      setAdmissionFields([...admissionFields, newField]);
+      setIsAddingField(false);
+      setNewFieldForm({
+        name: '',
+        label: '',
+        type: 'text',
+        section: 'Student Information',
+        required: false,
+        options: [],
+        placeholder: '',
+        isActive: true,
+        isSystemField: false
+      });
+      alert("New field added successfully.");
+    };
+
+    const handleDeleteField = (fieldName) => {
+      if (!window.confirm("Are you sure you want to delete this custom field? This will remove it from the admission form.")) return;
+      const updated = admissionFields.filter(f => f.name !== fieldName);
+      setAdmissionFields(updated);
+    };
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-fadeIn">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <FaClipboardList className="text-emerald-500" /> Admission Form Configuration
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">Customize the fields students see in the admission application.</p>
+          </div>
+          <button 
+            onClick={() => setIsAddingField(true)}
+            className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all shadow-sm"
+          >
+            <FaPlus /> Add New Field
+          </button>
+        </div>
+
+        {isAddingField && (
+          <div className="mb-8 p-6 bg-emerald-50 rounded-2xl border border-emerald-100 animate-in fade-in slide-in-from-top-4 duration-300">
+            <h4 className="text-emerald-800 font-bold mb-4 flex items-center gap-2">
+              <FaPlus size={14} /> Add New Custom Field
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Field Label (e.g. "Previous School")</label>
+                <input 
+                  type="text" 
+                  value={newFieldForm.label} 
+                  onChange={e => {
+                    const label = e.target.value;
+                    const name = label.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    setNewFieldForm({ ...newFieldForm, label, name });
+                  }}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  placeholder="Enter label"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">System Name (unique identifier)</label>
+                <input 
+                  type="text" 
+                  value={newFieldForm.name} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, name: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none font-mono"
+                  placeholder="e.g. previousschool"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Field Type</label>
+                <select 
+                  value={newFieldForm.type} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, type: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                >
+                  <option value="text">Single Line Text</option>
+                  <option value="textarea">Multi-line Text</option>
+                  <option value="number">Number</option>
+                  <option value="date">Date</option>
+                  <option value="select">Dropdown Menu</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Section</label>
+                <select 
+                  value={newFieldForm.section} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, section: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                >
+                  <option value="Student Information">Student Information</option>
+                  <option value="Parent Information">Parent Information</option>
+                  <option value="Address Information">Address Information</option>
+                  <option value="Academic History">Academic History</option>
+                  <option value="Documents">Documents (Upload)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Placeholder</label>
+                <input 
+                  type="text" 
+                  value={newFieldForm.placeholder} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, placeholder: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  placeholder="e.g. Enter school name"
+                />
+              </div>
+              <div className="flex items-end pb-1.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={newFieldForm.required} 
+                    onChange={e => setNewFieldForm({ ...newFieldForm, required: e.target.checked })}
+                    className="w-5 h-5 text-emerald-500 rounded-lg border-emerald-200 focus:ring-emerald-500/20"
+                  />
+                  <span className="text-sm font-bold text-emerald-700">Required Field</span>
+                </label>
+              </div>
+            </div>
+            
+            {newFieldForm.type === 'select' && (
+              <div className="mb-4">
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Options (comma separated)</label>
+                <input 
+                  type="text" 
+                  value={newFieldForm.options.join(', ')} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  placeholder="Option 1, Option 2, Option 3"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 border-t border-emerald-100 pt-4">
+              <button onClick={() => setIsAddingField(false)} className="px-4 py-2 text-sm font-bold text-emerald-400 hover:text-emerald-600">Cancel</button>
+              <button onClick={handleAddField} className="bg-emerald-500 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 shadow-sm shadow-emerald-200 transition-all">Create Field</button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-10">
+          {sections.map(section => (
+            <div key={section} className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
+              <h4 className="text-sm font-black text-primary uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                <span className="w-8 h-px bg-primary/20"></span>
+                {section}
+                <span className="flex-1 h-px bg-primary/20"></span>
+              </h4>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {admissionFields
+                  .filter(f => f.section === section)
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map((field, idx) => {
+                    const globalIdx = admissionFields.findIndex(f => f.name === field.name);
+                    const isEditing = editingFieldId === field.name;
+
+                    return (
+                      <div key={field.name} className={`bg-white p-4 rounded-xl border-2 transition-all ${field.isActive ? 'border-transparent shadow-sm' : 'border-dashed border-gray-200 opacity-60'}`}>
+                        {isEditing ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Field Label</label>
+                                <input 
+                                  type="text" 
+                                  value={fieldEditForm.label} 
+                                  onChange={e => setFieldEditForm({ ...fieldEditForm, label: e.target.value })}
+                                  className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Placeholder</label>
+                                <input 
+                                  type="text" 
+                                  value={fieldEditForm.placeholder || ''} 
+                                  onChange={e => setFieldEditForm({ ...fieldEditForm, placeholder: e.target.value })}
+                                  className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={fieldEditForm.required} 
+                                  onChange={e => setFieldEditForm({ ...fieldEditForm, required: e.target.checked })}
+                                  className="w-4 h-4 text-primary rounded border-gray-300"
+                                />
+                                <span className="text-xs font-bold text-gray-600">Required Field</span>
+                              </label>
+                              <div className="flex-1" />
+                              <button onClick={() => setEditingFieldId(null)} className="text-xs font-bold text-gray-400 hover:text-gray-600">Cancel</button>
+                              <button onClick={handleSaveField} className="bg-primary text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90">Save Changes</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-4">
+                            <div className="flex flex-col gap-1">
+                              <button onClick={() => handleMoveField(globalIdx, -1)} className="text-gray-300 hover:text-primary transition-colors"><FaAngleDown className="rotate-180" size={12} /></button>
+                              <button onClick={() => handleMoveField(globalIdx, 1)} className="text-gray-300 hover:text-primary transition-colors"><FaAngleDown size={12} /></button>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-800 text-sm">{field.label}</span>
+                                {field.required && <span className="text-red-500 font-bold text-xs">*</span>}
+                                {field.isSystemField && <span className="bg-blue-50 text-blue-600 text-[8px] px-1.5 py-0.5 rounded uppercase font-black tracking-widest border border-blue-100">System</span>}
+                              </div>
+                              <div className="flex items-center gap-3 mt-0.5">
+                                <span className="text-[10px] text-gray-400 font-mono uppercase">{field.name}</span>
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{field.type}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              {!field.isSystemField && (
+                                <button 
+                                  onClick={() => handleDeleteField(field.name)}
+                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                  title="Delete Field"
+                                >
+                                  <FaTrash size={14} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleEditField(field)}
+                                className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                                title="Edit Field"
+                              >
+                                <FaEdit size={14} />
+                              </button>
+                              <button 
+                                onClick={() => handleToggleActive(field)}
+                                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${field.isActive ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
+                              >
+                                {field.isActive ? 'Visible' : 'Hidden'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAdmissionInstructionsSubTab = () => {
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Admission Fee Settings</h3>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <span className={`text-sm font-bold ${localProfile.admissionPaymentEnabled !== false ? 'text-green-600' : 'text-gray-400'}`}>
+                  {localProfile.admissionPaymentEnabled !== false ? 'Payment ON' : 'Payment OFF'}
+                </span>
+                <div className="relative" onClick={() => handleProfileChange('admissionPaymentEnabled', !(localProfile.admissionPaymentEnabled !== false))}>
+                  <div className={`w-14 h-7 rounded-full transition-colors duration-300 ${localProfile.admissionPaymentEnabled !== false ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  <div className={`absolute left-1 top-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow ${localProfile.admissionPaymentEnabled !== false ? 'translate-x-7' : ''}`}></div>
+                </div>
+              </label>
+              <button
+                onClick={handleProfileSave}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors shadow-sm"
+              >
+                Save Fee Settings
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Application Fee (₹)</label>
+              <div className="flex items-center gap-3">
+                <span className="text-lg font-bold text-gray-400">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={localProfile.admissionFee ?? 250}
+                  onChange={(e) => handleProfileChange('admissionFee', parseInt(e.target.value) || 0)}
+                  className="w-40 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary text-center font-bold text-lg"
+                  placeholder="250"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Set to 0 to disable fee collection</p>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">UPI ID (for payment)</label>
+              <input
+                type="text"
+                value={localProfile.admissionUpiId || ''}
+                onChange={(e) => handleProfileChange('admissionUpiId', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. schoolname@upi"
+              />
+              <p className="text-xs text-gray-400 mt-1">Students will pay via this UPI ID and upload the receipt</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Admission Instructions</h3>
+            <button
+              onClick={handleProfileSave}
+              className="px-6 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              Save Instructions
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Online Instructions */}
+            <div>
+              <label className="block text-sm font-bold text-blue-700 mb-2 flex items-center gap-2">
+                <FaLaptop className="text-blue-500" /> Online Admission Instructions
+              </label>
+              <div className="space-y-2">
+                {(localProfile.onlineAdmissionInstructions || []).map((inst, index) => (
+                  <div key={index} className="flex gap-2 group animate-fadeIn">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={inst}
+                        onChange={(e) => {
+                          const newInst = [...(localProfile.onlineAdmissionInstructions || [])];
+                          newInst[index] = e.target.value;
+                          handleProfileChange('onlineAdmissionInstructions', newInst);
+                        }}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm h-10"
+                        placeholder="e.g. Fill up the form"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newInst = localProfile.onlineAdmissionInstructions.filter((_, i) => i !== index);
+                        handleProfileChange('onlineAdmissionInstructions', newInst);
+                      }}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    >
+                      <FaTrash size={12} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newInst = [...(localProfile.onlineAdmissionInstructions || []), ""];
+                    handleProfileChange('onlineAdmissionInstructions', newInst);
+                  }}
+                  className="mt-1 flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-wider hover:text-blue-700 transition-colors bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 border-dashed"
+                >
+                  <FaPlus size={8} /> Add Step
+                </button>
+              </div>
+            </div>
+
+            {/* Offline Instructions */}
+            <div>
+              <label className="block text-sm font-bold text-amber-700 mb-2 flex items-center gap-2">
+                <FaBuilding className="text-amber-500" /> Offline Admission Instructions
+              </label>
+              <div className="space-y-2">
+                {(localProfile.offlineAdmissionInstructions || []).map((inst, index) => (
+                  <div key={index} className="flex gap-2 group animate-fadeIn">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={inst}
+                        onChange={(e) => {
+                          const newInst = [...(localProfile.offlineAdmissionInstructions || [])];
+                          newInst[index] = e.target.value;
+                          handleProfileChange('offlineAdmissionInstructions', newInst);
+                        }}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm h-10"
+                        placeholder="e.g. Visit the school office"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newInst = localProfile.offlineAdmissionInstructions.filter((_, i) => i !== index);
+                        handleProfileChange('offlineAdmissionInstructions', newInst);
+                      }}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    >
+                      <FaTrash size={12} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newInst = [...(localProfile.offlineAdmissionInstructions || []), ""];
+                    handleProfileChange('offlineAdmissionInstructions', newInst);
+                  }}
+                  className="mt-1 flex items-center gap-2 text-amber-600 font-bold text-[10px] uppercase tracking-wider hover:text-amber-700 transition-colors bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 border-dashed"
+                >
+                  <FaPlus size={8} /> Add Step
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderApplicationsSubTab = () => {
+    return (
+      <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden animate-fadeIn">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+          <div>
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Admission Applications</h3>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Manage student enrollments and status updates</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <div className="relative group">
+              <select 
+                value={classFilter} 
+                onChange={(e) => setClassFilter(e.target.value)}
+                className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-10 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer hover:border-gray-200"
+              >
+                <option value="All">All Classes</option>
+                <option value="PRE-NURSERY">Pre-Nursery</option>
+                <option value="NURSERY">Nursery</option>
+                <option value="KG1">KG1</option>
+                <option value="KG2">KG2</option>
+                {[...Array(12)].map((_, i) => (
+                  <option key={i} value={`CLASS${i+1}`}>Class {i+1}</option>
+                ))}
+              </select>
+              <FaAngleDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-primary transition-colors" size={10} />
+            </div>
+
+            <div className="relative group">
+              <select 
+                value={statusFilter} 
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-10 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer hover:border-gray-200"
+              >
+                <option value="All">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="entrance-exam">Entrance Exam</option>
+                <option value="interview">Interview</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <FaAngleDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-primary transition-colors" size={10} />
+            </div>
+
+            <div className="relative w-full sm:flex-1 lg:w-72 lg:flex-none">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+              <input 
+                type="text" 
+                placeholder="Search by name or reference..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 border-2 border-gray-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-sm font-medium placeholder:text-gray-300 shadow-sm"
+              />
+            </div>
+
+            {selectedAppIds.length > 0 && (
+              <button 
+                onClick={handleBulkDeleteAdmissions}
+                className="flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-200 animate-in fade-in zoom-in"
+              >
+                <FaTrash size={12} /> Delete ({selectedAppIds.length})
+              </button>
+            )}
+
+            <button 
+              onClick={handleExportAdmissions}
+              disabled={isExportingAdmissions || filteredApps.length === 0}
+              className="flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:shadow-none shadow-lg shadow-emerald-100 whitespace-nowrap group"
+            >
+              {isExportingAdmissions ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
+              {isExportingAdmissions ? 'Exporting...' : 'Export to Excel'}
+            </button>
+          </div>
+        </div>
+        
+        {filteredApps.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">No applications found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">
+                  <th className="pb-4">
+                    <input 
+                      type="checkbox" 
+                      className="rounded-md border-gray-200 text-primary focus:ring-primary transition-all w-4 h-4 cursor-pointer"
+                      checked={filteredApps.length > 0 && filteredApps.every(app => selectedAppIds.includes(app._id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedAppIds(prev => [...new Set([...prev, ...filteredApps.map(app => app._id)])]);
+                        } else {
+                          setSelectedAppIds(prev => prev.filter(id => !filteredApps.some(app => app._id === id)));
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="pb-4">S.N.</th>
+                  <th className="pb-4">Ref No.</th>
+                  <th className="pb-4">Student Details</th>
+                  <th className="pb-4">Class</th>
+                  <th className="pb-4">Applied Date</th>
+                  <th className="pb-4">Status</th>
+                  <th className="pb-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredApps.map((app, index) => (
+                  <tr key={app._id} className={`border-b border-gray-50/50 hover:bg-blue-50/20 transition-all group ${selectedAppIds.includes(app._id) ? 'bg-blue-50/50' : ''}`}>
+                    <td className="py-5">
+                      <input 
+                        type="checkbox" 
+                        className="rounded-md border-gray-200 text-primary focus:ring-primary transition-all w-4 h-4 cursor-pointer"
+                        checked={selectedAppIds.includes(app._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedAppIds(prev => [...prev, app._id]);
+                          } else {
+                            setSelectedAppIds(prev => prev.filter(id => id !== app._id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="py-5 text-[11px] text-gray-400 font-bold tracking-wider">
+                      {String((appPage - 1) * 50 + index + 1).padStart(2, '0')}
+                    </td>
+                    <td className="py-5">
+                       <span className="font-mono text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                         {app.referenceNumber || app._id.slice(-6).toUpperCase()}
+                       </span>
+                    </td>
+                    <td className="py-5">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-gray-900 text-sm group-hover:text-primary transition-colors">{app.studentName}</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{app.contactNumber}</span>
+                      </div>
+                    </td>
+                    <td className="py-5">
+                      <span className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1 rounded-full">{app.gradeApplied}</span>
+                    </td>
+                    <td className="py-5">
+                      <div className="flex items-center gap-2 text-gray-500">
+                         <FaClock size={10} className="text-gray-300" />
+                         <span className="text-xs font-medium">{new Date(app.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </td>
+                    <td className="py-5">
+                      <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border-2 shadow-sm ${
+                        app.status === 'accepted' ? 'bg-green-50 text-green-700 border-green-100' :
+                        app.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' :
+                        app.status === 'entrance-exam' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                        app.status === 'interview' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                        'bg-amber-50 text-amber-700 border-amber-100'
+                      }`}>{app.status?.replace('-', ' ')}</span>
+                    </td>
+                    <td className="py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => setSelectedApp(app)} className="text-primary hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="View Details">
+                          <FaSearch size={14} />
+                        </button>
+                        
+                        {app.status !== 'accepted' && (
+                          <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
+                            <select 
+                              className="text-[10px] font-bold border-none bg-transparent focus:ring-0 cursor-pointer"
+                              value={app.nextStatus || app.status}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setApplications(prev => prev.map(a => a._id === app._id ? { ...a, nextStatus: val } : a));
+                              }}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="entrance-exam">Exam</option>
+                              <option value="interview">Interview</option>
+                              <option value="accepted">Accept</option>
+                              <option value="rejected">Reject</option>
+                            </select>
+                            <button 
+                              onClick={() => initiateStatusUpdate(app, app.nextStatus || app.status)}
+                              className="bg-primary text-white p-1.5 rounded-md hover:bg-blue-700 transition-all shadow-sm"
+                              title="Save Status Update"
+                            >
+                              <FaCheckCircle size={10} />
+                            </button>
+                          </div>
+                        )}
+
+                        <button 
+                          onClick={() => handleDeleteApplication(app._id)} 
+                          className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Delete Application"
+                        >
+                          <FaTrash size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {appTotalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+            <button 
+              onClick={() => setAppPage(p => Math.max(1, p - 1))}
+              disabled={appPage === 1}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-sm font-medium text-gray-500">
+              Page <span className="text-gray-900">{appPage}</span> of <span className="text-gray-900">{appTotalPages}</span>
+            </span>
+            <button 
+              onClick={() => setAppPage(p => Math.min(appTotalPages, p + 1))}
+              disabled={appPage === appTotalPages}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSettingsTab = () => {
     const handleSaveEmail = async () => {
       setIsSaving(true);
@@ -3070,34 +3915,51 @@ function AdminPage() {
   const renderDashboard = () => (
     <>
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {dashboardStats.map((stat, idx) => {
           const gradients = [
-            'from-blue-500 to-blue-600',
-            'from-emerald-500 to-emerald-600', 
-            'from-amber-500 to-amber-600',
-            'from-violet-500 to-violet-600'
+            'from-indigo-500 to-blue-600',
+            'from-emerald-400 to-teal-600', 
+            'from-orange-400 to-pink-500',
+            'from-fuchsia-500 to-purple-600'
           ];
           const shadowColors = [
-            'shadow-blue-200',
-            'shadow-emerald-200',
-            'shadow-amber-200',
-            'shadow-violet-200'
+            'shadow-indigo-100',
+            'shadow-emerald-100',
+            'shadow-orange-100',
+            'shadow-fuchsia-100'
+          ];
+          const icons = [
+            <FaUsers size={20} />,
+            <FaClipboardList size={20} />,
+            <FaCheckCircle size={20} />,
+            <FaClock size={20} />
           ];
           return (
             <div 
               key={idx} 
-              className="group relative bg-white rounded-2xl p-5 border border-gray-100/80 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-default overflow-hidden"
+              className="group relative bg-white rounded-[2rem] p-7 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-2 cursor-default overflow-hidden flex flex-col justify-between"
             >
-              {/* Subtle gradient accent at top */}
-              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradients[idx]} opacity-80`} />
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2">{stat.label}</p>
-                  <h3 className="text-3xl md:text-4xl font-bold text-gray-800 tracking-tight">{stat.value}</h3>
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${gradients[idx]} opacity-[0.03] rounded-bl-[5rem] group-hover:scale-125 transition-transform duration-700`} />
+              
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${gradients[idx]} flex items-center justify-center text-white shadow-xl ${shadowColors[idx]} group-hover:rotate-6 transition-all duration-500`}>
+                  {stat.icon && React.cloneElement(stat.icon, { size: 24, className: 'text-white drop-shadow-md' })}
                 </div>
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradients[idx]} flex items-center justify-center text-white text-lg shadow-lg ${shadowColors[idx]} group-hover:scale-110 transition-transform duration-300`}>
-                  {stat.icon && React.cloneElement(stat.icon, { className: 'text-white' })}
+                <div className="flex flex-col items-end">
+                   <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">Live Status</span>
+                   <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[9px] font-bold text-emerald-600 uppercase">Active</span>
+                   </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-4xl font-black text-gray-900 tracking-tight">{stat.value}</h3>
+                  <span className="text-[10px] font-bold text-emerald-500">+12%</span>
                 </div>
               </div>
             </div>
@@ -3106,20 +3968,20 @@ function AdminPage() {
       </div>
 
       {/* Recent Applications Table */}
-      <div className="bg-white rounded-2xl border border-gray-100/80 overflow-hidden shadow-sm">
-        <div className="p-5 md:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white/50 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative">
+        <div className="p-8 border-b border-gray-100/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
           <div>
-            <h3 className="text-lg font-bold text-gray-800">Recent Applications</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Latest student admission requests</p>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">Recent Activity</h3>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Latest student admission requests</p>
           </div>
-          <div className="relative w-full sm:w-64">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-300 text-sm" />
+          <div className="relative w-full sm:w-80">
+            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
             <input 
               type="text" 
-              placeholder="Search by name or ref..." 
+              placeholder="Search activity..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all placeholder:text-gray-400"
+              className="w-full pl-11 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-medium focus:outline-none focus:bg-white focus:border-primary/20 transition-all placeholder:text-gray-400"
             />
           </div>
         </div>
@@ -3373,17 +4235,6 @@ function AdminPage() {
   };
 
   // --- School Profile Tab ---
-  const [localProfile, setLocalProfile] = useState(schoolProfile);
-  const localProfileInitRef = useRef(false);
-
-  // Sync from context → local ONLY on initial load (not on every context change)
-  useEffect(() => {
-    if (!localProfileInitRef.current && !loading && schoolProfile) {
-      setLocalProfile(schoolProfile);
-      localProfileInitRef.current = true;
-    }
-  }, [schoolProfile, loading]);
-
   const [localVisionStatement, setLocalVisionStatement] = useState(visionStatement);
   const [localAimsAndObjectives, setLocalAimsAndObjectives] = useState(aimsAndObjectives);
   const [localHeadMistress, setLocalHeadMistress] = useState(headMistress);
@@ -3409,14 +4260,7 @@ function AdminPage() {
   }, [coursesPage, loading]);
 
   const renderSchoolProfileTab = () => {
-    const handleProfileChange = (field, value) => {
-      setLocalProfile(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleProfileSave = async () => {
-      await updateSiteContent({ schoolProfile: localProfile });
-      alert('School Profile updated successfully!');
-    };
+    const handleLogoUpload = async (e) => {
 
     const handleLogoUpload = async (e) => {
       const file = e.target.files[0];
@@ -3571,48 +4415,6 @@ function AdminPage() {
           </div>
         </section>
 
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center border-b pb-4 mb-4">
-            <h3 className="text-xl font-bold text-gray-800">Admission Fee Settings</h3>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <span className={`text-sm font-bold ${localProfile.admissionPaymentEnabled !== false ? 'text-green-600' : 'text-gray-400'}`}>
-                {localProfile.admissionPaymentEnabled !== false ? 'Payment ON' : 'Payment OFF'}
-              </span>
-              <div className="relative" onClick={() => handleProfileChange('admissionPaymentEnabled', !(localProfile.admissionPaymentEnabled !== false))}>
-                <div className={`w-14 h-7 rounded-full transition-colors duration-300 ${localProfile.admissionPaymentEnabled !== false ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                <div className={`absolute left-1 top-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow ${localProfile.admissionPaymentEnabled !== false ? 'translate-x-7' : ''}`}></div>
-              </div>
-            </label>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Application Fee (₹)</label>
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-bold text-gray-400">₹</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={localProfile.admissionFee ?? 250}
-                  onChange={(e) => handleProfileChange('admissionFee', parseInt(e.target.value) || 0)}
-                  className="w-40 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary text-center font-bold text-lg"
-                  placeholder="250"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">Set to 0 to disable fee collection</p>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">UPI ID (for payment)</label>
-              <input
-                type="text"
-                value={localProfile.admissionUpiId || ''}
-                onChange={(e) => handleProfileChange('admissionUpiId', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
-                placeholder="e.g. schoolname@upi"
-              />
-              <p className="text-xs text-gray-400 mt-1">Students will pay via this UPI ID and upload the receipt</p>
-            </div>
-          </div>
-        </section>
 
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Contact Information</h3>
@@ -3733,95 +4535,6 @@ function AdminPage() {
               </div>
             </div>
 
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8 border-t pt-8 mt-4">
-              {/* Online Instructions */}
-              <div>
-                <label className="block text-sm font-bold text-blue-700 mb-2 flex items-center gap-2">
-                  <FaLaptop className="text-blue-500" /> Online Admission Instructions
-                </label>
-                <div className="space-y-2">
-                  {(localProfile.onlineAdmissionInstructions || []).map((inst, index) => (
-                    <div key={index} className="flex gap-2 group animate-fadeIn">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          value={inst}
-                          onChange={(e) => {
-                            const newInst = [...(localProfile.onlineAdmissionInstructions || [])];
-                            newInst[index] = e.target.value;
-                            handleProfileChange('onlineAdmissionInstructions', newInst);
-                          }}
-                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm h-10"
-                          placeholder="e.g. Fill up the form"
-                        />
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newInst = localProfile.onlineAdmissionInstructions.filter((_, i) => i !== index);
-                          handleProfileChange('onlineAdmissionInstructions', newInst);
-                        }}
-                        className="p-2 text-red-100 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                      >
-                        <FaTrash size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => {
-                      const newInst = [...(localProfile.onlineAdmissionInstructions || []), ""];
-                      handleProfileChange('onlineAdmissionInstructions', newInst);
-                    }}
-                    className="mt-1 flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-wider hover:text-blue-700 transition-colors bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 border-dashed"
-                  >
-                    <FaPlus size={8} /> Add Step
-                  </button>
-                </div>
-              </div>
-
-              {/* Offline Instructions */}
-              <div>
-                <label className="block text-sm font-bold text-amber-700 mb-2 flex items-center gap-2">
-                  <FaBuilding className="text-amber-500" /> Offline Admission Instructions
-                </label>
-                <div className="space-y-2">
-                  {(localProfile.offlineAdmissionInstructions || []).map((inst, index) => (
-                    <div key={index} className="flex gap-2 group animate-fadeIn">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          value={inst}
-                          onChange={(e) => {
-                            const newInst = [...(localProfile.offlineAdmissionInstructions || [])];
-                            newInst[index] = e.target.value;
-                            handleProfileChange('offlineAdmissionInstructions', newInst);
-                          }}
-                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm h-10"
-                          placeholder="e.g. Visit the school office"
-                        />
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newInst = localProfile.offlineAdmissionInstructions.filter((_, i) => i !== index);
-                          handleProfileChange('offlineAdmissionInstructions', newInst);
-                        }}
-                        className="p-2 text-red-100 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                      >
-                        <FaTrash size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => {
-                      const newInst = [...(localProfile.offlineAdmissionInstructions || []), ""];
-                      handleProfileChange('offlineAdmissionInstructions', newInst);
-                    }}
-                    className="mt-1 flex items-center gap-2 text-amber-600 font-bold text-[10px] uppercase tracking-wider hover:text-amber-700 transition-colors bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 border-dashed"
-                  >
-                    <FaPlus size={8} /> Add Step
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -5044,6 +5757,76 @@ function AdminPage() {
     );
   };
 
+  const renderStatusUpdateModal = () => {
+    if (!showStatusModal) return null;
+    
+    const { newStatus } = statusModalData;
+    const isScheduleRequired = ['entrance-exam', 'interview'].includes(newStatus);
+    const title = newStatus === 'rejected' ? 'Reject Application' : `Schedule ${newStatus === 'entrance-exam' ? 'Entrance Exam' : 'Interview'}`;
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 text-left">
+        <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-gray-100">
+          <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
+            <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+            <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full">
+              <FaTimes />
+            </button>
+          </div>
+          
+          <div className="p-6 space-y-4">
+            {isScheduleRequired && (
+              <div className="animate-in slide-in-from-top-2 duration-300">
+                <label className="block text-[10px] font-black text-primary uppercase mb-1 tracking-wider">Scheduled Date & Time</label>
+                <div className="relative">
+                  <FaCalendarAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="e.g. 15th May, 10:00 AM" 
+                    value={statusModalData.date}
+                    onChange={(e) => setStatusModalData(prev => ({ ...prev, date: e.target.value }))}
+                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-medium"
+                    autoFocus
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="animate-in slide-in-from-top-2 duration-400">
+              <label className="block text-[10px] font-black text-primary uppercase mb-1 tracking-wider">Remarks / Message to Parent</label>
+              <div className="relative">
+                <FaCommentDots className="absolute left-4 top-4 text-gray-400" />
+                <textarea 
+                  placeholder={newStatus === 'rejected' ? "Please provide a reason for rejection..." : "Any additional instructions or requirements..."}
+                  value={statusModalData.remark}
+                  onChange={(e) => setStatusModalData(prev => ({ ...prev, remark: e.target.value }))}
+                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all text-sm h-32 resize-none font-medium"
+                ></textarea>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 pt-2">
+              <button 
+                onClick={() => setShowStatusModal(false)}
+                className="flex-1 py-3 px-4 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleStatusUpdate(statusModalData.id, statusModalData.newStatus, statusModalData.remark, statusModalData.date)}
+                className={`flex-1 py-3 px-4 text-white rounded-xl font-bold transition-all shadow-lg text-sm ${
+                  newStatus === 'rejected' ? 'bg-red-500 hover:bg-red-600 shadow-red-200' : 'bg-primary hover:bg-blue-700 shadow-blue-200'
+                }`}
+              >
+                Confirm Update
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-sans relative overflow-x-hidden" style={{ backgroundColor: '#F1F5F9' }}>
       {/* Top Navbar */}
@@ -5120,7 +5903,7 @@ function AdminPage() {
             <div className="relative nav-dropdown-container">
               <button 
                 onClick={() => setOpenDropdown(openDropdown === 'data' ? null : 'data')}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['applications', 'students', 'inquiries', 'jobApplications', 'tenders'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['admission', 'students', 'inquiries', 'jobApplications', 'tenders'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
               >
                 <FaUsers /> Data 
                 {(inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length > 0) && (
@@ -5131,7 +5914,7 @@ function AdminPage() {
               {openDropdown === 'data' && (
                 <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
                   {[
-                    { id: 'applications', label: 'Applications', icon: <FaClipboardList className="text-blue-500"/> },
+                    { id: 'admission', label: 'Admission', icon: <FaClipboardList className="text-blue-500"/> },
                     { id: 'students', label: 'Students', icon: <FaUsers className="text-green-500"/> },
                     { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots className="text-purple-500"/>, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
                     { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase className="text-amber-500"/> },
@@ -5266,7 +6049,7 @@ function AdminPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { id: 'applications', label: 'Admissions' },
+                    { id: 'admission', label: 'Admission' },
                     { id: 'students', label: 'Students' },
                     { id: 'inquiries', label: 'Inquiries' },
                     { id: 'jobApplications', label: 'Job Apps' },
@@ -5303,9 +6086,17 @@ function AdminPage() {
                     <div className="h-px bg-gray-200 flex-1"></div>
                   </div>
                   <div className="space-y-1">
+                    <button onClick={() => { setActiveTab('adminRequests'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'adminRequests' ? 'bg-amber-50 text-amber-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-2 h-2 rounded-full ${activeTab === 'adminRequests' ? 'bg-amber-500' : 'bg-gray-300'}`} />
+                      Admin Requests
+                    </button>
                     <button onClick={() => { setActiveTab('admins'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'admins' ? 'bg-purple-50 text-purple-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
                       <div className={`w-2 h-2 rounded-full ${activeTab === 'admins' ? 'bg-purple-500' : 'bg-gray-300'}`} />
                       Manage Admins
+                    </button>
+                    <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'settings' ? 'bg-slate-50 text-slate-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-2 h-2 rounded-full ${activeTab === 'settings' ? 'bg-slate-500' : 'bg-gray-300'}`} />
+                      System Settings
                     </button>
                   </div>
                 </div>
@@ -5346,114 +6137,8 @@ function AdminPage() {
           {activeTab === 'faqs' && renderFaqsTab()}
           {activeTab === 'careerAds' && renderCareersTab()}
           {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
+          {activeTab === 'admission' && renderAdmissionTab()}
           {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}
-          {activeTab === 'applications' && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Admission Applications</h3>
-                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                  <div className="relative w-full sm:w-64">
-                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input 
-                      type="text" 
-                      placeholder="Search by name or reference..." 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    />
-                  </div>
-                  <button 
-                    onClick={handleExportAdmissions}
-                    disabled={isExportingAdmissions || filteredApps.length === 0}
-                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    {isExportingAdmissions ? <FaSpinner className="animate-spin" /> : <FaDownload />}
-                    {isExportingAdmissions ? 'Exporting...' : 'Export to Excel'}
-                  </button>
-                </div>
-              </div>
-              {filteredApps.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No applications found.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="border-b border-gray-200 text-sm text-gray-500">
-                        <th className="pb-3 font-semibold">Ref No.</th>
-                        <th className="pb-3 font-semibold">Name</th>
-                        <th className="pb-3 font-semibold">Grade</th>
-                        <th className="pb-3 font-semibold">Contact</th>
-                        <th className="pb-3 font-semibold">Date</th>
-                        <th className="pb-3 font-semibold">Status</th>
-                        <th className="pb-3 font-semibold text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredApps.map(app => (
-                        <tr key={app._id} className="border-b border-gray-100 hover:bg-gray-50:bg-[#0F172A]:bg-[#0F172A]">
-                          <td className="py-3 font-medium text-sm text-gray-900">{app.referenceNumber || app._id.slice(-6).toUpperCase()}</td>
-                          <td className="py-3 font-medium">{app.studentName}</td>
-                          <td className="py-3 text-gray-600">{app.gradeApplied}</td>
-                          <td className="py-3 text-gray-600">{app.contactNumber}</td>
-                          <td className="py-3 text-gray-500 text-sm">{new Date(app.createdAt).toLocaleDateString()}</td>
-                          <td className="py-3">
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                              app.status === 'accepted' ? 'bg-green-100 text-green-700 border border-green-200' :
-                              app.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200' :
-                              app.status === 'entrance-exam' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
-                              app.status === 'interview' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                              'bg-amber-100 text-amber-700 border border-amber-200'
-                            }`}>{app.status?.replace('-', ' ')}</span>
-                          </td>
-                          <td className="py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => setSelectedApp(app)} className="text-primary hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="View Details">
-                                <FaSearch size={14} />
-                              </button>
-                              
-                              {app.status !== 'accepted' && app.status !== 'rejected' && (
-                                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
-                                  <select 
-                                    className="text-[10px] font-bold border-none bg-transparent focus:ring-0 cursor-pointer"
-                                    value={app.nextStatus || app.status}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setApplications(prev => prev.map(a => a._id === app._id ? { ...a, nextStatus: val } : a));
-                                    }}
-                                  >
-                                    <option value="pending">Pending</option>
-                                    <option value="entrance-exam">Exam</option>
-                                    <option value="interview">Interview</option>
-                                    <option value="accepted">Accept</option>
-                                    <option value="rejected">Reject</option>
-                                  </select>
-                                  <button 
-                                    onClick={() => handleStatusUpdate(app._id, app.nextStatus || app.status)}
-                                    className="bg-primary text-white p-1.5 rounded-md hover:bg-blue-700 transition-all shadow-sm"
-                                    title="Save Status Update"
-                                  >
-                                    <FaCheckCircle size={10} />
-                                  </button>
-                                </div>
-                              )}
-
-                              <button 
-                                onClick={() => handleDeleteApplication(app._id)} 
-                                className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                title="Delete Application"
-                              >
-                                <FaTrash size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
           {activeTab === 'students' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -5792,20 +6477,50 @@ function AdminPage() {
           })()}
 
           {activeTab === 'jobApplications' && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <h3 className="text-xl font-bold text-gray-800">Job Applications</h3>
-                <div className="flex items-center gap-4">
-                  <div className="flex gap-2 text-xs font-black uppercase text-gray-400">
-                     Total Received: {jobApplications.length}
+            <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight">Recruitment Console</h3>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Review and process faculty job applications</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+                  <div className="relative group">
+                    <select 
+                      value={jobStatusFilter} 
+                      onChange={(e) => setJobStatusFilter(e.target.value)}
+                      className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-10 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer hover:border-gray-200"
+                    >
+                      <option value="All">All Status</option>
+                      <option value="pending">Pending</option>
+                      <option value="shortlisted">Shortlisted</option>
+                      <option value="interviewed">Interviewed</option>
+                      <option value="hired">Hired</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                    <FaAngleDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-primary transition-colors" size={10} />
                   </div>
+
+                  {selectedJobAppIds.length > 0 && (
+                    <button 
+                      onClick={handleBulkDeleteJobs}
+                      className="flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-200 animate-in fade-in zoom-in"
+                    >
+                      <FaTrash size={12} /> Delete ({selectedJobAppIds.length})
+                    </button>
+                  )}
+
+                  <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
+                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Active:</span>
+                     <span className="text-xs font-black text-primary">{filteredJobApps.length}</span>
+                  </div>
+
                   <button 
                     onClick={handleExportJobs}
                     disabled={isExportingJobs || jobApplications.length === 0}
-                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:shadow-none shadow-lg shadow-emerald-100 whitespace-nowrap group"
                   >
-                    {isExportingJobs ? <FaSpinner className="animate-spin" /> : <FaDownload />}
-                    {isExportingJobs ? 'Exporting...' : 'Export to Excel'}
+                    {isExportingJobs ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
+                    {isExportingJobs ? 'Export to Excel' : 'Export to Excel'}
                   </button>
                 </div>
               </div>
@@ -5824,27 +6539,73 @@ function AdminPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
-                        <th className="pb-3 px-2">Ref No.</th>
-                        <th className="pb-3">Candidate</th>
-                        <th className="pb-3">Qualification</th>
-                        <th className="pb-3">Experience</th>
-                        <th className="pb-3">Status</th>
-                        <th className="pb-3 text-right">Actions</th>
+                      <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">
+                        <th className="pb-4">
+                          <input 
+                            type="checkbox" 
+                            className="rounded-md border-gray-200 text-primary focus:ring-primary transition-all w-4 h-4 cursor-pointer"
+                            checked={filteredJobApps.length > 0 && filteredJobApps.every(app => selectedJobAppIds.includes(app._id))}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedJobAppIds(prev => [...new Set([...prev, ...filteredJobApps.map(app => app._id)])]);
+                              } else {
+                                setSelectedJobAppIds(prev => prev.filter(id => !filteredJobApps.some(app => app._id === id)));
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="pb-4 font-semibold">S.N.</th>
+                        <th className="pb-4 px-2">Ref No.</th>
+                        <th className="pb-4">Candidate Information</th>
+                        <th className="pb-4">Expertise</th>
+                        <th className="pb-4">Experience</th>
+                        <th className="pb-4">Status</th>
+                        <th className="pb-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {jobApplications.map(app => (
-                        <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="py-4 px-2 font-mono text-xs font-bold text-blue-600">{app.referenceNumber}</td>
-                          <td className="py-4 font-bold text-gray-800">{app.fullName}</td>
-                          <td className="py-4 text-sm text-gray-600">{app.qualification}</td>
-                          <td className="py-4 text-sm text-gray-600">{app.totalExperience}</td>
-                          <td className="py-4">
-                            <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase border ${
-                              app.status === 'shortlisted' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                              app.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
-                              'bg-amber-50 text-amber-700 border-amber-200'
+                      {filteredJobApps.map((app, index) => (
+                        <tr key={app._id} className={`border-b border-gray-50/50 hover:bg-blue-50/20 transition-all group ${selectedJobAppIds.includes(app._id) ? 'bg-blue-50/50' : ''}`}>
+                          <td className="py-5">
+                            <input 
+                              type="checkbox" 
+                              className="rounded-md border-gray-200 text-primary focus:ring-primary transition-all w-4 h-4 cursor-pointer"
+                              checked={selectedJobAppIds.includes(app._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedJobAppIds(prev => [...prev, app._id]);
+                                } else {
+                                  setSelectedJobAppIds(prev => prev.filter(id => id !== app._id));
+                                }
+                              }}
+                            />
+                          </td>
+                          <td className="py-5 text-[11px] text-gray-400 font-bold tracking-wider">{String(index + 1).padStart(2, '0')}</td>
+                          <td className="py-5 px-2">
+                             <span className="font-mono text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                               {app.referenceNumber}
+                             </span>
+                          </td>
+                          <td className="py-5">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-900 text-sm group-hover:text-primary transition-colors">{app.fullName}</span>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{app.email}</span>
+                            </div>
+                          </td>
+                          <td className="py-5">
+                            <span className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1 rounded-full">{app.qualification}</span>
+                          </td>
+                          <td className="py-5">
+                            <div className="flex items-center gap-2 text-gray-500">
+                               <FaBriefcase size={10} className="text-gray-300" />
+                               <span className="text-xs font-medium">{app.totalExperience}</span>
+                            </div>
+                          </td>
+                          <td className="py-5">
+                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border-2 shadow-sm ${
+                              app.status === 'shortlisted' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                              app.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' :
+                              'bg-amber-50 text-amber-700 border-amber-100'
                             }`}>{app.status}</span>
                           </td>
                           <td className="py-4 text-right">
@@ -6242,20 +7003,28 @@ function AdminPage() {
                   </span>
                 </div>
                 
-                {selectedApp.status === 'pending' && (
-                  <div className="flex gap-4">
+                {selectedApp.status !== 'accepted' && (
+                  <div className="flex flex-wrap gap-4">
                     <button 
-                      onClick={() => handleStatusUpdate(selectedApp._id, 'accepted')}
+                      onClick={() => initiateStatusUpdate(selectedApp, 'accepted')}
                       className="bg-green-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition-all hover:-translate-y-0.5"
                     >
                       Approve Application
                     </button>
                     <button 
-                      onClick={() => handleStatusUpdate(selectedApp._id, 'rejected')}
+                      onClick={() => initiateStatusUpdate(selectedApp, 'rejected')}
                       className="bg-red-500 text-white px-6 py-2 rounded-xl font-bold hover:bg-red-600 shadow-lg shadow-red-200 transition-all hover:-translate-y-0.5"
                     >
-                      Reject Application
+                      {selectedApp.status === 'rejected' ? 'Update Remark' : 'Reject Application'}
                     </button>
+                    {selectedApp.status !== 'pending' && (
+                       <button 
+                         onClick={() => handleStatusUpdate(selectedApp._id, 'pending')}
+                         className="bg-gray-200 text-gray-700 px-6 py-2 rounded-xl font-bold hover:bg-gray-300 transition-all shadow-sm"
+                       >
+                         Reset to Pending
+                       </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -6331,6 +7100,7 @@ function AdminPage() {
             </div>
           </div>
         )}
+        {renderStatusUpdateModal()}
       </div>
     </div>
   );

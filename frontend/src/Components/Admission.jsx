@@ -4,11 +4,11 @@ import axios from "axios";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { QRCodeSVG } from 'qrcode.react';
-import { FaLaptop, FaBuilding, FaClipboardList, FaGraduationCap, FaPhoneAlt, FaEnvelope, FaCheckCircle, FaSearch, FaExclamationCircle, FaIdBadge, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUserCheck, FaClipboardCheck, FaPrint, FaShieldAlt } from "react-icons/fa";
+import { FaLaptop, FaBuilding, FaClipboardList, FaGraduationCap, FaPhoneAlt, FaEnvelope, FaCheckCircle, FaSearch, FaExclamationCircle, FaIdBadge, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUserCheck, FaClipboardCheck, FaPrint, FaShieldAlt, FaBriefcase } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Admission() {
-  const { schoolProfile, API_URL: ctxApiUrl } = useContext(SiteDataContext);
+  const { schoolProfile, admissionFields, API_URL: ctxApiUrl } = useContext(SiteDataContext);
   const apiBase = ctxApiUrl || import.meta.env.VITE_API_URL || '/api';
   const steps = [
     { title: "Registration", desc: "Start by registering your ward's details online or at the school office." },
@@ -73,6 +73,7 @@ function Admission() {
   };
 
   // Form field states for conditional logic
+  const [formKey, setFormKey] = useState(0);
   const [gradeApplied, setGradeApplied] = useState("");
   const [AadhaarNumber, setAadhaarNumber] = useState("");
   const [previousSchool, setPreviousSchool] = useState("");
@@ -97,15 +98,125 @@ function Admission() {
     for (let i = 0; i < digits.length; i++) c = verhoeffD[c][verhoeffP[i % 8][digits[i]]];
     return c === 0;
   };
-  const aadhaarStatus = AadhaarNumber.length === 0 ? 'empty' : AadhaarNumber.length < 12 ? 'incomplete' : isValidAadhaar(AadhaarNumber) ? 'valid' : 'invalid';
+
+  const [aadhaarStatus, setAadhaarStatus] = useState('none'); // none, incomplete, valid, invalid
+  useEffect(() => {
+    if (AadhaarNumber.length === 12) {
+      setAadhaarStatus(isValidAadhaar(AadhaarNumber) ? 'valid' : 'invalid');
+    } else if (AadhaarNumber.length > 0) {
+      setAadhaarStatus('incomplete');
+    } else {
+      setAadhaarStatus('none');
+    }
+  }, [AadhaarNumber]);
+
+  const renderDynamicField = (field) => {
+    if (!field.isActive) return null;
+
+    const commonProps = {
+      name: field.name,
+      required: field.required,
+      placeholder: field.placeholder || `ENTER ${field.label.toUpperCase()}`,
+      className: `w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase ${errorField === field.name ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`,
+    };
+
+    // Special handling for Aadhaar with validation
+    if (field.name === 'AadhaarNumber') {
+      return (
+        <div key={field.name}>
+          <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+          <div className="relative">
+            <input
+              {...commonProps}
+              type="text"
+              value={AadhaarNumber}
+              onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+              className={`${commonProps.className} pr-12 ${
+                aadhaarStatus === 'valid' ? 'border-green-400 focus:ring-green-500 focus:border-green-500 bg-green-50/30' :
+                aadhaarStatus === 'invalid' ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50/30' :
+                ''
+              }`}
+            />
+            {aadhaarStatus === 'valid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✅</span>}
+            {aadhaarStatus === 'invalid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">❌</span>}
+          </div>
+          {aadhaarStatus === 'invalid' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Invalid Aadhaar — checksum does not match.</p>}
+          {aadhaarStatus === 'valid' && <p className="text-green-600 text-xs mt-1 font-semibold">✓ Valid Aadhaar number format</p>}
+          {aadhaarStatus === 'incomplete' && AadhaarNumber.length > 0 && <p className="text-gray-400 text-xs mt-1">{AadhaarNumber.length}/12 digits entered</p>}
+        </div>
+      );
+    }
+
+    // Special handling for Grade Applied to trigger conditional fields
+    if (field.name === 'gradeApplied') {
+      return (
+        <div key={field.name}>
+          <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+          <select 
+            {...commonProps}
+            value={gradeApplied}
+            onChange={(e) => setGradeApplied(e.target.value)}
+          >
+            <option value="">SELECT GRADE</option>
+            {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+          {errorField === 'gender' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Please select a valid grade</p>}
+        </div>
+      );
+    }
+
+    switch (field.type) {
+      case 'select':
+        return (
+          <div key={field.name}>
+            <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+            <select {...commonProps}>
+              <option value="">SELECT {field.label.toUpperCase()}</option>
+              {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+          </div>
+        );
+      case 'textarea':
+        return (
+          <div key={field.name} className="md:col-span-2">
+            <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+            <textarea {...commonProps} rows="3"></textarea>
+          </div>
+        );
+      case 'date':
+        return (
+          <div key={field.name}>
+            <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+            <input {...commonProps} type="date" />
+          </div>
+        );
+      case 'number':
+        return (
+          <div key={field.name}>
+            <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+            <input {...commonProps} type="number" />
+          </div>
+        );
+      case 'file':
+        return null; // Handle files separately in the documents section
+      default:
+        return (
+          <div key={field.name}>
+            <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+            <input {...commonProps} type={field.type} />
+          </div>
+        );
+    }
+  };
   const penStatus = penNumber.length === 0 ? 'empty' : /^[A-Z0-9]{8,20}$/.test(penNumber) ? 'valid' : 'invalid';
   const darpanStatus = darpanId.length === 0 ? 'empty' : darpanId.length >= 4 ? 'valid' : 'invalid';
-  const [caste, setCaste] = useState("General");
   const [errorField, setErrorField] = useState(null); // which field has a backend error
   const [filePreviews, setFilePreviews] = useState({}); // { fieldName: { name, size, type, url } }
   
   const [paymentSession, setPaymentSession] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState('pending');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
 
   const admissionFee = schoolProfile?.admissionFee || 250;
   const paymentEnabled = schoolProfile?.admissionPaymentEnabled !== false; // default true
@@ -119,21 +230,7 @@ function Admission() {
     if (verified === 'true' && ref) {
       axios.get(`${apiBase}/admissions/status?q=${ref}`)
         .then(res => {
-          setSubmittedData({
-             referenceNumber: res.data.referenceNumber,
-             studentName: res.data.studentName,
-             gradeApplied: res.data.gradeApplied,
-             gender: res.data.gender,
-             caste: res.data.caste,
-             email: res.data.email,
-             contactNumber: res.data.contactNumber,
-             penNumber: res.data.penNumber,
-             stream: res.data.stream,
-             mil: res.data.mil,
-             elective: res.data.elective,
-             selectedSubjects: res.data.selectedSubjects,
-             dateOfApplication: new Date(res.data.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
-          });
+          setSubmittedData(res.data);
           setTimeout(() => {
             window.scrollTo({ top: document.getElementById('apply')?.offsetTop - 100, behavior: 'smooth' });
           }, 500);
@@ -152,21 +249,7 @@ function Admission() {
             setPaymentStatus('success');
             setTimeout(() => {
                 setPaymentSession(null);
-                setSubmittedData({
-                   referenceNumber: paymentSession.referenceNumber,
-                   studentName: paymentSession.studentName,
-                   gradeApplied: paymentSession.gradeApplied,
-                   gender: paymentSession.gender,
-                   caste: paymentSession.caste,
-                   email: paymentSession.email,
-                   contactNumber: paymentSession.contactNumber,
-                   penNumber: paymentSession.penNumber,
-                   stream: paymentSession.stream,
-                   mil: paymentSession.mil,
-                   elective: paymentSession.elective,
-                   selectedSubjects: paymentSession.selectedSubjects,
-                   dateOfApplication: paymentSession.dateOfApplication
-                });
+                setSubmittedData(paymentSession);
                 window.scrollTo({ top: document.getElementById('apply')?.offsetTop - 100, behavior: 'smooth' });
             }, 2000);
           }
@@ -227,6 +310,81 @@ function Admission() {
     if (p >= 30) return '3rd Division';
     return 'Below Pass';
   };
+
+  const handleReview = (e) => {
+    e.preventDefault();
+    const form = e.target.closest('form');
+    
+    // Field-level validations
+    if (contactNumber.length < 10) {
+      setSubmitError('Please enter a valid 10-digit contact number.');
+      return;
+    }
+    if (pincode.length < 6) {
+      setSubmitError('Please enter a valid 6-digit pincode.');
+      return;
+    }
+
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    // Process subjects validation
+    if (gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12"))) {
+      const requiredCount = selectedStream === 'science' ? 2 : 4;
+      if (selectedSubjects.length !== requiredCount) {
+        setSubmitError(`Please select exactly ${requiredCount} elective subjects.`);
+        return;
+      }
+    }
+
+    // At least one parent/guardian check
+    const fatherName = form.querySelector('[name="fatherName"]')?.value;
+    const motherName = form.querySelector('[name="motherName"]')?.value;
+    const guardianName = form.querySelector('[name="guardianName"]')?.value;
+    if (!fatherName && !motherName && !guardianName) {
+      setSubmitError('Please provide at least one Parent or Guardian name.');
+      return;
+    }
+
+    const fd = new FormData(form);
+    const data = {};
+    fd.forEach((value, key) => {
+      if (value instanceof File) {
+        data[key] = value.name ? value.name : 'Not provided';
+      } else {
+        data[key] = value;
+      }
+    });
+
+    // Merge state-based fields
+    data.selectedSubjects = selectedSubjects;
+    data.nccInterest = nccInterest;
+    data.sportsActive = sportsActive;
+    data.sportsType = sportsType;
+    data.gradeApplied = gradeApplied;
+
+    setPreviewData(data);
+    setShowPreview(true);
+  };
+
+  const DetailRow = ({ label, value }) => (
+    <div className="flex justify-between items-start gap-4 text-sm">
+      <span className="text-gray-400 font-bold uppercase text-[10px] tracking-widest pt-1">{label}</span>
+      <span className="text-gray-900 font-black text-right uppercase">{value || 'N/A'}</span>
+    </div>
+  );
+
+  const DocBadge = ({ label, filename }) => (
+    <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 flex items-center gap-2 shadow-sm">
+      <FaCheckCircle className="text-green-500 text-xs" />
+      <div className="flex flex-col">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter leading-none mb-1">{label}</span>
+        <span className="text-xs font-bold text-gray-700 truncate max-w-[120px]">{filename}</span>
+      </div>
+    </div>
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -341,6 +499,11 @@ function Admission() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       
+      const fullDataForPayment = {};
+      for (let [key, value] of formData.entries()) {
+        fullDataForPayment[key] = value;
+      }
+      
       // If payment is enabled, process UPIGateway Payment
       if (paymentEnabled && admissionFee > 0) {
           try {
@@ -357,16 +520,7 @@ function Admission() {
                       ...paymentRes.data,
                       admissionId: res.data.id,
                       referenceNumber: res.data.referenceNumber,
-                      studentName: formData.get('studentName'),
-                      gradeApplied: formData.get('gradeApplied'),
-                      gender: formData.get('gender'),
-                      caste: formData.get('caste'),
-                      email: formData.get('email'),
-                      contactNumber: formData.get('contactNumber'),
-                      penNumber: formData.get('penNumber'),
-                      stream: formData.get('stream'),
-                      mil: formData.get('mil'),
-                      elective: formData.get('elective'),
+                      ...fullDataForPayment,
                       selectedSubjects: [...selectedSubjects],
                       dateOfApplication: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
                   });
@@ -384,21 +538,14 @@ function Admission() {
           }
       }
 
-      setSubmittedData({
-        referenceNumber: res.data.referenceNumber,
-        studentName: formData.get('studentName'),
-        gender: formData.get('gender'),
-        caste: formData.get('caste'),
-        gradeApplied: formData.get('gradeApplied'),
-        penNumber: formData.get('penNumber') || '',
-        email: formData.get('email'),
-        contactNumber: formData.get('contactNumber'),
-        stream: formData.get('stream') || '',
-        mil: formData.get('mil') || '',
-        elective: formData.get('elective') || '',
-        selectedSubjects: [...selectedSubjects],
-        dateOfApplication: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
-      });
+      const fullData = {};
+      for (let [key, value] of formData.entries()) {
+        fullData[key] = value;
+      }
+      fullData.referenceNumber = res.data.referenceNumber;
+      fullData.selectedSubjects = [...selectedSubjects];
+      fullData.dateOfApplication = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+      setSubmittedData(fullData);
       window.scrollTo({ top: document.getElementById('apply').offsetTop - 100, behavior: 'smooth' });
     } catch (err) {
       const data = err.response?.data;
@@ -428,7 +575,9 @@ function Admission() {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const primaryColor = [30, 41, 59]; // Slate 800 (Professional Primary)
+    const primaryColor = [30, 58, 138]; // Deep Blue 900
+    const accentColor = [37, 99, 235]; // Blue 600
+    const lightColor = [248, 250, 252]; // Slate 50
 
     const loadImage = (url) => {
       return new Promise((resolve) => {
@@ -440,123 +589,260 @@ function Admission() {
       });
     };
 
-    // Header Background
-    doc.setFillColor(...primaryColor);
-    doc.rect(0, 0, 210, 45, 'F');
+    // Calculate age
+    let age = '';
+    if (submittedData.dateOfBirth) {
+      const birthDate = new Date(submittedData.dateOfBirth);
+      const today = new Date();
+      age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    }
 
-    // Logo
+    // --- 1. Bold Header Bar ---
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, 210, 50, 'F');
+
+    // School Logo
     const logoImg = schoolProfile?.logo ? await loadImage(schoolProfile.logo) : null;
     if (logoImg) {
-      doc.addImage(logoImg, 'PNG', 15, 7, 30, 30);
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.8);
+      doc.roundedRect(12, 10, 30, 30, 2, 2, 'D');
+      doc.addImage(logoImg, 'PNG', 13, 11, 28, 28);
     }
 
-    // School Name & Branding
+    // Header Text (White)
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
-    doc.text(schoolProfile?.name?.toUpperCase() || "HOLY NAME HS SCHOOL", 105, 18, { align: "center" });
+    doc.setFontSize(18);
+    doc.text(schoolProfile?.name?.toUpperCase() || "HOLY NAME HIGH SCHOOL", 110, 22, { align: "center" });
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(schoolProfile?.officeAddress || "", 110, 28, { align: "center" });
+    
+    const contactInfo = [schoolProfile?.email, schoolProfile?.phone].filter(Boolean).join(" | ");
+    doc.text(contactInfo, 110, 33, { align: "center" });
+    
+    doc.setFontSize(8);
+    doc.setTextColor(191, 219, 254);
+    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, 110, 38, { align: "center" });
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "italic");
-    doc.text(schoolProfile?.punchLine || "Excellence in Education", 105, 24, { align: "center" });
-
+    // --- 2. Title Section ---
+    doc.setTextColor(...primaryColor);
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("ADMISSION ACKNOWLEDGEMENT RECEIPT", 105, 36, { align: "center" });
+    doc.text("ADMISSION APPLICATION SUCCESSFUL", 105, 65, { align: "center" });
+    
+    doc.setDrawColor(...accentColor);
+    doc.setLineWidth(0.5);
+    doc.line(60, 68, 150, 68);
 
-    // Success Banner
-    let yPos = 55;
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("APPLICATION SUBMITTED SUCCESSFULLY", 105, yPos, { align: "center" });
-
-    // Reference Box
-    yPos += 8;
-    doc.setFillColor(250, 250, 250);
-    doc.setDrawColor(230, 230, 230);
-    doc.roundedRect(15, yPos, pageWidth - 30, 25, 3, 3, 'FD');
-
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text("REFERENCE NUMBER", 105, yPos + 8, { align: "center" });
-
-    doc.setFontSize(18);
+    // --- 3. Reference & Photo Row ---
+    doc.setFillColor(...lightColor);
+    doc.roundedRect(15, 75, 140, 30, 3, 3, 'F');
+    doc.setDrawColor(...accentColor);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, 75, 140, 30, 3, 3, 'D');
+    
+    doc.setFontSize(11);
     doc.setTextColor(...primaryColor);
-    doc.setFont("courier", "bold");
-    doc.text(submittedData.referenceNumber, 105, yPos + 18, { align: "center" });
+    doc.text(`REFERENCE NO: ${submittedData.referenceNumber}`, 22, 85);
+    
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Applicant: ${submittedData.studentName}`, 22, 91);
+    doc.text(`Contact: ${submittedData.contactNumber || 'N/A'}`, 22, 97);
 
-    // Details Table
-    yPos += 35;
-
-    const tableBody = [
-      ["Student Name", submittedData.studentName || ''],
-      ["Grade Applied", (submittedData.gradeApplied || '').toUpperCase()],
-      ["Gender", (submittedData.gender || '').toUpperCase()],
-      ["Category / Caste", submittedData.caste || ''],
-      ["Date of Application", submittedData.dateOfApplication || ''],
-      ["Contact Email", submittedData.email || ''],
-      ["Contact Phone", submittedData.contactNumber || '']
-    ];
-
-    if (submittedData.penNumber) tableBody.splice(2, 0, ["PEN Number", submittedData.penNumber]);
-    if (submittedData.stream) tableBody.push(["Stream", submittedData.stream.toUpperCase()]);
-    if (submittedData.mil) tableBody.push(["MIL / Language", submittedData.mil.charAt(0).toUpperCase() + submittedData.mil.slice(1)]);
-    if (submittedData.elective) tableBody.push(["Elective Subject", submittedData.elective.replace(/_/g, ' ').toUpperCase()]);
-    if (submittedData.selectedSubjects?.length > 0) {
-      tableBody.push(["Selected Subjects", submittedData.selectedSubjects.join(", ")]);
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(165, 75, 30, 35, 2, 2, 'D');
+    
+    let studentPhotoUrl = null;
+    if (typeof submittedData?.studentPhoto === 'string') {
+      studentPhotoUrl = submittedData.studentPhoto;
+    } else if (filePreviews?.studentPhoto?.url) {
+      studentPhotoUrl = filePreviews.studentPhoto.url;
+    } else if (submittedData?.studentPhoto instanceof File) {
+      studentPhotoUrl = URL.createObjectURL(submittedData.studentPhoto);
     }
 
-    autoTable(doc, {
-      startY: yPos,
-      head: [["Information Detail", "Provided Value"]],
-      body: tableBody,
-      theme: 'grid',
-      headStyles: {
-        fillColor: primaryColor,
-        textColor: [255, 255, 255],
-        fontSize: 10,
-        halign: 'center'
-      },
-      bodyStyles: {
-        fontSize: 10,
-        cellPadding: 5,
-        textColor: [50, 50, 50]
-      },
-      columnStyles: {
-        0: { fontStyle: 'bold', fillColor: [250, 250, 250], cellWidth: 60 }
-      },
-      margin: { left: 15, right: 15 }
-    });
+    const studentImg = studentPhotoUrl ? await loadImage(studentPhotoUrl) : null;
+    if (studentImg) {
+      doc.addImage(studentImg, 'JPEG', 166, 76, 28, 33);
+    } else {
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text("PHOTO\nSPACE", 180, 92, { align: "center" });
+    }
 
-    yPos = doc.lastAutoTable.finalY + 15;
-
-    // Note Section
-    doc.setFillColor(254, 252, 232); // Light yellow
-    doc.rect(15, yPos, pageWidth - 30, 20, 'F');
-    doc.setFontSize(9);
-    doc.setTextColor(120, 53, 15); // Dark amber
+    // --- 4. Watermark (Brackets Removed) ---
+    doc.setTextColor(241, 245, 249);
+    doc.setFontSize(45);
     doc.setFont("helvetica", "bold");
-    doc.text("NOTICE:", 20, yPos + 8);
+    doc.text("VidyaBarta Lencho Solutions", 40, 220, { angle: 45 });
+
+    // --- 5. Dynamic Fields Section ---
+    let leftColX = 15;
+    let rightColX = 110;
+    let startY = 120;
+    let yInc = 8;
+    let currY = startY;
+
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("APPLICATION DETAILS", 15, currY - 5);
+    doc.setDrawColor(...accentColor);
+    doc.line(15, currY - 3, 60, currY - 3);
+
+    // Helper to format values
+    const formatValue = (val) => {
+      if (val === undefined || val === null || val === '') return 'N/A';
+      if (Array.isArray(val)) return val.join(", ").toUpperCase();
+      if (typeof val === 'boolean') return val ? 'YES' : 'NO';
+      return val.toString().toUpperCase();
+    };
+
+    // Filter fields to display (excluding Documents section)
+    const displayFields = admissionFields
+      .filter(f => f.section !== 'Documents')
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    // Split into two columns
+    const half = Math.ceil(displayFields.length / 2);
+    const leftFields = displayFields.slice(0, half);
+    const rightFields = displayFields.slice(half);
+
+    for (let i = 0; i < Math.max(leftFields.length, rightFields.length); i++) {
+      const leftField = leftFields[i];
+      const rightField = rightFields[i];
+
+      const leftVal = leftField ? submittedData[leftField.name] : null;
+      const rightVal = rightField ? submittedData[rightField.name] : null;
+
+      const leftSplit = leftField ? doc.splitTextToSize(formatValue(leftVal), 42) : [];
+      const rightSplit = rightField ? doc.splitTextToSize(formatValue(rightVal), 42) : [];
+      const maxLines = Math.max(leftSplit.length || 1, rightSplit.length || 1);
+
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(12, currY - 5, 186, yInc + ((maxLines - 1) * 4) + 2, 'F');
+      }
+
+      if (leftField) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`${leftField.label.toUpperCase()}:`, leftColX, currY);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text(leftSplit, leftColX + 48, currY);
+      }
+
+      if (rightField) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`${rightField.label.toUpperCase()}:`, rightColX, currY);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text(rightSplit, rightColX + 48, currY);
+      }
+      
+      currY += yInc + ((maxLines - 1) * 4);
+
+      // Add a new page if we're near the bottom
+      if (currY > 260) {
+        doc.addPage();
+        currY = 20;
+      }
+    }
+
+    // Special handling for Age, Board Marks, and Elective Subjects (if not in admissionFields)
+    currY += 10;
+    if (currY > 260) { doc.addPage(); currY = 20; }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("ADDITIONAL INFORMATION", 15, currY);
+    currY += 5;
+
+    const renderAdditional = (label, val, x, y) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`${label}:`, x, y);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(formatValue(val), x + 48, y);
+    };
+
+    renderAdditional("AGE", age.toString(), leftColX, currY);
+    if (submittedData.boardMarks) {
+      renderAdditional("BOARD PERCENTAGE", `${submittedData.boardPercentage}%`, rightColX, currY);
+      currY += yInc;
+      renderAdditional("DARPAN ID", submittedData.darpanId, leftColX, currY);
+    }
+    
+    if (submittedData.selectedSubjects && submittedData.selectedSubjects.length > 0) {
+      currY += yInc;
+      const subjects = submittedData.selectedSubjects.join(", ");
+      const splitSubjects = doc.splitTextToSize(subjects.toUpperCase(), 130);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("ELECTIVE SUBJECTS:", leftColX, currY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(splitSubjects, leftColX + 48, currY);
+      currY += (splitSubjects.length * 4);
+    }
+
+    // --- 6. Notice Block ---
+    currY += 15;
+    doc.setFillColor(254, 252, 232);
+    doc.roundedRect(15, currY, 180, 22, 3, 3, 'F');
+    doc.setDrawColor(254, 240, 138);
+    doc.roundedRect(15, currY, 180, 22, 3, 3, 'D');
+    
+    doc.setFontSize(9);
+    doc.setTextColor(161, 98, 7);
+    doc.setFont("helvetica", "bold");
+    doc.text("IMPORTANT INSTRUCTIONS:", 20, currY + 8);
     doc.setFont("helvetica", "normal");
-    doc.text("Please present this receipt during your scheduled interview. The reference number is ", 20, yPos + 13);
-    doc.text("required for all future correspondence regarding this application.", 20, yPos + 17);
-
-    // Footer
-    yPos += 35;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, yPos, pageWidth - 15, yPos);
-
     doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text(`${schoolProfile?.name || 'School Office'} | ${schoolProfile?.phone || ''} | ${schoolProfile?.email || ''}`, 105, yPos + 8, { align: "center" });
-    doc.text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 105, yPos + 13, { align: "center" });
+    doc.text("Please bring this original receipt along with all required original documents (Aadhaar, Birth Certificate, etc.)", 20, currY + 13);
+    doc.text("for the scheduled interview. Admission selection depends on the verification of these submitted details.", 20, currY + 17);
+
+    // --- 7. Footer ---
+    doc.setDrawColor(226, 232, 240);
+    doc.line(15, 275, 195, 275);
+    
+    doc.setFontSize(8);
+    doc.setTextColor(...primaryColor);
+    doc.text(`${schoolProfile?.name || "Holy Name High School"} | Contact: ${schoolProfile?.phone || "N/A"}`, 105, 282, { align: "center" });
+    
+    doc.setTextColor(148, 163, 184);
+    doc.text("Securely Powered by VidyaBarta Management Software - A Product of Lencho Solutions", 105, 287, { align: "center" });
 
     doc.save(`Admission_Receipt_${submittedData.referenceNumber}.pdf`);
   };
 
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
+
       {/* Payment Overlay Modal */}
       {paymentSession && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -679,12 +965,12 @@ function Admission() {
               {(schoolProfile.onlineAdmissionInstructions?.length > 0
                 ? schoolProfile.onlineAdmissionInstructions
                 : [
-                  "Fill up the form",
+                  "Fill up the form with accurate details",
+                  "Review your application in the preview screen",
                   "Upload all documents marked compulsory",
-                  "Pay the Fee",
+                  "Pay the Application Fee",
                   "Download & Print Acknowledgement Receipt",
-                  "Submit the receipt during interview date allotted",
-                  "You can check the status of your application by reference number or email verification"
+                  "Submit the receipt during interview date allotted"
                 ]
               ).map((inst, idx) => (
                 <li key={idx} className="flex items-start">
@@ -734,15 +1020,130 @@ function Admission() {
           </div>
 
           {!submittedData ? (
-            <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6" id="admission-form">
-              {/* Submission Error Display (Visible on all steps) */}
-              {submitError && (
-                <div id="form-error-banner" className="bg-red-50 border-2 border-red-200 p-6 rounded-2xl flex items-start animate-fade-in mb-8 shadow-lg shadow-red-100/50">
-                  <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center text-xl mr-4 flex-shrink-0">
-                    <FaExclamationCircle />
+            <form key={formKey} id="admission-form" onSubmit={handleSubmit} noValidate className="max-w-5xl mx-auto space-y-6">
+              
+              {/* --- PREVIEW SECTION (Always in DOM, visible when showPreview is true) --- */}
+              <div className={`${showPreview && previewData ? 'block' : 'hidden'} animate-fade-in`}>
+                {previewData && (
+                  <div className="bg-white rounded-[2.5rem] shadow-2xl border-4 border-primary/10 overflow-hidden">
+                    <div className="p-8 md:p-14 bg-gradient-to-br from-blue-50/50 to-white text-left">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 border-b border-slate-100 pb-8">
+                        <div>
+                          <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-2">Review Your Application</h2>
+                          <p className="text-slate-500 font-medium text-lg">Please confirm all details are correct before finalizing your submission.</p>
+                        </div>
+                        <div className="bg-amber-100 text-amber-700 px-6 py-2 rounded-2xl font-black text-xs uppercase tracking-[0.2em] border border-amber-200 shadow-sm flex items-center gap-2">
+                          <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+                          Verification Step
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                        {/* Left Column */}
+                        <div className="space-y-12">
+                          <section>
+                            <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.3em] mb-6 flex items-center bg-primary/5 p-2 rounded-lg w-fit pr-6">
+                              <FaUserGraduate className="mr-3 text-lg" /> Student Information
+                            </h4>
+                            <div className="space-y-3 pl-2">
+                              <DetailRow label="Full Name" value={previewData.studentName} />
+                              <DetailRow label="Date of Birth" value={previewData.dateOfBirth} />
+                              <DetailRow label="Gender" value={previewData.gender} />
+                              <DetailRow label="Grade Applied" value={previewData.gradeApplied} />
+                              <DetailRow label="Aadhaar Number" value={previewData.AadhaarNumber} />
+                              <DetailRow label="Blood Group" value={previewData.bloodGroup} />
+                            </div>
+                          </section>
+
+                          <section>
+                            <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.3em] mb-6 flex items-center bg-primary/5 p-2 rounded-lg w-fit pr-6">
+                              <FaUserCheck className="mr-3 text-lg" /> Parent/Guardian Info
+                            </h4>
+                            <div className="space-y-3 pl-2">
+                              <DetailRow label="Father's Name" value={previewData.fatherName} />
+                              <DetailRow label="Mother's Name" value={previewData.motherName} />
+                              <DetailRow label="Guardian" value={previewData.guardianName} />
+                              <DetailRow label="Relationship" value={previewData.relationship} />
+                            </div>
+                          </section>
+                        </div>
+
+                        {/* Right Column */}
+                        <div className="space-y-12">
+                          <section>
+                            <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.3em] mb-6 flex items-center bg-primary/5 p-2 rounded-lg w-fit pr-6">
+                              <FaGraduationCap className="mr-3 text-lg" /> Academic Background
+                            </h4>
+                            <div className="space-y-3 pl-2">
+                              <DetailRow label="Previous School" value={previewData.previousSchool} />
+                              <DetailRow label="Stream" value={previewData.stream} />
+                              <DetailRow label="Elective Subjects" value={previewData.selectedSubjects?.join(", ")} />
+                              <DetailRow label="MIL Choice" value={previewData.mil} />
+                            </div>
+                          </section>
+
+                          <section>
+                            <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.3em] mb-6 flex items-center bg-primary/5 p-2 rounded-lg w-fit pr-6">
+                              <FaPhoneAlt className="mr-3 text-lg" /> Contact & Address
+                            </h4>
+                            <div className="space-y-3 pl-2">
+                              <DetailRow label="Phone" value={previewData.contactNumber} />
+                              <DetailRow label="Email Address" value={previewData.email} />
+                              <DetailRow label="Full Address" value={previewData.address} />
+                              <DetailRow label="Pincode" value={previewData.pincode} />
+                            </div>
+                          </section>
+                        </div>
+                      </div>
+
+                      {/* Documents Section */}
+                      <section className="mt-16 pt-12 border-t border-slate-100">
+                        <h4 className="text-[11px] font-black text-primary uppercase tracking-[0.3em] mb-8 flex items-center bg-primary/5 p-2 rounded-lg w-fit pr-6">
+                          <FaFileAlt className="mr-3 text-lg" /> Verified Documents
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                          <DocBadge label="Student Photo" filename={previewData.studentPhoto} />
+                          <DocBadge label="Birth Cert" filename={previewData.birthCertificate} />
+                          <DocBadge label="Marksheet" filename={previewData.marksheet} />
+                          {previewData.transferCertificate && previewData.transferCertificate !== 'Not provided' && <DocBadge label="TC" filename={previewData.transferCertificate} />}
+                        </div>
+                      </section>
+                    </div>
+
+                    {/* ACTIONS */}
+                    <div className="p-10 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row items-center justify-center gap-6">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setShowPreview(false);
+                          window.scrollTo({ top: document.getElementById('apply').offsetTop - 100, behavior: 'smooth' });
+                        }}
+                        className="w-full md:w-auto min-w-[240px] px-10 py-5 bg-white text-slate-700 font-bold rounded-[1.5rem] border-2 border-slate-200 hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-3 shadow-sm"
+                      >
+                        <FaBriefcase /> Edit Information
+                      </button>
+                      <button 
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full md:w-auto min-w-[280px] px-12 py-5 bg-primary text-white font-black rounded-[1.5rem] shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
+                      >
+                        {submitting ? 'Processing...' : 'Confirm & Final Submit'}
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-red-800 font-bold text-lg mb-1">Submission Error</h3>
+                )}
+              </div>
+
+              {/* --- EDITABLE FORM SECTION (Always in DOM, hidden when showPreview is true) --- */}
+              <div className={`${showPreview ? 'hidden' : 'block'}`}>
+                  {/* Submission Error Display (Visible on all steps) */}
+                  {submitError && (
+                    <div id="form-error-banner" className="bg-red-50 border-2 border-red-200 p-6 rounded-2xl flex items-start animate-fade-in mb-8 shadow-lg shadow-red-100/50">
+                      <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center text-xl mr-4 flex-shrink-0">
+                        <FaExclamationCircle />
+                      </div>
+                      <div>
+                        <h3 className="text-red-800 font-bold text-lg mb-1">Submission Error</h3>
                     <p className="text-red-600 font-medium">{submitError}</p>
                     {errorField && (
                       <p className="text-red-500 text-xs mt-2 font-bold">⚠ Please check the highlighted field and correct your input.</p>
@@ -752,582 +1153,294 @@ function Admission() {
                 </div>
               )}
 
-              <div className="space-y-6 animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Student Name (As per Aadhaar) *</label>
-                  <input name="studentName" type="text" className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase ${errorField === 'studentName' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`} placeholder="ENTER FULL NAME" required />
-                  {errorField === 'studentName' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ This field requires attention</p>}
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Date of Birth *</label>
-                  <input name="dateOfBirth" type="date" className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${errorField === 'dateOfBirth' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`} required />
-                  {errorField === 'dateOfBirth' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Age must be between 3–120 years</p>}
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Aadhaar Number</label>
-                  <div className="relative">
-                    <input
-                      name="AadhaarNumber"
-                      type="text"
-                      value={AadhaarNumber}
-                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                      className={`w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-colors uppercase pr-12 ${
-                        aadhaarStatus === 'valid' ? 'border-green-400 focus:ring-green-500 focus:border-green-500 bg-green-50/30' :
-                        aadhaarStatus === 'invalid' ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50/30' :
-                        'border-gray-300 focus:ring-amber-500 focus:border-amber-500'
-                      }`}
-                      placeholder="12-DIGIT Aadhaar NUMBER"
-                    />
-                    {aadhaarStatus === 'valid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✅</span>}
-                    {aadhaarStatus === 'invalid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">❌</span>}
-                  </div>
-                  {aadhaarStatus === 'invalid' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Invalid Aadhaar — checksum does not match. Please verify your number.</p>}
-                  {aadhaarStatus === 'valid' && <p className="text-green-600 text-xs mt-1 font-semibold">✓ Valid Aadhaar number format</p>}
-                  {aadhaarStatus === 'incomplete' && <p className="text-gray-400 text-xs mt-1">{AadhaarNumber.length}/12 digits entered</p>}
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Place of Birth</label>
-                  <input name="placeOfBirth" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="ENTER PLACE OF BIRTH" />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Gender *</label>
-                  <select name="gender" className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase ${errorField === 'gender' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`} required>
-                    <option value="">SELECT GENDER</option>
-                    <option value="male">MALE</option>
-                    <option value="female">FEMALE</option>
-                    <option value="other">OTHER</option>
-                  </select>
-                  {errorField === 'gender' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Please select a valid gender</p>}
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Blood Group</label>
-                  <select name="bloodGroup" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase">
-                    <option value="">SELECT BLOOD GROUP</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Religion</label>
-                  <select name="religion" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase">
-                    <option value="">SELECT RELIGION</option>
-                    <option value="HINDUISM">HINDUISM</option>
-                    <option value="ISLAM">ISLAM</option>
-                    <option value="CHRISTIANITY">CHRISTIANITY</option>
-                    <option value="SIKHISM">SIKHISM</option>
-                    <option value="BUDDHISM">BUDDHISM</option>
-                    <option value="JAINISM">JAINISM</option>
-                    <option value="OTHER">OTHER</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Caste *</label>
-                  <select
-                    name="caste"
-                    value={caste}
-                    onChange={(e) => setCaste(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
-                    required
-                  >
-                    <option value="General">GENERAL</option>
-                    <option value="OBC">OBC</option>
-                    <option value="SC">SC</option>
-                    <option value="ST">ST</option>
-                    <option value="MOBC">MOBC</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Grade/Class Applied For *</label>
-                  <select
-                    name="gradeApplied"
-                    value={gradeApplied}
-                    onChange={(e) => setGradeApplied(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase ${errorField === 'gradeApplied' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`}
-                    required
-                  >
-                    <option value="">SELECT GRADE</option>
-                    <option value="pre-nursery">PRE-NURSERY</option>
-                    <option value="kg1">KG I (LKG)</option>
-                    <option value="kg2">KG II (UKG)</option>
-                    <option value="class1">CLASS I</option>
-                    <option value="class2">CLASS II</option>
-                    <option value="class3">CLASS III</option>
-                    <option value="class4">CLASS IV</option>
-                    <option value="class5">CLASS V</option>
-                    <option value="class6">CLASS VI</option>
-                    <option value="class7">CLASS VII</option>
-                    <option value="class8">CLASS VIII</option>
-                    <option value="class9">CLASS IX</option>
-                    <option value="class10">CLASS X</option>
-                    <option value="class11">CLASS XI</option>
-                    <option value="class12">CLASS XII</option>
-                  </select>
-                </div>
-
-                {/* Conditional PEN Number for Class 2+ */}
-                {gradeApplied && !["pre-nursery", "kg1", "kg2", "class1"].includes(gradeApplied) && (
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">PEN (Permanent Education Number) *</label>
-                    <div className="relative">
-                      <input
-                        name="penNumber"
-                        type="text"
-                        value={penNumber}
-                        onChange={(e) => setPenNumber(e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 20))}
-                        className={`w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-colors uppercase pr-12 ${
-                          penStatus === 'valid' ? 'border-green-400 focus:ring-green-500 focus:border-green-500 bg-green-50/30' :
-                          penStatus === 'invalid' ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50/30' :
-                          'border-gray-300 focus:ring-amber-500 focus:border-amber-500'
-                        }`}
-                        placeholder="ENTER PEN NUMBER"
-                        required
-                      />
-                      {penStatus === 'valid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✅</span>}
-                      {penStatus === 'invalid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">❌</span>}
+              <div className="space-y-12 animate-fade-in">
+                {([...new Set(admissionFields.map(f => f.section))]).map(sectionName => (
+                  <div key={sectionName} className="space-y-6">
+                    <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b-2 border-primary/10 pb-2 flex items-center gap-3">
+                      <span className="w-1.5 h-6 bg-primary rounded-full"></span>
+                      {sectionName}
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {admissionFields
+                        .filter(f => f.section === sectionName)
+                        .sort((a, b) => (a.order || 0) - (b.order || 0))
+                        .map(field => renderDynamicField(field))
+                      }
                     </div>
-                    {penStatus === 'invalid' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ PEN must be 8–20 alphanumeric characters</p>}
-                    {penStatus === 'valid' && <p className="text-green-600 text-xs mt-1 font-semibold">✓ Valid PEN format</p>}
-                  </div>
-                )}
 
-                {/* Conditional MIL & Elective for Class 9-10 */}
-                {(gradeApplied === "class9" || gradeApplied === "class10") && (
-                  <>
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">MIL (Modern Indian Language) *</label>
-                      <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" required>
-                        <option value="">SELECT MIL</option>
-                        <option value="assamese">ASSAMESE</option>
-                        <option value="bengali">BENGALI</option>
-                        <option value="hindi">HINDI</option>
-                        <option value="bodo">BODO</option>
-                        <option value="urdu">URDU</option>
-                        <option value="manipuri">MANIPURI</option>
-                        <option value="nepali">NEPALI</option>
-                        <option value="khasi">KHASI</option>
-                        <option value="garo">GARO</option>
-                        <option value="mizo">MIZO</option>
-                        <option value="hmar">HMAR</option>
-                        <option value="karbi">KARBI</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">Elective Subject *</label>
-                      <select name="elective" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
-                        <option value="">Select Elective</option>
-                        <option value="advanced_math">Advanced Mathematics (E)</option>
-                        <option value="geography">Geography (E)</option>
-                        <option value="history">History (E)</option>
-                        <option value="sanskrit">Sanskrit (E)</option>
-                        <option value="arabic">Arabic (E)</option>
-                        <option value="persian">Persian (E)</option>
-                        <option value="santhali">Santhali (E)</option>
-                        <option value="computer_science">Computer Science (E)</option>
-                        <option value="fine_art">Fine Art (E)</option>
-                        <option value="music">Music (E)</option>
-                        <option value="dance">Dance (E)</option>
-                        <option value="home_science">Home Science (E)</option>
-                        <option value="woodcraft">Woodcraft (E)</option>
-                        <option value="garment_designing">Garment Designing (E)</option>
-                        <option value="weaving_textile">Weaving and Textile Design (E)</option>
-                        <option value="assamese_e">Assamese (E)</option>
-                        <option value="hindi_e">Hindi (E)</option>
-                        <option value="manipuri_e">Manipuri (E)</option>
-                        <option value="commerce_e">Commerce (E)</option>
-                        <option value="yoga_pe">Yoga and Physical Education (E)</option>
-                        <option value="it_ites">IT/ITeS NSQF (E)</option>
-                        <option value="retail_trade">Retail Trade NSQF (E)</option>
-                        <option value="agriculture_horticulture">Agriculture & Horticulture</option>
-                        <option value="animal_health">Animal Health Worker NSQF (E)</option>
-                        <option value="tourism_hospitality">Tourism & Hospitality NSQF (E)</option>
-                        <option value="health_care">Health Care NSQF (E)</option>
-                        <option value="private_security">Private Security NSQF (E)</option>
-                        <option value="beauty_wellness">Beauty and Wellness NSQF (E)</option>
-                        <option value="automotive">Automotive NSQF (E)</option>
-                        <option value="electronics_hardware">Electronics and Hardware NSQF (E)</option>
-                      </select>
-                    </div>
-                  </>
-                )}
+                    {/* --- Section Specific Conditional Logic --- */}
+                    
+                    {/* Student Information Conditionals */}
+                    {sectionName === "Student Information" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 -mt-2">
+                        {/* PEN Number logic */}
+                        {gradeApplied && !["pre-nursery", "kg1", "kg2", "class1"].includes(gradeApplied) && (
+                          <div className="md:col-span-2">
+                            <label className="block text-gray-700 font-medium mb-2">PEN (Permanent Education Number) *</label>
+                            <div className="relative">
+                              <input
+                                name="penNumber"
+                                type="text"
+                                value={penNumber}
+                                onChange={(e) => setPenNumber(e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 20))}
+                                className={`w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-colors uppercase pr-12 ${
+                                  penStatus === 'valid' ? 'border-green-400 focus:ring-green-500 focus:border-green-500 bg-green-50/30' :
+                                  penStatus === 'invalid' ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50/30' :
+                                  'border-gray-300 focus:ring-amber-500 focus:border-amber-500'
+                                }`}
+                                placeholder="ENTER PEN NUMBER"
+                                required
+                              />
+                              {penStatus === 'valid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✅</span>}
+                              {penStatus === 'invalid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">❌</span>}
+                            </div>
+                            {penStatus === 'invalid' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ PEN must be 8–20 alphanumeric characters</p>}
+                          </div>
+                        )}
 
-                {/* Conditional Stream Selection for 11-12 */}
-                {gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12")) && (
-                  <>
-                    <div className="md:col-span-2 bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-2">
-                      <p className="text-sm font-bold text-primary flex items-center mb-2">
-                        💼 Compulsory Subjects
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">English</span>
-                        <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">Environmental Education</span>
-                        {selectedStream === 'science' && (
+                        {/* MIL & Elective for Class 9-10 */}
+                        {(gradeApplied === "class9" || gradeApplied === "class10") && (
                           <>
-                            <span className="px-3 py-1 bg-indigo-100 border border-indigo-300 rounded-full text-xs font-bold text-indigo-700">Physics</span>
-                            <span className="px-3 py-1 bg-indigo-100 border border-indigo-300 rounded-full text-xs font-bold text-indigo-700">Chemistry</span>
+                            <div>
+                              <label className="block text-gray-700 font-medium mb-2">MIL (Modern Indian Language) *</label>
+                              <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" required>
+                                <option value="">SELECT MIL</option>
+                                <option value="assamese">ASSAMESE</option>
+                                <option value="bengali">BENGALI</option>
+                                <option value="hindi">HINDI</option>
+                                <option value="bodo">BODO</option>
+                                <option value="urdu">URDU</option>
+                                <option value="manipuri">MANIPURI</option>
+                                <option value="nepali">NEPALI</option>
+                                <option value="khasi">KHASI</option>
+                                <option value="garo">GARO</option>
+                                <option value="mizo">MIZO</option>
+                                <option value="hmar">HMAR</option>
+                                <option value="karbi">KARBI</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-gray-700 font-medium mb-2">Elective Subject *</label>
+                              <select name="elective" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
+                                <option value="">Select Elective</option>
+                                <option value="advanced_math">Advanced Mathematics (E)</option>
+                                <option value="geography">Geography (E)</option>
+                                <option value="history">History (E)</option>
+                                <option value="sanskrit">Sanskrit (E)</option>
+                                <option value="arabic">Arabic (E)</option>
+                                <option value="persian">Persian (E)</option>
+                                <option value="santhali">Santhali (E)</option>
+                                <option value="computer_science">Computer Science (E)</option>
+                                <option value="fine_art">Fine Art (E)</option>
+                                <option value="music">Music (E)</option>
+                                <option value="dance">Dance (E)</option>
+                                <option value="home_science">Home Science (E)</option>
+                                <option value="woodcraft">Woodcraft (E)</option>
+                                <option value="garment_designing">Garment Designing (E)</option>
+                                <option value="weaving_textile">Weaving and Textile Design (E)</option>
+                                <option value="assamese_e">Assamese (E)</option>
+                                <option value="hindi_e">Hindi (E)</option>
+                                <option value="manipuri_e">Manipuri (E)</option>
+                                <option value="commerce_e">Commerce (E)</option>
+                                <option value="yoga_pe">Yoga and Physical Education (E)</option>
+                                <option value="it_ites">IT/ITeS NSQF (E)</option>
+                                <option value="retail_trade">Retail Trade NSQF (E)</option>
+                                <option value="agriculture_horticulture">Agriculture & Horticulture</option>
+                                <option value="animal_health">Animal Health Worker NSQF (E)</option>
+                                <option value="tourism_hospitality">Tourism & Hospitality NSQF (E)</option>
+                                <option value="health_care">Health Care NSQF (E)</option>
+                                <option value="private_security">Private Security NSQF (E)</option>
+                                <option value="beauty_wellness">Beauty and Wellness NSQF (E)</option>
+                                <option value="automotive">Automotive NSQF (E)</option>
+                                <option value="electronics_hardware">Electronics and Hardware NSQF (E)</option>
+                              </select>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Stream Selection for Class 11-12 */}
+                        {gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12")) && (
+                          <>
+                            <div className="md:col-span-2 bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-2">
+                              <p className="text-sm font-bold text-primary flex items-center mb-2">💼 Compulsory Subjects</p>
+                              <div className="flex flex-wrap gap-2">
+                                <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">English</span>
+                                <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-medium text-primary">Environmental Education</span>
+                                {selectedStream === 'science' && (
+                                  <>
+                                    <span className="px-3 py-1 bg-indigo-100 border border-indigo-300 rounded-full text-xs font-bold text-indigo-700">Physics</span>
+                                    <span className="px-3 py-1 bg-indigo-100 border border-indigo-300 rounded-full text-xs font-bold text-indigo-700">Chemistry</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-gray-700 font-medium mb-2">MIL / Alternative English *</label>
+                              <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
+                                <option value="">Select Language</option>
+                                <option value="assamese">Assamese</option>
+                                <option value="bodo">Bodo</option>
+                                <option value="hindi">Hindi</option>
+                                <option value="bengali">Bengali</option>
+                                <option value="nepali">Nepali</option>
+                                <option value="urdu">Urdu</option>
+                                <option value="khasi">Khasi</option>
+                                <option value="garo">Garo</option>
+                                <option value="mizo">Mizo</option>
+                                <option value="manipuri">Manipuri</option>
+                                <option value="hmar">Hmar</option>
+                                <option value="karbi">Karbi</option>
+                                <option value="alt_english">Alternative English</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-gray-700 font-medium mb-2">Select Stream *</label>
+                              <select
+                                name="stream"
+                                value={selectedStream}
+                                onChange={(e) => {
+                                  setSelectedStream(e.target.value);
+                                  setSelectedSubjects([]);
+                                }}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors"
+                                required
+                              >
+                                <option value="">Choose Stream</option>
+                                <option value="science">Science</option>
+                                <option value="arts">Arts</option>
+                                <option value="commerce">Commerce</option>
+                              </select>
+                            </div>
+                            
+                            {/* Stream-specific subject selection */}
+                            {selectedStream && (
+                              <div className="md:col-span-2 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center justify-between">
+                                  <span>Select Elective Subjects (Select 4) *</span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedSubjects.length === 4 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {selectedSubjects.length} / 4 Selected
+                                  </span>
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {(selectedStream === 'science' ? ['Mathematics', 'Biology', 'Computer Science and Application', 'Economic Geography'] :
+                                    selectedStream === 'arts' ? ['Political Science', 'Economics', 'History', 'Education', 'Geography', 'Logic & Philosophy', 'Mathematics', 'Computer Science and Application', 'Sanskrit', 'Advanced Assamese', 'Advanced Hindi'] :
+                                    ['Accountancy', 'Business Studies', 'Economics', 'Business Mathematics and Statistics', 'Mathematics', 'Sales Management and Advertising', 'Insurance', 'Finance', 'Economic Geography', 'Computer Science and Application', 'Entrepreneurship Development', 'Multimedia and Web Technology']
+                                  ).map(sub => (
+                                    <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedSubjects.includes(sub)}
+                                        onChange={() => handleSubjectChange(sub)}
+                                        className="w-5 h-5 accent-amber-500 mr-3"
+                                      />
+                                      <span className="text-sm text-gray-700">{sub}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Class X Board Marks for Class XI */}
+                            {gradeApplied === 'class11' && (
+                              <div className="md:col-span-2 mt-4 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200">
+                                <h3 className="text-lg font-bold text-indigo-900 mb-1 flex items-center">
+                                  <FaGraduationCap className="mr-2 text-indigo-500" />
+                                  Class X Board Examination Results
+                                </h3>
+                                <p className="text-xs text-indigo-600/70 mb-6">Enter total marks obtained (out of 600).</p>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                                  <div>
+                                    <label className="block text-gray-700 font-medium mb-2 text-sm">Total Marks *</label>
+                                    <input
+                                      name="boardMarks"
+                                      type="number"
+                                      value={boardMarks}
+                                      onChange={(e) => setBoardMarks(e.target.value)}
+                                      className="w-full px-4 py-3 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-bold text-center"
+                                      placeholder="e.g. 450"
+                                      required
+                                    />
+                                  </div>
+                                  {boardMarks > 0 && (
+                                    <>
+                                      <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm text-center">
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Percentage</p>
+                                        <p className="text-2xl font-black text-indigo-700">{((boardMarks / 600) * 100).toFixed(2)}%</p>
+                                      </div>
+                                      <div>
+                                        <label className="block text-gray-700 font-medium mb-2 text-sm">Division *</label>
+                                        <select name="boardDivision" value={boardDivision} onChange={(e) => setBoardDivision(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none font-bold uppercase text-sm" required>
+                                          <option value="">SELECT DIVISION</option>
+                                          <option value="Rank">🏆 Rank (95%+)</option>
+                                          <option value="Distinction">⭐ Distinction (85–94%)</option>
+                                          <option value="Star">✨ Star (75–84%)</option>
+                                          <option value="1st Division">1st Division (60–74%)</option>
+                                          <option value="2nd Division">2nd Division (50–59%)</option>
+                                          <option value="3rd Division">3rd Division (30–49%)</option>
+                                        </select>
+                                      </div>
+                                    </>
+                                  )}
+                                  <div className="md:col-span-3">
+                                    <label className="block text-gray-700 font-medium mb-2 text-sm flex items-center justify-between">
+                                       <span>DARPAN ID (AHSEC Registration) *</span>
+                                       <a href="https://darpan.ahseconline.in/" target="_blank" rel="noreferrer" className="text-[10px] text-indigo-600 underline">Don't have one?</a>
+                                    </label>
+                                    <input name="darpanId" type="text" value={darpanId} onChange={(e) => setDarpanId(e.target.value.toUpperCase())} className="w-full px-4 py-3 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-semibold" placeholder="ENTER DARPAN ID" required />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">MIL / Alternative English *</label>
-                      <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" required>
-                        <option value="">Select Language</option>
-                        <option value="assamese">Assamese</option>
-                        <option value="bodo">Bodo</option>
-                        <option value="hindi">Hindi</option>
-                        <option value="bengali">Bengali</option>
-                        <option value="nepali">Nepali</option>
-                        <option value="urdu">Urdu</option>
-                        <option value="khasi">Khasi</option>
-                        <option value="garo">Garo</option>
-                        <option value="mizo">Mizo</option>
-                        <option value="manipuri">Manipuri</option>
-                        <option value="hmar">Hmar</option>
-                        <option value="karbi">Karbi</option>
-                        <option value="alt_english">Alternative English</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">Select Stream *</label>
-                      <select
-                        name="stream"
-                        value={selectedStream}
-                        onChange={(e) => {
-                          setSelectedStream(e.target.value);
-                          setSelectedSubjects([]); // Reset subjects on stream change
-                        }}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors"
-                        required
-                      >
-                        <option value="">Choose Stream</option>
-                        <option value="science">Science</option>
-                        <option value="commerce">Commerce</option>
-                        <option value="arts">Arts / Humanities</option>
-                      </select>
-                    </div>
+                    )}
 
-                    {/* Dynamic Elective Checkboxes for 11-12 */}
-                    {selectedStream && (
-                      <div className="md:col-span-2 mt-4">
-                        <label className="block text-gray-700 font-bold mb-4 bg-amber-50 p-4 rounded-xl border border-amber-100 italic flex justify-between items-center flex-wrap gap-2">
-                          <span>Please select your elective subjects:</span>
-                          <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest ${selectedSubjects.length === (selectedStream === 'science' ? 2 : 4) ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                            Selected: {selectedSubjects.length} / {selectedStream === 'science' ? 2 : 4}
-                          </span>
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                          {/* Science Subjects */}
-                          {selectedStream === 'science' && [
-                            'Mathematics', 'Biology', 'Computer Science', 'Geology'
-                          ].map(sub => (
-                            <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
-                              <input
-                                type="checkbox"
-                                checked={selectedSubjects.includes(sub)}
-                                onChange={() => handleSubjectChange(sub)}
-                                disabled={!selectedSubjects.includes(sub) && selectedSubjects.length >= 2}
-                                className="w-5 h-5 accent-amber-500 mr-3"
-                              />
-                              <span className="text-sm text-gray-700">{sub}</span>
-                            </label>
-                          ))}
-
-                          {/* Arts Subjects */}
-                          {selectedStream === 'arts' && [
-                            'Political Science', 'History', 'Geography', 'Education', 'Economics',
-                            'Sociology', 'Logic & Philosophy', 'Anthropology', 'Mathematics', 'Home Science'
-                          ].map(sub => (
-                            <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
-                              <input
-                                type="checkbox"
-                                checked={selectedSubjects.includes(sub)}
-                                onChange={() => handleSubjectChange(sub)}
-                                className="w-5 h-5 accent-amber-500 mr-3"
-                              />
-                              <span className="text-sm text-gray-700">{sub}</span>
-                            </label>
-                          ))}
-
-                          {/* Commerce Subjects */}
-                          {selectedStream === 'commerce' && [
-                            'Accountancy', 'Business Studies', 'Economics',
-                            'Business Mathematics and Statistics', 'Mathematics',
-                            'Sales Management and Advertising', 'Insurance', 'Finance',
-                            'Economic Geography', 'Computer Science and Application',
-                            'Entrepreneurship Development', 'Multimedia and Web Technology'
-                          ].map(sub => (
-                            <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
-                              <input
-                                type="checkbox"
-                                checked={selectedSubjects.includes(sub)}
-                                onChange={() => handleSubjectChange(sub)}
-                                className="w-5 h-5 accent-amber-500 mr-3"
-                              />
-                              <span className="text-sm text-gray-700">{sub}</span>
-                            </label>
-                          ))}
+                    {/* Academic Background Conditionals */}
+                    {sectionName === "Academic Background" && (
+                      <div className="space-y-6">
+                        {/* Sports Interest */}
+                        <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                          <label className="flex items-center cursor-pointer group">
+                            <div className="relative">
+                              <input type="checkbox" className="sr-only" checked={sportsActive} onChange={() => setSportsActive(!sportsActive)} />
+                              <div className={`w-12 h-6 rounded-full transition-colors ${sportsActive ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                              <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${sportsActive ? 'translate-x-6' : ''}`}></div>
+                            </div>
+                            <div className="ml-4">
+                              <h4 className="text-lg font-bold text-primary">🏅 Active in Sports?</h4>
+                              <p className="text-sm text-gray-600">Tell us about your sports participation.</p>
+                            </div>
+                          </label>
+                          {sportsActive && (
+                            <div className="mt-4 ml-16">
+                              <input name="sportsType" type="text" value={sportsType} onChange={(e) => setSportsType(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-emerald-300 focus:ring-2 focus:ring-emerald-500 outline-none uppercase" placeholder="E.G. FOOTBALL, CRICKET" required />
+                            </div>
+                          )}
                         </div>
+
+                        {/* NCC Interest */}
+                        {["class8", "class9", "class10", "class11", "class12"].includes(gradeApplied) && (
+                          <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
+                            <label className="flex items-center cursor-pointer group">
+                              <div className="relative">
+                                <input type="checkbox" className="sr-only" checked={nccInterest} onChange={() => setNccInterest(!nccInterest)} />
+                                <div className={`w-12 h-6 rounded-full transition-colors ${nccInterest ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
+                                <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${nccInterest ? 'translate-x-6' : ''}`}></div>
+                              </div>
+                              <div className="ml-4">
+                                <h4 className="text-lg font-bold text-primary flex items-center"><FaShieldAlt className="mr-2 text-amber-600" /> Interested in joining NCC?</h4>
+                                <p className="text-sm text-gray-600">Join the 11th Assam Battalion leadership program.</p>
+                              </div>
+                            </label>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </>
-                )}
-
-                {/* Sports Interest Section */}
-                <div className="md:col-span-2 bg-emerald-50 p-6 rounded-2xl border border-emerald-100 mt-4">
-                  <label className="flex items-center cursor-pointer group">
-                    <div className="relative">
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={sportsActive}
-                        onChange={() => { setSportsActive(!sportsActive); if (sportsActive) setSportsType(''); }}
-                      />
-                      <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${sportsActive ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
-                      <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${sportsActive ? 'translate-x-6' : ''}`}></div>
-                    </div>
-                    <div className="ml-4">
-                      <h4 className="text-lg font-bold text-primary flex items-center">
-                        🏅 Are you active in Sports?
-                      </h4>
-                      <p className="text-sm text-gray-600">Let us know if the student participates in any sports activities.</p>
-                    </div>
-                  </label>
-                  {sportsActive && (
-                    <div className="mt-4 ml-16">
-                      <label className="block text-gray-700 font-medium mb-2">Sport(s) Played *</label>
-                      <input
-                        name="sportsType"
-                        type="text"
-                        value={sportsType}
-                        onChange={(e) => setSportsType(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-emerald-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors uppercase"
-                        placeholder="E.G. FOOTBALL, CRICKET, ATHLETICS"
-                        required
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* NCC Interest Section — Only for Class VIII to XII */}
-                {["class8", "class9", "class10", "class11", "class12"].includes(gradeApplied) && (
-                  <div className="md:col-span-2 bg-amber-50 p-6 rounded-2xl border border-amber-100 mt-4">
-                    <label className="flex items-center cursor-pointer group">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          checked={nccInterest}
-                          onChange={() => setNccInterest(!nccInterest)}
-                        />
-                        <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${nccInterest ? 'bg-amber-500' : 'bg-gray-300'}`}></div>
-                        <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${nccInterest ? 'translate-x-6' : ''}`}></div>
-                      </div>
-                      <div className="ml-4">
-                        <h4 className="text-lg font-bold text-primary flex items-center">
-                          <FaShieldAlt className="mr-2 text-amber-600" />
-                          Interested in joining NCC?
-                        </h4>
-                        <p className="text-sm text-gray-600">Join the 11th Assam Battalion membership program for leadership and discipline training.</p>
-                      </div>
-                    </label>
                   </div>
-                )}
-
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Previous School Attended (If any)</label>
-                  <input
-                    name="previousSchool"
-                    type="text"
-                    value={previousSchool}
-                    onChange={(e) => setPreviousSchool(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors"
-                    placeholder="School name"
-                  />
-                </div>
+                ))}
               </div>
-
-              <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b pb-2">Parent / Guardian Information (At least one name is mandatory)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Father's Name</label>
-                  <input name="fatherName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="Enter father's name" />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Father's Occupation</label>
-                  <input name="fatherOccupation" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter father's occupation" />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Mother's Name</label>
-                  <input name="motherName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="Enter mother's name" />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Mother's Occupation</label>
-                  <input name="motherOccupation" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="Enter mother's occupation" />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Guardian's Full Name</label>
-                  <input name="guardianName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" placeholder="Enter guardian's name" />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Relationship to Student</label>
-                  <input name="relationship" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="e.g. Father, Mother" />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Contact Number *</label>
-                  <input
-                    name="contactNumber"
-                    type="tel"
-                    value={contactNumber}
-                    onChange={handlePhoneChange}
-                    className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${contactNumber.length > 0 && contactNumber.length < 10 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                    placeholder="10-digit phone number"
-                    required
-                  />
-                  {contactNumber.length > 0 && contactNumber.length < 10 && (
-                    <p className="text-red-500 text-xs mt-1">Please enter a valid 10-digit number</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Email Address *</label>
-                  <input name="email" type="email" className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${errorField === 'email' ? 'border-red-400 bg-red-50 ring-2 ring-red-200' : 'border-gray-300'}`} placeholder="Enter email address" required />
-                  {errorField === 'email' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Please enter a valid email address</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="md:col-span-3">
-                  <label className="block text-gray-700 font-medium mb-2">Residential Address *</label>
-                  <textarea name="address" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase" rows="2" placeholder="House No, Street, Village/Town" required></textarea>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Post Office (PO) *</label>
-                  <input name="po" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="PO name" required />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Police Station (PS) *</label>
-                  <input name="ps" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors" placeholder="PS name" required />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Pincode *</label>
-                  <input
-                    name="pincode"
-                    type="text"
-                    value={pincode}
-                    onChange={handlePincodeChange}
-                    className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors ${pincode.length > 0 && pincode.length < 6 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                    placeholder="6-digit pincode"
-                    required
-                  />
-                  {pincode.length > 0 && pincode.length < 6 && (
-                    <p className="text-red-500 text-xs mt-1">Please enter a valid 6-digit pincode</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Class XI — Board Examination Marks */}
-              {gradeApplied === 'class11' && (
-                <div className="mt-8 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200">
-                  <h3 className="text-xl font-serif font-bold text-indigo-900 mb-1 flex items-center">
-                    <FaGraduationCap className="mr-2 text-indigo-500" />
-                    Class X Board Examination Results
-                  </h3>
-                  <p className="text-sm text-indigo-600/70 mb-6">Enter total marks obtained in your Class X board examination (out of 600).</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">Total Marks Obtained *</label>
-                      <input
-                        name="boardMarks"
-                        type="number"
-                        min="0"
-                        max="600"
-                        value={boardMarks}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '' || (Number(val) >= 0 && Number(val) <= 600)) setBoardMarks(val);
-                        }}
-                        className="w-full px-4 py-3 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors text-lg font-bold text-center"
-                        placeholder="e.g. 450"
-                        required
-                      />
-                      <p className="text-xs text-indigo-400 mt-1 text-center">Out of 600</p>
-                    </div>
-
-                    {boardMarks && parseFloat(boardMarks) > 0 && (
-                      <>
-                        <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm text-center">
-                          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Percentage</p>
-                          <p className="text-3xl font-black text-indigo-700">
-                            {((parseFloat(boardMarks) / 600) * 100).toFixed(2)}%
-                          </p>
-                        </div>
-
-                        <div>
-                          <label className="block text-gray-700 font-medium mb-2">Division *</label>
-                          <select
-                            name="boardDivision"
-                            value={boardDivision}
-                            onChange={(e) => setBoardDivision(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors font-bold uppercase"
-                            required
-                          >
-                            <option value="">SELECT DIVISION</option>
-                            <option value="Rank">🏆 Rank (95%+)</option>
-                            <option value="Distinction">⭐ Distinction (85–94%)</option>
-                            <option value="Star">✨ Star (75–84%)</option>
-                            <option value="1st Division">1st Division (60–74%)</option>
-                            <option value="2nd Division">2nd Division (50–59%)</option>
-                            <option value="3rd Division">3rd Division (30–49%)</option>
-                          </select>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* DARPAN ID */}
-                  <div className="mt-6 p-5 bg-white rounded-xl border border-indigo-200 shadow-sm">
-                    <label className="block text-gray-700 font-medium mb-2 flex items-center justify-between flex-wrap gap-2">
-                      <span>DARPAN ID (AHSEC Registration) *</span>
-                      <a
-                        href="https://darpan.ahseconline.in/"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline underline-offset-2 flex items-center gap-1 transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-sm">open_in_new</span>
-                        Don't have one? Apply here
-                      </a>
-                    </label>
-                    <div className="relative">
-                      <input
-                        name="darpanId"
-                        type="text"
-                        value={darpanId}
-                        onChange={(e) => setDarpanId(e.target.value.replace(/[^A-Za-z0-9-]/g, '').toUpperCase())}
-                        className={`w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none transition-colors uppercase font-semibold pr-12 ${
-                          darpanStatus === 'valid' ? 'border-green-400 focus:ring-green-500 focus:border-green-500 bg-green-50/30' :
-                          darpanStatus === 'invalid' ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50/30' :
-                          'border-indigo-300 focus:ring-indigo-500 focus:border-indigo-500'
-                        }`}
-                        placeholder="ENTER DARPAN ID"
-                        required
-                      />
-                      {darpanStatus === 'valid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✅</span>}
-                      {darpanStatus === 'invalid' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">❌</span>}
-                    </div>
-                    {darpanStatus === 'invalid' && <p className="text-red-500 text-xs mt-1.5 font-semibold">⚠ DARPAN ID seems too short</p>}
-                    {darpanStatus === 'valid' && <p className="text-green-600 text-xs mt-1.5 font-semibold">✓ Valid DARPAN ID format</p>}
-                    {darpanStatus === 'empty' && <p className="text-xs text-indigo-400 mt-1.5">Your AHSEC DARPAN registration ID is required for Class XI admission.</p>}
-                  </div>
-                </div>
-              )}
 
               <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b pb-2">Documents to Upload</h3>
               {errorField === 'documents' && (
@@ -1473,10 +1586,12 @@ function Admission() {
                   )}
                 </div>
               </div>
+            </div>
 
               <div className="text-center pt-6">
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleReview}
                   disabled={submitting}
                   className={`text-white font-bold px-10 py-4 rounded-full transition-all duration-300 transform hover:-translate-y-1 text-lg flex items-center justify-center mx-auto shadow-lg ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-opacity-90'}`}
                 >
@@ -1489,7 +1604,7 @@ function Admission() {
                       {paymentEnabled && admissionFee > 0 ? 'Redirecting to Payment...' : 'Submitting Application...'}
                     </>
                   ) : (
-                    paymentEnabled && admissionFee > 0 ? 'Pay Application Fee & Submit' : 'Submit Application'
+                    'Review Application Details'
                   )}
                 </button>
               </div>
@@ -1526,6 +1641,11 @@ function Admission() {
                   <p className="text-sm text-amber-600 font-bold italic tracking-widest opacity-80 uppercase">
                     {schoolProfile?.punchLine}
                   </p>
+                  {schoolProfile?.officeAddress && (
+                    <p className="text-[10px] md:text-xs text-gray-500 font-medium mt-2 max-w-xs md:max-w-md mx-auto leading-relaxed">
+                      {schoolProfile.officeAddress}
+                    </p>
+                  )}
                   <div className="flex items-center gap-3 mt-4">
                     <span className="h-[1px] w-8 bg-gray-200"></span>
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Acknowledgement Receipt</span>
@@ -1615,6 +1735,23 @@ function Admission() {
                 <button
                   onClick={() => {
                     setSubmittedData(null);
+                    setGradeApplied("");
+                    setAadhaarNumber("");
+                    setPreviousSchool("");
+                    setSelectedStream("");
+                    setSelectedSubjects([]);
+                    setNccInterest(false);
+                    setSportsActive(false);
+                    setSportsType("");
+                    setBoardMarks("");
+                    setBoardDivision("");
+                    setDarpanId("");
+                    setPenNumber("");
+                    setContactNumber("");
+                    setCaste("General");
+                    setPincode("");
+                    setFilePreviews({});
+                    setFormKey(prev => prev + 1);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className="flex-1 max-w-sm bg-white text-primary font-black px-10 py-5 rounded-3xl hover:bg-gray-50 transition-all border-2 border-primary/10 flex items-center justify-center shadow-xl transform hover:-translate-y-1 active:scale-95"

@@ -143,6 +143,7 @@ export const SiteDataProvider = ({ children }) => {
   const [emeritus, setEmeritus] = useState([]);
   const [centerOfExcellence, setCenterOfExcellence] = useState([]);
   const [coursesPage, setCoursesPage] = useState(defaultCoursesPage);
+  const [admissionFields, setAdmissionFields] = useState([]);
   const [loading, setLoading] = useState(true);
 
 
@@ -177,6 +178,7 @@ export const SiteDataProvider = ({ children }) => {
         if (Array.isArray(data.emeritus)) setEmeritus(data.emeritus);
         if (Array.isArray(data.centerOfExcellence)) setCenterOfExcellence(data.centerOfExcellence);
         if (data.coursesPage && typeof data.coursesPage === 'object') setCoursesPage(data.coursesPage);
+        if (Array.isArray(data.admissionFields)) setAdmissionFields(data.admissionFields);
       } catch (error) {
         console.warn('Backend polling error or using local defaults:', error.message);
       } finally {
@@ -247,6 +249,7 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.emeritus) setEmeritus(updatedData.emeritus);
       if (updatedData.centerOfExcellence) setCenterOfExcellence(updatedData.centerOfExcellence);
       if (updatedData.coursesPage) setCoursesPage(updatedData.coursesPage);
+      if (updatedData.admissionFields) setAdmissionFields(updatedData.admissionFields);
 
       // console.log("Auto-save successful");
     } catch (err) {
@@ -279,6 +282,7 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.emeritus !== undefined) setEmeritus(updates.emeritus);
     if (updates.centerOfExcellence !== undefined) setCenterOfExcellence(updates.centerOfExcellence);
     if (updates.coursesPage !== undefined) setCoursesPage(updates.coursesPage);
+    if (updates.admissionFields !== undefined) setAdmissionFields(updates.admissionFields);
 
     // 2. Persist to backend in ONE request
     saveToBackend(updates);
@@ -380,6 +384,7 @@ export const SiteDataProvider = ({ children }) => {
       emeritus, setEmeritus: wrapSetEmeritus,
       centerOfExcellence, setCenterOfExcellence: wrapSetCenterOfExcellence,
       coursesPage, setCoursesPage: wrapSetCoursesPage,
+      admissionFields, setAdmissionFields: (val) => { setAdmissionFields(val); saveToBackend({ admissionFields: val }); },
       updateSiteContent,
       uploadImage,
       uploadEventPhotos,

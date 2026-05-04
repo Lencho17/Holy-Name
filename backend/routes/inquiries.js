@@ -140,6 +140,133 @@ router.patch('/:id/read', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/inquiries/export
+// @desc    Export inquiries to Excel (Protected)
+router.get('/export', protect, async (req, res) => {
+  try {
+    const { type: typeFilter, status: statusFilter } = req.query;
+    const query = {};
+    if (typeFilter && typeFilter !== 'All') query.type = typeFilter;
+    if (statusFilter && statusFilter !== 'All') query.status = statusFilter;
+
+    const inquiries = await Inquiry.find(query).sort({ createdAt: -1 });
+
+    const typeLabel = typeFilter && typeFilter !== 'All' ? `_${typeFilter.replace(/\s+/g, '_')}` : '_ALL';
+    const statusLabel = statusFilter && statusFilter !== 'All' ? `_${statusFilter}` : '';
+    const fileName = `inquiries${typeLabel}${statusLabel}_${new Date().toISOString().split('T')[0]}.xls`;
+
+    let html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <style>
+          .text { mso-number-format:"\\@"; }
+          th { background-color: #1e3a8a; color: white; font-weight: bold; }
+          td, th { border: 0.5pt solid #ccc; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr>
+            <th>Tracking Number</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>User Type</th>
+            <th>Class/Section</th>
+            <th>Subject</th>
+            <th>Message</th>
+            <th>Admin Reply</th>
+            <th>Anonymous</th>
+            <th>Date</th>
+          </tr>
+    `;
+
+    inquiries.forEach(i => {
+      html += `
+        <tr>
+          <td class="text">${i.trackingNumber || ''}</td>
+          <td>${i.type || ''}</td>
+          <td>${i.status || 'Submitted'}</td>
+          <td>${i.name || ''}</td>
+          <td>${i.email || ''}</td>
+          <td class="text">${i.phone || ''}</td>
+          <td>${i.userType || ''}</td>
+          <td>${i.className ? `${i.className}${i.section ? '-' + i.section : ''}` : ''}</td>
+          <td>${i.subject || ''}</td>
+          <td>${i.message || ''}</td>
+          <td>${i.adminReply || ''}</td>
+          <td>${i.isAnonymous ? 'Yes' : 'No'}</td>
+          <td>${i.createdAt ? new Date(i.createdAt).toLocaleDateString() : ''}</td>
+        </tr>
+      `;
+    });
+
+    html += `</table></body></html>`;
+
+    res.set('Content-Type', 'application/vnd.ms-excel');
+    res.set('Content-Disposition', `attachment; filename=${fileName}`);
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.removeHeader('ETag');
+    res.send(html);
+  } catch (error) {
+    console.error('Export Inquiries Error:', error.message);
+    res.status(500).json({ message: 'Failed to export inquiries', error: error.message });
+  }
+});
+
+// @route   GET /api/inquiries/track/:trackingNumber
+// @desc    Public tracking — look up inquiry status by tracking number
+router.get('/track/:trackingNumber', async (req, res) => {
+  try {
+    const trackingNumber = decodeURIComponent(req.params.trackingNumber).toUpperCase();
+    const inquiry = await Inquiry.findOne({ trackingNumber }).lean();
+    if (!inquiry) {
+      return res.status(404).json({ message: 'No inquiry found with this tracking number.' });
+    }
+    // Return only safe public-facing fields
+    res.json({
+      trackingNumber: inquiry.trackingNumber,
+      type: inquiry.type,
+      subject: inquiry.subject,
+      status: inquiry.status || 'Submitted',
+      adminReply: inquiry.adminReply || null,
+      repliedAt: inquiry.repliedAt || null,
+      createdAt: inquiry.createdAt
+    });
+  } catch (error) {
+    console.error('Track inquiry error:', error);
+    res.status(500).json({ message: 'Server error while tracking inquiry.' });
+  }
+});
+
+// @route   PATCH /api/inquiries/:id/status
+// @desc    Update inquiry status and optionally add admin reply (Protected)
+router.patch('/:id/status', protect, async (req, res) => {
+  try {
+    const { status, adminReply } = req.body;
+    const update = {};
+    if (status) update.status = status;
+    if (adminReply !== undefined) {
+      update.adminReply = adminReply;
+      update.repliedAt = new Date();
+    }
+    
+    const inquiry = await Inquiry.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!inquiry) {
+      return res.status(404).json({ message: 'Inquiry not found.' });
+    }
+    res.json({ message: 'Inquiry updated successfully.', inquiry });
+  } catch (error) {
+    console.error('Error updating inquiry status:', error);
+    res.status(500).json({ message: 'Server error while updating inquiry.' });
+  }
+});
+
 // @route   DELETE /api/inquiries/:id
 // @desc    Delete an inquiry (Protected)
 router.delete('/:id', protect, async (req, res) => {

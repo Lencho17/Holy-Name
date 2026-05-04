@@ -76,7 +76,11 @@ function Admission() {
   const [formKey, setFormKey] = useState(0);
   const [gradeApplied, setGradeApplied] = useState("");
   const [AadhaarNumber, setAadhaarNumber] = useState("");
+  const [hasPreviousSchool, setHasPreviousSchool] = useState(false);
   const [previousSchool, setPreviousSchool] = useState("");
+  const [prevMarksObtained, setPrevMarksObtained] = useState("");
+  const [lastAttendedExam, setLastAttendedExam] = useState("");
+  const [prevPercentage, setPrevPercentage] = useState("");
   const [selectedStream, setSelectedStream] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [nccInterest, setNccInterest] = useState(false);
@@ -87,6 +91,26 @@ function Admission() {
   const [darpanId, setDarpanId] = useState("");
   const [penNumber, setPenNumber] = useState("");
   const [contactNumber, setContactNumber] = useState("");
+  const [caste, setCaste] = useState("General");
+
+  // Normalize grade display values (e.g. "PRE-NURSERY", "KG I (LKG)", "CLASS XI") to clean keys
+  const normalizeGrade = (val) => {
+    if (!val) return '';
+    const v = val.trim().toUpperCase();
+    if (v === 'PRE-NURSERY') return 'pre-nursery';
+    if (v.startsWith('KG I') || v === 'LKG') return 'kg1';
+    if (v.startsWith('KG II') || v === 'UKG') return 'kg2';
+    // Match "CLASS I" through "CLASS XII" — extract the Roman/Arabic numeral
+    const classMatch = v.match(/^CLASS\s+(.+)$/);
+    if (classMatch) {
+      const num = classMatch[1].trim();
+      const romanMap = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10, 'XI': 11, 'XII': 12 };
+      const n = romanMap[num] || parseInt(num);
+      if (n) return `class${n}`;
+    }
+    return v.toLowerCase().replace(/\s+/g, '');
+  };
+  const gradeKey = normalizeGrade(gradeApplied);
 
   // Verhoeff checksum for Aadhaar validation
   const verhoeffD = [[0,1,2,3,4,5,6,7,8,9],[1,2,3,4,0,6,7,8,9,5],[2,3,4,0,1,7,8,9,5,6],[3,4,0,1,2,8,9,5,6,7],[4,0,1,2,3,9,5,6,7,8],[5,9,8,7,6,0,4,3,2,1],[6,5,9,8,7,1,0,4,3,2],[7,6,5,9,8,2,1,0,4,3],[8,7,6,5,9,3,2,1,0,4],[9,8,7,6,5,4,3,2,1,0]];
@@ -112,6 +136,13 @@ function Admission() {
 
   const renderDynamicField = (field) => {
     if (!field.isActive) return null;
+
+    // Class XI-only fields — skip for all other grades
+    const classXIOnlyFields = ['boardMarks', 'boardPercentage', 'boardDivision', 'darpanId'];
+    if (classXIOnlyFields.includes(field.name) && gradeKey !== 'class11') return null;
+
+    // Fields with dedicated hardcoded sections — skip dynamic rendering to avoid duplicates
+    if (field.name === 'penNumber') return null;
 
     const commonProps = {
       name: field.name,
@@ -161,6 +192,148 @@ function Admission() {
             {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
           {errorField === 'gender' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Please select a valid grade</p>}
+        </div>
+      );
+    }
+
+    // Previous School — Yes/No toggle with conditional sub-fields
+    if (field.name === 'previousSchool') {
+      return (
+        <div key={field.name} className="md:col-span-2">
+          <label className="block text-gray-700 font-medium mb-3">Any Previous School Attended? *</label>
+          <div className="flex gap-4 mb-4">
+            <label className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+              hasPreviousSchool ? 'border-amber-500 bg-amber-50 text-amber-800 font-bold shadow-sm' : 'border-gray-200 hover:border-gray-300'
+            }`}>
+              <input type="radio" name="hasPreviousSchool" value="yes" checked={hasPreviousSchool} onChange={() => setHasPreviousSchool(true)} className="sr-only" />
+              <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                hasPreviousSchool ? 'border-amber-500' : 'border-gray-300'
+              }`}>{hasPreviousSchool && <span className="w-2 h-2 rounded-full bg-amber-500"></span>}</span>
+              Yes
+            </label>
+            <label className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+              !hasPreviousSchool ? 'border-amber-500 bg-amber-50 text-amber-800 font-bold shadow-sm' : 'border-gray-200 hover:border-gray-300'
+            }`}>
+              <input type="radio" name="hasPreviousSchool" value="no" checked={!hasPreviousSchool} onChange={() => { setHasPreviousSchool(false); setPreviousSchool(''); setPrevMarksObtained(''); setLastAttendedExam(''); setPrevPercentage(''); }} className="sr-only" />
+              <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                !hasPreviousSchool ? 'border-amber-500' : 'border-gray-300'
+              }`}>{!hasPreviousSchool && <span className="w-2 h-2 rounded-full bg-amber-500"></span>}</span>
+              No
+            </label>
+          </div>
+          {hasPreviousSchool && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-200 animate-fade-in">
+              <div className="md:col-span-2">
+                <label className="block text-gray-700 font-medium mb-2">Previous School Name *</label>
+                <input
+                  name="previousSchool"
+                  type="text"
+                  value={previousSchool}
+                  onChange={(e) => setPreviousSchool(e.target.value.toUpperCase())}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
+                  placeholder="ENTER PREVIOUS SCHOOL NAME"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Marks Obtained *</label>
+                <input
+                  name="prevMarksObtained"
+                  type="number"
+                  value={prevMarksObtained}
+                  onChange={(e) => setPrevMarksObtained(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors"
+                  placeholder="ENTER MARKS OBTAINED"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Percentage *</label>
+                <input
+                  name="prevPercentage"
+                  type="number"
+                  step="0.01"
+                  value={prevPercentage}
+                  onChange={(e) => setPrevPercentage(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors"
+                  placeholder="ENTER PERCENTAGE"
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-gray-700 font-medium mb-2">Last Attended Exam *</label>
+                <select
+                  name="lastAttendedExam"
+                  value={lastAttendedExam}
+                  onChange={(e) => setLastAttendedExam(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors uppercase"
+                  required
+                >
+                  <option value="">SELECT LAST ATTENDED EXAM</option>
+                  <option value="1ST UNIT">1ST UNIT</option>
+                  <option value="HALF YEARLY">HALF YEARLY</option>
+                  <option value="3RD UNIT">3RD UNIT</option>
+                  <option value="ANNUAL EXAM">ANNUAL EXAM</option>
+                  <option value="OTHER">OTHER</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Track caste state to conditionally show caste certificate upload
+    if (field.name === 'caste') {
+      return (
+        <div key={field.name}>
+          <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+          <select
+            {...commonProps}
+            value={caste}
+            onChange={(e) => setCaste(e.target.value)}
+          >
+            <option value="">SELECT {field.label.toUpperCase()}</option>
+            {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+        </div>
+      );
+    }
+
+    // Track contactNumber state for phone validation
+    if (field.name === 'contactNumber') {
+      return (
+        <div key={field.name}>
+          <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+          <input
+            {...commonProps}
+            type="tel"
+            value={contactNumber}
+            onChange={handlePhoneChange}
+            maxLength={10}
+          />
+          {contactNumber.length > 0 && contactNumber.length < 10 && (
+            <p className="text-gray-400 text-xs mt-1">{contactNumber.length}/10 digits entered</p>
+          )}
+        </div>
+      );
+    }
+
+    // Track pincode state for validation
+    if (field.name === 'pincode') {
+      return (
+        <div key={field.name}>
+          <label className="block text-gray-700 font-medium mb-2">{field.label} {field.required && '*'}</label>
+          <input
+            {...commonProps}
+            type="text"
+            value={pincode}
+            onChange={handlePincodeChange}
+            maxLength={6}
+          />
+          {pincode.length > 0 && pincode.length < 6 && (
+            <p className="text-gray-400 text-xs mt-1">{pincode.length}/6 digits entered</p>
+          )}
         </div>
       );
     }
@@ -331,7 +504,7 @@ function Admission() {
     }
 
     // Process subjects validation
-    if (gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12"))) {
+    if (gradeKey && (gradeKey === 'class11' || gradeKey === 'class12')) {
       const requiredCount = selectedStream === 'science' ? 2 : 4;
       if (selectedSubjects.length !== requiredCount) {
         setSubmitError(`Please select exactly ${requiredCount} elective subjects.`);
@@ -408,13 +581,18 @@ function Admission() {
     formData.append('AadhaarNumber', AadhaarNumber);
     formData.append('pincode', pincode);
     formData.append('penNumber', getUVal('penNumber'));
-    formData.append('previousSchool', getUVal('previousSchool'));
+    formData.append('previousSchool', previousSchool);
+    if (hasPreviousSchool) {
+      formData.append('prevMarksObtained', prevMarksObtained);
+      formData.append('lastAttendedExam', lastAttendedExam);
+      formData.append('prevPercentage', prevPercentage);
+    }
     formData.append('gradeApplied', gradeApplied);
     formData.append('stream', getUVal('stream'));
     formData.append('nccInterest', nccInterest);
     formData.append('sportsActive', sportsActive);
     if (sportsActive && sportsType) formData.append('sportsType', sportsType.toUpperCase());
-    if (gradeApplied === 'class11' && boardMarks) {
+    if (gradeKey === 'class11' && boardMarks) {
       formData.append('boardMarks', boardMarks);
       const pct = ((parseFloat(boardMarks) / 600) * 100).toFixed(2);
       formData.append('boardPercentage', pct);
@@ -437,7 +615,7 @@ function Admission() {
     formData.append('mil', getUVal('mil'));
 
     // Class 11-12 specialized subjects
-    if (gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12"))) {
+    if (gradeKey && (gradeKey === 'class11' || gradeKey === 'class12')) {
       const requiredCount = selectedStream === 'science' ? 2 : 4;
       if (selectedSubjects.length !== requiredCount) {
         setSubmitError(`Please select exactly ${requiredCount} elective subjects.`);
@@ -1075,7 +1253,14 @@ function Admission() {
                               <FaGraduationCap className="mr-3 text-lg" /> Academic Background
                             </h4>
                             <div className="space-y-3 pl-2">
-                              <DetailRow label="Previous School" value={previewData.previousSchool} />
+                              <DetailRow label="Previous School" value={previewData.previousSchool || 'None'} />
+                              {previewData.previousSchool && (
+                                <>
+                                  <DetailRow label="Marks Obtained" value={previewData.prevMarksObtained} />
+                                  <DetailRow label="Percentage" value={previewData.prevPercentage ? `${previewData.prevPercentage}%` : 'N/A'} />
+                                  <DetailRow label="Last Attended Exam" value={previewData.lastAttendedExam} />
+                                </>
+                              )}
                               <DetailRow label="Stream" value={previewData.stream} />
                               <DetailRow label="Elective Subjects" value={previewData.selectedSubjects?.join(", ")} />
                               <DetailRow label="MIL Choice" value={previewData.mil} />
@@ -1175,7 +1360,7 @@ function Admission() {
                     {sectionName === "Student Information" && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 -mt-2">
                         {/* PEN Number logic */}
-                        {gradeApplied && !["pre-nursery", "kg1", "kg2", "class1"].includes(gradeApplied) && (
+                        {gradeKey && !["pre-nursery", "kg1", "kg2", "class1", "class2"].includes(gradeKey) && (
                           <div className="md:col-span-2">
                             <label className="block text-gray-700 font-medium mb-2">PEN (Permanent Education Number) *</label>
                             <div className="relative">
@@ -1200,7 +1385,7 @@ function Admission() {
                         )}
 
                         {/* MIL & Elective for Class 9-10 */}
-                        {(gradeApplied === "class9" || gradeApplied === "class10") && (
+                        {(gradeKey === "class9" || gradeKey === "class10") && (
                           <>
                             <div>
                               <label className="block text-gray-700 font-medium mb-2">MIL (Modern Indian Language) *</label>
@@ -1260,7 +1445,7 @@ function Admission() {
                         )}
 
                         {/* Stream Selection for Class 11-12 */}
-                        {gradeApplied && (gradeApplied.startsWith("class11") || gradeApplied.startsWith("class12")) && (
+                        {gradeKey && (gradeKey === 'class11' || gradeKey === 'class12') && (
                           <>
                             <div className="md:col-span-2 bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-2">
                               <p className="text-sm font-bold text-primary flex items-center mb-2">💼 Compulsory Subjects</p>
@@ -1342,7 +1527,7 @@ function Admission() {
                             )}
 
                             {/* Class X Board Marks for Class XI */}
-                            {gradeApplied === 'class11' && (
+                            {gradeKey === 'class11' && (
                               <div className="md:col-span-2 mt-4 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200">
                                 <h3 className="text-lg font-bold text-indigo-900 mb-1 flex items-center">
                                   <FaGraduationCap className="mr-2 text-indigo-500" />
@@ -1421,7 +1606,7 @@ function Admission() {
                         </div>
 
                         {/* NCC Interest */}
-                        {["class8", "class9", "class10", "class11", "class12"].includes(gradeApplied) && (
+                        {["class8", "class9", "class10", "class11", "class12"].includes(gradeKey) && (
                           <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
                             <label className="flex items-center cursor-pointer group">
                               <div className="relative">
@@ -1492,12 +1677,11 @@ function Admission() {
                     </div>
                   )}
                 </div>
-                {/* Transfer Certificate — Not applicable for Pre-Nursery and KG I */}
-                {!["pre-nursery", "kg1"].includes(gradeApplied) && (
+                {/* Transfer Certificate — Only if attended a previous school */}
+                {hasPreviousSchool && !["pre-nursery", "kg1"].includes(gradeKey) && (
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Transfer Certificate {previousSchool ? '*' : '(If applicable)'}</label>
-                  <input name="transferCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'transferCertificate')} className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required={!!previousSchool} />
-                  <p className="text-xs text-gray-500 mt-1">Required if you attended a previous school</p>
+                  <label className="block text-gray-700 font-medium mb-2">Transfer Certificate *</label>
+                  <input name="transferCertificate" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'transferCertificate')} className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
                   {filePreviews.transferCertificate && (
                     <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
                       {filePreviews.transferCertificate.url ? (
@@ -1514,7 +1698,7 @@ function Admission() {
                 </div>
                 )}
                 {/* Marksheet — Not applicable for Pre-Nursery and KG I */}
-                {!["pre-nursery", "kg1"].includes(gradeApplied) && (
+                {!["pre-nursery", "kg1"].includes(gradeKey) && (
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Previous Class Marksheet *</label>
                   <input name="marksheet" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'marksheet')} className="w-full px-4 py-[9px] rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" required />
@@ -1586,7 +1770,6 @@ function Admission() {
                   )}
                 </div>
               </div>
-            </div>
 
               <div className="text-center pt-6">
                 <button
@@ -1737,7 +1920,11 @@ function Admission() {
                     setSubmittedData(null);
                     setGradeApplied("");
                     setAadhaarNumber("");
+                    setHasPreviousSchool(false);
                     setPreviousSchool("");
+                    setPrevMarksObtained("");
+                    setLastAttendedExam("");
+                    setPrevPercentage("");
                     setSelectedStream("");
                     setSelectedSubjects([]);
                     setNccInterest(false);

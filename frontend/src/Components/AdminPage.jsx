@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -152,6 +152,10 @@ function AdminPage() {
   const [inquiries, setInquiries] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [inquirySearch, setInquirySearch] = useState('');
+  const [inquiryTypeFilter, setInquiryTypeFilter] = useState('All');
+  const [inquiryStatusFilter, setInquiryStatusFilter] = useState('All');
+  const [isExportingInquiries, setIsExportingInquiries] = useState(false);
+  const [inquiryReplyModal, setInquiryReplyModal] = useState({ open: false, inquiry: null, reply: '', status: '' });
   const [selectedApp, setSelectedApp] = useState(null); // For "View" modal
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(false);
@@ -176,6 +180,14 @@ function AdminPage() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusModalData, setStatusModalData] = useState({ id: null, currentStatus: '', newStatus: '', remark: '', date: '' });
   const [admissionSubTab, setAdmissionSubTab] = useState('applications');
+
+  // --- Appointments ---
+  const [appointments, setAppointments] = useState([]);
+  const [appointmentCategoryFilter, setAppointmentCategoryFilter] = useState('All');
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState('All');
+  const [appointmentSearch, setAppointmentSearch] = useState('');
+  const [isExportingAppointments, setIsExportingAppointments] = useState(false);
+  const [appointmentModal, setAppointmentModal] = useState({ open: false, apt: null, status: '', remark: '' });
   
   // --- School Profile States (Moved to Top Level for Shared Access) ---
   const [localProfile, setLocalProfile] = useState(schoolProfile);
@@ -234,7 +246,21 @@ function AdminPage() {
   };
 
   const handleExportStudents = () => handleExportData('students', 'students', setIsExportingStudents);
-  const handleExportAdmissions = () => handleExportData('admissions', 'admissions', setIsExportingAdmissions);
+  const handleExportAdmissions = () => {
+    setIsExportingAdmissions(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams({ token });
+      if (classFilter && classFilter !== 'All') params.set('class', classFilter);
+      if (statusFilter && statusFilter !== 'All') params.set('status', statusFilter);
+      window.location.href = `${API_URL}/admissions/export?${params.toString()}`;
+      setTimeout(() => setIsExportingAdmissions(false), 2000);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert('An error occurred during admissions export.');
+      setIsExportingAdmissions(false);
+    }
+  };
   const handleExportJobs = () => handleExportData('job-applications', 'job_apps', setIsExportingJobs);
   const handleExportTenders = () => handleExportData('tender-applications', 'tender_apps', setIsExportingTenders);
 
@@ -873,6 +899,69 @@ function AdminPage() {
     }
   };
 
+  const handleExportInquiries = () => {
+    setIsExportingInquiries(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams({ token });
+      if (inquiryTypeFilter && inquiryTypeFilter !== 'All') params.set('type', inquiryTypeFilter);
+      if (inquiryStatusFilter && inquiryStatusFilter !== 'All') params.set('status', inquiryStatusFilter);
+      window.location.href = `${API_URL}/inquiries/export?${params.toString()}`;
+      setTimeout(() => setIsExportingInquiries(false), 2000);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert('An error occurred during inquiries export.');
+      setIsExportingInquiries(false);
+    }
+  };
+
+  const handleInquiryStatusUpdate = async (inquiryId, status, adminReply) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.patch(`${API_URL}/inquiries/${inquiryId}/status`, 
+        { status, adminReply },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.inquiry) {
+        setInquiries(inquiries.map(i => i._id === inquiryId ? { ...i, ...res.data.inquiry } : i));
+      }
+      setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' });
+    } catch (err) {
+      console.error("Failed to update inquiry:", err.message);
+      alert("Failed to update inquiry. Please try again.");
+    }
+  };
+
+  // --- Appointment Handlers ---
+  const fetchAppointments = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/appointments`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setAppointments(await res.json());
+    } catch (e) { console.warn('Could not fetch appointments'); }
+  };
+
+  const handleExportAppointments = () => {
+    setIsExportingAppointments(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams({ token });
+      if (appointmentCategoryFilter !== 'All') params.set('category', appointmentCategoryFilter);
+      if (appointmentStatusFilter !== 'All') params.set('status', appointmentStatusFilter);
+      window.location.href = `${API_URL}/appointments/export?${params.toString()}`;
+      setTimeout(() => setIsExportingAppointments(false), 2000);
+    } catch (e) { setIsExportingAppointments(false); }
+  };
+
+  const handleAppointmentStatusUpdate = async (id, status, adminRemark) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.patch(`${API_URL}/appointments/${id}/status`, { status, adminRemark }, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.appointment) setAppointments(appointments.map(a => a._id === id ? { ...a, ...res.data.appointment } : a));
+      setAppointmentModal({ open: false, apt: null, status: '', remark: '' });
+    } catch (err) { alert('Failed to update appointment.'); }
+  };
+
   useEffect(() => {
     // Initial fetch and fetch on tab change
     if (activeTab === 'dashboard') {
@@ -880,7 +969,7 @@ function AdminPage() {
       fetchStudents();
       fetchInquiries();
       fetchJobApplications();
-    } else if (activeTab === 'applications') {
+    } else if (activeTab === 'admission' || activeTab === 'applications') {
       fetchApps();
     } else if (activeTab === 'inquiries') {
       fetchInquiries();
@@ -895,6 +984,8 @@ function AdminPage() {
     } else if (activeTab === 'tenders') {
       fetchTenders();
       fetchTenderApplications();
+    } else if (activeTab === 'appointments') {
+      fetchAppointments();
     }
 
     if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') fetchAdmins();
@@ -902,7 +993,7 @@ function AdminPage() {
     // Live changes: poll for new data every 60 seconds (reduced frequency to save resources)
     const interval = setInterval(() => {
       // Only poll summary data if on dashboard or relevant list
-      if (activeTab === 'dashboard' || activeTab === 'applications') fetchApps();
+      if (activeTab === 'dashboard' || activeTab === 'admission' || activeTab === 'applications') fetchApps();
       if (activeTab === 'dashboard' || activeTab === 'students') fetchStudents();
       if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
       if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
@@ -1596,10 +1687,44 @@ function AdminPage() {
     );
   };
 
+  // --- Shared Utility: Transfer to Gallery ---
+  const handleTransferToGallery = (item, type) => {
+    if (!window.confirm(`Transfer photos from this ${type === 'Events' ? 'event' : 'highlight'} to the Gallery?`)) return;
+
+    let photos = [];
+    if (item.image) photos.push(item.image);
+    if (item.galleryImages && Array.isArray(item.galleryImages)) photos.push(...item.galleryImages);
+    
+    // Deduplicate URLs
+    photos = [...new Set(photos)];
+    
+    // Filter out photos already in the gallery
+    const existingUrls = gallery.map(g => g.src);
+    const newPhotos = photos.filter(url => !existingUrls.includes(url));
+    
+    if (newPhotos.length === 0) {
+      alert("All photos from this item are already in the Gallery.");
+      return;
+    }
+
+    const newGalleryItems = newPhotos.map(url => ({
+      id: Date.now() + Math.random(),
+      title: item.title || `${type === 'Events' ? 'Event' : 'Highlight'} Photo`,
+      category: type,
+      src: url,
+      eventId: type === 'Events' ? (item.id || item._id) : undefined,
+      _id: `temp-g-${Date.now()}-${Math.random()}`
+    }));
+
+    updateSiteContent({ gallery: [...newGalleryItems, ...gallery] });
+    alert(`${newPhotos.length} photo(s) successfully added to the Gallery!`);
+  };
+
   // --- Highlights Tab ---
   const [newHighlight, setNewHighlight] = useState({ title: '', date: '', category: 'Academic', image: '', description: '', galleryImages: [] });
   const [highlightFiles, setHighlightFiles] = useState([]);
   const [isHighlightUploading, setIsHighlightUploading] = useState(false);
+  const [editingHighlightId, setEditingHighlightId] = useState(null);
 
   const handleAddHighlight = async () => {
     if (!newHighlight.title || (highlightFiles.length === 0 && !newHighlight.image)) return;
@@ -1611,33 +1736,49 @@ function AdminPage() {
       const galleryFilesToUpload = filesToUpload.length > 1 ? filesToUpload.slice(1) : [];
       
       // Upload photos
-      const response = await uploadEventPhotos(coverFile, galleryFilesToUpload, newHighlight.title);
-      
       let coverUrl = newHighlight.image;
-      const galleryPhotoUrls = [];
-      
-      if (response) {
-        if (response.cover?.url) coverUrl = response.cover.url;
-        if (response.gallery) {
-          response.gallery.forEach(img => galleryPhotoUrls.push(img.url));
-        }
-        // Include cover in gallery list too for carousel
-        if (coverUrl && filesToUpload.length > 0) {
-          galleryPhotoUrls.unshift(coverUrl);
+      let galleryPhotoUrls = [...(newHighlight.galleryImages || [])];
+
+      if (filesToUpload.length > 0) {
+        const response = await uploadEventPhotos(coverFile, galleryFilesToUpload, newHighlight.title);
+        if (response) {
+          if (response.cover?.url) coverUrl = response.cover.url;
+          if (response.gallery) {
+            response.gallery.forEach(img => galleryPhotoUrls.push(img.url));
+          }
+          if (response.cover?.url) {
+            galleryPhotoUrls.unshift(response.cover.url);
+          }
         }
       }
       
-      const itemToAdd = { 
-        ...newHighlight, 
-        image: coverUrl,
-        galleryImages: galleryPhotoUrls,
-        _id: `temp-${Date.now()}` 
-      };
-      setHighlights([itemToAdd, ...highlights]);
+      if (editingHighlightId) {
+        // UPDATE MODE
+        const updatedHighlights = highlights.map(h => 
+          (h._id === editingHighlightId || h.id === editingHighlightId)
+            ? { ...h, ...newHighlight, image: coverUrl, galleryImages: galleryPhotoUrls }
+            : h
+        );
+        updateSiteContent({ highlights: updatedHighlights });
+        alert(`Highlight "${newHighlight.title}" updated successfully!`);
+        setEditingHighlightId(null);
+      } else {
+        // CREATE MODE
+        const itemToAdd = { 
+          ...newHighlight, 
+          image: coverUrl,
+          galleryImages: galleryPhotoUrls,
+          id: Date.now(),
+          _id: `temp-${Date.now()}` 
+        };
+        updateSiteContent({ highlights: [itemToAdd, ...highlights] });
+        alert(`Highlight "${newHighlight.title}" created successfully!`);
+      }
+      
       setNewHighlight({ title: '', date: '', category: 'Academic', image: '', description: '', galleryImages: [] });
       setHighlightFiles([]);
     } catch (err) {
-      alert("Failed to upload highlight images: " + err.message);
+      alert("Failed to process highlight: " + err.message);
     }
     setIsHighlightUploading(false);
   };
@@ -1676,13 +1817,56 @@ function AdminPage() {
           <option>Academic</option><option>Sports</option><option>Cultural</option>
         </select>
         <textarea placeholder="Description" value={newHighlight.description} onChange={e => setNewHighlight({...newHighlight, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="2"></textarea>
-        <button 
-          onClick={handleAddHighlight} 
-          disabled={isHighlightUploading}
-          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 disabled:bg-gray-400"
-        >
-          <FaPlus className="inline mr-2"/> {isHighlightUploading ? 'Adding...' : 'Add Highlight'}
-        </button>
+        {editingHighlightId && newHighlight.galleryImages?.length > 0 && (
+          <div className="md:col-span-2 p-4 bg-white border rounded-xl shadow-sm">
+            <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center"><FaImage className="mr-2 text-primary"/> Existing Photos Preview</h4>
+            <p className="text-xs text-gray-500 mb-3">Click the × icon to remove a photo before saving the update.</p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-3">
+              {newHighlight.galleryImages.map((url, idx) => (
+                <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200">
+                  <img src={url} className="w-full h-full object-cover" alt="" />
+                  <button 
+                    onClick={() => {
+                      const newGallery = newHighlight.galleryImages.filter(u => u !== url);
+                      let newCover = newHighlight.image;
+                      if (newCover === url) newCover = newGallery.length > 0 ? newGallery[0] : '';
+                      setNewHighlight({...newHighlight, galleryImages: newGallery, image: newCover});
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                    title="Remove Photo"
+                  >
+                    <FaTimes size={10} />
+                  </button>
+                  {newHighlight.image === url && (
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm font-bold">COVER</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2 md:col-span-2">
+          <button 
+            onClick={handleAddHighlight} 
+            disabled={isHighlightUploading}
+            className={`flex-1 ${editingHighlightId ? 'bg-blue-600' : 'bg-tertiary'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400 flex items-center justify-center`}
+          >
+            {isHighlightUploading ? <FaSpinner className="animate-spin mr-2" /> : (editingHighlightId ? <FaEdit className="mr-2" /> : <FaPlus className="mr-2" />)}
+            {editingHighlightId ? 'Update Highlight' : 'Add Highlight'}
+          </button>
+          {editingHighlightId && (
+            <button 
+              onClick={() => {
+                setEditingHighlightId(null);
+                setNewHighlight({ title: '', date: '', category: 'Academic', image: '', description: '', galleryImages: [] });
+                setHighlightFiles([]);
+              }}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
       <div className="space-y-4">
         {highlights.map(item => (
@@ -1702,7 +1886,32 @@ function AdminPage() {
               >
                 <FaDownload />
               </button>
-              <button onClick={() => handleDeleteHighlight(item._id)} className="text-red-500 hover:text-red-700 p-2"><FaTrash /></button>
+              <button 
+                onClick={() => handleTransferToGallery(item, 'Highlights')}
+                className="text-amber-500 hover:text-amber-700 p-2"
+                title="Transfer Photos to Gallery"
+              >
+                <FaImage />
+              </button>
+              <button 
+                onClick={() => {
+                  setEditingHighlightId(item._id || item.id);
+                  setNewHighlight({
+                    title: item.title || '',
+                    date: item.date || '',
+                    category: item.category || 'Academic',
+                    description: item.description || '',
+                    image: item.image || '',
+                    galleryImages: item.galleryImages || []
+                  });
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="text-blue-500 hover:text-blue-700 p-2"
+                title="Edit Highlight"
+              >
+                <FaEdit />
+              </button>
+              <button onClick={() => handleDeleteHighlight(item._id)} className="text-red-500 hover:text-red-700 p-2" title="Delete"><FaTrash /></button>
             </div>
           </div>
         ))}
@@ -1895,6 +2104,34 @@ function AdminPage() {
           )}
         </div>
         <textarea placeholder="Event Description" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="3"></textarea>
+        {editingEventId && newEvent.galleryImages?.length > 0 && (
+          <div className="md:col-span-2 p-4 bg-white border rounded-xl shadow-sm">
+            <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center"><FaImage className="mr-2 text-primary"/> Existing Photos Preview</h4>
+            <p className="text-xs text-gray-500 mb-3">Click the × icon to remove a photo before saving the update.</p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-3">
+              {newEvent.galleryImages.map((url, idx) => (
+                <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200">
+                  <img src={url} className="w-full h-full object-cover" alt="" />
+                  <button 
+                    onClick={() => {
+                      const newGallery = newEvent.galleryImages.filter(u => u !== url);
+                      let newCover = newEvent.image;
+                      if (newCover === url) newCover = newGallery.length > 0 ? newGallery[0] : '';
+                      setNewEvent({...newEvent, galleryImages: newGallery, image: newCover});
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                    title="Remove Photo"
+                  >
+                    <FaTimes size={10} />
+                  </button>
+                  {newEvent.image === url && (
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm font-bold">COVER</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex gap-2 md:col-span-2">
           <button 
             onClick={handleAddEvent} 
@@ -1936,6 +2173,13 @@ function AdminPage() {
                   title="Download Cover Image"
                 >
                   <FaDownload />
+                </button>
+                <button 
+                  onClick={() => handleTransferToGallery(item, 'Events')}
+                  className="text-amber-500 hover:text-amber-700 p-2"
+                  title="Transfer Photos to Gallery"
+                >
+                  <FaImage />
                 </button>
                 <button 
                   onClick={() => {
@@ -3693,7 +3937,7 @@ function AdminPage() {
               className="flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:shadow-none shadow-lg shadow-emerald-100 whitespace-nowrap group"
             >
               {isExportingAdmissions ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
-              {isExportingAdmissions ? 'Exporting...' : 'Export to Excel'}
+              {isExportingAdmissions ? 'Exporting...' : (classFilter !== 'All' || statusFilter !== 'All') ? 'Export Filtered' : 'Export All'}
             </button>
           </div>
         </div>
@@ -4260,8 +4504,6 @@ function AdminPage() {
   }, [coursesPage, loading]);
 
   const renderSchoolProfileTab = () => {
-    const handleLogoUpload = async (e) => {
-
     const handleLogoUpload = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -5918,7 +6160,8 @@ function AdminPage() {
                     { id: 'students', label: 'Students', icon: <FaUsers className="text-green-500"/> },
                     { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots className="text-purple-500"/>, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
                     { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase className="text-amber-500"/> },
-                    { id: 'tenders', label: 'Tenders', icon: <FaGavel className="text-slate-500"/> }
+                    { id: 'tenders', label: 'Tenders', icon: <FaGavel className="text-slate-500"/> },
+                    { id: 'appointments', label: 'Appointments', icon: <FaCalendarCheck className="text-teal-500"/>, badge: appointments.filter(a => a.status === 'Pending').length }
                   ].map(item => (
                     <button 
                       key={item.id}
@@ -6053,7 +6296,8 @@ function AdminPage() {
                     { id: 'students', label: 'Students' },
                     { id: 'inquiries', label: 'Inquiries' },
                     { id: 'jobApplications', label: 'Job Apps' },
-                    { id: 'tenders', label: 'Tenders' }
+                    { id: 'tenders', label: 'Tenders' },
+                    { id: 'appointments', label: 'Appointments' }
                   ].map(item => (
                     <button key={item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl text-xs font-semibold gap-1 border transition-all ${activeTab === item.id ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-inner' : 'bg-white border-gray-100 text-gray-600 hover:border-blue-100 hover:bg-gray-50'}`}>
                       <span className="text-center leading-tight">{item.label}</span>
@@ -6245,30 +6489,44 @@ function AdminPage() {
           )}
 
           {activeTab === 'inquiries' && (() => {
-            const filteredInqs = inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST'));
+            const filteredInqs = inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST'))
+              .filter(i => inquiryTypeFilter === 'All' || i.type === inquiryTypeFilter)
+              .filter(i => inquiryStatusFilter === 'All' || (i.status || 'Submitted') === inquiryStatusFilter);
             return (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Inquiries & Feedback</h3>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <div className="relative w-full sm:w-64">
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                  <select value={inquiryTypeFilter} onChange={(e) => setInquiryTypeFilter(e.target.value)}
+                    className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-8 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer">
+                    <option value="All">All Types</option>
+                    <option value="Suggestion">Suggestion</option>
+                    <option value="Complain">Complaint</option>
+                    <option value="General Inquiry">General Inquiry</option>
+                  </select>
+                  <select value={inquiryStatusFilter} onChange={(e) => setInquiryStatusFilter(e.target.value)}
+                    className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-8 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer">
+                    <option value="All">All Status</option>
+                    <option value="Submitted">Submitted</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                  <div className="relative w-full sm:flex-1 lg:w-56 lg:flex-none">
                     <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
-                    <input 
-                      type="text" 
-                      placeholder="Search Tracking No..." 
-                      value={inquirySearch}
-                      onChange={(e) => setInquirySearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                    />
+                    <input type="text" placeholder="Search..." value={inquirySearch} onChange={(e) => setInquirySearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-xs focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all" />
                   </div>
                   <div className="flex gap-2">
-                     <div className="text-xs text-amber-700 bg-amber-50 font-bold uppercase px-3 py-1 rounded-full flex items-center gap-1">
-                       <FaEnvelopeOpenText /> Unread: {filteredInqs.filter(i => !i.isRead).length}
-                     </div>
-                     <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full">
-                       Total: {filteredInqs.length}
-                     </div>
+                    <div className="text-xs text-amber-700 bg-amber-50 font-bold uppercase px-3 py-1.5 rounded-full flex items-center gap-1">
+                      <FaEnvelopeOpenText /> Unread: {filteredInqs.filter(i => !i.isRead).length}
+                    </div>
                   </div>
+                  <button onClick={handleExportInquiries} disabled={isExportingInquiries || filteredInqs.length === 0}
+                    className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100 whitespace-nowrap group">
+                    {isExportingInquiries ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
+                    {isExportingInquiries ? 'Exporting...' : (inquiryTypeFilter !== 'All' || inquiryStatusFilter !== 'All') ? 'Export Filtered' : 'Export All'}
+                  </button>
                 </div>
               </div>
 
@@ -6283,6 +6541,8 @@ function AdminPage() {
                     <thead>
                       <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
                         <th className="pb-3 px-2">Type</th>
+                        <th className="pb-3">Tracking</th>
+                        <th className="pb-3">Status</th>
                         <th className="pb-3">Sender</th>
                         <th className="pb-3">Contact</th>
                         <th className="pb-3">Date</th>
@@ -6305,12 +6565,23 @@ function AdminPage() {
                         <tr key={inquiry._id} className={`hover:bg-gray-50/50 transition-colors ${!inquiry.isRead ? 'bg-blue-50/30' : ''}`}>
                           <td className="py-4 px-2 align-top">
                              <span className={`text-xs font-black px-2 py-1 rounded uppercase tracking-tighter ${
-                               inquiry.type === 'Complaint' ? 'bg-red-100 text-red-700' :
+                               inquiry.type === 'Complain' ? 'bg-red-100 text-red-700' :
                                inquiry.type === 'Suggestion' ? 'bg-green-100 text-green-700' :
                                'bg-blue-100 text-blue-700'
                              }`}>
                                {inquiry.type}
                              </span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <span className="text-xs font-mono font-bold text-primary bg-primary/5 px-2 py-1 rounded">{inquiry.trackingNumber || '-'}</span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
+                              (inquiry.status || 'Submitted') === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
+                              (inquiry.status || 'Submitted') === 'Under Review' ? 'bg-blue-100 text-blue-700' :
+                              (inquiry.status || 'Submitted') === 'Resolved' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>{inquiry.status || 'Submitted'}</span>
                           </td>
                           <td className="py-4 font-medium text-gray-800 align-top">
                             <div className="flex items-center">
@@ -6335,14 +6606,21 @@ function AdminPage() {
                           <td className="py-4 text-xs text-gray-400 align-top">{new Date(inquiry.createdAt).toLocaleDateString()}</td>
                           <td className="py-4 text-sm text-gray-600 max-w-xs align-top">
                              <div className="truncate font-bold text-gray-800 mb-1">{inquiry.subject || 'No Subject'}</div>
-                             <div className="text-xs text-gray-600 line-clamp-3 leading-relaxed whitespace-pre-wrap">{inquiry.message}</div>
+                             <div className="text-xs text-gray-600 line-clamp-2 leading-relaxed whitespace-pre-wrap">{inquiry.message}</div>
+                             {inquiry.adminReply && (
+                               <div className="text-xs text-emerald-600 mt-1 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 line-clamp-1"><strong>Reply:</strong> {inquiry.adminReply}</div>
+                             )}
                           </td>
                           <td className="py-4 text-right align-top whitespace-nowrap">
                              <button 
+                               onClick={() => setInquiryReplyModal({ open: true, inquiry, reply: inquiry.adminReply || '', status: inquiry.status || 'Submitted' })}
+                               className="text-emerald-500 hover:text-emerald-700 font-bold text-xs mr-2 transition-colors"
+                             >Reply</button>
+                             <button 
                                onClick={() => handleInquiryReadToggle(inquiry._id, inquiry.isRead)} 
-                               className={`${inquiry.isRead ? 'text-gray-400' : 'text-primary' } hover:underline font-medium text-xs mr-3 transition-colors`}
+                               className={`${inquiry.isRead ? 'text-gray-400' : 'text-primary' } hover:underline font-medium text-xs mr-2 transition-colors`}
                              >
-                               {inquiry.isRead ? 'Mark Unread' : 'Mark Read'}
+                               {inquiry.isRead ? 'Unread' : 'Read'}
                              </button>
                              <button 
                                onClick={async () => {
@@ -6372,6 +6650,208 @@ function AdminPage() {
             </div>
             );
           })()}
+
+          {/* Inquiry Reply/Status Modal */}
+          {inquiryReplyModal.open && inquiryReplyModal.inquiry && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}>
+              <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Reply & Update Status</h3>
+                <p className="text-xs text-gray-400 font-mono mb-4">{inquiryReplyModal.inquiry.trackingNumber}</p>
+                <div className="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-100">
+                  <div className="text-xs text-gray-500 mb-1"><strong>From:</strong> {inquiryReplyModal.inquiry.name} ({inquiryReplyModal.inquiry.type})</div>
+                  <div className="text-sm font-bold text-gray-800">{inquiryReplyModal.inquiry.subject}</div>
+                  <div className="text-xs text-gray-600 mt-1 line-clamp-3">{inquiryReplyModal.inquiry.message}</div>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Status</label>
+                  <select value={inquiryReplyModal.status} onChange={e => setInquiryReplyModal(p => ({...p, status: e.target.value}))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm font-bold">
+                    <option value="Submitted">Submitted</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                </div>
+                <div className="mb-5">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Admin Reply</label>
+                  <textarea value={inquiryReplyModal.reply} onChange={e => setInquiryReplyModal(p => ({...p, reply: e.target.value}))}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm resize-none"
+                    rows={4} placeholder="Write your reply here..." />
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}
+                    className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all">Cancel</button>
+                  <button onClick={() => handleInquiryStatusUpdate(inquiryReplyModal.inquiry._id, inquiryReplyModal.status, inquiryReplyModal.reply)}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">Save</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+          {/* Appointments Tab */}
+          {activeTab === 'appointments' && (() => {
+            const filtered = appointments
+              .filter(a => appointmentCategoryFilter === 'All' || a.category === appointmentCategoryFilter)
+              .filter(a => appointmentStatusFilter === 'All' || a.status === appointmentStatusFilter)
+              .filter(a => {
+                if (!appointmentSearch) return true;
+                const q = appointmentSearch.toLowerCase();
+                return (a.appointmentNumber?.toLowerCase().includes(q)) || (a.name?.toLowerCase().includes(q)) || (a.studentName?.toLowerCase().includes(q));
+              })
+              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            return (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Appointments</h3>
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                  <select value={appointmentCategoryFilter} onChange={e => setAppointmentCategoryFilter(e.target.value)}
+                    className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-8 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer">
+                    <option value="All">All Categories</option>
+                    <option value="Parent">Parent</option>
+                    <option value="Visitor">Visitor</option>
+                  </select>
+                  <select value={appointmentStatusFilter} onChange={e => setAppointmentStatusFilter(e.target.value)}
+                    className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-8 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer">
+                    <option value="All">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                  <div className="relative w-full sm:flex-1 lg:w-56 lg:flex-none">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                    <input type="text" placeholder="Search..." value={appointmentSearch} onChange={e => setAppointmentSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-xs focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all" />
+                  </div>
+                  <div className="text-xs text-amber-700 bg-amber-50 font-bold uppercase px-3 py-1.5 rounded-full flex items-center gap-1">
+                    Pending: {appointments.filter(a => a.status === 'Pending').length}
+                  </div>
+                  <button onClick={handleExportAppointments} disabled={isExportingAppointments || filtered.length === 0}
+                    className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100 whitespace-nowrap group">
+                    {isExportingAppointments ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
+                    Export
+                  </button>
+                </div>
+              </div>
+              {filtered.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaCalendarCheck className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No appointments found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2">Category</th>
+                        <th className="pb-3">Apt. No</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3">Name</th>
+                        <th className="pb-3">Details</th>
+                        <th className="pb-3">Purpose</th>
+                        <th className="pb-3">Date</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {filtered.map(apt => (
+                        <tr key={apt._id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-4 px-2 align-top">
+                            <span className={`text-xs font-black px-2 py-1 rounded uppercase ${apt.category === 'Parent' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{apt.category}</span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <span className="text-xs font-mono font-bold text-primary bg-primary/5 px-2 py-1 rounded">{apt.appointmentNumber}</span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
+                              apt.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                              apt.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                              apt.status === 'Completed' ? 'bg-blue-100 text-blue-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>{apt.status}</span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <div className="font-medium text-gray-800 text-sm">{apt.name}</div>
+                            <div className="text-xs text-gray-400 font-mono">{apt.phone}</div>
+                            {apt.email && <div className="text-xs text-gray-400 break-all">{apt.email}</div>}
+                          </td>
+                          <td className="py-4 align-top text-xs text-gray-600 max-w-[200px]">
+                            {apt.category === 'Parent' ? (
+                              <div>
+                                <div className="font-bold text-gray-800">Student: {apt.studentName}</div>
+                                <div>Class: {apt.studentClass}</div>
+                                {apt.schoolIdCard && <a href={apt.schoolIdCard} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1 mt-1"><FaEye size={10}/> View ID</a>}
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="font-mono font-bold">Aadhaar: {apt.aadhaarNumber}</div>
+                                {apt.aadhaarDocument && <a href={apt.aadhaarDocument} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1 mt-1"><FaEye size={10}/> View Doc</a>}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-4 align-top text-xs text-gray-600 max-w-[180px]">
+                            <div className="line-clamp-2">{apt.purpose}</div>
+                            {apt.adminRemark && <div className="text-emerald-600 mt-1 bg-emerald-50 px-2 py-0.5 rounded text-[10px] border border-emerald-100 line-clamp-1"><strong>Remark:</strong> {apt.adminRemark}</div>}
+                          </td>
+                          <td className="py-4 align-top text-xs text-gray-400">
+                            {new Date(apt.createdAt).toLocaleDateString()}
+                            {apt.appointmentDate && <div className="text-primary font-bold mt-0.5">For: {new Date(apt.appointmentDate).toLocaleDateString()}</div>}
+                          </td>
+                          <td className="py-4 text-right align-top whitespace-nowrap">
+                            <button onClick={() => setAppointmentModal({ open: true, apt, status: apt.status, remark: apt.adminRemark || '' })}
+                              className="text-emerald-500 hover:text-emerald-700 font-bold text-xs mr-2 transition-colors">Update</button>
+                            <button onClick={async () => {
+                              if (window.confirm(`Delete appointment ${apt.appointmentNumber}?`)) {
+                                try {
+                                  const token = localStorage.getItem('adminToken');
+                                  await axios.delete(`${API_URL}/appointments/${apt._id}`, { headers: { Authorization: `Bearer ${token}` } });
+                                  setAppointments(appointments.filter(a => a._id !== apt._id));
+                                } catch (err) { alert('Failed to delete.'); }
+                              }
+                            }} className="text-red-400 hover:text-red-600 transition-colors"><FaTrash size={12} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            );
+          })()}
+
+          {/* Appointment Status Modal */}
+          {appointmentModal.open && appointmentModal.apt && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setAppointmentModal({ open: false, apt: null, status: '', remark: '' })}>
+              <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Update Appointment</h3>
+                <p className="text-xs text-gray-400 font-mono mb-4">{appointmentModal.apt.appointmentNumber} — {appointmentModal.apt.name}</p>
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Status</label>
+                  <select value={appointmentModal.status} onChange={e => setAppointmentModal(p => ({...p, status: e.target.value}))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm font-bold">
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+                <div className="mb-5">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Admin Remark</label>
+                  <textarea value={appointmentModal.remark} onChange={e => setAppointmentModal(p => ({...p, remark: e.target.value}))}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm resize-none"
+                    rows={3} placeholder="Add a remark..." />
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button onClick={() => setAppointmentModal({ open: false, apt: null, status: '', remark: '' })}
+                    className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all">Cancel</button>
+                  <button onClick={() => handleAppointmentStatusUpdate(appointmentModal.apt._id, appointmentModal.status, appointmentModal.remark)}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">Save</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'adminRequests' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (() => {
             const adminReqs = admins.filter(a => !a.isApproved);

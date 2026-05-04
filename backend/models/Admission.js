@@ -8,6 +8,9 @@ const admissionSchema = new mongoose.Schema({
   bloodGroup: String,
   religion: String,
   previousSchool: String,
+  prevMarksObtained: String,
+  lastAttendedExam: String, // 1st Unit, Half Yearly, 3rd Unit, Annual Exam, Other
+  prevPercentage: String,
   gradeApplied: { type: String, required: true },
   fatherName: String,
   fatherOccupation: String,

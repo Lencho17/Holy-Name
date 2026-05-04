@@ -2,7 +2,7 @@ import React, { useState, useContext } from "react";
 import axios from "axios";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { FaCommentDots, FaPaperPlane, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
+import { FaCommentDots, FaPaperPlane, FaCheckCircle, FaExclamationCircle, FaSearch } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Complaints() {
@@ -24,6 +24,10 @@ function Complaints() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [trackingInput, setTrackingInput] = useState('');
+  const [trackingResult, setTrackingResult] = useState(null);
+  const [trackingError, setTrackingError] = useState(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -399,6 +403,93 @@ function Complaints() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Tracking Section */}
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 mt-10 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-blue-50 rounded-br-full -ml-10 -mt-10 pointer-events-none"></div>
+          <h2 className="text-2xl font-serif font-bold text-primary mb-2 flex items-center relative z-10">
+            <span className="w-2 h-8 bg-blue-500 rounded-full mr-3"></span>
+            Track Your Inquiry
+          </h2>
+          <p className="text-gray-500 mb-6 relative z-10">Enter your tracking number to check the status of your inquiry.</p>
+          <div className="flex gap-3 relative z-10">
+            <div className="relative flex-1">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={trackingInput}
+                onChange={(e) => setTrackingInput(e.target.value.toUpperCase())}
+                placeholder="e.g. HNS/SUG/2026/001"
+                className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono uppercase"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                if (!trackingInput.trim()) return;
+                setTrackingLoading(true);
+                setTrackingError(null);
+                setTrackingResult(null);
+                try {
+                  const apiBase = import.meta.env.VITE_API_URL || '/api';
+                  const res = await axios.get(`${apiBase}/inquiries/track/${encodeURIComponent(trackingInput.trim())}`);
+                  setTrackingResult(res.data);
+                } catch (err) {
+                  setTrackingError(err.response?.data?.message || 'Could not find inquiry. Please check the tracking number.');
+                } finally {
+                  setTrackingLoading(false);
+                }
+              }}
+              disabled={trackingLoading || !trackingInput.trim()}
+              className={`px-6 py-3 rounded-xl font-bold text-white transition-all flex items-center gap-2 ${trackingLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 hover:shadow-lg'}`}
+            >
+              {trackingLoading ? 'Searching...' : 'Track'}
+            </button>
+          </div>
+
+          {trackingError && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-center animate-fade-in">
+              <FaExclamationCircle className="text-xl mr-3 flex-shrink-0" />
+              <p className="font-medium">{trackingError}</p>
+            </div>
+          )}
+
+          {trackingResult && (
+            <div className="mt-6 bg-gray-50 rounded-2xl border border-gray-200 p-6 animate-fade-in">
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <span className="font-mono font-bold text-primary text-lg">{trackingResult.trackingNumber}</span>
+                <span className={`text-xs font-black px-3 py-1 rounded-full uppercase ${
+                  trackingResult.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
+                  trackingResult.status === 'Under Review' ? 'bg-blue-100 text-blue-700' :
+                  trackingResult.status === 'Resolved' ? 'bg-green-100 text-green-700' :
+                  'bg-gray-100 text-gray-600'
+                }`}>{trackingResult.status}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-400 font-bold uppercase text-xs">Type</span>
+                  <p className="text-gray-800 font-medium">{trackingResult.type}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400 font-bold uppercase text-xs">Subject</span>
+                  <p className="text-gray-800 font-medium">{trackingResult.subject}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400 font-bold uppercase text-xs">Submitted On</span>
+                  <p className="text-gray-800 font-medium">{new Date(trackingResult.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+              </div>
+              {trackingResult.adminReply && (
+                <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <p className="text-xs text-emerald-600 font-bold uppercase mb-1">School's Response</p>
+                  <p className="text-sm text-emerald-800 whitespace-pre-wrap">{trackingResult.adminReply}</p>
+                  {trackingResult.repliedAt && (
+                    <p className="text-xs text-emerald-500 mt-2">{new Date(trackingResult.repliedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

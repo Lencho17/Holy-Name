@@ -58,6 +58,18 @@ const inquirySchema = new mongoose.Schema({
     type: String,
     unique: true
   },
+  status: {
+    type: String,
+    enum: ['Submitted', 'Under Review', 'Resolved', 'Closed'],
+    default: 'Submitted'
+  },
+  adminReply: {
+    type: String,
+    trim: true
+  },
+  repliedAt: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now,

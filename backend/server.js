@@ -20,6 +20,7 @@ const jobRoutes = require('./routes/jobs');
 const jobApplicationRoutes = require('./routes/jobApplications');
 const tenderRoutes = require('./routes/tenders');
 const tenderApplicationRoutes = require('./routes/tenderApplications');
+const appointmentRoutes = require('./routes/appointments');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -96,6 +97,7 @@ app.use('/api/payment', apiLimiter, require('./routes/payment'));
 app.use('/api/share', require('./routes/share'));
 app.use('/api/tenders', apiLimiter, tenderRoutes);
 app.use('/api/tender-applications', apiLimiter, tenderApplicationRoutes);
+app.use('/api/appointments', submissionLimiter, appointmentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

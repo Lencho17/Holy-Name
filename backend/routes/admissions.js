@@ -184,13 +184,27 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-// --- Export Route (Must be before parameterized routes) ---
-// GET /api/admissions/export — protected, export all applications to XLS
+// GET /api/admissions/export — protected, export applications to XLS (supports class & status filters)
 router.get('/export', protect, async (req, res) => {
   console.log('Export Admissions triggered (HTML Table mode)');
   try {
-    const applications = await Admission.find().sort({ createdAt: -1 });
+    const { class: classFilter, status: statusFilter } = req.query;
+    const query = {};
+    if (classFilter && classFilter !== 'All') {
+      // Case-insensitive match on gradeApplied
+      query.gradeApplied = { $regex: new RegExp(`^${classFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i') };
+    }
+    if (statusFilter && statusFilter !== 'All') {
+      query.status = statusFilter;
+    }
+
+    const applications = await Admission.find(query).sort({ createdAt: -1 });
     
+    // Build descriptive filename
+    const classLabel = classFilter && classFilter !== 'All' ? `_${classFilter}` : '_ALL';
+    const statusLabel = statusFilter && statusFilter !== 'All' ? `_${statusFilter}` : '';
+    const fileName = `admissions${classLabel}${statusLabel}_${new Date().toISOString().split('T')[0]}.xls`;
+
     // Create HTML Table for Excel
     let html = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -211,14 +225,34 @@ router.get('/export', protect, async (req, res) => {
             <th>Class Applied</th>
             <th>Gender</th>
             <th>Religion</th>
+            <th>Caste</th>
+            <th>Previous School</th>
+            <th>Prev Marks Obtained</th>
+            <th>Last Attended Exam</th>
+            <th>Prev Percentage</th>
             <th>Father Name</th>
+            <th>Father Occupation</th>
             <th>Mother Name</th>
+            <th>Mother Occupation</th>
             <th>Guardian Name</th>
             <th>Contact Number</th>
             <th>Email</th>
             <th>Address</th>
+            <th>PO</th>
+            <th>PS</th>
+            <th>Pincode</th>
             <th>Aadhar Number</th>
             <th>PEN Number</th>
+            <th>Stream</th>
+            <th>Elective Subjects</th>
+            <th>MIL</th>
+            <th>DARPAN ID</th>
+            <th>Board Marks</th>
+            <th>Board Percentage</th>
+            <th>Board Division</th>
+            <th>NCC Interest</th>
+            <th>Sports Active</th>
+            <th>Sports Type</th>
             <th>Status</th>
             <th>Application Date</th>
           </tr>
@@ -233,14 +267,34 @@ router.get('/export', protect, async (req, res) => {
           <td>${(a.gradeApplied || '').toUpperCase()}</td>
           <td>${a.gender || ''}</td>
           <td>${a.religion || ''}</td>
+          <td>${a.caste || ''}</td>
+          <td>${a.previousSchool || ''}</td>
+          <td>${a.prevMarksObtained || ''}</td>
+          <td>${a.lastAttendedExam || ''}</td>
+          <td>${a.prevPercentage || ''}</td>
           <td>${a.fatherName || ''}</td>
+          <td>${a.fatherOccupation || ''}</td>
           <td>${a.motherName || ''}</td>
+          <td>${a.motherOccupation || ''}</td>
           <td>${a.guardianName || ''}</td>
           <td class="text">${a.contactNumber || ''}</td>
           <td>${a.email || ''}</td>
           <td>${a.address || ''}</td>
+          <td>${a.po || ''}</td>
+          <td>${a.ps || ''}</td>
+          <td class="text">${a.pincode || ''}</td>
           <td class="text">${a.aadharNumber || ''}</td>
           <td class="text">${a.penNumber || ''}</td>
+          <td>${a.stream || ''}</td>
+          <td>${(a.selectedSubjects || []).join(', ')}</td>
+          <td>${a.mil || ''}</td>
+          <td class="text">${a.darpanId || ''}</td>
+          <td>${a.boardMarks || ''}</td>
+          <td>${a.boardPercentage || ''}</td>
+          <td>${a.boardDivision || ''}</td>
+          <td>${a.nccInterest ? 'Yes' : 'No'}</td>
+          <td>${a.sportsActive ? 'Yes' : 'No'}</td>
+          <td>${a.sportsType || ''}</td>
           <td>${a.status || ''}</td>
           <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ''}</td>
         </tr>
@@ -249,8 +303,6 @@ router.get('/export', protect, async (req, res) => {
 
     html += `</table></body></html>`;
 
-    const fileName = `admissions_export_${new Date().toISOString().split('T')[0]}.xls`;
-    
     res.set('Content-Type', 'application/vnd.ms-excel');
     res.set('Content-Disposition', `attachment; filename=${fileName}`);
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');

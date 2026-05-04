@@ -320,11 +320,11 @@ export const SiteDataProvider = ({ children }) => {
       if (!token) throw new Error('Not authenticated');
 
       const formData = new FormData();
+      formData.append('eventTitle', eventTitle);
       if (coverFile) formData.append('image', coverFile);
       if (galleryFiles?.length) {
         galleryFiles.forEach(file => formData.append('images', file));
       }
-      formData.append('eventTitle', eventTitle);
 
       const { data } = await axios.post(`${API_URL}/content/upload-event`, formData, {
         headers: {

@@ -147,15 +147,15 @@ function Courses() {
           <div className="relative z-10">
             <h2 className="text-3xl md:text-4xl font-serif font-bold mb-8 text-center">General Code of Conduct</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {rules.map((rule, idx) => (
-                <div key={idx} className="flex items-start bg-white/10 p-5 rounded-xl backdrop-blur-sm border border-white/10">
-                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold mr-4 mt-1">
-                    {idx + 1}
-                  </span>
-                  <p className="text-white/90 leading-relaxed">{rule}</p>
-                </div>
-              ))}
+            <div className="bg-white/10 p-8 md:p-10 rounded-2xl backdrop-blur-sm border border-white/10">
+              <ul className="space-y-4 text-white/95 leading-relaxed text-lg font-medium text-left">
+                {rules.map((rule, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <span className="text-amber-400 mr-3 mt-1">•</span>
+                    <span>{rule}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

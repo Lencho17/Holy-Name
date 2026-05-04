@@ -242,17 +242,21 @@ router.post('/upload-event', protect, (req, res) => {
   uploadEventImages(req, res, (err) => {
     if (err) {
       console.error('[EVENT CLOUDINARY UPLOAD ERROR]:', err);
-      return res.status(500).json({ message: 'Event upload failed', error: err.message });
+      let msg = 'Event upload failed';
+      if (err.message && err.message.includes('Resource is invalid')) {
+        msg = 'Upload rejected by Cloudinary: One or more selected files are invalid, corrupted, or 0 bytes.';
+      }
+      return res.status(500).json({ message: msg, error: err.message });
     }
     try {
       const result = {};
-      if (req.files.image) {
+      if (req.files && req.files.image && req.files.image.length > 0) {
         result.cover = {
           url: req.files.image[0].path,
           public_id: req.files.image[0].filename
         };
       }
-      if (req.files.images) {
+      if (req.files && req.files.images && req.files.images.length > 0) {
         result.gallery = req.files.images.map(f => ({
           url: f.path,
           public_id: f.filename

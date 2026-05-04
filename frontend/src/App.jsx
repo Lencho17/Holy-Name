@@ -31,6 +31,7 @@ const Tenders = React.lazy(() => import("./Components/Tenders"));
 const TenderApply = React.lazy(() => import("./Components/TenderApply"));
 const CenterOfExcellence = React.lazy(() => import("./Components/CenterOfExcellence"));
 const BelowSocialbtn = React.lazy(() => import("./Components/BelowSocialbtn"));
+const Appointment = React.lazy(() => import("./Components/Appointment"));
 
 const AdminLogin = React.lazy(() => import("./Components/AdminLogin"));
 const AdminSignUp = React.lazy(() => import("./Components/AdminSignUp"));
@@ -126,6 +127,7 @@ function App() {
         <Route path="tenders" element={<Suspense fallback={<SuspenseFallback />}><Tenders /></Suspense>} />
         <Route path="tender-apply/:id" element={<Suspense fallback={<SuspenseFallback />}><TenderApply /></Suspense>} />
         <Route path="belowsocialbtn" element={<Suspense fallback={<SuspenseFallback />}><BelowSocialbtn /></Suspense>} />
+        <Route path="appointment" element={<Suspense fallback={<SuspenseFallback />}><Appointment /></Suspense>} />
       </Route>
 
       {/* Admin routes without Header/Footer layout */}

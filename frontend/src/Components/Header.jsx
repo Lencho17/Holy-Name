@@ -150,6 +150,12 @@ function Header() {
                       </span>{" "}
                       Tenders
                     </NavLink>
+                    <NavLink to="/appointment" className={dropdownLinkClass}>
+                      <span className="material-symbols-outlined text-[18px]">
+                        calendar_month
+                      </span>{" "}
+                      Appointment
+                    </NavLink>
                     <NavLink to="/complaints" className={dropdownLinkClass}>
                       <span className="material-symbols-outlined text-[18px]">
                         lightbulb
@@ -272,6 +278,7 @@ function Header() {
                     { to: "/gallery", label: "Gallery", icon: "photo_library" },
                     { to: "/career", label: "Career", icon: "work" },
                     { to: "/tenders", label: "Tenders", icon: "gavel" },
+                    { to: "/appointment", label: "Appointment", icon: "calendar_month" },
                     { to: "/complaints", label: "Feedback", icon: "forum" },
                     { to: "/contact", label: "Contact", icon: "mail" },
                   ].map((item) => (

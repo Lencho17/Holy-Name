@@ -299,4 +299,26 @@ router.post('/gallery-view', async (req, res) => {
   }
 });
 
+// POST /api/content/upload-tender-pdf — public, upload tender bid PDF to GitHub
+// This is a separate route from upload-pdf because tender applicants are NOT admins
+router.post('/upload-tender-pdf', (req, res) => {
+  pdfMemoryUpload(req, res, async (err) => {
+    if (err) {
+      console.error('[TENDER PDF MULTER ERROR]:', err);
+      return res.status(500).json({ message: 'File processing failed', error: err.message });
+    }
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No PDF file uploaded' });
+      }
+      // Prefix with "tenders/" so tender PDFs are organized separately in the repo
+      const rawUrl = await uploadPdfToGithub(req.file.buffer, `tenders/${req.file.originalname}`);
+      res.json({ url: rawUrl });
+    } catch (error) {
+      console.error('[TENDER PDF GITHUB UPLOAD ERROR]:', error);
+      res.status(500).json({ message: 'PDF upload failed', error: error.message });
+    }
+  });
+});
+
 module.exports = router;

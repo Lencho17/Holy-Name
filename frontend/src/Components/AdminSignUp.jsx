@@ -86,8 +86,12 @@ function AdminSignUp() {
         
         {/* Header Area */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-amber-500 rounded-2xl shadow-lg flex items-center justify-center mx-auto mb-6 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
-            <FaUserPlus className="text-4xl text-primary" />
+          <div className="w-20 h-20 rounded-2xl shadow-lg flex items-center justify-center mx-auto mb-6 transform -rotate-3 hover:rotate-0 transition-transform duration-300 overflow-hidden bg-white" style={{ background: schoolProfile?.logo ? '#fff' : '#f59e0b' }}>
+            {schoolProfile?.logo ? (
+              <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-2" />
+            ) : (
+              <FaUserPlus className="text-4xl text-primary" />
+            )}
           </div>
           <h1 className="text-3xl font-serif font-bold text-white mb-2">Create Admin Account</h1>
           <p className="text-white/80 font-medium">{schoolProfile?.name || "School"} Portal</p>

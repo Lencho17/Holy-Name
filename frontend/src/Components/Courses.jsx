@@ -139,23 +139,32 @@ function Courses() {
       </section>
 
       {/* Rules and Regulations */}
-      <section className="py-20 px-4 md:px-8 max-w-5xl mx-auto">
+      <section className="py-20 px-4 md:px-8 max-w-6xl mx-auto">
         <div className="bg-primary rounded-3xl p-8 md:p-14 shadow-2xl relative overflow-hidden text-white">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20"></div>
           <div className="absolute bottom-0 left-0 w-40 h-40 bg-white opacity-5 rounded-full -ml-10 -mb-10"></div>
           
           <div className="relative z-10">
-            <h2 className="text-3xl md:text-4xl font-serif font-bold mb-8 text-center">General Code of Conduct</h2>
+            <h2 className="text-3xl md:text-4xl font-serif font-bold mb-10 text-center">General Code of Conduct</h2>
             
-            <div className="bg-white/10 p-8 md:p-10 rounded-2xl backdrop-blur-sm border border-white/10">
-              <ul className="space-y-4 text-white/95 leading-relaxed text-lg font-medium text-left">
-                {rules.map((rule, idx) => (
-                  <li key={idx} className="flex items-start">
-                    <span className="text-amber-400 mr-3 mt-1">•</span>
-                    <span>{rule}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {rules.map((rule, idx) => {
+                const heading = typeof rule === 'string' ? '' : rule.heading;
+                const description = typeof rule === 'string' ? rule : rule.description;
+                return (
+                  <div key={idx} className="bg-white/10 p-6 rounded-2xl backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-colors duration-300">
+                    {heading && (
+                      <h3 className="text-lg font-bold text-amber-400 mb-2 flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-full bg-amber-400/20 flex items-center justify-center text-sm font-black text-amber-300 shrink-0">{idx + 1}</span>
+                        {heading}
+                      </h3>
+                    )}
+                    <p className="text-white/90 leading-relaxed text-[15px] font-medium pl-9">
+                      {description}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

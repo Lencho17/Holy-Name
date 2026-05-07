@@ -113,12 +113,12 @@ const defaultCoursesPage = {
     { title: "NCC 11th Assam Battalion", desc: "Elite membership program focused on discipline, leadership, and national service, building character through rigorous training.", iconType: "FaShieldAlt" }
   ],
   rules: [
-    "Students must maintain 80% attendance throughout the academic year.",
-    "Strict adherence to the school uniform policy is mandatory at all times.",
-    "Mobile phones and electronic gadgets are strictly prohibited on campus.",
-    "Respectful code of conduct towards peers, faculty, and administrative staff.",
-    "Participation in at least one extracurricular activity is highly encouraged.",
-    "Timely submission of assignments and project work is essential."
+    { heading: "Attendance Policy", description: "Students must maintain 80% attendance throughout the academic year." },
+    { heading: "Uniform Policy", description: "Strict adherence to the school uniform policy is mandatory at all times." },
+    { heading: "Electronic Devices", description: "Mobile phones and electronic gadgets are strictly prohibited on campus." },
+    { heading: "Respectful Conduct", description: "Respectful code of conduct towards peers, faculty, and administrative staff." },
+    { heading: "Extracurricular Activities", description: "Participation in at least one extracurricular activity is highly encouraged." },
+    { heading: "Assignment Submission", description: "Timely submission of assignments and project work is essential." }
   ]
 };
 

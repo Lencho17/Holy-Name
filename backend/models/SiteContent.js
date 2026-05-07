@@ -206,7 +206,10 @@ const siteContentSchema = new mongoose.Schema({
       desc: String,
       iconType: String
     }],
-    rules: [String]
+    rules: [{
+      heading: String,
+      description: String
+    }]
   },
   admissionFields: [
     {

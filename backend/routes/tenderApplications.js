@@ -107,6 +107,37 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// GET track application (public) - by reference number + email
+router.get('/track/:ref', async (req, res) => {
+  try {
+    const { ref } = req.params;
+    const { email } = req.query;
+
+    if (!ref || !email) {
+      return res.status(400).json({ message: 'Reference number and email are required.' });
+    }
+
+    const app = await TenderApplication.findOne({
+      referenceNumber: ref.toUpperCase(),
+      email: email.toLowerCase()
+    }).populate('tenderId');
+
+    if (!app) {
+      return res.status(404).json({ message: 'No application found with the provided reference number and email.' });
+    }
+
+    res.json({
+      referenceNumber: app.referenceNumber,
+      tenderTitle: app.tenderId?.title || 'Unknown Tender',
+      companyName: app.companyName,
+      status: app.status,
+      submittedAt: app.createdAt
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // GET single application (admin)
 router.get('/:id', protect, async (req, res) => {
   try {

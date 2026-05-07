@@ -76,6 +76,22 @@ exports.sanitizeString = (str) => {
   return str.trim().replace(/[<>]/g, '').slice(0, 500); // XSS prevention
 };
 
+const normalizeGradeForValidation = (val) => {
+  if (!val) return '';
+  const v = String(val).trim().toUpperCase();
+  if (v === 'PRE-NURSERY') return 'pre-nursery';
+  if (v.startsWith('KG I') || v === 'LKG') return 'kg1';
+  if (v.startsWith('KG II') || v === 'UKG') return 'kg2';
+  const classMatch = v.match(/^CLASS\s+(.+)$/);
+  if (classMatch) {
+    const num = classMatch[1].trim();
+    const romanMap = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10, 'XI': 11, 'XII': 12 };
+    const n = romanMap[num] || parseInt(num);
+    if (n) return `class${n}`;
+  }
+  return v.toLowerCase().replace(/\s+/g, '');
+};
+
 exports.validateGrade = (grade) => {
   const validGrades = [
     'pre-nursery', 'kg1', 'kg2',
@@ -86,7 +102,7 @@ exports.validateGrade = (grade) => {
     'class11-science', 'class11-commerce', 'class11-arts',
     'class12-science', 'class12-commerce', 'class12-arts'
   ];
-  return validGrades.includes(String(grade).toLowerCase().trim());
+  return validGrades.includes(normalizeGradeForValidation(grade));
 };
 
 exports.validateBloodGroup = (bg) => {

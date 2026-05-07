@@ -191,7 +191,7 @@ function Admission() {
             <option value="">SELECT GRADE</option>
             {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
-          {errorField === 'gender' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Please select a valid grade</p>}
+          {errorField === 'gradeApplied' && <p className="text-red-500 text-xs mt-1 font-semibold">⚠ Please select a valid grade</p>}
         </div>
       );
     }
@@ -635,6 +635,7 @@ function Admission() {
       setSubmitError('The Aadhaar number entered is invalid. Please verify the 12-digit number.');
       setErrorField('AadhaarNumber');
       setSubmitting(false);
+      setShowPreview(false);
       return;
     }
 
@@ -642,6 +643,7 @@ function Admission() {
     if (!formData.get('fatherName') && !formData.get('motherName') && !formData.get('guardianName')) {
       setSubmitError('Please provide at least one Parent or Guardian name.');
       setSubmitting(false);
+      setShowPreview(false);
       return;
     }
 
@@ -649,6 +651,7 @@ function Admission() {
     if (formData.get('guardianName') && !formData.get('relationship')) {
       setSubmitError('Please specify your relationship to the student.');
       setSubmitting(false);
+      setShowPreview(false);
       return;
     }
 
@@ -712,6 +715,7 @@ function Admission() {
               console.error('Payment initiation failed:', paymentErr);
               setSubmitError('Application saved, but payment initiation failed. Please contact the school.');
               setSubmitting(false);
+              setShowPreview(false);
               return;
           }
       }
@@ -729,6 +733,7 @@ function Admission() {
       const data = err.response?.data;
       const msg = data?.message || 'Submission failed. Please try again.';
       setSubmitError(msg);
+      setShowPreview(false);
       
       // Detect file upload errors and mark the documents section
       const isUploadError = msg.toLowerCase().includes('upload') || msg.toLowerCase().includes('file') || msg.toLowerCase().includes('resource');
@@ -753,9 +758,9 @@ function Admission() {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const primaryColor = [30, 58, 138]; // Deep Blue 900
-    const accentColor = [37, 99, 235]; // Blue 600
-    const lightColor = [248, 250, 252]; // Slate 50
+    const primaryColor = [40, 40, 40]; // Dark Gray
+    const accentColor = [100, 100, 100]; // Medium Gray
+    const lightColor = [245, 245, 245]; // Light Gray
 
     const loadImage = (url) => {
       return new Promise((resolve) => {
@@ -779,66 +784,65 @@ function Admission() {
       }
     }
 
-    // --- 1. Bold Header Bar ---
-    doc.setFillColor(...primaryColor);
-    doc.rect(0, 0, 210, 50, 'F');
-
+    // --- 1. Clean Header Area ---
     // School Logo
     const logoImg = schoolProfile?.logo ? await loadImage(schoolProfile.logo) : null;
     if (logoImg) {
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(0.8);
-      doc.roundedRect(12, 10, 30, 30, 2, 2, 'D');
-      doc.addImage(logoImg, 'PNG', 13, 11, 28, 28);
+      doc.addImage(logoImg, 'PNG', 15, 8, 25, 25);
     }
 
-    // Header Text (White)
-    doc.setTextColor(255, 255, 255);
+    // Header Text (Dark)
+    doc.setTextColor(30, 30, 30);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(schoolProfile?.name?.toUpperCase() || "HOLY NAME HIGH SCHOOL", 110, 22, { align: "center" });
-    
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text(schoolProfile?.officeAddress || "", 110, 28, { align: "center" });
-    
-    const contactInfo = [schoolProfile?.email, schoolProfile?.phone].filter(Boolean).join(" | ");
-    doc.text(contactInfo, 110, 33, { align: "center" });
+    doc.setFontSize(20);
+    doc.text(schoolProfile?.name?.toUpperCase() || "HOLY NAME HIGH SCHOOL", 115, 16, { align: "center" });
     
     doc.setFontSize(8);
-    doc.setTextColor(191, 219, 254);
-    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, 110, 38, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80, 80, 80);
+    doc.text(schoolProfile?.officeAddress || "", 115, 22, { align: "center" });
+    
+    const contactInfo = [schoolProfile?.email, schoolProfile?.phone].filter(Boolean).join(" | ");
+    doc.text(contactInfo, 115, 27, { align: "center" });
+    
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, 115, 32, { align: "center" });
+
+    // Separator line
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.line(15, 36, 195, 36);
 
     // --- 2. Title Section ---
     doc.setTextColor(...primaryColor);
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("ADMISSION APPLICATION SUCCESSFUL", 105, 65, { align: "center" });
+    doc.text("ADMISSION APPLICATION SUCCESSFUL", 105, 44, { align: "center" });
     
     doc.setDrawColor(...accentColor);
     doc.setLineWidth(0.5);
-    doc.line(60, 68, 150, 68);
+    doc.line(60, 47, 150, 47);
 
     // --- 3. Reference & Photo Row ---
     doc.setFillColor(...lightColor);
-    doc.roundedRect(15, 75, 140, 30, 3, 3, 'F');
+    doc.roundedRect(15, 51, 140, 22, 2, 2, 'F');
     doc.setDrawColor(...accentColor);
     doc.setLineWidth(0.3);
-    doc.roundedRect(15, 75, 140, 30, 3, 3, 'D');
+    doc.roundedRect(15, 51, 140, 22, 2, 2, 'D');
     
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...primaryColor);
-    doc.text(`REFERENCE NO: ${submittedData.referenceNumber}`, 22, 85);
+    doc.text(`REFERENCE NO: ${submittedData.referenceNumber}`, 20, 59);
     
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(71, 85, 105);
     doc.setFont("helvetica", "normal");
-    doc.text(`Applicant: ${submittedData.studentName}`, 22, 91);
-    doc.text(`Contact: ${submittedData.contactNumber || 'N/A'}`, 22, 97);
+    doc.text(`Applicant: ${submittedData.studentName}  |  Contact: ${submittedData.contactNumber || 'N/A'}`, 20, 66);
 
     doc.setDrawColor(...primaryColor);
     doc.setLineWidth(0.5);
-    doc.roundedRect(165, 75, 30, 35, 2, 2, 'D');
+    doc.roundedRect(165, 51, 28, 28, 2, 2, 'D');
     
     let studentPhotoUrl = null;
     if (typeof submittedData?.studentPhoto === 'string') {
@@ -851,11 +855,11 @@ function Admission() {
 
     const studentImg = studentPhotoUrl ? await loadImage(studentPhotoUrl) : null;
     if (studentImg) {
-      doc.addImage(studentImg, 'JPEG', 166, 76, 28, 33);
+      doc.addImage(studentImg, 'JPEG', 166, 52, 26, 26);
     } else {
       doc.setFontSize(7);
       doc.setTextColor(148, 163, 184);
-      doc.text("PHOTO\nSPACE", 180, 92, { align: "center" });
+      doc.text("PHOTO", 179, 65, { align: "center" });
     }
 
     // --- 4. Watermark (Brackets Removed) ---
@@ -867,16 +871,16 @@ function Admission() {
     // --- 5. Dynamic Fields Section ---
     let leftColX = 15;
     let rightColX = 110;
-    let startY = 120;
-    let yInc = 8;
+    let startY = 88;
+    let yInc = 7;
     let currY = startY;
 
     doc.setTextColor(...primaryColor);
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text("APPLICATION DETAILS", 15, currY - 5);
+    doc.text("APPLICATION DETAILS", 15, currY - 4);
     doc.setDrawColor(...accentColor);
-    doc.line(15, currY - 3, 60, currY - 3);
+    doc.line(15, currY - 2, 55, currY - 2);
 
     // Helper to format values
     const formatValue = (val) => {
@@ -903,57 +907,60 @@ function Admission() {
       const leftVal = leftField ? submittedData[leftField.name] : null;
       const rightVal = rightField ? submittedData[rightField.name] : null;
 
-      const leftSplit = leftField ? doc.splitTextToSize(formatValue(leftVal), 42) : [];
-      const rightSplit = rightField ? doc.splitTextToSize(formatValue(rightVal), 42) : [];
-      const maxLines = Math.max(leftSplit.length || 1, rightSplit.length || 1);
+      const leftLabelSplit = leftField ? doc.splitTextToSize(`${leftField.label.toUpperCase()}:`, 52) : [];
+      const rightLabelSplit = rightField ? doc.splitTextToSize(`${rightField.label.toUpperCase()}:`, 52) : [];
+
+      const leftSplit = leftField ? doc.splitTextToSize(formatValue(leftVal), 38) : [];
+      const rightSplit = rightField ? doc.splitTextToSize(formatValue(rightVal), 34) : [];
+      
+      const maxLines = Math.max(leftSplit.length || 1, rightSplit.length || 1, leftLabelSplit.length || 1, rightLabelSplit.length || 1);
 
       if (i % 2 === 0) {
         doc.setFillColor(248, 250, 252);
-        doc.rect(12, currY - 5, 186, yInc + ((maxLines - 1) * 4) + 2, 'F');
+        doc.rect(12, currY - 4, 186, yInc + ((maxLines - 1) * 3.5) + 1, 'F');
       }
 
       if (leftField) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
-        doc.text(`${leftField.label.toUpperCase()}:`, leftColX, currY);
+        doc.text(leftLabelSplit, leftColX, currY);
         
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.setTextColor(15, 23, 42);
-        doc.text(leftSplit, leftColX + 48, currY);
+        doc.text(leftSplit, leftColX + 54, currY);
       }
 
       if (rightField) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
-        doc.text(`${rightField.label.toUpperCase()}:`, rightColX, currY);
+        doc.text(rightLabelSplit, rightColX, currY);
         
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.setTextColor(15, 23, 42);
-        doc.text(rightSplit, rightColX + 48, currY);
+        doc.text(rightSplit, rightColX + 54, currY);
       }
       
-      currY += yInc + ((maxLines - 1) * 4);
+      currY += yInc + ((maxLines - 1) * 3.5);
 
       // Add a new page if we're near the bottom
-      if (currY > 260) {
+      if (currY > 265) {
         doc.addPage();
         currY = 20;
       }
     }
 
     // Special handling for Age, Board Marks, and Elective Subjects (if not in admissionFields)
-    currY += 10;
-    if (currY > 260) { doc.addPage(); currY = 20; }
+    currY += 5;
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
     doc.text("ADDITIONAL INFORMATION", 15, currY);
-    currY += 5;
+    currY += 4;
 
     const renderAdditional = (label, val, x, y) => {
       doc.setFont("helvetica", "normal");
@@ -989,31 +996,31 @@ function Admission() {
     }
 
     // --- 6. Notice Block ---
-    currY += 15;
-    doc.setFillColor(254, 252, 232);
-    doc.roundedRect(15, currY, 180, 22, 3, 3, 'F');
-    doc.setDrawColor(254, 240, 138);
-    doc.roundedRect(15, currY, 180, 22, 3, 3, 'D');
+    currY += 5;
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(15, currY, 180, 18, 2, 2, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.roundedRect(15, currY, 180, 18, 2, 2, 'D');
     
-    doc.setFontSize(9);
-    doc.setTextColor(161, 98, 7);
-    doc.setFont("helvetica", "bold");
-    doc.text("IMPORTANT INSTRUCTIONS:", 20, currY + 8);
-    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text("Please bring this original receipt along with all required original documents (Aadhaar, Birth Certificate, etc.)", 20, currY + 13);
-    doc.text("for the scheduled interview. Admission selection depends on the verification of these submitted details.", 20, currY + 17);
+    doc.setTextColor(80, 80, 80);
+    doc.setFont("helvetica", "bold");
+    doc.text("IMPORTANT:", 20, currY + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text("Please bring this original receipt along with all required original documents (Aadhaar, Birth Certificate, etc.)", 20, currY + 11);
+    doc.text("for the scheduled interview. Admission selection depends on the verification of these submitted details.", 20, currY + 15);
 
     // --- 7. Footer ---
     doc.setDrawColor(226, 232, 240);
-    doc.line(15, 275, 195, 275);
+    doc.line(15, 280, 195, 280);
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(...primaryColor);
-    doc.text(`${schoolProfile?.name || "Holy Name High School"} | Contact: ${schoolProfile?.phone || "N/A"}`, 105, 282, { align: "center" });
+    doc.text(`${schoolProfile?.name || "Holy Name High School"} | Contact: ${schoolProfile?.phone || "N/A"}`, 105, 285, { align: "center" });
     
     doc.setTextColor(148, 163, 184);
-    doc.text("Securely Powered by VidyaBarta Management Software - A Product of Lencho Solutions", 105, 287, { align: "center" });
+    doc.text("Securely Powered by VidyaBarta Management Software - A Product of Lencho Solutions", 105, 289, { align: "center" });
 
     doc.save(`Admission_Receipt_${submittedData.referenceNumber}.pdf`);
   };
@@ -1339,7 +1346,11 @@ function Admission() {
               )}
 
               <div className="space-y-12 animate-fade-in">
-                {([...new Set(admissionFields.map(f => f.section))]).map(sectionName => (
+                {([...new Set(admissionFields.map(f => f.section))]).map(sectionName => {
+                  if (sectionName === "Academic Background" && gradeKey && ["pre-nursery", "kg1", "kg2"].includes(gradeKey)) {
+                    return null;
+                  }
+                  return (
                   <div key={sectionName} className="space-y-6">
                     <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b-2 border-primary/10 pb-2 flex items-center gap-3">
                       <span className="w-1.5 h-6 bg-primary rounded-full"></span>
@@ -1502,9 +1513,9 @@ function Admission() {
                             {selectedStream && (
                               <div className="md:col-span-2 bg-slate-50 p-6 rounded-2xl border border-slate-200">
                                 <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center justify-between">
-                                  <span>Select Elective Subjects (Select 4) *</span>
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedSubjects.length === 4 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                                    {selectedSubjects.length} / 4 Selected
+                                  <span>Select Elective Subjects (Select {selectedStream === 'science' ? 2 : 4}) *</span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedSubjects.length === (selectedStream === 'science' ? 2 : 4) ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {selectedSubjects.length} / {selectedStream === 'science' ? 2 : 4} Selected
                                   </span>
                                 </h4>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1624,7 +1635,8 @@ function Admission() {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <h3 className="text-xl font-serif font-bold text-primary mt-8 mb-4 border-b pb-2">Documents to Upload</h3>
@@ -1718,14 +1730,14 @@ function Admission() {
                   )}
                 </div>
                 )}
-                {caste !== 'General' && (
+                {caste && caste.toLowerCase() !== 'general' && (
                   <div className="md:col-span-2 p-6 bg-amber-50 rounded-2xl border border-amber-200 animate-fadeIn transition-all">
                     <h3 className="font-bold text-amber-800 mb-4 flex items-center">
                       <FaIdBadge className="mr-2" /> Caste Certificate *
                     </h3>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-amber-600 uppercase tracking-widest">Upload Certificate ({caste})</label>
-                      <input required={caste !== 'General'} type="file" name="casteCertificate" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'casteCertificate')} className="w-full px-4 py-[9px] rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" />
+                      <input required={caste.toLowerCase() !== 'general'} type="file" name="casteCertificate" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFilePreview(e, 'casteCertificate')} className="w-full px-4 py-[9px] rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors bg-white" />
                       <p className="text-xs text-amber-700/70 mt-1">Required for {caste} category. (Max 5MB)</p>
                       {filePreviews.casteCertificate && (
                         <div className="mt-2 p-2 bg-white rounded-xl border border-amber-200 flex items-center gap-3">
@@ -1805,9 +1817,9 @@ function Admission() {
               </div>
 
               {/* Receipt Preview */}
-              <div className="bg-white p-8 md:p-10 rounded-3xl border-2 border-gray-100 text-left relative shadow-2xl overflow-hidden mb-10 transition-all hover:shadow-primary/5">
+              <div className="bg-white p-8 md:p-10 rounded-3xl border-2 border-gray-200 text-left relative shadow-xl overflow-hidden mb-10 transition-all">
                 {/* Top Accent Bar */}
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500"></div>
+                <div className="absolute top-0 left-0 w-full h-2 bg-gray-900"></div>
 
                 {/* School Header */}
                 <div className="flex flex-col items-center text-center border-b border-gray-100 pb-8 mb-8 pt-4">
@@ -1821,7 +1833,7 @@ function Admission() {
                   <h2 className="text-3xl md:text-4xl font-serif font-black text-primary tracking-tighter leading-none mb-2">
                     {schoolProfile?.name || "HOLY NAME HS SCHOOL"}
                   </h2>
-                  <p className="text-sm text-amber-600 font-bold italic tracking-widest opacity-80 uppercase">
+                  <p className="text-sm text-gray-600 font-bold italic tracking-widest opacity-80 uppercase">
                     {schoolProfile?.punchLine}
                   </p>
                   {schoolProfile?.officeAddress && (
@@ -1837,9 +1849,9 @@ function Admission() {
                 </div>
 
                 {/* Reference ID Highlight */}
-                <div className="bg-slate-900 rounded-2xl p-8 mb-8 text-center border border-slate-800 shadow-inner group transition-colors hover:bg-slate-950">
-                  <p className="text-blue-400 text-xs font-black uppercase tracking-[0.2em] mb-3">Application Reference Number</p>
-                  <p className="font-mono text-4xl md:text-5xl font-black text-white tracking-tighter select-all">
+                <div className="bg-white rounded-2xl p-8 mb-8 text-center border-2 border-gray-900 shadow-sm group transition-colors">
+                  <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] mb-3">Application Reference Number</p>
+                  <p className="font-mono text-4xl md:text-5xl font-black text-gray-900 tracking-tighter select-all">
                     {submittedData.referenceNumber}
                   </p>
                 </div>
@@ -1847,32 +1859,32 @@ function Admission() {
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-4">
-                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:border-amber-200 transition-colors">
+                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
                       <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Student Name</span>
                       <span className="font-black text-gray-800">{submittedData.studentName}</span>
                     </div>
-                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:border-amber-200 transition-colors">
+                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
                       <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Class Applied</span>
                       <span className="font-black text-gray-800 uppercase">{submittedData.gradeApplied}</span>
                     </div>
                     {submittedData.stream && (
-                      <div className="flex justify-between p-4 bg-blue-50 rounded-xl border border-blue-100 group hover:border-blue-300 transition-colors">
-                        <span className="text-blue-600 font-bold uppercase text-[10px] tracking-wider">Stream</span>
-                        <span className="font-black text-blue-900 uppercase">{submittedData.stream}</span>
+                      <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
+                        <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Stream</span>
+                        <span className="font-black text-gray-800 uppercase">{submittedData.stream}</span>
                       </div>
                     )}
                   </div>
                   <div className="space-y-4">
-                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:border-amber-200 transition-colors">
+                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
                       <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Applied Date</span>
                       <span className="font-black text-gray-800">{submittedData.dateOfApplication}</span>
                     </div>
-                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:border-amber-200 transition-colors">
+                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
                       <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Contact No</span>
                       <span className="font-black text-gray-800">{submittedData.contactNumber}</span>
                     </div>
                     {submittedData.penNumber && (
-                      <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:border-amber-200 transition-colors">
+                      <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
                         <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">PEN Number</span>
                         <span className="font-mono font-black text-gray-800">{submittedData.penNumber}</span>
                       </div>
@@ -1888,7 +1900,7 @@ function Admission() {
                       {submittedData.mil && <span className="px-4 py-2 bg-white text-slate-700 font-bold rounded-full text-xs border border-slate-200 shadow-sm capitalize">Language: {submittedData.mil}</span>}
                       {submittedData.elective && <span className="px-4 py-2 bg-white text-slate-700 font-bold rounded-full text-xs border border-slate-200 shadow-sm capitalize">Elective: {submittedData.elective.replace(/_/g, ' ')}</span>}
                       {submittedData.selectedSubjects?.map((sub, i) => (
-                        <span key={i} className="px-4 py-2 bg-amber-500 text-white font-bold rounded-full text-xs shadow-sm shadow-amber-200">{sub}</span>
+                        <span key={i} className="px-4 py-2 bg-gray-900 text-white font-bold rounded-full text-xs shadow-sm">{sub}</span>
                       ))}
                     </div>
                   </div>
@@ -1896,7 +1908,7 @@ function Admission() {
 
                 {/* Warning / Footer */}
                 <div className="mt-8 pt-8 border-t border-gray-100 text-center">
-                  <div className="flex items-center justify-center gap-2 text-amber-600 mb-2">
+                  <div className="flex items-center justify-center gap-2 text-gray-800 mb-2">
                     <FaExclamationCircle className="text-sm" />
                     <p className="text-xs font-bold uppercase tracking-wider">Next Step Instruction</p>
                   </div>

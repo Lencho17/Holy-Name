@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SiteDataContext } from '../context/SiteDataContext';
@@ -53,6 +53,9 @@ function AdminPage() {
   const [isTenderUploading, setIsTenderUploading] = useState(false);
   const [editingTenderId, setEditingTenderId] = useState(null);
   const [tenderFile, setTenderFile] = useState(null);
+  const [tenderAppFilter, setTenderAppFilter] = useState('All');
+  const [tenderAppStatusFilter, setTenderAppStatusFilter] = useState('All');
+  const [selectedTenderApp, setSelectedTenderApp] = useState(null);
 
   useEffect(() => {
     const restoreSession = () => {
@@ -750,7 +753,27 @@ function AdminPage() {
     try {
       let docUrl = newTender.documentUrl;
       if (tenderFile) {
-        docUrl = await uploadImage(tenderFile); // Reusing uploadImage for PDFs is usually fine if backend allows
+        // Upload PDF to GitHub (not Cloudinary — Cloudinary doesn't handle PDFs)
+        const token = localStorage.getItem('adminToken');
+        const formData = new FormData();
+        formData.append('pdf', tenderFile);
+        const uploadRes = await fetch(`${API_URL}/content/upload-pdf`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
+        });
+        if (!uploadRes.ok) {
+          let errorMessage = 'Server error';
+          try {
+            const errData = await uploadRes.json();
+            errorMessage = errData.error ? `${errData.message} - ${errData.error}` : (errData.message || errorMessage);
+          } catch (_) {
+            errorMessage = `HTTP Error ${uploadRes.status}`;
+          }
+          throw new Error(`PDF upload failed: ${errorMessage}`);
+        }
+        const uploadData = await uploadRes.json();
+        docUrl = uploadData.url;
       }
 
       const token = localStorage.getItem('adminToken');
@@ -5160,37 +5183,53 @@ function AdminPage() {
           <div className="flex justify-between items-center border-b pb-4 mb-4">
             <h3 className="text-xl font-bold text-gray-800">Code of Conduct (Rules)</h3>
             <button
-              onClick={() => setLocalCoursesPage({...localCoursesPage, rules: [...(localCoursesPage?.rules || []), "New Rule"]})}
+              onClick={() => setLocalCoursesPage({...localCoursesPage, rules: [...(localCoursesPage?.rules || []), { heading: "New Rule", description: "" }]})}
               className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
             >
               <FaPlus className="mr-2" /> Add Rule
             </button>
           </div>
-          <div className="space-y-3">
-            {(localCoursesPage?.rules || []).map((rule, index) => (
-              <div key={index} className="flex gap-2 items-center">
-                <span className="font-bold text-gray-400 w-6">{index + 1}.</span>
-                <input
-                  type="text"
-                  value={rule}
-                  onChange={(e) => {
-                    const newRules = [...localCoursesPage.rules];
-                    newRules[index] = e.target.value;
-                    setLocalCoursesPage({...localCoursesPage, rules: newRules});
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
-                />
-                <button
-                  onClick={() => {
-                    const newRules = localCoursesPage.rules.filter((_, i) => i !== index);
-                    setLocalCoursesPage({...localCoursesPage, rules: newRules});
-                  }}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <FaTrash />
-                </button>
-              </div>
-            ))}
+          <div className="space-y-4">
+            {(localCoursesPage?.rules || []).map((rule, index) => {
+              const ruleObj = typeof rule === 'string' ? { heading: '', description: rule } : rule;
+              return (
+                <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
+                  <span className="font-bold text-gray-400 w-6 mt-2 shrink-0">{index + 1}.</span>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="text"
+                      value={ruleObj.heading || ''}
+                      onChange={(e) => {
+                        const newRules = [...localCoursesPage.rules];
+                        newRules[index] = { ...ruleObj, heading: e.target.value };
+                        setLocalCoursesPage({...localCoursesPage, rules: newRules});
+                      }}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold"
+                      placeholder="Rule Heading (e.g. Attendance Policy)"
+                    />
+                    <textarea
+                      value={ruleObj.description || ''}
+                      onChange={(e) => {
+                        const newRules = [...localCoursesPage.rules];
+                        newRules[index] = { ...ruleObj, description: e.target.value };
+                        setLocalCoursesPage({...localCoursesPage, rules: newRules});
+                      }}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[60px]"
+                      placeholder="Rule Description"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newRules = localCoursesPage.rules.filter((_, i) => i !== index);
+                      setLocalCoursesPage({...localCoursesPage, rules: newRules});
+                    }}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>
@@ -5627,6 +5666,19 @@ function AdminPage() {
   };
 
   const renderTendersTab = () => {
+    // Filter logic
+    const filteredApps = tenderApplications.filter(app => {
+      const matchesTender = tenderAppFilter === 'All' || (app.tenderId?._id === tenderAppFilter || app.tenderId === tenderAppFilter);
+      const matchesStatus = tenderAppStatusFilter === 'All' || app.status === tenderAppStatusFilter;
+      return matchesTender && matchesStatus;
+    });
+
+    const stats = {
+      total: tenderApplications.length,
+      pending: tenderApplications.filter(a => a.status === 'Pending').length,
+      awarded: tenderApplications.filter(a => a.status === 'Awarded').length
+    };
+
     return (
       <div className="space-y-8 animate-fadeIn">
         <header className="mb-4">
@@ -5634,281 +5686,316 @@ function AdminPage() {
           <p className="text-gray-500 mt-2">Manage school tender notices and review vendor applications.</p>
         </header>
 
-        {/* Post/Edit Tender Section */}
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <FaGavel className="text-primary" /> {editingTenderId ? 'Edit Tender Notice' : 'Post New Tender'}
-          </h3>
-          <form onSubmit={handleTenderSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-gray-700 mb-1">Tender Title *</label>
-              <input 
-                type="text" 
-                value={newTender.title} 
-                onChange={e => setNewTender({...newTender, title: e.target.value})}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
-                placeholder="e.g. Supply of Science Laboratory Equipment"
-                required
-              />
-            </div>
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaGavel /></div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Tender Number *</label>
-              <input 
-                type="text" 
-                value={newTender.tenderNumber} 
-                onChange={e => setNewTender({...newTender, tenderNumber: e.target.value})}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
-                placeholder="e.g. HNS/2025/T-04"
-                required
-              />
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Tenders</p>
+              <h4 className="text-2xl font-black text-gray-800">{tenders.length}</h4>
             </div>
+          </div>
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaClock /></div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Category</label>
-              <select 
-                value={newTender.category} 
-                onChange={e => setNewTender({...newTender, category: e.target.value})}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-white"
-              >
-                <option value="Construction">Construction</option>
-                <option value="Supplies">Supplies</option>
-                <option value="Services">Services</option>
-                <option value="IT & Computers">IT & Computers</option>
-                <option value="Other">Other</option>
-              </select>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Pending Bids</p>
+              <h4 className="text-2xl font-black text-gray-800">{stats.pending}</h4>
             </div>
+          </div>
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaCheckCircle /></div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Estimated Value (₹)</label>
-              <input 
-                type="text" 
-                value={newTender.estimatedValue} 
-                onChange={e => setNewTender({...newTender, estimatedValue: e.target.value})}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
-                placeholder="e.g. 5,00,000"
-              />
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Awarded Bids</p>
+              <h4 className="text-2xl font-black text-gray-800">{stats.awarded}</h4>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Closing Date *</label>
-              <input 
-                type="date" 
-                value={newTender.closingDate} 
-                onChange={e => setNewTender({...newTender, closingDate: e.target.value})}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
-                required
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
-              <textarea 
-                value={newTender.description} 
-                onChange={e => setNewTender({...newTender, description: e.target.value})}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none min-h-[100px]"
-                placeholder="Brief description of the tender requirements..."
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-gray-700 mb-1">Tender Document (PDF)</label>
-              <div className="flex items-center gap-4">
-                <input 
-                  type="file" 
-                  accept=".pdf"
-                  onChange={e => setTenderFile(e.target.files[0])}
-                  className="flex-1 p-2 border border-dashed border-gray-300 rounded-xl text-sm"
-                />
-                {newTender.documentUrl && !tenderFile && (
-                  <span className="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded">Current Doc Exists</span>
-                )}
-              </div>
-            </div>
-            <div className="md:col-span-2 flex gap-3">
-              <button 
-                type="submit" 
-                disabled={isTenderUploading}
-                className="bg-primary text-white px-8 py-3 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-md flex items-center gap-2 disabled:bg-gray-400"
-              >
-                {isTenderUploading ? <FaSpinner className="animate-spin" /> : (editingTenderId ? <FaEdit /> : <FaPlus />)}
-                {editingTenderId ? 'Update Tender' : 'Post Tender'}
-              </button>
-              {editingTenderId && (
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setEditingTenderId(null);
-                    setNewTender({ title: '', tenderNumber: '', category: 'Other', description: '', estimatedValue: '', closingDate: '', documentUrl: '' });
-                    setTenderFile(null);
-                  }}
-                  className="bg-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold hover:bg-gray-300 transition-all"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
-        </section>
+          </div>
+        </div>
 
-        {/* Tenders List */}
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800 mb-6">Active Tender Notices</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
-                  <th className="pb-3 px-2">Tender No.</th>
-                  <th className="pb-3">Title</th>
-                  <th className="pb-3">Closing Date</th>
-                  <th className="pb-3">Applications</th>
-                  <th className="pb-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {tenders.map(tender => {
-                  const appCount = tenderApplications.filter(a => a.tender?._id === tender._id || a.tender === tender._id).length;
-                  return (
-                    <tr key={tender._id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="py-4 px-2 font-mono text-xs font-bold text-blue-600">{tender.tenderNumber}</td>
-                      <td className="py-4 font-bold text-gray-800">{tender.title}</td>
-                      <td className="py-4 text-sm text-gray-600">
-                        {new Date(tender.closingDate).toLocaleDateString()}
-                        {new Date(tender.closingDate) < new Date() && (
-                          <span className="ml-2 bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-black uppercase">Expired</span>
-                        )}
-                      </td>
-                      <td className="py-4 text-sm font-bold text-gray-500">{appCount} Received</td>
-                      <td className="py-4 text-right">
-                        <button 
-                          onClick={() => {
-                            setEditingTenderId(tender._id);
-                            setNewTender({
-                              title: tender.title,
-                              tenderNumber: tender.tenderNumber,
-                              category: tender.category,
-                              description: tender.description || '',
-                              estimatedValue: tender.estimatedValue || '',
-                              closingDate: tender.closingDate ? new Date(tender.closingDate).toISOString().split('T')[0] : '',
-                              documentUrl: tender.documentUrl
-                            });
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                          className="text-blue-500 hover:text-blue-700 mr-4"
-                        >
-                          <FaEdit />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteTender(tender._id)}
-                          className="text-red-400 hover:text-red-600"
-                        >
-                          <FaTrash />
-                        </button>
-                      </td>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* LEFT: Post/Edit Tender Form */}
+          <div className="xl:col-span-1">
+            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 sticky top-8">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center"><FaPlus className="text-xs" /></div>
+                {editingTenderId ? 'Edit Tender Notice' : 'Post New Tender'}
+              </h3>
+              <form onSubmit={handleTenderSubmit} className="space-y-5">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tender Title *</label>
+                  <input required type="text" value={newTender.title} onChange={e => setNewTender({...newTender, title: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700" placeholder="e.g. Science Lab Supplies" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tender No. *</label>
+                    <input required type="text" value={newTender.tenderNumber} onChange={e => setNewTender({...newTender, tenderNumber: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700" placeholder="HNS/25/T-04" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Category</label>
+                    <select value={newTender.category} onChange={e => setNewTender({...newTender, category: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700">
+                      <option value="Construction">Construction</option>
+                      <option value="Supply">Supply</option>
+                      <option value="Services">Services</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="IT">IT & Computers</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Value (₹)</label>
+                    <input type="text" value={newTender.estimatedValue} onChange={e => setNewTender({...newTender, estimatedValue: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700" placeholder="5,00,000" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Closing Date *</label>
+                    <input required type="date" value={newTender.closingDate} onChange={e => setNewTender({...newTender, closingDate: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Description</label>
+                  <textarea value={newTender.description} onChange={e => setNewTender({...newTender, description: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700 min-h-[80px]" placeholder="Requirements details..." />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tender Document (PDF)</label>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 relative">
+                      <input type="file" accept=".pdf" onChange={e => setTenderFile(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                      <div className="w-full p-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-gray-400">
+                        <FaFileUpload /> {tenderFile ? tenderFile.name : 'Choose PDF'}
+                      </div>
+                    </div>
+                    {newTender.documentUrl && !tenderFile && <div className="p-3 bg-green-50 text-green-600 rounded-xl border border-green-100"><FaCheckCircle /></div>}
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="submit" disabled={isTenderUploading} className="flex-1 bg-primary text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">
+                    {isTenderUploading ? <FaSpinner className="animate-spin" /> : (editingTenderId ? 'Update Notice' : 'Post Notice')}
+                  </button>
+                  {editingTenderId && (
+                    <button type="button" onClick={() => { setEditingTenderId(null); setNewTender({ title: '', tenderNumber: '', category: 'Other', description: '', estimatedValue: '', closingDate: '', documentUrl: '' }); setTenderFile(null); }} className="bg-gray-100 text-gray-500 px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-200 transition-all">Cancel</button>
+                  )}
+                </div>
+              </form>
+            </section>
+          </div>
+
+          {/* RIGHT: Tenders List */}
+          <div className="xl:col-span-2 space-y-8">
+            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center"><FaGavel className="text-xs" /></div>
+                Active Tender Notices
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                      <th className="pb-4 px-2">Tender Info</th>
+                      <th className="pb-4">Category</th>
+                      <th className="pb-4">Deadline</th>
+                      <th className="pb-4 text-right">Actions</th>
                     </tr>
-                  );
-                })}
-                {tenders.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="py-12 text-center text-gray-400 italic">No tenders posted yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {tenders.map(tender => {
+                      const appCount = tenderApplications.filter(a => (a.tenderId?._id === tender._id || a.tenderId === tender._id)).length;
+                      const isExpired = new Date(tender.closingDate) < new Date();
+                      return (
+                        <tr key={tender._id} className="group hover:bg-gray-50/50 transition-colors">
+                          <td className="py-5 px-2">
+                            <div className="text-xs font-black text-primary mb-0.5">{tender.tenderNumber}</div>
+                            <div className="font-bold text-gray-800 leading-tight">{tender.title}</div>
+                            <div className="text-[10px] font-bold text-gray-400 mt-1">{appCount} applications received</div>
+                          </td>
+                          <td className="py-5">
+                            <span className="text-[10px] font-black uppercase px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg">{tender.category}</span>
+                          </td>
+                          <td className="py-5">
+                            <div className={`text-sm font-bold ${isExpired ? 'text-red-500' : 'text-gray-700'}`}>
+                              {new Date(tender.closingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </div>
+                            {isExpired && <div className="text-[10px] font-black text-red-400 uppercase tracking-tighter">Deadline Passed</div>}
+                          </td>
+                          <td className="py-5 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => { setEditingTenderId(tender._id); setNewTender({ title: tender.title, tenderNumber: tender.tenderNumber, category: tender.category, description: tender.description || '', estimatedValue: tender.estimatedValue || '', closingDate: tender.closingDate ? new Date(tender.closingDate).toISOString().split('T')[0] : '', documentUrl: tender.documentUrl }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-all"><FaEdit className="text-xs" /></button>
+                              <button onClick={() => handleDeleteTender(tender._id)} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"><FaTrash className="text-xs" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-        {/* Tender Applications Section */}
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              Tender Submissions (Bids)
-            </h3>
-            <div className="flex items-center gap-4">
-              <div className="text-xs font-black uppercase text-gray-400">Total: {tenderApplications.length}</div>
-              <button 
-                onClick={handleExportTenders}
-                disabled={isExportingTenders || tenderApplications.length === 0}
-                className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isExportingTenders ? <FaSpinner className="animate-spin" /> : <FaDownload />}
-                {isExportingTenders ? 'Exporting...' : 'Export to Excel'}
-              </button>
-            </div>
+            {/* Tender Bids List with Advanced Filtering */}
+            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center"><FaFileUpload className="text-xs" /></div>
+                    Vendor Submissions (Bids)
+                  </h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Showing {filteredApps.length} of {tenderApplications.length} total bids</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                  <select value={tenderAppFilter} onChange={e => setTenderAppFilter(e.target.value)} className="bg-gray-50 border-0 text-xs font-bold text-gray-600 px-4 py-2.5 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none">
+                    <option value="All">All Tenders</option>
+                    {tenders.map(t => <option key={t._id} value={t._id}>{t.tenderNumber} - {t.title}</option>)}
+                  </select>
+                  <select value={tenderAppStatusFilter} onChange={e => setTenderAppStatusFilter(e.target.value)} className="bg-gray-50 border-0 text-xs font-bold text-gray-600 px-4 py-2.5 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none">
+                    <option value="All">All Statuses</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Shortlisted">Shortlisted</option>
+                    <option value="Awarded">Awarded</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                  <button onClick={handleExportTenders} disabled={isExportingTenders || tenderApplications.length === 0} className="bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center gap-2">
+                    {isExportingTenders ? <FaSpinner className="animate-spin" /> : <FaDownload />} Export
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                      <th className="pb-4 px-2">Bid Reference</th>
+                      <th className="pb-4">Vendor Details</th>
+                      <th className="pb-4">Bid Amount</th>
+                      <th className="pb-4">Status</th>
+                      <th className="pb-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredApps.map(app => (
+                      <tr key={app._id} className="hover:bg-gray-50/30 transition-colors">
+                        <td className="py-5 px-2">
+                          <div className="text-xs font-black text-emerald-600 mb-0.5">{app.referenceNumber}</div>
+                          <div className="text-[10px] font-bold text-gray-400 leading-tight truncate max-w-[150px]">For: {app.tenderId?.title || 'Unknown'}</div>
+                          <div className="text-[10px] text-gray-300 mt-1">{new Date(app.createdAt).toLocaleDateString()}</div>
+                        </td>
+                        <td className="py-5">
+                          <div className="font-bold text-gray-800 leading-tight uppercase text-xs">{app.companyName}</div>
+                          <div className="text-[10px] font-bold text-gray-400 mt-1">{app.contactPerson}</div>
+                        </td>
+                        <td className="py-5">
+                          <div className="text-sm font-black text-primary">₹{Number(app.bidAmount).toLocaleString('en-IN')}</div>
+                          <div className="flex gap-1.5 mt-1.5">
+                            <a href={app.technicalProposalUrl} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase px-2 py-0.5 bg-blue-50 text-blue-500 rounded border border-blue-100 hover:bg-blue-500 hover:text-white transition-all">Tech</a>
+                            <a href={app.financialProposalUrl} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase px-2 py-0.5 bg-emerald-50 text-emerald-500 rounded border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all">Fin</a>
+                          </div>
+                        </td>
+                        <td className="py-5">
+                          <select 
+                            value={app.status} 
+                            onChange={(e) => handleTenderAppStatus(app._id, e.target.value)}
+                            className={`text-[10px] font-black uppercase px-2.5 py-1.5 rounded-lg border-0 bg-gray-50 focus:ring-2 outline-none transition-all ${
+                              app.status === 'Awarded' ? 'text-emerald-700 ring-emerald-500/20' :
+                              app.status === 'Rejected' ? 'text-red-700 ring-red-500/20' :
+                              'text-amber-700 ring-amber-500/20'
+                            }`}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Under Review">Under Review</option>
+                            <option value="Shortlisted">Shortlisted</option>
+                            <option value="Awarded">Awarded</option>
+                            <option value="Rejected">Rejected</option>
+                          </select>
+                        </td>
+                        <td className="py-5 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => setSelectedTenderApp(app)} className="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-lg hover:bg-primary hover:text-white transition-all"><FaFileAlt className="text-xs" /></button>
+                            <button onClick={() => { if(window.confirm('Delete this application?')) { const token = localStorage.getItem('adminToken'); fetch(`${API_URL}/tender-applications/${app._id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).then(res => { if(res.ok) setTenderApplications(tenderApplications.filter(a => a._id !== app._id)); }); } }} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"><FaTrash className="text-xs" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {filteredApps.length === 0 && <div className="py-20 text-center text-gray-400 italic bg-gray-50/50 rounded-3xl mt-4">No submissions found matching your filters.</div>}
+              </div>
+            </section>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
-                  <th className="pb-3 px-2">Ref No.</th>
-                  <th className="pb-3">Company</th>
-                  <th className="pb-3">Tender</th>
-                  <th className="pb-3">Bid Details</th>
-                  <th className="pb-3">Status</th>
-                  <th className="pb-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {tenderApplications.map(app => (
-                  <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="py-4 px-2 font-mono text-xs font-bold text-green-600">{app.referenceNumber}</td>
-                    <td className="py-4">
-                      <div className="font-bold text-gray-800">{app.companyName}</div>
-                      <div className="text-[10px] text-gray-400">{app.contactPerson} | {app.phone}</div>
-                    </td>
-                    <td className="py-4 text-sm text-gray-600 max-w-[200px] truncate">
-                      {app.tender?.title || 'Unknown Tender'}
-                    </td>
-                    <td className="py-4 text-sm text-gray-600">
-                       <div className="font-bold text-primary">₹{app.bidAmount}</div>
-                       <div className="flex gap-2 mt-1">
-                          <a href={app.technicalProposalUrl} target="_blank" rel="noreferrer" className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 transition-colors">Technical</a>
-                          <a href={app.financialProposalUrl} target="_blank" rel="noreferrer" className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 hover:bg-green-100 transition-colors">Financial</a>
-                       </div>
-                    </td>
-                    <td className="py-4">
-                      <select 
-                        value={app.status} 
-                        onChange={(e) => handleTenderAppStatus(app._id, e.target.value)}
-                        className={`text-[10px] font-black uppercase px-2 py-1 rounded-full border bg-white focus:ring-1 outline-none ${
-                          app.status === 'awarded' ? 'text-green-700 border-green-200' :
-                          app.status === 'rejected' ? 'text-red-700 border-red-200' :
-                          'text-amber-700 border-amber-200'
-                        }`}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="reviewed">Reviewed</option>
-                        <option value="shortlisted">Shortlisted</option>
-                        <option value="awarded">Awarded</option>
-                        <option value="rejected">Rejected</option>
-                      </select>
-                    </td>
-                    <td className="py-4 text-right">
-                       <button 
-                         onClick={() => {
-                           if(window.confirm('Delete this application?')) {
-                             const token = localStorage.getItem('adminToken');
-                             fetch(`${API_URL}/tender-applications/${app._id}`, {
-                               method: 'DELETE',
-                               headers: { Authorization: `Bearer ${token}` }
-                             }).then(res => {
-                               if(res.ok) setTenderApplications(tenderApplications.filter(a => a._id !== app._id));
-                             });
-                           }
-                         }}
-                         className="text-red-400 hover:text-red-600"
-                       >
-                         <FaTrash />
-                       </button>
-                    </td>
-                  </tr>
-                ))}
-                {tenderApplications.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="py-12 text-center text-gray-400 italic">No tender applications received yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        </div>
       </div>
     );
   };
+
+  const renderTenderBidModal = () => {
+    if (!selectedTenderApp) return null;
+    const app = selectedTenderApp;
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+        <div className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-slideUp">
+          <div className="bg-gray-50 px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+            <div>
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight">Bid Details</h3>
+              <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mt-1">Ref: {app.referenceNumber}</p>
+            </div>
+            <button onClick={() => setSelectedTenderApp(null)} className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-2xl shadow-sm hover:text-red-500 hover:rotate-90 transition-all"><FaTimes /></button>
+          </div>
+          
+          <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar text-left">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Company Name</label>
+                  <p className="text-lg font-black text-gray-800 leading-tight uppercase">{app.companyName}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Contact Person</label>
+                  <p className="font-bold text-gray-700">{app.contactPerson}</p>
+                  <p className="text-sm text-gray-500 mt-1">{app.phone} • {app.email}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Registration Number</label>
+                  <p className="font-mono text-sm font-bold bg-gray-100 px-3 py-1 rounded-lg inline-block text-gray-600">{app.registrationNumber}</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-primary/5 p-6 rounded-[2rem] border border-primary/10">
+                  <label className="text-[10px] font-black text-primary uppercase tracking-widest block mb-2">Total Bid Amount</label>
+                  <p className="text-3xl font-black text-primary">₹{Number(app.bidAmount).toLocaleString('en-IN')}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Documents</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <a href={app.technicalProposalUrl} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-600 hover:text-white transition-all group">
+                      <FaFileUpload className="text-xl mb-2" />
+                      <span className="text-[10px] font-black uppercase">Technical</span>
+                    </a>
+                    <a href={app.financialProposalUrl} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all group">
+                      <FaFileUpload className="text-xl mb-2" />
+                      <span className="text-[10px] font-black uppercase">Financial</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Office Address</label>
+                <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-2xl italic border border-gray-100">
+                  {app.address}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+             <div className="text-[10px] font-bold text-gray-400">SUBMITTED ON: {new Date(app.createdAt).toLocaleString()}</div>
+             <button onClick={() => setSelectedTenderApp(null)} className="px-8 py-3 bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Close</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   const renderFaqsTab = () => {
     const handleSaveFaqs = async () => {
@@ -6076,8 +6163,12 @@ function AdminPage() {
         <div className="flex items-center justify-between px-4 lg:px-8 py-3 relative">
           {/* Logo / Brand */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-              <FaGraduationCap className="text-primary text-lg" />
+            <div className="w-10 h-10 rounded-full flex items-center justify-center border border-primary/20 overflow-hidden bg-white">
+              {schoolProfile?.logo ? (
+                <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-1" />
+              ) : (
+                <FaGraduationCap className="text-primary text-lg" />
+              )}
             </div>
             <div className="flex flex-col justify-center items-start">
               <h2 className="text-sm font-bold text-blue-950 leading-none tracking-wide mb-0.5">
@@ -7581,6 +7672,7 @@ function AdminPage() {
           </div>
         )}
         {renderStatusUpdateModal()}
+        {renderTenderBidModal()}
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { SiteDataContext } from '../context/SiteDataContext';
 function TenderApply() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { API_URL, uploadImage } = useContext(SiteDataContext);
+  const { API_URL } = useContext(SiteDataContext);
   
   const [tender, setTender] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -73,11 +73,27 @@ function TenderApply() {
 
     setSubmitting(true);
     try {
-      // 1. Upload Files
-      const techUrl = await uploadImage(files.technical);
-      const finUrl = await uploadImage(files.financial);
+      // Helper: Upload PDF to GitHub via public tender endpoint
+      const uploadPdf = async (file) => {
+        const fd = new FormData();
+        fd.append('pdf', file);
+        const res = await fetch(`${API_URL}/content/upload-tender-pdf`, {
+          method: 'POST',
+          body: fd
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || `Upload failed (${res.status})`);
+        }
+        const data = await res.json();
+        return data.url;
+      };
+
+      // 1. Upload Files to GitHub (not Cloudinary)
+      const techUrl = await uploadPdf(files.technical);
+      const finUrl = await uploadPdf(files.financial);
       let profUrl = '';
-      if (files.profile) profUrl = await uploadImage(files.profile);
+      if (files.profile) profUrl = await uploadPdf(files.profile);
 
       // 2. Submit Application
       const res = await fetch(`${API_URL}/tender-applications`, {

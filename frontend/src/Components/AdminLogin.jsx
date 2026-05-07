@@ -133,8 +133,12 @@ function AdminLogin() {
         
         {/* Logo/Header Area */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl shadow-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.9) 0%, rgba(37,99,235,0.95) 100%)' }}>
-            <FaUserCircle className="text-4xl text-white" />
+          <div className="w-20 h-20 rounded-2xl shadow-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20 overflow-hidden bg-white" style={{ background: schoolProfile?.logo ? '#fff' : 'linear-gradient(135deg, rgba(59,130,246,0.9) 0%, rgba(37,99,235,0.95) 100%)' }}>
+            {schoolProfile?.logo ? (
+              <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-2" />
+            ) : (
+              <FaUserCircle className="text-4xl text-white" />
+            )}
           </div>
           <h1 className="text-3xl font-bold text-white mb-2 tracking-tight" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>Admin Portal</h1>
           <p className="text-blue-200/80 font-medium text-sm tracking-wide">{schoolProfile?.name || "School"}</p>

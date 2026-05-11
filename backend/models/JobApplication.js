@@ -14,14 +14,14 @@ const jobApplicationSchema = new mongoose.Schema({
   schoolName: String,
   totalExperience: { 
     type: String, 
-    enum: ['Fresher', '0-3', '4-5', '6-10', '10-15', '16-20'],
-    default: 'Fresher'
+    enum: ['FRESHER', '0-3', '4-5', '6-10', '10-15', '16-20'],
+    default: 'FRESHER'
   },
   udiseCode: String, // Teacher National Code from UDISE (alpha numeric)
   experienceType: { 
     type: String, 
-    enum: ['Teacher', 'Other'],
-    default: 'Teacher'
+    enum: ['TEACHER', 'OTHER'],
+    default: 'TEACHER'
   },
   
   // Contact & Personal

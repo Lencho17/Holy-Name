@@ -1,31 +1,9 @@
 const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("../config/cloudinary");
+const path = require("path");
+const supabase = require("../config/supabase");
 
-/**
- * Creates a multer storage engine for Cloudinary
- * @param {string} defaultFolder - The default folder path/name on Cloudinary
- */
-const createStorage = (defaultFolder) => {
-  return new CloudinaryStorage({
-    cloudinary,
-    params: async (req, file) => {
-      // For events, we use a dynamic subfolder
-      const folder = (defaultFolder === 'school-events' && req.body.eventTitle)
-        ? `${defaultFolder}/${req.body.eventTitle.replace(/\s+/g, "-").toLowerCase()}`
-        : defaultFolder;
-
-      const baseName = file.originalname?.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || 'file';
-      const uniqueId = `${baseName}_${Date.now()}`;
-      
-      return {
-        folder,
-        resource_type: "auto",
-        public_id: uniqueId
-      };
-    },
-  });
-};
+// Use memory storage for Supabase (we need the buffer)
+const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {
@@ -37,22 +15,48 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Default instances for general content
-const contentStorage = createStorage('school-events');
 const upload = multer({
-  storage: contentStorage,
+  storage: storage,
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 
-// Instance for PDF Notices
-const pdfStorage = createStorage('school-notices');
-const uploadPdf = multer({
-  storage: pdfStorage,
-  fileFilter,
-  limits: { fileSize: 10 * 1014 * 1024 }, // 10 MB
-}).single('pdf');
+const cloudinary = require('../config/cloudinary');
 
+/**
+ * Helper to upload a file buffer to Cloudinary
+ * @param {Object} file - The file object from multer (req.file or req.files[key][0])
+ * @param {string} bucket - (Ignored for Cloudinary, kept for signature compatibility)
+ * @param {string} folder - The folder path within Cloudinary
+ */
+const uploadToCloudinary = (file, bucket, folder = 'uploads') => {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve(null);
+
+    // Use 'raw' for PDFs so Cloudinary returns a /raw/upload/ URL that's directly accessible
+    const isPdf = file.mimetype === 'application/pdf' || 
+                  (file.originalname && file.originalname.toLowerCase().endsWith('.pdf'));
+    const resourceType = isPdf ? 'raw' : 'auto';
+
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: folder,
+        resource_type: resourceType,
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary Upload Error:', error);
+          return reject(new Error('Failed to upload to Cloudinary'));
+        }
+        resolve(result.secure_url);
+      }
+    );
+
+    uploadStream.end(file.buffer);
+  });
+};
+
+const uploadPdf = upload.single('pdf');
 const uploadSingle = upload.single("image");
 const uploadMultiple = upload.array("images", 30);
 const uploadEventImages = upload.fields([
@@ -61,7 +65,8 @@ const uploadEventImages = upload.fields([
 ]);
 
 module.exports = {
-  createStorage,
+  upload,
+  uploadToCloudinary,
   uploadSingle,
   uploadMultiple,
   uploadEventImages,

@@ -45,7 +45,7 @@ const admissionSchema = new mongoose.Schema({
   boardMarks: Number,
   boardPercentage: String,
   boardDivision: String,
-  darpanId: String, // AHSEC DARPAN registration ID (Class XI)
+  darpanId: String, // ASSEB DARPAN registration ID (Class XI)
   status: { type: String, enum: ['pending', 'entrance-exam', 'interview', 'accepted', 'rejected'], default: 'pending' },
   statusRemark: String,
   statusDate: String,

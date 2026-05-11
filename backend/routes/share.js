@@ -1,19 +1,26 @@
 const express = require('express');
 const crypto = require('crypto');
-const ShareLink = require('../models/ShareLink');
+const supabase = require('../config/supabase');
 const router = express.Router();
 
 /**
  * POST /api/share
- * Creates a short share link. Body: { title, desc, image, page }
- * Returns: { id, url }
+ * Creates a short share link.
  */
 router.post('/', async (req, res) => {
   try {
     const { title, desc, image, page } = req.body;
     const shortId = crypto.randomBytes(3).toString('hex'); // 6 chars
 
-    await ShareLink.create({ shortId, title, desc, image, page });
+    const { error } = await supabase.from('share_links').insert({
+      short_id: shortId,
+      title,
+      description: desc,
+      image_url: image,
+      page_path: page
+    });
+
+    if (error) throw error;
 
     const clientUrl = (process.env.CLIENT_URL || 'https://holynamehsschool.in').replace(/\/$/, '');
     res.json({ id: shortId, url: `${clientUrl}/s/${shortId}` });
@@ -29,17 +36,22 @@ router.post('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const link = await ShareLink.findOne({ shortId: req.params.id }).lean();
-    if (!link) {
+    const { data: link, error } = await supabase
+      .from('share_links')
+      .select('*')
+      .eq('short_id', req.params.id)
+      .maybeSingle();
+
+    if (error || !link) {
       const clientUrl = (process.env.CLIENT_URL || 'https://holynamehsschool.in').replace(/\/$/, '');
       return res.redirect(clientUrl);
     }
 
-    const { title = 'Holy Name School', desc = '', image = '', page = '/' } = link;
+    const { title = 'Holy Name School', description: desc = '', image_url: image = '', page_path: page = '/' } = link;
     const clientUrl = (process.env.CLIENT_URL || 'https://holynamehsschool.in').replace(/\/$/, '');
     const redirectUrl = `${clientUrl}${page.startsWith('/') ? page : '/' + page}`;
 
-    const safe = (str) => String(str)
+    const safe = (str) => String(str || '')
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')

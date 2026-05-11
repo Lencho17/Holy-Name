@@ -1,20 +1,16 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const Admission = require('../models/Admission');
-const Student = require('../models/Student');
-const SiteContent = require('../models/SiteContent');
+const supabase = require('../config/supabase');
 const { protect } = require('../middleware/auth');
 const { submissionLimiter } = require('../middleware/rateLimiters');
 const { transporter } = require('../utils/mailer');
+const { upload, uploadToCloudinary } = require('../middleware/upload');
 
 const router = express.Router();
 
 const sendSubmissionEmail = async (admissionData) => {
   try {
-    // Fetch dynamic receiver email from SiteContent
-    const siteContent = await SiteContent.findOne();
-    const receiverEmail = siteContent?.notificationEmail || process.env.EMAIL_RECEIVER || 'office@lenchosolutions.com';
+    const { data: settings } = await supabase.from('site_settings').select('notification_email').single();
+    const receiverEmail = settings?.notification_email || process.env.EMAIL_RECEIVER || 'office@lenchosolutions.com';
 
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
@@ -22,18 +18,17 @@ const sendSubmissionEmail = async (admissionData) => {
       subject: 'New Student Admission Application - Holy Name School',
       html: `
         <h2>New Admission Application Received</h2>
-        <p><strong>Reference Number:</strong> ${admissionData.referenceNumber}</p>
-        <p><strong>Student Name:</strong> ${admissionData.studentName}</p>
-        <p><strong>Class:</strong> ${admissionData.gradeApplied}</p>
-        <p><strong>Guardian Name:</strong> ${admissionData.guardianName}</p>
+        <p><strong>Reference Number:</strong> ${admissionData.reference_number}</p>
+        <p><strong>Student Name:</strong> ${admissionData.student_name}</p>
+        <p><strong>Class:</strong> ${admissionData.grade_applied}</p>
+        <p><strong>Guardian Name:</strong> ${admissionData.guardian_name}</p>
         <p><strong>Contact Email:</strong> ${admissionData.email}</p>
-        <p><strong>Phone:</strong> ${admissionData.contactNumber}</p>
+        <p><strong>Phone:</strong> ${admissionData.contact_number}</p>
         <p>You can view the full application in the Admin Panel.</p>
         <p><a href="${process.env.CLIENT_URL}/admin">Go to Admin Dashboard</a></p>
       `,
     };
     await transporter.sendMail(mailOptions);
-    console.log('Admission alert email sent.');
   } catch (err) {
     console.error('Failed to send admission alert email:', err.message);
   }
@@ -41,15 +36,15 @@ const sendSubmissionEmail = async (admissionData) => {
 
 const sendApplicantConfirmationEmail = async (admissionData) => {
   try {
-    const siteContent = await SiteContent.findOne();
-    const schoolLogo = siteContent?.schoolProfile?.logo || 'https://holynamehsschool.in/logo.png';
-    const schoolName = siteContent?.schoolProfile?.name || 'Holy Name High School';
-    const schoolTagline = siteContent?.schoolProfile?.punchLine || 'Excellence in Education';
+    const { data: settings } = await supabase.from('site_settings').select('school_name, school_logo, school_tagline').single();
+    const schoolLogo = settings?.school_logo || 'https://holynamehsschool.in/logo.png';
+    const schoolName = settings?.school_name || 'Holy Name High School';
+    const schoolTagline = settings?.school_tagline || 'Excellence in Education';
 
     const mailOptions = {
       from: `"${schoolName}" <${process.env.EMAIL_USER}>`,
       to: admissionData.email,
-      subject: `Admission Application Received: ${admissionData.referenceNumber}`,
+      subject: `Admission Application Received: ${admissionData.reference_number}`,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #1e3a8a; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
           <div style="background-color: #1e3a8a; color: white; padding: 30px; text-align: center;">
@@ -60,12 +55,12 @@ const sendApplicantConfirmationEmail = async (admissionData) => {
           
           <div style="padding: 30px; background-color: white;">
             <h2 style="color: #1e3a8a; margin-top: 0;">Application Received!</h2>
-            <p>Dear Parent/Guardian of <strong>${admissionData.studentName}</strong>,</p>
-            <p>We are pleased to inform you that we have successfully received your admission application for <strong>${admissionData.gradeApplied.toUpperCase()}</strong> at ${schoolName}.</p>
+            <p>Dear Parent/Guardian of <strong>${admissionData.student_name}</strong>,</p>
+            <p>We are pleased to inform you that we have successfully received your admission application for <strong>${admissionData.grade_applied?.toUpperCase()}</strong> at ${schoolName}.</p>
             
             <div style="background-color: #eff6ff; border: 1px dashed #3b82f6; padding: 20px; margin: 25px 0; text-align: center; border-radius: 10px;">
               <p style="margin: 0; font-size: 14px; text-transform: uppercase; color: #1e40af; font-weight: bold; letter-spacing: 1px;">Application Reference Number</p>
-              <p style="margin: 10px 0 0 0; font-size: 32px; color: #1e3a8a; font-weight: 900; font-family: 'Courier New', Courier, monospace;">${admissionData.referenceNumber}</p>
+              <p style="margin: 10px 0 0 0; font-size: 32px; color: #1e3a8a; font-weight: 900; font-family: 'Courier New', Courier, monospace;">${admissionData.reference_number}</p>
             </div>
 
             <h3 style="color: #1e3a8a; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Next Steps:</h3>
@@ -75,9 +70,7 @@ const sendApplicantConfirmationEmail = async (admissionData) => {
               <li>Please keep a printed copy of your acknowledgement receipt for future verification.</li>
             </ul>
             
-            <p style="margin-top: 30px;">If you have any urgent queries, please contact our office at <strong>${process.env.OFFICE_PHONE || 'the school office number'}</strong>.</p>
-            
-            <p style="margin-bottom: 0;">Warm regards,<br/><strong>Admissions Office</strong><br/>${schoolName}</p>
+            <p style="margin-top: 30px;">Warm regards,<br/><strong>Admissions Office</strong><br/>${schoolName}</p>
           </div>
           
           <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
@@ -90,7 +83,6 @@ const sendApplicantConfirmationEmail = async (admissionData) => {
       `,
     };
     await transporter.sendMail(mailOptions);
-    console.log(`Admission confirmation email sent to ${admissionData.email}`);
   } catch (err) {
     console.error('Failed to send admission confirmation email:', err.message);
   }
@@ -98,10 +90,10 @@ const sendApplicantConfirmationEmail = async (admissionData) => {
 
 const sendStatusUpdateEmail = async (admissionData, newStatus) => {
   try {
-    const siteContent = await SiteContent.findOne();
-    const schoolLogo = siteContent?.schoolProfile?.logo || 'https://holynamehsschool.in/logo.png';
-    const schoolName = siteContent?.schoolProfile?.name || 'Holy Name High School';
-    const schoolTagline = siteContent?.schoolProfile?.punchLine || 'Excellence in Education';
+    const { data: settings } = await supabase.from('site_settings').select('school_name, school_logo, school_tagline').single();
+    const schoolLogo = settings?.school_logo || 'https://holynamehsschool.in/logo.png';
+    const schoolName = settings?.school_name || 'Holy Name High School';
+    const schoolTagline = settings?.school_tagline || 'Excellence in Education';
 
     const statusLabels = {
       'entrance-exam': 'Entrance Exam Scheduled',
@@ -120,7 +112,7 @@ const sendStatusUpdateEmail = async (admissionData, newStatus) => {
     const mailOptions = {
       from: `"${schoolName} Admissions" <${process.env.EMAIL_USER}>`,
       to: admissionData.email,
-      subject: `Application Update: ${admissionData.referenceNumber} - ${statusLabels[newStatus] || 'Holy Name School'}`,
+      subject: `Application Update: ${admissionData.reference_number} - ${statusLabels[newStatus] || 'Holy Name School'}`,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #1e3a8a; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
           <div style="background-color: #1e3a8a; color: white; padding: 30px; text-align: center;">
@@ -131,32 +123,30 @@ const sendStatusUpdateEmail = async (admissionData, newStatus) => {
           
           <div style="padding: 30px; background-color: white;">
             <h2 style="color: #1e3a8a; margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Application Status Updated</h2>
-            <p>Dear Parent/Guardian of <strong>${admissionData.studentName}</strong>,</p>
-            <p>This is to inform you that there has been an update to your admission application (Ref: <strong>${admissionData.referenceNumber}</strong>).</p>
+            <p>Dear Parent/Guardian of <strong>${admissionData.student_name}</strong>,</p>
+            <p>This is to inform you that there has been an update to your admission application (Ref: <strong>${admissionData.reference_number}</strong>).</p>
             
             <div style="background-color: #f8fafc; border-left: 4px solid #1e3a8a; padding: 20px; margin: 25px 0; border-radius: 0 10px 10px 0;">
               <p style="margin: 0; font-weight: bold; color: #1e3a8a; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Current Status:</p>
               <p style="margin: 5px 0 10px 0; font-size: 20px; font-weight: 800; color: #111;">${statusLabels[newStatus]?.toUpperCase() || newStatus.toUpperCase()}</p>
               <p style="margin: 0; font-size: 15px; color: #4b5563;">${statusMessages[newStatus] || 'Your application is currently being processed.'}</p>
               
-              ${admissionData.statusDate ? `
+              ${admissionData.status_date ? `
                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
                   <p style="margin: 0; font-weight: bold; color: #1e3a8a; text-transform: uppercase; font-size: 11px;">Scheduled Date & Time:</p>
-                  <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: 700;">${admissionData.statusDate}</p>
+                  <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: 700;">${admissionData.status_date}</p>
                 </div>
               ` : ''}
 
-              ${admissionData.statusRemark ? `
+              ${admissionData.status_remark ? `
                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
                   <p style="margin: 0; font-weight: bold; color: #1e3a8a; text-transform: uppercase; font-size: 11px;">Note / Remark:</p>
-                  <p style="margin: 5px 0 0 0; font-size: 15px; color: #4b5563; font-style: italic;">"${admissionData.statusRemark}"</p>
+                  <p style="margin: 5px 0 0 0; font-size: 15px; color: #4b5563; font-style: italic;">"${admissionData.status_remark}"</p>
                 </div>
               ` : ''}
             </div>
 
-            <p>If you have any questions, please visit our website or contact the admissions office during working hours.</p>
-            
-            <p style="margin-top: 30px; margin-bottom: 0;">Sincerely,<br/><strong>Admissions Department</strong><br/>${schoolName}</p>
+            <p>Sincerely,<br/><strong>Admissions Department</strong><br/>${schoolName}</p>
           </div>
           
           <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
@@ -168,39 +158,29 @@ const sendStatusUpdateEmail = async (admissionData, newStatus) => {
       `,
     };
     await transporter.sendMail(mailOptions);
-    console.log(`Status update email (${newStatus}) sent to ${admissionData.email}`);
   } catch (err) {
     console.error('Failed to send status update email:', err.message);
   }
 };
 
-// --- Multer config for admission documents ---
-const { createStorage, getFileUrl, fileFilter } = require('../middleware/upload');
-
-const admissionStorage = createStorage('admissions');
-const upload = multer({
-  storage: admissionStorage,
-  fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-});
+// --- Admission Routes ---
 
 // GET /api/admissions/export — protected, export applications to XLS (supports class & status filters)
 router.get('/export', protect, async (req, res) => {
-  console.log('Export Admissions triggered (HTML Table mode)');
   try {
     const { class: classFilter, status: statusFilter } = req.query;
-    const query = {};
+    let query = supabase.from('admissions').select('*');
+
     if (classFilter && classFilter !== 'All') {
-      // Case-insensitive match on gradeApplied
-      query.gradeApplied = { $regex: new RegExp(`^${classFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i') };
+      query = query.ilike('grade_applied', `${classFilter}%`);
     }
     if (statusFilter && statusFilter !== 'All') {
-      query.status = statusFilter;
+      query = query.eq('status', statusFilter);
     }
 
-    const applications = await Admission.find(query).sort({ createdAt: -1 });
+    const { data: applications, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
     
-    // Build descriptive filename
     const classLabel = classFilter && classFilter !== 'All' ? `_${classFilter}` : '_ALL';
     const statusLabel = statusFilter && statusFilter !== 'All' ? `_${statusFilter}` : '';
     const fileName = `admissions${classLabel}${statusLabel}_${new Date().toISOString().split('T')[0]}.xls`;
@@ -261,42 +241,42 @@ router.get('/export', protect, async (req, res) => {
     applications.forEach(a => {
       html += `
         <tr>
-          <td class="text">${a.referenceNumber || ''}</td>
-          <td>${a.studentName || ''}</td>
-          <td>${a.dateOfBirth || ''}</td>
-          <td>${(a.gradeApplied || '').toUpperCase()}</td>
+          <td class="text">${a.reference_number || ''}</td>
+          <td>${a.student_name || ''}</td>
+          <td>${a.date_of_birth || ''}</td>
+          <td>${(a.grade_applied || '').toUpperCase()}</td>
           <td>${a.gender || ''}</td>
           <td>${a.religion || ''}</td>
           <td>${a.caste || ''}</td>
-          <td>${a.previousSchool || ''}</td>
-          <td>${a.prevMarksObtained || ''}</td>
-          <td>${a.lastAttendedExam || ''}</td>
-          <td>${a.prevPercentage || ''}</td>
-          <td>${a.fatherName || ''}</td>
-          <td>${a.fatherOccupation || ''}</td>
-          <td>${a.motherName || ''}</td>
-          <td>${a.motherOccupation || ''}</td>
-          <td>${a.guardianName || ''}</td>
-          <td class="text">${a.contactNumber || ''}</td>
+          <td>${a.previous_school || ''}</td>
+          <td>${a.prev_marks_obtained || ''}</td>
+          <td>${a.last_attended_exam || ''}</td>
+          <td>${a.prev_percentage || ''}</td>
+          <td>${a.father_name || ''}</td>
+          <td>${a.father_occupation || ''}</td>
+          <td>${a.mother_name || ''}</td>
+          <td>${a.mother_occupation || ''}</td>
+          <td>${a.guardian_name || ''}</td>
+          <td class="text">${a.contact_number || ''}</td>
           <td>${a.email || ''}</td>
           <td>${a.address || ''}</td>
           <td>${a.po || ''}</td>
           <td>${a.ps || ''}</td>
           <td class="text">${a.pincode || ''}</td>
-          <td class="text">${a.aadharNumber || ''}</td>
-          <td class="text">${a.penNumber || ''}</td>
+          <td class="text">${a.aadhar_number || ''}</td>
+          <td class="text">${a.pen_number || ''}</td>
           <td>${a.stream || ''}</td>
-          <td>${(a.selectedSubjects || []).join(', ')}</td>
+          <td>${(a.selected_subjects || []).join(', ')}</td>
           <td>${a.mil || ''}</td>
-          <td class="text">${a.darpanId || ''}</td>
-          <td>${a.boardMarks || ''}</td>
-          <td>${a.boardPercentage || ''}</td>
-          <td>${a.boardDivision || ''}</td>
-          <td>${a.nccInterest ? 'Yes' : 'No'}</td>
-          <td>${a.sportsActive ? 'Yes' : 'No'}</td>
-          <td>${a.sportsType || ''}</td>
+          <td class="text">${a.darpan_id || ''}</td>
+          <td>${a.board_marks || ''}</td>
+          <td>${a.board_percentage || ''}</td>
+          <td>${a.board_division || ''}</td>
+          <td>${a.ncc_interest ? 'Yes' : 'No'}</td>
+          <td>${a.sports_active ? 'Yes' : 'No'}</td>
+          <td>${a.sports_type || ''}</td>
           <td>${a.status || ''}</td>
-          <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ''}</td>
+          <td>${a.created_at ? new Date(a.created_at).toLocaleDateString() : ''}</td>
         </tr>
       `;
     });
@@ -305,12 +285,6 @@ router.get('/export', protect, async (req, res) => {
 
     res.set('Content-Type', 'application/vnd.ms-excel');
     res.set('Content-Disposition', `attachment; filename=${fileName}`);
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    // Disable ETag to prevent 304
-    res.removeHeader('ETag');
-
     res.send(html);
   } catch (error) {
     console.error('Export Admissions Error:', error.message);
@@ -321,22 +295,20 @@ router.get('/export', protect, async (req, res) => {
 // GET /api/admissions/status — public, check application status
 router.get('/status', async (req, res) => {
   try {
-    const { q } = req.query; // referenceNumber or email
-    if (!q) {
-      return res.status(400).json({ message: 'Query parameter required' });
-    }
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ message: 'Query parameter required' });
 
-    const application = await Admission.findOne({
-      $or: [
-        { referenceNumber: q.toUpperCase() },
-        { email: q.toLowerCase() }
-      ]
-    });
+    const { data: application, error } = await supabase
+      .from('admissions')
+      .select('*')
+      .or(`reference_number.eq.${q.toUpperCase()},email.eq.${q.toLowerCase()}`)
+      .maybeSingle();
 
-    if (!application) {
+    if (error || !application) {
       return res.status(404).json({ message: 'No application found with these details.' });
     }
 
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json(application);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -348,7 +320,7 @@ router.post(
   '/',
   submissionLimiter,
   (req, res, next) => {
-    // Wrap multer to catch Cloudinary upload errors gracefully
+    // Wrap multer to catch upload errors gracefully
     const uploadFields = upload.fields([
       { name: 'transferCertificate', maxCount: 1 },
       { name: 'marksheet', maxCount: 1 },
@@ -356,24 +328,20 @@ router.post(
       { name: 'studentPhoto', maxCount: 1 },
       { name: 'birthCertificate', maxCount: 1 },
       { name: 'casteCertificate', maxCount: 1 },
-      { name: 'paymentReceipt', maxCount: 1 }
+      { name: 'paymentReceipt', maxCount: 1 },
+      { name: 'admitCard', maxCount: 1 },
+      { name: 'registrationCard', maxCount: 1 }
     ]);
     uploadFields(req, res, (err) => {
       if (err) {
-        console.error('[Upload Error] Message:', err.message);
-        console.error('[Upload Error] Full:', JSON.stringify({ name: err.name, code: err.code, http_code: err.http_code, storageErrors: err.storageErrors }, null, 2));
+        console.error('[Upload Error]:', err.message);
         if (err.name === 'MulterError') {
           if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ message: 'File too large. Please ensure files are JPG, PNG or PDF and under 5MB each. Try re-saving your file.' });
+            return res.status(400).json({ message: 'File too large. Please ensure files are under 5MB each.' });
           }
           return res.status(400).json({ message: `File upload error: ${err.message}` });
         }
-        // Cloudinary-specific errors
-        const msg = (err.message || '').toLowerCase();
-        if (msg.includes('resource is invalid') || msg.includes('invalid image')) {
-          return res.status(400).json({ message: 'One or more uploaded files could not be processed. Please ensure files are valid JPG, PNG or PDF and under 5MB each. Try re-saving your file as a standard JPG/PNG.' });
-        }
-        return res.status(400).json({ message: `Document upload failed. Please ensure files are JPG, PNG or PDF and under 5MB each. Try re-saving your file.` });
+        return res.status(400).json({ message: `Document upload failed: ${err.message}` });
       }
       next();
     });
@@ -381,118 +349,132 @@ router.post(
   async (req, res) => {
     try {
       const validation = require('../utils/validation');
-      const data = req.body;
+      const input = req.body;
 
       // Validate required fields
       const missingFields = [];
-      if (!data.studentName) missingFields.push('studentName');
-      if (!data.dateOfBirth) missingFields.push('dateOfBirth');
-      if (!data.gender) missingFields.push('gender');
-      if (!data.gradeApplied) missingFields.push('gradeApplied');
-      if (!data.contactNumber) missingFields.push('contactNumber');
-      if (!data.email) missingFields.push('email');
-      if (!data.address) missingFields.push('address');
+      if (!input.studentName) missingFields.push('studentName');
+      if (!input.dateOfBirth) missingFields.push('dateOfBirth');
+      if (!input.gender) missingFields.push('gender');
+      if (!input.gradeApplied) missingFields.push('gradeApplied');
+      if (!input.contactNumber) missingFields.push('contactNumber');
+      if (!input.email) missingFields.push('email');
+      if (!input.address) missingFields.push('address');
       if (missingFields.length > 0) {
         return res.status(400).json({ message: `Missing required fields: ${missingFields.join(', ')}`, fields: missingFields });
       }
 
-      // Validate data formats
-      if (!validation.validateEmail(data.email)) {
-        return res.status(400).json({ message: 'Please enter a valid email address (e.g. name@example.com)', field: 'email' });
-      }
-      if (!validation.validatePhone(data.contactNumber)) {
-        return res.status(400).json({ message: 'Please enter a valid 10-digit phone number', field: 'contactNumber' });
-      }
-      if (!validation.validateDateOfBirth(data.dateOfBirth)) {
-        return res.status(400).json({ message: 'Invalid date of birth — student age must be between 3 and 120 years', field: 'dateOfBirth' });
-      }
-      if (!validation.validateGrade(data.gradeApplied)) {
-        return res.status(400).json({ message: 'Invalid grade selection. Please select a valid class/grade', field: 'gradeApplied' });
-      }
-      if (!validation.validateGender(data.gender)) {
-        return res.status(400).json({ message: 'Please select a valid gender (Male, Female, or Other)', field: 'gender' });
-      }
-
-      // Sanitize string inputs
-      data.studentName = validation.sanitizeString(data.studentName);
-      data.address = validation.sanitizeString(data.address);
-      data.email = data.email.toLowerCase().trim();
-      
-      // Validate pincode if provided
-      if (data.pincode && !validation.validatePincode(data.pincode)) {
-        return res.status(400).json({ message: 'Please enter a valid 6-digit pincode', field: 'pincode' });
-      }
-
-      // Validate aadhar if provided
-      if (data.AadhaarNumber && !validation.validateAadhar(data.AadhaarNumber)) {
-        return res.status(400).json({ message: 'Please enter a valid 12-digit Aadhaar number', field: 'AadhaarNumber' });
-      }
-      
-      // Validate upiTransactionId if provided (must be exactly 12 digits)
-      if (data.upiTransactionId && !/^\d{12}$/.test(data.upiTransactionId)) {
-        return res.status(400).json({ message: 'Please enter a valid 12-digit UPI Transaction ID (UTR number).', field: 'upiTransactionId' });
-      }
-
-      // Map frontend field name to model field
-      if (data.AadhaarNumber) {
-        data.aadharNumber = data.AadhaarNumber;
-      }
-
+      // Map file uploads
+      const filesData = {};
       if (req.files) {
-        if (req.files.transferCertificate) {
-          data.transferCertificate = req.files.transferCertificate[0].path;
-        }
-        if (req.files.marksheet) {
-          data.marksheet = req.files.marksheet[0].path;
-        }
-        if (req.files.AadhaarVidOrReceipt) {
-          data.aadharVidOrReceipt = req.files.AadhaarVidOrReceipt[0].path;
-        }
-        if (req.files.studentPhoto) {
-          data.studentPhoto = req.files.studentPhoto[0].path;
-        }
-        if (req.files.birthCertificate) {
-          data.birthCertificate = req.files.birthCertificate[0].path;
-        }
-        if (req.files.casteCertificate) {
-          data.casteCertificate = req.files.casteCertificate[0].path;
-        }
-        if (req.files.paymentReceipt) {
-          data.paymentReceipt = req.files.paymentReceipt[0].path;
-        }
+        const uploadPromises = Object.keys(req.files).map(async (key) => {
+          const file = req.files[key][0];
+          const publicUrl = await uploadToCloudinary(file, undefined, 'admissions');
+          // Map to snake_case
+          const mappedKey = {
+            'transferCertificate': 'transfer_certificate',
+            'marksheet': 'marksheet',
+            'AadhaarVidOrReceipt': 'aadhar_vid_or_receipt',
+            'studentPhoto': 'student_photo',
+            'birthCertificate': 'birth_certificate',
+            'casteCertificate': 'caste_certificate',
+            'paymentReceipt': 'payment_receipt',
+            'admitCard': 'admit_card',
+            'registrationCard': 'registration_card'
+          }[key] || key;
+          filesData[mappedKey] = publicUrl;
+        });
+        await Promise.all(uploadPromises);
       }
 
-      if (!data.fatherName && !data.motherName && !data.guardianName) {
-        return res.status(400).json({ message: 'At least one of Father, Mother, or Guardian name is required.' });
-      }
+      // 1. Define standard fields we expect
+      const standardFields = [
+        'studentName', 'dateOfBirth', 'placeOfBirth', 'gender', 'religion', 'bloodGroup', 
+        'caste', 'previousSchool', 'prevMarksObtained', 'lastAttendedExam', 'prevPercentage', 
+        'fatherName', 'fatherOccupation', 'motherName', 'motherOccupation', 'guardianName', 
+        'relationship', 'contactNumber', 'email', 'address', 'po', 'ps', 'pincode', 
+        'aadharNumber', 'AadhaarNumber', 'penNumber', 'gradeApplied', 'stream', 'elective', 
+        'selectedSubjects', 'mil', 'darpanId', 'boardMarks', 'boardPercentage', 
+        'boardDivision', 'nccInterest', 'sportsActive', 'sportsType', 'upiTransactionId'
+      ];
 
-      // Generate unique reference number using secure random
-      const generateRef = () => {
-        const year = new Date().getFullYear();
-        const crypto = require('crypto');
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let rand = '';
-        for (let i = 0; i < 6; i++) {
-          rand += chars[crypto.randomInt(0, chars.length)];
+      // 2. Collect any "Dynamic" fields (anything not in standardFields)
+      const additionalInfo = {};
+      Object.keys(input).forEach(key => {
+        if (!standardFields.includes(key)) {
+          additionalInfo[key] = input[key];
         }
-        return `HNS-${year}-${rand}`;
+      });
+
+      // 3. Prepare database record
+      const data = {
+        reference_number: `HNS-${new Date().getFullYear()}-${require('crypto').randomBytes(3).toString('hex').toUpperCase()}`,
+        student_name: (input.studentName || '').toUpperCase().trim(),
+        date_of_birth: input.dateOfBirth,
+        place_of_birth: (input.placeOfBirth || '').toUpperCase().trim(),
+        gender: (input.gender || '').toUpperCase(),
+        religion: (input.religion || '').toUpperCase().trim(),
+        blood_group: (input.bloodGroup || '').toUpperCase().trim(),
+        caste: (input.caste || '').toUpperCase().trim(),
+        previous_school: (input.previousSchool || '').toUpperCase().trim(),
+        prev_marks_obtained: input.prevMarksObtained,
+        last_attended_exam: (input.lastAttendedExam || '').toUpperCase().trim(),
+        prev_percentage: input.prevPercentage,
+        father_name: (input.fatherName || '').toUpperCase().trim(),
+        father_occupation: (input.fatherOccupation || '').toUpperCase().trim(),
+        mother_name: (input.motherName || '').toUpperCase().trim(),
+        mother_occupation: (input.motherOccupation || '').toUpperCase().trim(),
+        guardian_name: (input.guardianName || '').toUpperCase().trim(),
+        relationship: (input.relationship || '').toUpperCase().trim(),
+        contact_number: input.contactNumber,
+        email: (input.email || '').toLowerCase().trim(),
+        address: (input.address || '').toUpperCase().trim(),
+        po: (input.po || '').toUpperCase().trim(),
+        ps: (input.ps || '').toUpperCase().trim(),
+        pincode: input.pincode,
+        aadhar_number: input.AadhaarNumber || input.aadharNumber,
+        pen_number: (input.penNumber || '').toUpperCase().trim(),
+        grade_applied: (input.gradeApplied || '').toUpperCase(),
+        stream: (input.stream || '').toUpperCase(),
+        elective: (input.elective || '').toUpperCase(),
+        selected_subjects: Array.isArray(input.selectedSubjects) 
+          ? input.selectedSubjects.map(s => s.toUpperCase()) 
+          : input.selectedSubjects,
+        mil: (input.mil || '').toUpperCase(),
+        darpan_id: (input.darpanId || '').toUpperCase().trim(),
+        board_marks: input.boardMarks,
+        board_percentage: input.boardPercentage,
+        board_division: (input.boardDivision || '').toUpperCase().trim(),
+        ncc_interest: input.nccInterest === 'true' || input.nccInterest === true,
+        sports_active: input.sportsActive === 'true' || input.sportsActive === true,
+        sports_type: (input.sportsType || '').toUpperCase().trim(),
+        upi_transaction_id: (input.upiTransactionId || '').toUpperCase().trim(),
+        status: 'pending',
+        additional_info: additionalInfo, // Save all dynamic fields here
+        ...filesData
       };
-      data.referenceNumber = generateRef();
 
-      const admission = await Admission.create(data);
-      
-      // Send background email notifications (fire and forget, not blocking)
+      const { data: admission, error: insertError } = await supabase
+        .from('admissions')
+        .insert(data)
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Notifications
       Promise.all([
         sendSubmissionEmail(admission),
         sendApplicantConfirmationEmail(admission)
-      ]).catch(err => console.error('Email sending failed (non-blocking):', err.message));
+      ]).catch(err => console.error('Email sending failed:', err.message));
 
       res.status(201).json({ 
         message: 'Application submitted successfully', 
-        id: admission._id,
-        referenceNumber: admission.referenceNumber 
+        id: admission.id,
+        referenceNumber: admission.reference_number 
       });
     } catch (error) {
+      console.error('Submission Error:', error);
       res.status(500).json({ message: 'Submission failed', error: error.message });
     }
   }
@@ -502,34 +484,43 @@ router.post(
 router.patch('/:id/status', protect, async (req, res) => {
   try {
     const { status, statusRemark, statusDate } = req.body;
-    const admission = await Admission.findByIdAndUpdate(
-      req.params.id,
-      { status, statusRemark, statusDate },
-      { new: true }
-    );
-    if (!admission) {
+    const { data: admission, error } = await supabase
+      .from('admissions')
+      .update({ 
+        status, 
+        status_remark: statusRemark, 
+        status_date: statusDate 
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error || !admission) {
       return res.status(404).json({ message: 'Application not found' });
     }
 
-    // Trigger notification
     sendStatusUpdateEmail(admission, status);
 
-    // If application is accepted, create a student record if it doesn't exist
     if (status === 'accepted') {
-      const existingStudent = await Student.findOne({ admissionId: admission._id });
+      const { data: existingStudent } = await supabase
+        .from('students')
+        .select('id')
+        .eq('admission_id', admission.id)
+        .maybeSingle();
+
       if (!existingStudent) {
-        await Student.create({
-          studentName: admission.studentName,
-          dateOfBirth: admission.dateOfBirth,
+        await supabase.from('students').insert({
+          student_name: admission.student_name,
+          date_of_birth: admission.date_of_birth,
           gender: admission.gender,
-          grade: admission.gradeApplied,
-          guardianName: admission.guardianName,
-          contactNumber: admission.contactNumber,
+          grade: admission.grade_applied,
+          guardian_name: admission.guardian_name,
+          contact_number: admission.contact_number,
           email: admission.email,
           address: admission.address,
-          admissionId: admission._id,
-          penNumber: admission.penNumber,
-          aadharNumber: admission.aadharNumber,
+          admission_id: admission.id,
+          pen_number: admission.pen_number,
+          aadhar_number: admission.aadhar_number,
         });
       }
     }
@@ -543,46 +534,40 @@ router.patch('/:id/status', protect, async (req, res) => {
 router.get('/', protect, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(100, parseInt(req.query.limit) || 20); // Max 100 per page
+    const limit = Math.min(100, parseInt(req.query.limit) || 20);
     const skip = (page - 1) * limit;
-    const status = req.query.status; // Optional filter
-    const search = req.query.search; // Optional search
+    const status = req.query.status;
+    const search = req.query.search;
 
-    const query = {};
-    if (status) query.status = status;
+    let query = supabase.from('admissions').select('*', { count: 'exact' });
+
+    if (status) query = query.eq('status', status);
     if (search) {
-      query.$or = [
-        { studentName: { $regex: search, $options: 'i' } },
-        { referenceNumber: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { contactNumber: { $regex: search, $options: 'i' } }
-      ];
+      query = query.or(`student_name.ilike.%${search}%,reference_number.ilike.%${search}%,email.ilike.%${search}%,contact_number.ilike.%${search}%`);
     }
     
-    const admissions = await Admission.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-    
-    const total = await Admission.countDocuments(query);
-    
+    const { data: admissions, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(skip, skip + limit - 1);
+
+    if (error) throw error;
+
     // Summary Stats
-    const totalAccepted = await Admission.countDocuments({ ...query, status: 'accepted' });
-    const totalPending = await Admission.countDocuments({ ...query, status: 'pending' });
+    const { count: acceptedCount } = await supabase.from('admissions').select('id', { count: 'exact', head: true }).eq('status', 'accepted');
+    const { count: pendingCount } = await supabase.from('admissions').select('id', { count: 'exact', head: true }).eq('status', 'pending');
     
     res.json({
       data: admissions,
       pagination: {
         page,
         limit,
-        total,
-        pages: Math.ceil(total / limit)
+        total: count,
+        pages: Math.ceil(count / limit)
       },
       stats: {
-        total,
-        accepted: totalAccepted,
-        pending: totalPending
+        total: count,
+        accepted: acceptedCount || 0,
+        pending: pendingCount || 0
       }
     });
   } catch (error) {
@@ -597,7 +582,8 @@ router.delete('/bulk', protect, async (req, res) => {
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ message: 'No IDs provided' });
     }
-    await Admission.deleteMany({ _id: { $in: ids } });
+    const { error } = await supabase.from('admissions').delete().in('id', ids);
+    if (error) throw error;
     res.json({ message: `${ids.length} applications deleted successfully` });
   } catch (error) {
     res.status(500).json({ message: 'Bulk deletion failed', error: error.message });
@@ -607,12 +593,10 @@ router.delete('/bulk', protect, async (req, res) => {
 // DELETE /api/admissions/:id — protected, delete application
 router.delete('/:id', protect, async (req, res) => {
   try {
-    const admission = await Admission.findByIdAndDelete(req.params.id);
-    if (!admission) {
+    const { error } = await supabase.from('admissions').delete().eq('id', req.params.id);
+    if (error) {
       return res.status(404).json({ message: 'Application not found' });
     }
-    // Note: This does NOT delete the Student record if one was created. 
-    // This is intentional to preserve the Student Directory unless manually deleted there.
     res.json({ message: 'Application deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

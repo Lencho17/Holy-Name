@@ -152,9 +152,12 @@ export const SiteDataProvider = ({ children }) => {
 
   // Fetch content from backend on mount and via polling
   useEffect(() => {
-    const fetchContent = async () => {
+    let retryCount = 0;
+    const maxRetries = 5;
+
+    const fetchContent = async (isRetry = false) => {
       // Prevents polling from overwriting local state right after a manual save
-      if (Date.now() - lastSaveRef.current < 10000) return;
+      if (!isRetry && Date.now() - lastSaveRef.current < 10000) return;
 
       try {
         const { data } = await axios.get(`${API_URL}/content`);
@@ -179,10 +182,20 @@ export const SiteDataProvider = ({ children }) => {
         if (Array.isArray(data.centerOfExcellence)) setCenterOfExcellence(data.centerOfExcellence);
         if (data.coursesPage && typeof data.coursesPage === 'object') setCoursesPage(data.coursesPage);
         if (Array.isArray(data.admissionFields)) setAdmissionFields(data.admissionFields);
-      } catch (error) {
-        console.warn('Backend polling error or using local defaults:', error.message);
-      } finally {
+        retryCount = 0; // Reset on success
         setLoading(false);
+      } catch (error) {
+        console.warn('Backend fetch error:', error.message);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          const delay = Math.min(2000 * Math.pow(2, retryCount - 1), 32000);
+          console.log(`Backend cold start detected. Retry ${retryCount}/${maxRetries} in ${delay / 1000}s...`);
+          setTimeout(() => fetchContent(true), delay);
+        } else {
+          // Give up retrying and show whatever defaults we have
+          console.warn('Max retries reached. Showing default content.');
+          setLoading(false);
+        }
       }
     };
 

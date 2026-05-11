@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { FaGavel, FaBuilding, FaBriefcase, FaEnvelopeOpenText, FaSpinner, FaArrowRight, FaFilePdf, FaHistory, FaCheckCircle, FaExclamationCircle, FaShareAlt } from "react-icons/fa";
+import { FaGavel, FaBuilding, FaBriefcase, FaEnvelopeOpenText, FaSpinner, FaArrowRight, FaFilePdf, FaHistory, FaCheckCircle, FaExclamationCircle, FaShareAlt, FaSearch } from "react-icons/fa";
 import { Link, NavLink } from "react-router-dom";
 import { SiteDataContext } from "../context/SiteDataContext";
 
@@ -49,7 +49,6 @@ function Tenders() {
     setTrackResult(null);
 
     try {
-      // We'll implement this tracking endpoint in the backend if needed, or use a generic one
       const res = await fetch(`${API_URL}/tender-applications/track/${trackingRef}?email=${trackingEmail}`);
       const data = await res.json();
       
@@ -71,7 +70,16 @@ function Tenders() {
         const res = await fetch(`${API_URL}/tenders`);
         if (res.ok) {
           const data = await res.json();
-          setTenders(data);
+          const mappedData = data.map(t => ({
+            ...t,
+            _id: t.id,
+            tenderNumber: t.tender_number,
+            publishDate: t.publish_date,
+            closingDate: t.closing_date,
+            estimatedValue: t.estimated_value,
+            documentUrl: t.document_url
+          }));
+          setTenders(mappedData);
         }
       } catch (err) {
         console.error("Failed to fetch tenders", err);
@@ -83,221 +91,269 @@ function Tenders() {
   }, [API_URL]);
 
   return (
-    <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
-      {/* Hero Section */}
-      <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
+    <div className="bg-[#fcf8ff] min-h-screen font-sans text-[#181445] pb-24">
+      {/* Editorial Hero Section */}
+      <section className="relative w-full h-[450px] md:h-[550px] flex items-center overflow-hidden bg-[#181445]">
         <div className="absolute inset-0 z-0">
           <img
             src={schoolProfile?.pageHeroImages?.tenders || "https://images.unsplash.com/photo-1541888946425-d81bb19480c5?q=80&w=2070&auto=format&fit=crop"}
             alt="Tenders"
-            className="w-full h-full object-cover opacity-95"
+            className="w-full h-full object-cover opacity-40 mix-blend-overlay scale-105 transition-transform duration-1000 hover:scale-100"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/70 via-blue-800/40 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-[#181445]/80 via-transparent to-[#181445]"></div>
+          {/* Stylized background elements */}
+          <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#6b21a8] rounded-full blur-[120px] opacity-30 animate-pulse"></div>
+          <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-[#d4af37] rounded-full blur-[120px] opacity-10"></div>
         </div>
-        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-left text-white">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 border border-white/30 backdrop-blur-md shadow-sm mb-4">
-            <FaGavel className="text-sm text-amber-400" />
-            <span className="text-[10px] font-black tracking-[0.2em] uppercase">Procurement & Tenders</span>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-center md:text-left">
+          <div className="inline-flex items-center gap-3 px-6 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl mb-8 transform -rotate-1">
+            <FaGavel className="text-[#d4af37] text-sm" />
+            <span className="text-[10px] font-black tracking-[0.3em] uppercase text-white/90">Institutional Procurement</span>
           </div>
-          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tighter drop-shadow-lg">
-            Active <span className="text-amber-400 italic">Tenders</span>
+          
+          <h1 className="font-serif text-5xl md:text-8xl font-black text-white leading-[1.1] tracking-tighter mb-6">
+            Active <br className="hidden md:block" />
+            <span className="text-[#d4af37] italic font-serif">Tender</span> Notices
           </h1>
-          <p className="text-white/90 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
-            Participate in Holy Name's growth. We invite qualified vendors and contractors to apply for our upcoming projects and requirements.
+          
+          <p className="text-white/70 text-lg md:text-xl mt-4 max-w-2xl font-medium leading-relaxed mb-10">
+            Partner with Holy Name in shaping academic excellence. We invite industry-leading vendors to join our mission through transparent procurement.
           </p>
+
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-12">
+            <div className="text-center md:text-left">
+              <p className="text-[#d4af37] text-2xl font-serif font-black">{tenders.length}</p>
+              <p className="text-white/40 text-[9px] font-black uppercase tracking-widest">Open Projects</p>
+            </div>
+            <div className="w-[1px] h-10 bg-white/10 hidden md:block"></div>
+            <div className="text-center md:text-left">
+              <p className="text-white text-2xl font-serif font-black">2026</p>
+              <p className="text-white/40 text-[9px] font-black uppercase tracking-widest">Financial Year</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 -mt-10 relative z-20">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-6 -mt-20 relative z-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           
-          {/* Main Content - Tenders */}
-          <div className="lg:col-span-2 flex flex-col gap-8">
-            <div className="bg-white rounded-3xl shadow-xl p-8 md:p-10 border border-gray-100 flex-grow relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-10 -mt-10 pointer-events-none"></div>
+          {/* Main Listings - Tenders */}
+          <div className="lg:col-span-8 flex flex-col gap-10">
+            <div className="bg-white rounded-[3rem] shadow-2xl shadow-purple-900/5 p-10 md:p-16 border border-[#e3dfff]/50 relative overflow-hidden min-h-[600px]">
+              {/* Subtle background texture */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#f6f2ff] rounded-bl-full opacity-50 pointer-events-none"></div>
               
-              <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary mb-8 relative z-10 flex items-center">
-                <span className="w-2 h-8 bg-amber-500 rounded-full mr-4"></span>
-                Open Tender Notices
-              </h2>
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16 relative z-10">
+                <div>
+                  <h2 className="text-3xl md:text-4xl font-serif font-black text-[#181445] flex items-center">
+                    <span className="w-12 h-[3px] bg-[#d4af37] mr-6"></span>
+                    Current Invitations
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-black text-[#6b21a8] uppercase tracking-[0.2em] bg-[#f6f2ff] px-6 py-3 rounded-full">
+                  <FaSearch className="opacity-50" /> Filter: All Categories
+                </div>
+              </div>
 
-              <div className="space-y-6 relative z-10">
+              <div className="space-y-12 relative z-10">
                 {loading ? (
-                  <div className="flex justify-center py-20">
-                    <FaSpinner className="animate-spin text-4xl text-primary opacity-50" />
+                  <div className="flex flex-col items-center justify-center py-32 gap-6">
+                    <div className="w-12 h-12 border-4 border-[#6b21a8]/20 border-t-[#6b21a8] rounded-full animate-spin"></div>
+                    <p className="text-[10px] font-black text-[#6b21a8] uppercase tracking-widest animate-pulse">Syncing Procurement Database...</p>
                   </div>
                 ) : tenders.length > 0 ? (
                   tenders.map(tender => (
-                    <div key={tender._id} className="bg-[#F9F9FB] rounded-2xl border border-gray-200 p-6 md:p-8 hover:shadow-md transition-all duration-300 group relative">
-                      <div className="absolute top-6 right-6">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${
-                          tender.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {tender.status}
-                        </span>
-                      </div>
+                    <div key={tender._id} className="group relative border-b border-[#f0ebff] pb-12 last:border-0 hover:translate-x-1 transition-all duration-500">
+                      <div className="flex flex-col md:flex-row gap-8 items-start">
+                        <div className="flex-grow">
+                          <div className="flex items-center gap-4 mb-4">
+                            <span className="text-[10px] font-black text-[#6b21a8] bg-[#f6f2ff] px-4 py-1 rounded-full uppercase tracking-widest">{tender.tenderNumber}</span>
+                            <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                              tender.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
+                            }`}>
+                              {tender.status}
+                            </span>
+                          </div>
+                          
+                          <h3 className="text-2xl md:text-3xl font-serif font-black text-[#181445] mb-4 group-hover:text-[#6b21a8] transition-colors leading-tight">
+                            {tender.title}
+                          </h3>
 
-                      <div className="mb-6">
-                        <p className="text-xs font-black text-primary/50 uppercase tracking-widest mb-1">{tender.tenderNumber}</p>
-                        <h3 className="text-2xl font-bold text-gray-800 mb-2 group-hover:text-primary transition-colors pr-20">{tender.title}</h3>
-                        <div className="flex flex-wrap gap-2">
-                          <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-[10px] font-black uppercase tracking-wider">{tender.category}</span>
-                          {tender.estimatedValue && (
-                            <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-wider">Est. Value: {tender.estimatedValue}</span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <p className="text-gray-600 text-sm mb-6 line-clamp-3 leading-relaxed">
-                        {tender.description}
-                      </p>
+                          <div className="flex flex-wrap gap-6 mb-6">
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full"></div>
+                              <span className="text-[10px] font-black text-[#4c4452] uppercase tracking-widest">{tender.category}</span>
+                            </div>
+                            {tender.estimatedValue && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 bg-[#6b21a8] rounded-full"></div>
+                                <span className="text-[10px] font-black text-[#4c4452] uppercase tracking-widest">Est. {tender.estimatedValue}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <p className="text-[#4c4452] text-sm leading-relaxed mb-8 max-w-2xl font-medium opacity-80 group-hover:opacity-100 transition-opacity">
+                            {tender.description}
+                          </p>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 flex items-center">
-                            <FaHistory className="mr-2" /> Published Date
-                          </p>
-                          <p className="text-sm font-bold text-gray-700">{new Date(tender.publishDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Published</p>
+                              <p className="text-xs font-black text-[#181445]">{new Date(tender.publishDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-black text-[#d4af37] uppercase tracking-widest">Submission Deadline</p>
+                              <p className="text-xs font-black text-rose-600">{new Date(tender.closingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-4">
+                            {tender.status === 'Active' ? (
+                              <Link to={`/tender-apply/${tender._id}`} className="bg-[#6b21a8] text-white font-black text-[11px] uppercase tracking-widest py-4 px-10 rounded-xl hover:bg-[#581c87] transition-all shadow-xl shadow-purple-500/20 flex items-center gap-3">
+                                Participate <FaArrowRight className="text-xs group-hover:translate-x-1 transition-transform" />
+                              </Link>
+                            ) : (
+                              <button disabled className="bg-gray-100 text-gray-400 font-black text-[11px] uppercase tracking-widest py-4 px-10 rounded-xl cursor-not-allowed">
+                                Submissions Closed
+                              </button>
+                            )}
+                            
+                            {tender.documentUrl && (
+                              <a href={tender.documentUrl} target="_blank" rel="noopener noreferrer" className="bg-white text-[#181445] border-2 border-[#e3dfff] font-black text-[11px] uppercase tracking-widest py-4 px-8 rounded-xl hover:bg-[#f6f2ff] transition-all flex items-center gap-3">
+                                <FaFilePdf className="text-rose-500" /> Specifications
+                              </a>
+                            )}
+                            
+                            <button 
+                              onClick={(e) => handleShare(e, tender)}
+                              className="w-12 h-12 rounded-xl border-2 border-[#e3dfff] flex items-center justify-center text-[#6b21a8] hover:bg-[#f6f2ff] transition-all"
+                              title="Share Tender"
+                            >
+                              <FaShareAlt />
+                            </button>
+                          </div>
                         </div>
-                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                          <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 flex items-center">
-                            <FaExclamationCircle className="mr-2" /> Closing Date
-                          </p>
-                          <p className="text-sm font-bold text-gray-700">{new Date(tender.closingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        {tender.status === 'Active' ? (
-                          <Link to={`/tender-apply/${tender._id}`} className="bg-primary text-white font-bold py-3.5 px-8 rounded-xl hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center group flex-1">
-                            Submit Bid <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-                          </Link>
-                        ) : (
-                          <button disabled className="bg-gray-200 text-gray-500 font-bold py-3.5 px-8 rounded-xl flex items-center justify-center flex-1 cursor-not-allowed">
-                            Tender Closed
-                          </button>
-                        )}
-                        
-                        {tender.documentUrl && (
-                          <a href={tender.documentUrl} target="_blank" rel="noopener noreferrer" className="bg-white text-primary border-2 border-primary/20 font-bold py-3.5 px-6 rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center">
-                            <FaFilePdf className="mr-2" /> View Details
-                          </a>
-                        )}
-                        
-                        <button 
-                          onClick={(e) => handleShare(e, tender)}
-                          className="bg-white text-gray-400 border-2 border-gray-100 font-bold py-3.5 px-5 rounded-xl hover:bg-gray-50 hover:text-primary hover:border-primary/20 transition-all flex items-center justify-center"
-                          title="Share Tender"
-                        >
-                          <FaShareAlt />
-                        </button>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-20 bg-[#F9F9FB] rounded-3xl border border-gray-200 border-dashed">
-                    <FaGavel className="text-6xl text-gray-200 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-600 uppercase tracking-widest">No Active Tenders</h3>
-                    <p className="text-gray-400 mt-2 text-sm">There are currently no open procurement requirements.</p>
+                  <div className="text-center py-32 bg-[#fcf8ff] rounded-[3rem] border border-dashed border-[#e3dfff]">
+                    <FaGavel className="text-7xl text-[#6b21a8]/10 mx-auto mb-6" />
+                    <h3 className="text-xl font-serif font-black text-[#181445] uppercase tracking-widest mb-2">No Active Invitations</h3>
+                    <p className="text-[#4c4452] text-sm font-medium">Please check back later for new procurement requirements.</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1 flex flex-col gap-8">
-            {/* Tracking Card */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 relative overflow-hidden ring-4 ring-primary/5">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-8 -mt-8 pointer-events-none"></div>
+          {/* Sidebar - Precision tracking and guides */}
+          <div className="lg:col-span-4 flex flex-col gap-10">
+            
+            {/* Tracking Terminal */}
+            <div className="bg-[#181445] rounded-[3rem] shadow-2xl p-10 text-white relative overflow-hidden border border-white/5">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full pointer-events-none"></div>
               
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Track Bid</h3>
-              <p className="text-gray-500 text-xs font-medium mb-6">Check the status of your tender application.</p>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-[#6b21a8] flex items-center justify-center text-[#d4af37] shadow-lg">
+                  <FaHistory />
+                </div>
+                <div>
+                  <h3 className="text-xl font-serif font-black">Track Application</h3>
+                  <p className="text-white/40 text-[9px] font-black uppercase tracking-widest">Real-time Status Check</p>
+                </div>
+              </div>
 
-              <form onSubmit={handleTrack} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Reference No.</label>
+              <form onSubmit={handleTrack} className="space-y-8">
+                <div className="space-y-2 group">
+                  <label className="block text-white/40 font-black text-[9px] uppercase tracking-widest group-focus-within:text-[#d4af37] transition-colors pl-1">Reference Identifier</label>
                   <input
                     required
                     type="text"
                     value={trackingRef}
                     onChange={(e) => setTrackingRef(e.target.value.toUpperCase())}
                     placeholder="TDR-2026-XXXX"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-primary outline-none transition-all font-mono"
+                    className="w-full bg-transparent border-b border-white/20 py-3 text-lg font-black tracking-widest focus:border-[#d4af37] outline-none transition-all placeholder:text-white/10"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Authorized Email</label>
+                <div className="space-y-2 group">
+                  <label className="block text-white/40 font-black text-[9px] uppercase tracking-widest group-focus-within:text-[#d4af37] transition-colors pl-1">Authorized Email</label>
                   <input
                     required
                     type="email"
                     value={trackingEmail}
                     onChange={(e) => setTrackingEmail(e.target.value)}
-                    placeholder="contact@company.com"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-primary outline-none transition-all"
+                    placeholder="CORPORATE@ENTITY.COM"
+                    className="w-full bg-transparent border-b border-white/20 py-3 text-lg font-black tracking-tight focus:border-[#d4af37] outline-none transition-all placeholder:text-white/10 uppercase"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isTracking}
-                  className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-black transition-all flex items-center justify-center shadow-lg active:scale-95 disabled:opacity-50"
+                  className="w-full bg-[#d4af37] text-[#181445] font-black text-[11px] uppercase tracking-[0.2em] py-5 rounded-2xl hover:bg-[#c4a132] transition-all shadow-xl shadow-yellow-500/10 active:scale-95 disabled:opacity-30 flex items-center justify-center gap-3"
                 >
-                  {isTracking ? <FaSpinner className="animate-spin" /> : "Track Bid Status"}
+                  {isTracking ? <FaSpinner className="animate-spin" /> : "Verify Status"}
                 </button>
               </form>
 
-              {trackError && <p className="mt-4 text-red-500 text-[10px] font-bold text-center uppercase tracking-widest">{trackError}</p>}
+              {trackError && (
+                <div className="mt-8 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                  <p className="text-rose-400 text-[9px] font-black text-center uppercase tracking-widest">{trackError}</p>
+                </div>
+              )}
               
               {trackResult && (
-                <div className="mt-6 p-6 bg-slate-50 rounded-2xl border border-gray-200 text-center">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Bid Status</p>
-                  <div className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4 shadow-sm ${
-                    trackResult.status === 'Awarded' ? 'bg-green-100 text-green-700' :
-                    trackResult.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                    'bg-amber-100 text-amber-700'
+                <div className="mt-10 p-8 bg-white/5 rounded-3xl border border-white/10 text-center animate-fade-in">
+                  <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-4">Official Determination</p>
+                  <div className={`inline-block px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-6 shadow-xl ${
+                    trackResult.status === 'Awarded' ? 'bg-emerald-500 text-white' :
+                    trackResult.status === 'Rejected' ? 'bg-rose-500 text-white' :
+                    'bg-[#d4af37] text-[#181445]'
                   }`}>
                     {trackResult.status}
                   </div>
-                  <p className="text-sm font-bold text-slate-800">{trackResult.tenderTitle}</p>
+                  <p className="text-sm font-serif font-black text-white leading-tight">{trackResult.tenderTitle}</p>
                 </div>
               )}
             </div>
 
-            {/* How to Apply */}
-            <div className="bg-primary rounded-3xl shadow-xl p-8 text-white relative overflow-hidden">
-              <h3 className="text-2xl font-serif font-bold mb-6">Application Guide</h3>
-              <ul className="space-y-6">
-                <li className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0 font-bold">1</div>
+            {/* Application Protocols */}
+            <div className="bg-[#f6f2ff] rounded-[3rem] p-10 border border-[#e3dfff] relative overflow-hidden">
+              <div className="absolute bottom-0 right-0 w-32 h-32 bg-[#6b21a8]/5 rounded-tl-full pointer-events-none"></div>
+              <h3 className="text-2xl font-serif font-black text-[#181445] mb-8">Submission <br/> Protocols</h3>
+              <div className="space-y-10">
+                <div className="flex gap-6">
+                  <span className="text-[#d4af37] font-serif text-3xl font-black italic opacity-50">01</span>
                   <div>
-                    <h4 className="font-bold text-amber-400">Download Document</h4>
-                    <p className="text-xs text-white/70 mt-1">Carefully read the technical specifications in the PDF.</p>
+                    <h4 className="text-[11px] font-black text-[#181445] uppercase tracking-widest mb-2">Technical Dossier</h4>
+                    <p className="text-xs text-[#4c4452] font-medium leading-relaxed">Download and scrutinize the architectural requirements and compliance standards.</p>
                   </div>
-                </li>
-                <li className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0 font-bold">2</div>
+                </div>
+                <div className="flex gap-6">
+                  <span className="text-[#d4af37] font-serif text-3xl font-black italic opacity-50">02</span>
                   <div>
-                    <h4 className="font-bold text-amber-400">Prepare Proposals</h4>
-                    <p className="text-xs text-white/70 mt-1">Prepare separate technical and financial bids on company letterhead.</p>
+                    <h4 className="text-[11px] font-black text-[#181445] uppercase tracking-widest mb-2">Financial Proposal</h4>
+                    <p className="text-xs text-[#4c4452] font-medium leading-relaxed">Submit itemized commercial bids on verified company letterhead with official seals.</p>
                   </div>
-                </li>
-                <li className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0 font-bold">3</div>
+                </div>
+                <div className="flex gap-6">
+                  <span className="text-[#d4af37] font-serif text-3xl font-black italic opacity-50">03</span>
                   <div>
-                    <h4 className="font-bold text-amber-400">Online Submission</h4>
-                    <p className="text-xs text-white/70 mt-1">Upload your proposals and company profile before the deadline.</p>
+                    <h4 className="text-[11px] font-black text-[#181445] uppercase tracking-widest mb-2">Final Certification</h4>
+                    <p className="text-xs text-[#4c4452] font-medium leading-relaxed">Upload authenticated PDF documentation before the digital portal closes.</p>
                   </div>
-                </li>
-              </ul>
+                </div>
+              </div>
             </div>
 
-            {/* Contact Support */}
-            <div className="bg-amber-500 rounded-3xl shadow-xl p-8 text-white relative overflow-hidden">
-              <FaEnvelopeOpenText className="text-6xl absolute -bottom-4 -right-4 opacity-10 rotate-12" />
-              <h3 className="text-xl font-bold mb-2">Need Assistance?</h3>
-              <p className="text-sm text-white/90 mb-4">Contact our procurement cell for any technical queries regarding the tenders.</p>
-              <a href={`mailto:${schoolProfile?.email || ""}`} className="inline-block bg-white text-amber-600 px-6 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-50 transition-all shadow-md">
-                Email Procurement
+            {/* Helpdesk */}
+            <div className="bg-[#6b21a8] rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-purple-500/20">
+              <FaEnvelopeOpenText className="text-9xl absolute -bottom-10 -right-10 opacity-10 rotate-12" />
+              <h3 className="text-2xl font-serif font-black mb-4">Inquiries?</h3>
+              <p className="text-white/70 text-sm font-medium mb-8 leading-relaxed">Our procurement secretariat is available for clarification regarding technical specifications.</p>
+              <a href={`mailto:${schoolProfile?.email || ""}`} className="inline-flex items-center justify-center w-full bg-[#d4af37] text-[#181445] py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-[#c4a132] transition-all">
+                Contact Secretariat
               </a>
             </div>
           </div>

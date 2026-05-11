@@ -4,6 +4,8 @@ import { NavLink } from 'react-router-dom';
 import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { SiteDataContext } from '../context/SiteDataContext';
 
 function AdminPage() {
@@ -146,6 +148,24 @@ function AdminPage() {
     }
     return `${m}:${s}`;
   };
+  
+  // Helper to map Supabase snake_case to legacy camelCase and provide _id fallback
+  const mapSupabaseToLegacy = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(mapSupabaseToLegacy);
+    
+    const mapped = {};
+    Object.keys(obj).forEach(key => {
+      // Convert snake_case to camelCase
+      const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
+      mapped[camelKey] = mapSupabaseToLegacy(obj[key]);
+    });
+    
+    // Fallback for MongoDB style IDs often used in legacy slice/map logic
+    if (obj.id && !mapped._id) mapped._id = String(obj.id);
+    
+    return mapped;
+  };
 
   // --- Fetch real admission applications && Inquiries ---
   const [applications, setApplications] = useState([]);
@@ -212,6 +232,8 @@ function AdminPage() {
     await updateSiteContent({ schoolProfile: localProfile });
     alert('Settings updated successfully!');
   };
+
+  const [pageHeroUploading, setPageHeroUploading] = useState({});
   
   const [editingExcellenceId, setEditingExcellenceId] = useState(null);
   const [excellenceForm, setExcellenceForm] = useState({ _id: null, title: '', name: '', passedYear: '', designation: '', company: '', location: '', message: '', photo: '' });
@@ -227,6 +249,7 @@ function AdminPage() {
   };
 
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const [isDownloadingFiles, setIsDownloadingFiles] = useState(false);
   const [isExportingStudents, setIsExportingStudents] = useState(false);
   const [isExportingAdmissions, setIsExportingAdmissions] = useState(false);
   const [isExportingJobs, setIsExportingJobs] = useState(false);
@@ -277,7 +300,8 @@ function AdminPage() {
       if (res.status === 401) return handleLogout();
       if (res.ok) {
         const data = await res.json();
-        setApplications(data.data || data || []);
+        const rawApps = data.data || data || [];
+        setApplications(mapSupabaseToLegacy(rawApps));
         if (data.pagination) setAppTotalPages(data.pagination.pages);
         if (data.stats) setAppStats(data.stats);
       }
@@ -303,7 +327,10 @@ function AdminPage() {
         headers: { Authorization: `Bearer ${token}` } 
       });
       if (res.status === 401) return handleLogout();
-      if (res.ok) setJobApplications(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setJobApplications(mapSupabaseToLegacy(data));
+      }
     } catch (e) { 
       console.warn('Could not fetch job applications'); 
     } finally {
@@ -524,6 +551,63 @@ function AdminPage() {
     }
   };
 
+  const getProxyUrl = (url) => {
+    if (!url) return url;
+    const isExternal = url.includes('cloudinary.com') || url.includes('supabase.co');
+    if (!isExternal) return url;
+    return `${API_URL}/files/proxy?url=${encodeURIComponent(url)}`;
+  };
+
+  const handleDownloadFile = async (url, filename) => {
+    if (!url) return;
+    const proxyUrl = `${getProxyUrl(url)}&filename=${encodeURIComponent(filename)}`;
+    window.open(proxyUrl, '_blank');
+  };
+
+  const handleDownloadAllDocuments = async (app) => {
+    setIsDownloadingFiles(true);
+    try {
+      const zip = new JSZip();
+      const folderName = `Documents_${app.studentName.replace(/\s+/g, '_')}_${app.referenceNumber || app._id.slice(-6)}`;
+      const folder = zip.folder(folderName);
+
+      const attachments = [
+        { label: "Student_Photo", url: app.studentPhoto },
+        { label: "Birth_Certificate", url: app.birthCertificate },
+        { label: "Transfer_Certificate", url: app.transferCertificate },
+        { label: "Marksheet", url: app.marksheet },
+        { label: "Aadhar_VID_Receipt", url: app.aadharVidOrReceipt },
+        { label: "Caste_Certificate", url: app.casteCertificate },
+        { label: "Payment_Receipt", url: app.paymentReceipt }
+      ].filter(item => item.url);
+
+      if (attachments.length === 0) {
+        alert("No documents available to download.");
+        return;
+      }
+
+      const downloadPromises = attachments.map(async (item) => {
+        try {
+          const response = await axios.get(item.url, { responseType: 'blob' });
+          const extension = item.url.split('.').pop().split('?')[0] || 'jpg';
+          folder.file(`${item.label}.${extension}`, response.data);
+        } catch (e) {
+          console.error(`Failed to download ${item.label}:`, e);
+        }
+      });
+
+      await Promise.all(downloadPromises);
+      
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `${folderName}.zip`);
+    } catch (err) {
+      console.error("ZIP generation error:", err);
+      alert("Failed to generate combined document package.");
+    } finally {
+      setIsDownloadingFiles(false);
+    }
+  };
+
   const handleDownloadJobPDF = async (app) => {
     setIsDownloadingPDF(true);
     try {
@@ -692,7 +776,10 @@ function AdminPage() {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/auth/admins`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) return handleLogout();
-      if (res.ok) setAdmins(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setAdmins(mapSupabaseToLegacy(data));
+      }
     } catch (e) { console.warn('Could not fetch admins'); }
   };
 
@@ -703,7 +790,8 @@ function AdminPage() {
       if (res.status === 401) return handleLogout();
       if (res.ok) {
         const result = await res.json();
-        setStudents(result.data || result || []);
+        const rawStudents = result.data || result || [];
+        setStudents(mapSupabaseToLegacy(rawStudents));
       }
     } catch (e) { console.warn('Could not fetch students'); }
   };
@@ -713,7 +801,10 @@ function AdminPage() {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/inquiries`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) return handleLogout();
-      if (res.ok) setInquiries(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setInquiries(mapSupabaseToLegacy(data));
+      }
     } catch (e) { console.warn('Could not fetch inquiries'); }
   };
 
@@ -721,7 +812,10 @@ function AdminPage() {
     setJobsLoading(true);
     try {
       const res = await fetch(`${API_URL}/jobs`);
-      if (res.ok) setJobs(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setJobs(mapSupabaseToLegacy(data));
+      }
     } catch (e) { console.warn('Could not fetch jobs'); }
     setJobsLoading(false);
   };
@@ -729,7 +823,10 @@ function AdminPage() {
   const fetchTenders = async () => {
     try {
       const res = await fetch(`${API_URL}/tenders`);
-      if (res.ok) setTenders(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setTenders(mapSupabaseToLegacy(data));
+      }
     } catch (e) { console.warn('Could not fetch tenders'); }
   };
 
@@ -738,7 +835,10 @@ function AdminPage() {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/tender-applications`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) return handleLogout();
-      if (res.ok) setTenderApplications(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setTenderApplications(mapSupabaseToLegacy(data));
+      }
     } catch (e) { console.warn('Could not fetch tender applications'); }
   };
 
@@ -836,6 +936,10 @@ function AdminPage() {
       });
       if (res.ok) {
         setTenderApplications(tenderApplications.map(app => app._id === id ? { ...app, status } : app));
+        alert(`Bid status updated to ${status}`);
+      } else {
+        const error = await res.json().catch(() => ({}));
+        alert("Update failed: " + (error.message || "Unknown error"));
       }
     } catch (err) {
       alert("Update failed: " + err.message);
@@ -960,7 +1064,10 @@ function AdminPage() {
     try {
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/appointments`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setAppointments(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setAppointments(mapSupabaseToLegacy(data));
+      }
     } catch (e) { console.warn('Could not fetch appointments'); }
   };
 
@@ -3736,56 +3843,7 @@ function AdminPage() {
   const renderAdmissionInstructionsSubTab = () => {
     return (
       <div className="space-y-8 animate-fadeIn">
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center border-b pb-4 mb-4">
-            <h3 className="text-xl font-bold text-gray-800">Admission Fee Settings</h3>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <span className={`text-sm font-bold ${localProfile.admissionPaymentEnabled !== false ? 'text-green-600' : 'text-gray-400'}`}>
-                  {localProfile.admissionPaymentEnabled !== false ? 'Payment ON' : 'Payment OFF'}
-                </span>
-                <div className="relative" onClick={() => handleProfileChange('admissionPaymentEnabled', !(localProfile.admissionPaymentEnabled !== false))}>
-                  <div className={`w-14 h-7 rounded-full transition-colors duration-300 ${localProfile.admissionPaymentEnabled !== false ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                  <div className={`absolute left-1 top-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow ${localProfile.admissionPaymentEnabled !== false ? 'translate-x-7' : ''}`}></div>
-                </div>
-              </label>
-              <button
-                onClick={handleProfileSave}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors shadow-sm"
-              >
-                Save Fee Settings
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Application Fee (₹)</label>
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-bold text-gray-400">₹</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={localProfile.admissionFee ?? 250}
-                  onChange={(e) => handleProfileChange('admissionFee', parseInt(e.target.value) || 0)}
-                  className="w-40 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary text-center font-bold text-lg"
-                  placeholder="250"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">Set to 0 to disable fee collection</p>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">UPI ID (for payment)</label>
-              <input
-                type="text"
-                value={localProfile.admissionUpiId || ''}
-                onChange={(e) => handleProfileChange('admissionUpiId', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
-                placeholder="e.g. schoolname@upi"
-              />
-              <p className="text-xs text-gray-400 mt-1">Students will pay via this UPI ID and upload the receipt</p>
-            </div>
-          </div>
-        </section>
+          {/* (Admission Fee Settings Removed) */}
 
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center border-b pb-4 mb-4">
@@ -4560,6 +4618,8 @@ function AdminPage() {
     const handlePageHeroUpload = async (pageId, e) => {
       const file = e.target.files[0];
       if (!file) return;
+      
+      setPageHeroUploading(prev => ({ ...prev, [pageId]: true }));
       try {
         const url = await uploadImage(file);
         setLocalProfile(prev => ({
@@ -4571,6 +4631,8 @@ function AdminPage() {
         }));
       } catch (err) {
         alert("Upload failed: " + err.message);
+      } finally {
+        setPageHeroUploading(prev => ({ ...prev, [pageId]: false }));
       }
     };
 
@@ -4862,9 +4924,13 @@ function AdminPage() {
                   <div className="p-3 bg-white border-b border-gray-100 flex justify-between items-center z-10">
                     <h4 className="font-bold text-gray-800 text-sm truncate">{page.label}</h4>
                   </div>
-                  
                   <div className="relative aspect-video bg-gray-100 flex-1 flex flex-col items-center justify-center group overflow-hidden">
-                    {currentImageUrl ? (
+                    {pageHeroUploading[page.id] ? (
+                      <div className="flex flex-col items-center justify-center p-4 h-full w-full bg-white/80">
+                        <FaSpinner className="animate-spin text-3xl text-primary mb-2" />
+                        <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Uploading...</span>
+                      </div>
+                    ) : currentImageUrl ? (
                       <>
                         <img 
                           src={currentImageUrl} 
@@ -4901,6 +4967,15 @@ function AdminPage() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="mt-10 pt-6 border-t border-gray-100 flex justify-end">
+            <button
+              onClick={handleProfileSave}
+              className="px-10 py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-all shadow-xl hover:-translate-y-1 flex items-center gap-3"
+            >
+              <FaSave size={20} /> Save All Profile Changes
+            </button>
           </div>
         </section>
       </div>
@@ -7314,21 +7389,20 @@ function AdminPage() {
                         { label: 'D.Led Pass Cert', key: 'certDLed', icon: <FaCheckCircle /> },
                         { label: 'Experience Cert', key: 'expCertificate', icon: <FaBriefcase /> },
                         { label: 'Caste Cert', key: 'casteCertificate', icon: <FaIdCard /> },
+                        { label: 'Applicant Photo', key: 'photo', icon: <FaImage /> },
                       ].map(doc => (
                         selectedJobApp[doc.key] ? (
-                          <a 
+                          <button 
                             key={doc.key} 
-                            href={selectedJobApp[doc.key]} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl hover:border-primary hover:shadow-md transition-all group"
+                            onClick={() => handleDownloadFile(selectedJobApp[doc.key], `${selectedJobApp.fullName.replace(/\s+/g, '_')}_${doc.label.replace(/\s+/g, '_')}`)}
+                            className="flex items-center text-left gap-3 p-3 bg-white border border-gray-200 rounded-xl hover:border-primary hover:shadow-md transition-all group w-full"
                           >
                             <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
                               {doc.icon}
                             </div>
                             <span className="text-xs font-bold text-gray-700">{doc.label}</span>
                             <FaDownload className="ml-auto text-gray-300 group-hover:text-primary transition-colors" size={12} />
-                          </a>
+                          </button>
                         ) : null
                       ))}
                     </div>
@@ -7405,8 +7479,26 @@ function AdminPage() {
                       </span>
                     ) : (
                       <>
-                        <FaDownload />
-                        <span className="hidden sm:inline">Download PDF</span>
+                        <FaFileAlt />
+                        <span className="hidden sm:inline">Application PDF</span>
+                      </>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => handleDownloadAllDocuments(selectedApp)}
+                    disabled={isDownloadingFiles}
+                    className="flex items-center gap-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-4 py-2 rounded-xl font-bold transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-100 shadow-sm"
+                    title="Download All Documents (ZIP)"
+                  >
+                    {isDownloadingFiles ? (
+                      <span className="flex items-center gap-2">
+                        <FaSpinner className="animate-spin" />
+                        <span>Zipping...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <FaFileUpload />
+                        <span className="hidden sm:inline">Download All Docs</span>
                       </>
                     )}
                   </button>
@@ -7496,63 +7588,143 @@ function AdminPage() {
                   <h4 className="text-xs uppercase font-bold text-gray-400 mb-4 tracking-widest">Documents Provided</h4>
                   <div className="flex flex-wrap gap-4">
                     {selectedApp.studentPhoto ? (
-                      <a href={selectedApp.studentPhoto} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
-                        <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                          <FaClipboardList />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Student Photo</p>
-                          <p className="text-xs text-gray-500">Click to view file</p>
-                        </div>
-                      </a>
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.studentPhoto)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Student Photo</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.studentPhoto, `Photo_${selectedApp.studentName.replace(/\s+/g, '_')}.jpg`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
                     ) : null}
 
                     {selectedApp.birthCertificate ? (
-                      <a href={selectedApp.birthCertificate} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
-                        <div className="w-10 h-10 bg-green-100 text-green-600 rounded-lg flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-colors">
-                          <FaClipboardList />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Birth Certificate</p>
-                          <p className="text-xs text-gray-500">Click to view file</p>
-                        </div>
-                      </a>
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.birthCertificate)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-green-100 text-green-600 rounded-lg flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Birth Certificate</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.birthCertificate, `BirthCert_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
                     ) : null}
 
                     {selectedApp.transferCertificate ? (
-                      <a href={selectedApp.transferCertificate} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
-                        <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                          <FaClipboardList />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Transfer Certificate</p>
-                          <p className="text-xs text-gray-500">Click to view file</p>
-                        </div>
-                      </a>
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.transferCertificate)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Transfer Certificate</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.transferCertificate, `TransferCert_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
                     ) : null}
                     
                     {selectedApp.marksheet ? (
-                      <a href={selectedApp.marksheet} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
-                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                          <FaClipboardList />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Marksheet / Report Card</p>
-                          <p className="text-xs text-gray-500">Click to view file</p>
-                        </div>
-                      </a>
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.marksheet)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Marksheet / Report Card</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.marksheet, `Marksheet_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
                     ) : null}
 
                     {selectedApp.aadharVidOrReceipt ? (
-                      <a href={selectedApp.aadharVidOrReceipt} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
-                        <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                          <FaClipboardList />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Aadhar VID / Receipt</p>
-                          <p className="text-xs text-gray-500">Click to view file</p>
-                        </div>
-                      </a>
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.aadharVidOrReceipt)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Aadhar VID / Receipt</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.aadharVidOrReceipt, `Aadhar_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {selectedApp.paymentReceipt ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.paymentReceipt)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                            <FaDownload />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Payment Receipt</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.paymentReceipt, `Receipt_${selectedApp.studentName.replace(/\s+/g, '_')}.jpg`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {selectedApp.casteCertificate ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.casteCertificate)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                            <FaIdCard />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Caste Certificate</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.casteCertificate, `CasteCert_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
                     ) : null}
 
                     {!selectedApp.studentPhoto && !selectedApp.birthCertificate && !selectedApp.transferCertificate && !selectedApp.marksheet && !selectedApp.aadharVidOrReceipt && (

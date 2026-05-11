@@ -1,5 +1,4 @@
-const Student = require('../models/Student');
-const Admission = require('../models/Admission');
+const supabase = require('../config/supabase');
 
 // @desc    Get all students with search and pagination
 // @route   GET /api/students
@@ -8,34 +7,30 @@ exports.getStudents = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const offset = (page - 1) * limit;
     const search = req.query.search;
 
-    const query = {};
+    let query = supabase
+      .from('students')
+      .select('*', { count: 'exact' });
+
     if (search) {
-      query.$or = [
-        { studentName: { $regex: search, $options: 'i' } },
-        { admissionId: { $regex: search, $options: 'i' } },
-        { guardianName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { contactNumber: { $regex: search, $options: 'i' } }
-      ];
+      query = query.or(`student_name.ilike.%${search}%,admission_id.ilike.%${search}%,guardian_name.ilike.%${search}%,email.ilike.%${search}%,contact_number.ilike.%${search}%`);
     }
 
-    const students = await Student.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const { data: students, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    const total = await Student.countDocuments(query);
+    if (error) throw error;
 
     res.json({
       data: students,
       pagination: {
         page,
         limit,
-        total,
-        pages: Math.ceil(total / limit)
+        total: count,
+        pages: Math.ceil(count / limit)
       }
     });
   } catch (error) {
@@ -43,13 +38,17 @@ exports.getStudents = async (req, res) => {
   }
 };
 
-// @desc    Export student directory to XLS (HTML Table mode)
+// @desc    Export student directory to XLS
 // @route   GET /api/students/export
 // @access  Private (Admin)
 exports.exportStudents = async (req, res) => {
-  console.log('Export Students triggered (HTML Table mode)');
   try {
-    const students = await Student.find().sort({ studentName: 1 });
+    const { data: students, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('student_name', { ascending: true });
+    
+    if (error) throw error;
     
     let html = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -79,15 +78,15 @@ exports.exportStudents = async (req, res) => {
     students.forEach(s => {
       html += `
         <tr>
-          <td>${s.studentName || ''}</td>
+          <td>${s.student_name || ''}</td>
           <td>${(s.grade || '').toUpperCase()}</td>
-          <td>${s.guardianName || ''}</td>
-          <td class="text">${s.contactNumber || ''}</td>
+          <td>${s.guardian_name || ''}</td>
+          <td class="text">${s.contact_number || ''}</td>
           <td>${s.email || ''}</td>
-          <td class="text">${s.aadharNumber || ''}</td>
-          <td class="text">${s.penNumber || ''}</td>
+          <td class="text">${s.aadhar_number || ''}</td>
+          <td class="text">${s.pen_number || ''}</td>
           <td>${s.address || ''}</td>
-          <td>${s.createdAt ? new Date(s.createdAt).toLocaleDateString() : ''}</td>
+          <td>${s.created_at ? new Date(s.created_at).toLocaleDateString() : ''}</td>
         </tr>
       `;
     });
@@ -95,14 +94,8 @@ exports.exportStudents = async (req, res) => {
     html += `</table></body></html>`;
 
     const fileName = `students_directory_export_${new Date().toISOString().split('T')[0]}.xls`;
-    
     res.set('Content-Type', 'application/vnd.ms-excel');
     res.set('Content-Disposition', `attachment; filename=${fileName}`);
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    res.removeHeader('ETag');
-
     res.send(html);
   } catch (error) {
     console.error('Export Students Error:', error.message);
@@ -115,8 +108,13 @@ exports.exportStudents = async (req, res) => {
 // @access  Private (Admin)
 exports.getStudentById = async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id);
-    if (!student) {
+    const { data: student, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error || !student) {
       return res.status(404).json({ message: 'Student not found' });
     }
     res.json(student);
@@ -130,12 +128,30 @@ exports.getStudentById = async (req, res) => {
 // @access  Private (Admin)
 exports.updateStudent = async (req, res) => {
   try {
-    const student = await Student.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    if (!student) {
+    const updateData = {
+      student_name: req.body.studentName,
+      admission_id: req.body.admissionId,
+      grade: req.body.grade,
+      guardian_name: req.body.guardianName,
+      contact_number: req.body.contactNumber,
+      email: req.body.email,
+      aadhar_number: req.body.aadharNumber,
+      pen_number: req.body.penNumber,
+      address: req.body.address,
+      updated_at: new Date()
+    };
+
+    // Remove undefined
+    const cleanUpdate = Object.fromEntries(Object.entries(updateData).filter(([_, v]) => v !== undefined));
+
+    const { data: student, error } = await supabase
+      .from('students')
+      .update(cleanUpdate)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error || !student) {
       return res.status(404).json({ message: 'Student not found' });
     }
     res.json(student);
@@ -149,21 +165,38 @@ exports.updateStudent = async (req, res) => {
 // @access  Private (Admin)
 exports.deleteStudent = async (req, res) => {
   try {
-    const student = await Student.findByIdAndDelete(req.params.id);
-    if (!student) {
-      return res.status(404).json({ message: 'Student not found' });
-    }
+    const { error } = await supabase.from('students').delete().eq('id', req.params.id);
+    if (error) throw error;
     res.json({ message: 'Student removed from directory' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 // @desc    Add a new student manually
 // @route   POST /api/students
 // @access  Private (Admin)
 exports.createStudent = async (req, res) => {
   try {
-    const student = await Student.create(req.body);
+    const studentData = {
+      student_name: req.body.studentName,
+      admission_id: req.body.admissionId,
+      grade: req.body.grade,
+      guardian_name: req.body.guardianName,
+      contact_number: req.body.contactNumber,
+      email: req.body.email,
+      aadhar_number: req.body.aadharNumber,
+      pen_number: req.body.penNumber,
+      address: req.body.address
+    };
+
+    const { data: student, error } = await supabase
+      .from('students')
+      .insert(studentData)
+      .select()
+      .single();
+
+    if (error) throw error;
     res.status(201).json(student);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

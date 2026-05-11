@@ -3,7 +3,14 @@ import { FaFilePdf, FaDownload, FaBell, FaCalendarAlt, FaShareAlt } from "react-
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function Notice() {
-  const { notices, schoolProfile } = useContext(SiteDataContext);
+  const { notices, schoolProfile, API_URL } = useContext(SiteDataContext);
+  
+  const getProxyUrl = (url) => {
+    if (!url) return url;
+    const isExternal = url.includes('cloudinary.com') || url.includes('supabase.co');
+    if (!isExternal) return url;
+    return `${API_URL}/files/proxy?url=${encodeURIComponent(url)}`;
+  };
   const latestNotice = notices && notices.length > 0 ? notices[0] : null;
   const previousNotices = notices && notices.length > 1 ? notices.slice(1) : [];
 
@@ -92,7 +99,7 @@ function Notice() {
                     <p className="text-gray-500 mb-8 font-medium bg-white inline-block px-4 py-1 rounded-full shadow-sm">Published on {latestNotice.date}</p>
                     <div>
                       <div className="flex gap-4 items-center justify-center">
-                        <a href={latestNotice.pdfLink} target="_blank" rel="noreferrer" className="bg-primary hover:bg-primary-container text-white px-8 py-3 rounded-full font-medium transition-all shadow-md hover:shadow-lg inline-flex items-center transform hover:scale-105">
+                        <a href={`${getProxyUrl(latestNotice.pdfLink)}&filename=${encodeURIComponent(latestNotice.title)}.pdf`} target="_blank" rel="noreferrer" className="bg-primary hover:bg-primary-container text-white px-8 py-3 rounded-full font-medium transition-all shadow-md hover:shadow-lg inline-flex items-center transform hover:scale-105">
                           <FaDownload className="mr-3" /> View / Download PDF
                         </a>
                         <button 
@@ -157,7 +164,7 @@ function Notice() {
                       <td className="py-5 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <a
-                            href={notice.pdfLink}
+                            href={`${getProxyUrl(notice.pdfLink)}&filename=${encodeURIComponent(notice.title)}.pdf`}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center justify-center bg-white border border-gray-200 hover:border-primary hover:bg-primary hover:text-white text-gray-700 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-md whitespace-nowrap"

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Job = require('../models/Job');
+const supabase = require('../config/supabase');
 const { protect, authorize } = require('../middleware/auth');
 
 // @desc    Get all job openings
@@ -8,10 +8,15 @@ const { protect, authorize } = require('../middleware/auth');
 // @access  Public
 router.get('/', async (req, res) => {
   try {
-    const jobs = await Job.find().sort({ createdAt: -1 }).lean();
+    const { data: jobs, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
     res.json(jobs);
   } catch (err) {
-    res.status(500).json({ message: 'Server Error' });
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 });
 
@@ -20,8 +25,20 @@ router.get('/', async (req, res) => {
 // @access  Private/Admin
 router.post('/', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    const newJob = new Job(req.body);
-    const job = await newJob.save();
+    const { data: job, error } = await supabase
+      .from('jobs')
+      .insert({
+        title: req.body.title,
+        department: req.body.department,
+        type: req.body.type || 'Full-Time',
+        experience: req.body.experience,
+        qualifications: req.body.qualifications || [],
+        deadline: req.body.deadline || 'Open until filled'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
     res.status(201).json(job);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -33,12 +50,27 @@ router.post('/', protect, authorize('admin', 'superadmin'), async (req, res) => 
 // @access  Private/Admin
 router.put('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    const job = await Job.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    });
+    const updateData = {
+      title: req.body.title,
+      department: req.body.department,
+      type: req.body.type,
+      experience: req.body.experience,
+      qualifications: req.body.qualifications,
+      deadline: req.body.deadline,
+      updated_at: new Date()
+    };
+
+    // Remove undefined
+    const cleanUpdate = Object.fromEntries(Object.entries(updateData).filter(([_, v]) => v !== undefined));
+
+    const { data: job, error } = await supabase
+      .from('jobs')
+      .update(cleanUpdate)
+      .eq('id', req.params.id)
+      .select()
+      .single();
     
-    if (!job) {
+    if (error || !job) {
       return res.status(404).json({ message: 'Job not found' });
     }
     
@@ -53,16 +85,11 @@ router.put('/:id', protect, authorize('admin', 'superadmin'), async (req, res) =
 // @access  Private/Admin
 router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
-    
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
-    
-    await job.deleteOne();
+    const { error } = await supabase.from('jobs').delete().eq('id', req.params.id);
+    if (error) throw error;
     res.json({ message: 'Job removed' });
   } catch (err) {
-    res.status(500).json({ message: 'Server Error' });
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 });
 

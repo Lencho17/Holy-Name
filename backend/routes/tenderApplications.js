@@ -1,36 +1,53 @@
 const express = require('express');
-const TenderApplication = require('../models/TenderApplication');
+const supabase = require('../config/supabase');
 const { protect } = require('../middleware/auth');
 const router = express.Router();
 
 // POST submit application (public)
 router.post('/', async (req, res) => {
   try {
-    const lastApp = await TenderApplication.findOne().sort({ createdAt: -1 });
-    let nextNum = 1;
-    if (lastApp && lastApp.referenceNumber) {
-      const lastNum = parseInt(lastApp.referenceNumber.split('-')[2]);
-      if (!isNaN(lastNum)) nextNum = lastNum + 1;
-    }
-    const refNum = `TDR-${new Date().getFullYear()}-${nextNum.toString().padStart(4, '0')}`;
+    const crypto = require('crypto');
+    const refNum = `TDR-${new Date().getFullYear()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
-    const application = new TenderApplication({
-      ...req.body,
-      referenceNumber: refNum
-    });
+    const { data: application, error } = await supabase
+      .from('tender_applications')
+      .insert({
+        tender_id: req.body.tenderId,
+        reference_number: refNum,
+        company_name: req.body.companyName,
+        registration_number: req.body.registrationNumber,
+        contact_person: req.body.contactPerson,
+        email: req.body.email,
+        phone: req.body.phone,
+        address: req.body.address,
+        bid_amount: req.body.bidAmount,
+        proposed_timeline: req.body.proposedTimeline,
+        document_url: JSON.stringify({
+          technicalProposalUrl: req.body.technicalProposalUrl,
+          financialProposalUrl: req.body.financialProposalUrl,
+          companyProfileUrl: req.body.companyProfileUrl
+        }),
+        status: 'Pending'
+      })
+      .select('*, tenders(*)')
+      .single();
 
-    await application.save();
+    if (error) throw error;
     res.status(201).json(application);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
 
-// GET export all applications to XLS (Admin) - Must be before parameterized routes
+// GET export all applications to XLS (Admin)
 router.get('/export', protect, async (req, res) => {
-  console.log('Export Tender Applications triggered (HTML Table mode)');
   try {
-    const applications = await TenderApplication.find().populate('tenderId').sort({ createdAt: -1 });
+    const { data: applications, error } = await supabase
+      .from('tender_applications')
+      .select('*, tenders(*)')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
     
     let html = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -63,18 +80,18 @@ router.get('/export', protect, async (req, res) => {
     applications.forEach(a => {
       html += `
         <tr>
-          <td class="text">${a.referenceNumber || ''}</td>
-          <td>${a.tenderId?.title || 'Unknown'}</td>
-          <td>${a.companyName || ''}</td>
-          <td class="text">${a.registrationNumber || ''}</td>
-          <td>${a.contactPerson || ''}</td>
+          <td class="text">${a.reference_number || ''}</td>
+          <td>${a.tenders?.title || 'Unknown'}</td>
+          <td>${a.company_name || ''}</td>
+          <td class="text">${a.registration_number || ''}</td>
+          <td>${a.contact_person || ''}</td>
           <td>${a.email || ''}</td>
           <td class="text">${a.phone || ''}</td>
           <td>${a.address || ''}</td>
-          <td>${a.bidAmount || ''}</td>
-          <td>${a.proposedTimeline || ''}</td>
+          <td>${a.bid_amount || ''}</td>
+          <td>${a.proposed_timeline || ''}</td>
           <td>${a.status || ''}</td>
-          <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ''}</td>
+          <td>${a.created_at ? new Date(a.created_at).toLocaleDateString() : ''}</td>
         </tr>
       `;
     });
@@ -82,14 +99,8 @@ router.get('/export', protect, async (req, res) => {
     html += `</table></body></html>`;
 
     const fileName = `tender_applications_export_${new Date().toISOString().split('T')[0]}.xls`;
-    
     res.set('Content-Type', 'application/vnd.ms-excel');
     res.set('Content-Disposition', `attachment; filename=${fileName}`);
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    res.removeHeader('ETag');
-
     res.send(html);
   } catch (error) {
     console.error('Export Tender Applications Error:', error.message);
@@ -100,14 +111,31 @@ router.get('/export', protect, async (req, res) => {
 // GET all applications (admin)
 router.get('/', protect, async (req, res) => {
   try {
-    const apps = await TenderApplication.find().populate('tenderId').sort({ createdAt: -1 });
-    res.json(apps);
+    const { data: apps, error } = await supabase
+      .from('tender_applications')
+      .select('*, tenders(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    const processedApps = apps.map(app => {
+      let docs = {};
+      try { docs = JSON.parse(app.document_url || '{}'); } catch(e){}
+      return {
+        ...app,
+        technical_proposal_url: docs.technicalProposalUrl || app.document_url,
+        financial_proposal_url: docs.financialProposalUrl || '',
+        company_profile_url: docs.companyProfileUrl || ''
+      };
+    });
+
+    res.json(processedApps);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// GET track application (public) - by reference number + email
+// GET track application (public)
 router.get('/track/:ref', async (req, res) => {
   try {
     const { ref } = req.params;
@@ -117,21 +145,23 @@ router.get('/track/:ref', async (req, res) => {
       return res.status(400).json({ message: 'Reference number and email are required.' });
     }
 
-    const app = await TenderApplication.findOne({
-      referenceNumber: ref.toUpperCase(),
-      email: email.toLowerCase()
-    }).populate('tenderId');
+    const { data: app, error } = await supabase
+      .from('tender_applications')
+      .select('*, tenders(*)')
+      .eq('reference_number', ref.toUpperCase())
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
 
-    if (!app) {
+    if (error || !app) {
       return res.status(404).json({ message: 'No application found with the provided reference number and email.' });
     }
 
     res.json({
-      referenceNumber: app.referenceNumber,
-      tenderTitle: app.tenderId?.title || 'Unknown Tender',
-      companyName: app.companyName,
+      referenceNumber: app.reference_number,
+      tenderTitle: app.tenders?.title || 'Unknown Tender',
+      companyName: app.company_name,
       status: app.status,
-      submittedAt: app.createdAt
+      submittedAt: app.created_at
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -141,9 +171,25 @@ router.get('/track/:ref', async (req, res) => {
 // GET single application (admin)
 router.get('/:id', protect, async (req, res) => {
   try {
-    const app = await TenderApplication.findById(req.params.id).populate('tenderId');
-    if (!app) return res.status(404).json({ message: 'Application not found' });
-    res.json(app);
+    const { data: app, error } = await supabase
+      .from('tender_applications')
+      .select('*, tenders(*)')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error || !app) return res.status(404).json({ message: 'Application not found' });
+    
+    let docs = {};
+    try { docs = JSON.parse(app.document_url || '{}'); } catch(e){}
+    
+    const processedApp = {
+      ...app,
+      technical_proposal_url: docs.technicalProposalUrl || app.document_url,
+      financial_proposal_url: docs.financialProposalUrl || '',
+      company_profile_url: docs.companyProfileUrl || ''
+    };
+
+    res.json(processedApp);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -152,11 +198,14 @@ router.get('/:id', protect, async (req, res) => {
 // PUT update status (admin)
 router.put('/:id', protect, async (req, res) => {
   try {
-    const updatedApp = await TenderApplication.findByIdAndUpdate(
-      req.params.id, 
-      { status: req.body.status }, 
-      { new: true }
-    );
+    const { data: updatedApp, error } = await supabase
+      .from('tender_applications')
+      .update({ status: req.body.status, updated_at: new Date() })
+      .eq('id', req.params.id)
+      .select('*, tenders(*)')
+      .single();
+
+    if (error) throw error;
     res.json(updatedApp);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -166,7 +215,8 @@ router.put('/:id', protect, async (req, res) => {
 // DELETE application (admin)
 router.delete('/:id', protect, async (req, res) => {
   try {
-    await TenderApplication.findByIdAndDelete(req.params.id);
+    const { error } = await supabase.from('tender_applications').delete().eq('id', req.params.id);
+    if (error) throw error;
     res.json({ message: 'Application deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -1,23 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const Inquiry = require('../models/Inquiry');
+const supabase = require('../config/supabase');
 const { protect } = require('../middleware/auth');
 const { transporter } = require('../utils/mailer');
-const SiteContent = require('../models/SiteContent');
 
 const sendInquiryConfirmationEmail = async (inquiryData) => {
   try {
     if (!inquiryData.email) return;
 
-    const siteContent = await SiteContent.findOne();
-    const schoolLogo = siteContent?.schoolProfile?.logo || 'https://holynamehsschool.in/logo.png';
-    const schoolName = siteContent?.schoolProfile?.name || 'Holy Name High School';
-    const schoolTagline = siteContent?.schoolProfile?.punchLine || 'Excellence in Education';
+    const { data: settings } = await supabase.from('site_settings').select('*').single();
+    const schoolLogo = settings?.logo || 'https://holynamehsschool.in/logo.png';
+    const schoolName = settings?.school_name || 'Holy Name High School';
+    const schoolTagline = settings?.punch_line || 'Excellence in Education';
 
     const mailOptions = {
       from: `"${schoolName}" <${process.env.EMAIL_USER}>`,
       to: inquiryData.email,
-      subject: `Inquiry Received: ${inquiryData.trackingNumber}`,
+      subject: `Inquiry Received: ${inquiryData.tracking_number}`,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
           <div style="background-color: #1e3a8a; color: white; padding: 25px; text-align: center;">
@@ -33,7 +32,7 @@ const sendInquiryConfirmationEmail = async (inquiryData) => {
             
             <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; margin: 20px 0; text-align: center; border-radius: 8px;">
               <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: bold; text-transform: uppercase;">Tracking Number</p>
-              <p style="margin: 5px 0 0 0; font-size: 20px; color: #1e40af; font-weight: bold; font-family: monospace;">${inquiryData.trackingNumber}</p>
+              <p style="margin: 5px 0 0 0; font-size: 20px; color: #1e40af; font-weight: bold; font-family: monospace;">${inquiryData.tracking_number}</p>
             </div>
 
             <p>Our team will review your message and get back to you as soon as possible if a response is required.</p>
@@ -49,7 +48,6 @@ const sendInquiryConfirmationEmail = async (inquiryData) => {
       `,
     };
     await transporter.sendMail(mailOptions);
-    console.log(`Inquiry confirmation email sent to ${inquiryData.email}`);
   } catch (err) {
     console.error('Failed to send inquiry confirmation email:', err.message);
   }
@@ -69,33 +67,32 @@ router.post('/', async (req, res) => {
        return res.status(400).json({ message: 'Name and email are required unless anonymous.' });
     }
 
-    // Generate Tracking Number: HNS/TYPE/YEAR/SEQUENCE
-    const year = new Date().getFullYear();
+    const crypto = require('crypto');
     const typeCode = type === 'Suggestion' ? 'SUG' : type === 'Complain' ? 'COM' : 'INQ';
-    const count = await Inquiry.countDocuments({ 
-      type, 
-      createdAt: { 
-        $gte: new Date(year, 0, 1), 
-        $lt: new Date(year + 1, 0, 1) 
-      } 
-    });
-    const trackingNumber = `HNS/${typeCode}/${year}/${(count + 1).toString().padStart(3, '0')}`;
+    const trackingNumber = `HNS/${typeCode}/${new Date().getFullYear()}/${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
-    const newInquiry = new Inquiry({
+    const inquiryData = {
       name: isAnonymous ? 'Anonymous User' : name,
       email: isAnonymous ? '' : email,
       phone: isAnonymous ? '' : phone,
       type,
       subject,
-      userType,
-      isAnonymous,
-      className,
+      user_type: userType,
+      is_anonymous: isAnonymous,
+      class_name: className,
       section,
       message,
-      trackingNumber
-    });
+      tracking_number: trackingNumber,
+      status: 'Submitted'
+    };
 
-    await newInquiry.save();
+    const { data: newInquiry, error } = await supabase
+      .from('inquiries')
+      .insert(inquiryData)
+      .select()
+      .single();
+
+    if (error) throw error;
 
     // Send confirmation email
     if (!isAnonymous && email) {
@@ -105,7 +102,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ message: 'Inquiry submitted successfully.', inquiry: newInquiry });
   } catch (error) {
     console.error('Error submitting inquiry:', error);
-    res.status(500).json({ message: 'Server error while submitting inquiry.' });
+    res.status(500).json({ message: 'Server error while submitting inquiry.', error: error.message });
   }
 });
 
@@ -113,7 +110,12 @@ router.post('/', async (req, res) => {
 // @desc    Get all inquiries (Protected)
 router.get('/', protect, async (req, res) => {
   try {
-    const inquiries = await Inquiry.find().sort({ createdAt: -1 }).lean();
+    const { data: inquiries, error } = await supabase
+      .from('inquiries')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
     res.json(inquiries);
   } catch (error) {
     console.error('Error fetching inquiries:', error);
@@ -125,15 +127,18 @@ router.get('/', protect, async (req, res) => {
 // @desc    Toggle isRead status (Protected)
 router.patch('/:id/read', protect, async (req, res) => {
   try {
-    const inquiry = await Inquiry.findById(req.params.id);
-    if (!inquiry) {
-      return res.status(404).json({ message: 'Inquiry not found.' });
-    }
+    const { data: currentInquiry } = await supabase.from('inquiries').select('is_read').eq('id', req.params.id).single();
+    if (!currentInquiry) return res.status(404).json({ message: 'Inquiry not found.' });
 
-    inquiry.isRead = !inquiry.isRead;
-    await inquiry.save();
+    const { data: inquiry, error } = await supabase
+      .from('inquiries')
+      .update({ is_read: !currentInquiry.is_read, updated_at: new Date() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
 
-    res.json({ message: `Inquiry marked as ${inquiry.isRead ? 'read' : 'unread'}.`, inquiry });
+    if (error) throw error;
+    res.json({ message: `Inquiry marked as ${inquiry.is_read ? 'read' : 'unread'}.`, inquiry });
   } catch (error) {
     console.error('Error updating inquiry status:', error);
     res.status(500).json({ message: 'Server error while updating status.' });
@@ -145,11 +150,13 @@ router.patch('/:id/read', protect, async (req, res) => {
 router.get('/export', protect, async (req, res) => {
   try {
     const { type: typeFilter, status: statusFilter } = req.query;
-    const query = {};
-    if (typeFilter && typeFilter !== 'All') query.type = typeFilter;
-    if (statusFilter && statusFilter !== 'All') query.status = statusFilter;
+    let query = supabase.from('inquiries').select('*').order('created_at', { ascending: false });
+    
+    if (typeFilter && typeFilter !== 'All') query = query.eq('type', typeFilter);
+    if (statusFilter && statusFilter !== 'All') query = query.eq('status', statusFilter);
 
-    const inquiries = await Inquiry.find(query).sort({ createdAt: -1 });
+    const { data: inquiries, error } = await query;
+    if (error) throw error;
 
     const typeLabel = typeFilter && typeFilter !== 'All' ? `_${typeFilter.replace(/\s+/g, '_')}` : '_ALL';
     const statusLabel = statusFilter && statusFilter !== 'All' ? `_${statusFilter}` : '';
@@ -187,19 +194,19 @@ router.get('/export', protect, async (req, res) => {
     inquiries.forEach(i => {
       html += `
         <tr>
-          <td class="text">${i.trackingNumber || ''}</td>
+          <td class="text">${i.tracking_number || ''}</td>
           <td>${i.type || ''}</td>
           <td>${i.status || 'Submitted'}</td>
           <td>${i.name || ''}</td>
           <td>${i.email || ''}</td>
           <td class="text">${i.phone || ''}</td>
-          <td>${i.userType || ''}</td>
-          <td>${i.className ? `${i.className}${i.section ? '-' + i.section : ''}` : ''}</td>
+          <td>${i.user_type || ''}</td>
+          <td>${i.class_name ? `${i.class_name}${i.section ? '-' + i.section : ''}` : ''}</td>
           <td>${i.subject || ''}</td>
           <td>${i.message || ''}</td>
-          <td>${i.adminReply || ''}</td>
-          <td>${i.isAnonymous ? 'Yes' : 'No'}</td>
-          <td>${i.createdAt ? new Date(i.createdAt).toLocaleDateString() : ''}</td>
+          <td>${i.admin_reply || ''}</td>
+          <td>${i.is_anonymous ? 'Yes' : 'No'}</td>
+          <td>${i.created_at ? new Date(i.created_at).toLocaleDateString() : ''}</td>
         </tr>
       `;
     });
@@ -208,10 +215,6 @@ router.get('/export', protect, async (req, res) => {
 
     res.set('Content-Type', 'application/vnd.ms-excel');
     res.set('Content-Disposition', `attachment; filename=${fileName}`);
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    res.removeHeader('ETag');
     res.send(html);
   } catch (error) {
     console.error('Export Inquiries Error:', error.message);
@@ -220,23 +223,28 @@ router.get('/export', protect, async (req, res) => {
 });
 
 // @route   GET /api/inquiries/track/:trackingNumber
-// @desc    Public tracking — look up inquiry status by tracking number
+// @desc    Public tracking
 router.get('/track/:trackingNumber', async (req, res) => {
   try {
     const trackingNumber = decodeURIComponent(req.params.trackingNumber).toUpperCase();
-    const inquiry = await Inquiry.findOne({ trackingNumber }).lean();
-    if (!inquiry) {
+    const { data: inquiry, error } = await supabase
+      .from('inquiries')
+      .select('*')
+      .eq('tracking_number', trackingNumber)
+      .maybeSingle();
+
+    if (error || !inquiry) {
       return res.status(404).json({ message: 'No inquiry found with this tracking number.' });
     }
-    // Return only safe public-facing fields
+    
     res.json({
-      trackingNumber: inquiry.trackingNumber,
+      trackingNumber: inquiry.tracking_number,
       type: inquiry.type,
       subject: inquiry.subject,
       status: inquiry.status || 'Submitted',
-      adminReply: inquiry.adminReply || null,
-      repliedAt: inquiry.repliedAt || null,
-      createdAt: inquiry.createdAt
+      adminReply: inquiry.admin_reply || null,
+      repliedAt: inquiry.replied_at || null,
+      createdAt: inquiry.created_at
     });
   } catch (error) {
     console.error('Track inquiry error:', error);
@@ -249,15 +257,21 @@ router.get('/track/:trackingNumber', async (req, res) => {
 router.patch('/:id/status', protect, async (req, res) => {
   try {
     const { status, adminReply } = req.body;
-    const update = {};
+    const update = { updated_at: new Date() };
     if (status) update.status = status;
     if (adminReply !== undefined) {
-      update.adminReply = adminReply;
-      update.repliedAt = new Date();
+      update.admin_reply = adminReply;
+      update.replied_at = new Date();
     }
     
-    const inquiry = await Inquiry.findByIdAndUpdate(req.params.id, update, { new: true });
-    if (!inquiry) {
+    const { data: inquiry, error } = await supabase
+      .from('inquiries')
+      .update(update)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error || !inquiry) {
       return res.status(404).json({ message: 'Inquiry not found.' });
     }
     res.json({ message: 'Inquiry updated successfully.', inquiry });
@@ -271,12 +285,8 @@ router.patch('/:id/status', protect, async (req, res) => {
 // @desc    Delete an inquiry (Protected)
 router.delete('/:id', protect, async (req, res) => {
   try {
-    const inquiry = await Inquiry.findById(req.params.id);
-    if (!inquiry) {
-      return res.status(404).json({ message: 'Inquiry not found.' });
-    }
-
-    await Inquiry.deleteOne({ _id: req.params.id });
+    const { error } = await supabase.from('inquiries').delete().eq('id', req.params.id);
+    if (error) throw error;
     res.json({ message: 'Inquiry deleted successfully.' });
   } catch (error) {
     console.error('Error deleting inquiry:', error);

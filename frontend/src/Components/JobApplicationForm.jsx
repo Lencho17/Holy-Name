@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { FaUser, FaIdCard, FaMapMarkerAlt, FaGraduationCap, FaBriefcase, FaFileUpload, FaSpinner, FaCheckCircle, FaExclamationCircle, FaDownload } from "react-icons/fa";
+import { FaUser, FaIdCard, FaMapMarkerAlt, FaGraduationCap, FaBriefcase, FaFileUpload, FaSpinner, FaCheckCircle, FaExclamationCircle, FaDownload, FaArrowRight } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function JobApplicationForm() {
@@ -11,263 +11,237 @@ function JobApplicationForm() {
   const navigate = useNavigate();
   const { API_URL: ctxApiUrl, schoolProfile } = useContext(SiteDataContext);
   const apiBase = ctxApiUrl || import.meta.env.VITE_API_URL || '/api';
+  const [jobTitle, setJobTitle] = useState('General Application');
+
+  // Fetch job title from the job ID
+  useEffect(() => {
+    if (jobId && jobId !== 'undefined') {
+      fetch(`${apiBase}/jobs`)
+        .then(res => res.json())
+        .then(jobs => {
+          const found = jobs.find(j => j.id === jobId);
+          if (found) setJobTitle(found.title);
+        })
+        .catch(() => {});
+    }
+  }, [jobId, apiBase]);
 
   const handleDownloadReceipt = async () => {
     const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const primaryColor = [37, 99, 235]; // Beautiful Blue
-    const textColor = [50, 50, 50];
-    const accentColor = [191, 219, 254]; // Light Blue / Accent
-    const lightColor = [248, 250, 252]; // Off White / Light Section
+    const primaryColor = [30, 41, 59];
+    const secondaryColor = [100, 116, 139];
+    const leftColX = 15;
+    const rightColX = 110;
+    const yInc = 7;
 
+    const loadImage = (url) => new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = url;
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+    });
 
-    const loadImage = (url) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = url;
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
-      });
-    };
+    // --- 0. Watermark (drawn FIRST so everything renders on top) ---
+    doc.saveGraphicsState();
+    doc.setTextColor(240, 240, 240);
+    doc.setFontSize(44);
+    doc.setFont("helvetica", "bold");
+    doc.text("VidyaBarta School", 10, 200, { angle: 48 });
+    doc.text("Management Software", 40, 200, { angle: 48 });
+    doc.restoreGraphicsState();
 
-    // --- 1. Bold Header Bar ---
-
-    doc.setFillColor(...primaryColor);
-    doc.rect(0, 0, 210, 50, 'F');
-
-    // School Logo
+    // --- 1. Centered Letterhead ---
     const logoImg = schoolProfile?.logo ? await loadImage(schoolProfile.logo) : null;
-    if (logoImg) {
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(0.8);
-      doc.roundedRect(12, 10, 30, 30, 2, 2, 'D');
-      doc.addImage(logoImg, 'PNG', 13, 11, 28, 28);
-    }
+    const cx = 105;
+    if (logoImg) doc.addImage(logoImg, 'PNG', cx - 10, 6, 20, 20);
 
-    // Header Text (White)
-    doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(schoolProfile?.name?.toUpperCase() || "HOLY NAME HIGH SCHOOL", 110, 22, { align: "center" });
-    
-    doc.setFontSize(9);
+    doc.setFontSize(16);
+    doc.setTextColor(...primaryColor);
+    doc.text((schoolProfile?.name || "HOLY NAME HS SCHOOL").toUpperCase(), cx, 32, { align: "center" });
+
     doc.setFont("helvetica", "normal");
-    doc.text(schoolProfile?.officeAddress || "", 110, 28, { align: "center" });
-    
-    const contactInfo = [schoolProfile?.email, schoolProfile?.phone].filter(Boolean).join(" | ");
-    doc.text(contactInfo, 110, 33, { align: "center" });
-    
     doc.setFontSize(8);
-    doc.setTextColor(191, 219, 254);
-    doc.text(`Recruitment Portal | Generated on ${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN')}`, 110, 38, { align: "center" });
+    doc.setTextColor(...secondaryColor);
+    doc.text(schoolProfile?.officeAddress || "", cx, 37, { align: "center" });
+    doc.text([schoolProfile?.email, schoolProfile?.phone].filter(Boolean).join(" | "), cx, 42, { align: "center" });
 
-    // --- 2. Title Section ---
-    doc.setTextColor(...primaryColor);
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("JOB APPLICATION ACKNOWLEDGEMENT", 105, 65, { align: "center" });
-    
-    // Thin underline
-    doc.setDrawColor(...accentColor);
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, cx, 47, { align: "center" });
+
+    doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.5);
-    doc.line(60, 68, 150, 68);
+    doc.line(15, 50, 195, 50);
 
-    // --- 3. Reference & Photo Row ---
-    // Reference Box
-    doc.setFillColor(...lightColor);
-    doc.roundedRect(15, 75, 140, 30, 3, 3, 'F');
-    doc.setDrawColor(...accentColor);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(15, 75, 140, 30, 3, 3, 'D');
-    
+    // --- 2. Title ---
     doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(...primaryColor);
-    doc.text(`REFERENCE ID: ${submittedRef}`, 22, 85);
-    
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
+    doc.text("JOB APPLICATION ACKNOWLEDGEMENT", cx, 58, { align: "center" });
+
+    // --- 3. Reference & Photo ---
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(15, 62, 142, 20, 2, 2, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, 62, 142, 20, 2, 2, 'D');
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...primaryColor);
+    doc.text(`REFERENCE ID: ${submittedRef}`, 20, 70);
+
+    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(`Applicant Name: ${formData.fullName}`, 22, 91);
-    doc.text(`Email: ${formData.email || 'N/A'}`, 22, 97);
+    doc.setTextColor(...secondaryColor);
+    doc.text(`Applicant: ${formData.fullName.toUpperCase()}  |  Email: ${formData.email.toLowerCase()}`, 20, 76);
 
-    // Passport Photo
-    doc.setDrawColor(...primaryColor);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(165, 75, 30, 35, 2, 2, 'D');
-    
-    let studentPhotoUrl = null;
-    if (files?.passportPhoto) {
-      studentPhotoUrl = URL.createObjectURL(files.passportPhoto);
-    }
-
-    const studentImg = studentPhotoUrl ? await loadImage(studentPhotoUrl) : null;
-    if (studentImg) {
-      doc.addImage(studentImg, 'JPEG', 166, 76, 28, 33);
+    // Photo
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(165, 62, 28, 28, 2, 2, 'D');
+    const photoUrl = files?.photo ? URL.createObjectURL(files.photo) : null;
+    const photoImg = photoUrl ? await loadImage(photoUrl) : null;
+    if (photoImg) {
+      doc.addImage(photoImg, 'JPEG', 166, 63, 26, 26);
     } else {
       doc.setFontSize(7);
-      doc.setTextColor(148, 163, 184);
-      doc.text("PHOTO\nSPACE", 180, 92, { align: "center" });
+      doc.setTextColor(180);
+      doc.text("CANDIDATE", 179, 73, { align: "center" });
+      doc.text("PHOTO", 179, 77, { align: "center" });
     }
 
-    // --- 4. Watermark (Brackets Removed) ---
-    doc.setTextColor(241, 245, 249);
-    doc.setFontSize(45);
+
+    // --- 4. Application Details ---
+    let currY = 97;
     doc.setFont("helvetica", "bold");
-    doc.text("VidyaBarta Lencho Solutions", 40, 220, { angle: 45 });
+    doc.setFontSize(9);
+    doc.setTextColor(...primaryColor);
+    doc.text("APPLICATION DETAILS", 15, currY - 4);
 
-    // --- 5. Fields Section ---
-    let leftColX = 15;
-    let rightColX = 110;
-    let startY = 120;
-    let yInc = 8;
-    let currY = startY;
-
-    const fieldsLeft = [
-      { label: "NAME OF CANDIDATE:", value: formData.fullName },
-      { label: "JOB APPLIED FOR:", value: jobId || "General Application" },
-      { label: "AADHAAR NO:", value: formData.aadhar },
-      { label: "PAN NO:", value: formData.pan },
-      { label: "GENDER:", value: formData.gender },
-      { label: "RELIGION:", value: formData.religion },
-      { label: "PO:", value: formData.postOffice },
-      { label: "PS:", value: formData.policeStation }
-    ];
-
-    const fieldsRight = [
-      { label: "DOB:", value: formData.dob },
-      { label: "AGE:", value: formData.age },
-      { label: "CASTE:", value: formData.caste },
-      { label: "EMAIL:", value: formData.email },
-      { label: "PHONE NO:", value: formData.phone },
-      { label: "PIN CODE:", value: formData.pincode },
-      { label: "ADDRESS:", value: formData.address }
-    ];
-
-    const formatValue = (val) => {
+    const fv = (val) => {
       if (val === undefined || val === null || val === '') return 'N/A';
       return val.toString().toUpperCase();
     };
 
-    // Subheader
-    doc.setTextColor(...primaryColor);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("CANDIDATE INFORMATION", 15, currY - 5);
-    doc.setDrawColor(...accentColor);
-    doc.line(15, currY - 3, 60, currY - 3);
+    const fields = [
+      { label: "Candidate Name", value: formData.fullName },
+      { label: "Date of Birth", value: formData.dob },
+      { label: "Position Applied For", value: jobTitle },
+      { label: "Age", value: formData.age },
+      { label: "Aadhaar Number", value: formData.aadhar },
+      { label: "PAN Number", value: formData.pan },
+      { label: "Gender", value: formData.gender },
+      { label: "Religion", value: formData.religion },
+      { label: "Caste", value: formData.caste },
+      { label: "Contact Number", value: formData.phone },
+      { label: "Email Address", value: formData.email },
+      { label: "Post Office", value: formData.postOffice },
+      { label: "Police Station", value: formData.policeStation },
+      { label: "Pincode", value: formData.pincode },
+    ];
 
-    for (let i = 0; i < Math.max(fieldsLeft.length, fieldsRight.length); i++) {
-      let leftSplit = fieldsLeft[i] ? doc.splitTextToSize(formatValue(fieldsLeft[i].value), 42) : [];
-      let rightSplit = fieldsRight[i] ? doc.splitTextToSize(formatValue(fieldsRight[i].value), 42) : [];
-      let maxLines = Math.max(leftSplit.length || 1, rightSplit.length || 1);
+    const half = Math.ceil(fields.length / 2);
+
+    for (let i = 0; i < Math.max(half, fields.length - half); i++) {
+      const lf = fields[i];
+      const rf = fields[i + half];
+      const lv = fv(lf?.value);
+      const rv = rf ? fv(rf.value) : '';
+
+      const lls = lf ? doc.splitTextToSize(`${lf.label.toUpperCase()}:`, 52) : [];
+      const rls = rf ? doc.splitTextToSize(`${rf.label.toUpperCase()}:`, 52) : [];
+      const lvs = lf ? doc.splitTextToSize(lv, 38) : [];
+      const rvs = rf ? doc.splitTextToSize(rv, 38) : [];
+
+      const ml = Math.max(lvs.length || 1, rvs.length || 1, lls.length || 1, rls.length || 1);
 
       if (i % 2 === 0) {
         doc.setFillColor(248, 250, 252);
-        doc.rect(12, currY - 5, 186, yInc + ((maxLines - 1) * 4) + 2, 'F');
+        doc.rect(12, currY - 4, 186, yInc + ((ml - 1) * 3.5) + 1, 'F');
       }
 
-      if (fieldsLeft[i]) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text(fieldsLeft[i].label, leftColX, currY);
-        
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(15, 23, 42);
-        doc.text(leftSplit, leftColX + 48, currY);
+      if (lf) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...secondaryColor);
+        doc.text(lls, leftColX, currY);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...primaryColor);
+        doc.text(lvs, leftColX + 54, currY);
       }
-      if (fieldsRight[i]) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text(fieldsRight[i].label, rightColX, currY);
-        
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(15, 23, 42);
-        doc.text(rightSplit, rightColX + 48, currY);
+      if (rf) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...secondaryColor);
+        doc.text(rls, rightColX, currY);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...primaryColor);
+        doc.text(rvs, rightColX + 54, currY);
       }
-      currY += yInc + ((maxLines - 1) * 4);
+      currY += yInc + ((ml - 1) * 3.5);
     }
 
-    currY += 10;
-    const renderField = (label, val, x, y, offset = 48, maxWidth = 42) => {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(label, x, y);
-      
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(15, 23, 42);
-      const splitVal = doc.splitTextToSize(formatValue(val), maxWidth);
-      doc.text(splitVal, x + offset, y);
-      return splitVal.length;
-    };
+    // Full-width address
+    currY += 2;
+    doc.setFillColor(248, 250, 252);
+    doc.rect(12, currY - 4, 186, 10, 'F');
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...secondaryColor);
+    doc.text("FULL ADDRESS:", leftColX, currY);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...primaryColor);
+    const addrSplit = doc.splitTextToSize(fv(formData.address), 130);
+    doc.text(addrSplit, leftColX + 54, currY);
+    currY += Math.max(addrSplit.length * 4, 6) + 4;
 
-    let qualLines = renderField("HIGHEST QUALIFICATION:", formData.qualification, leftColX, currY, 48, 130);
-    currY += yInc + ((qualLines - 1) * 4);
+    // --- 6. Qualification & Experience ---
+    currY += 4;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...primaryColor);
+    doc.text("QUALIFICATION & EXPERIENCE", 15, currY - 4);
 
-    renderField("EXPERIENCE TYPE:", formData.isExperienced ? formData.experienceType : 'FRESHER', leftColX, currY);
-    const expYears = formData.isExperienced ? (formData.totalExperience ? `${formData.totalExperience} YRS` : 'N/A') : '0 YRS';
-    renderField("TOTAL EXPERIENCE:", expYears, rightColX, currY);
-    currY += yInc;
-
+    const qFields = [
+      { label: "Highest Qualification", value: formData.qualification },
+      { label: "Experience Type", value: formData.isExperienced ? formData.experienceType : 'FRESHER' },
+      { label: "Total Experience", value: formData.isExperienced ? `${formData.totalExperience || '0'} YRS` : 'FRESHER' },
+    ];
     if (formData.isExperienced) {
-      let orgLines = renderField("PREVIOUS ORGANISATION:", formData.schoolName, leftColX, currY, 48, 130);
-      currY += yInc + ((orgLines - 1) * 4);
-
-      if (formData.experienceType === "Teacher") {
-        renderField("UDISE CODE:", formData.udiseCode, leftColX, currY);
-        currY += yInc;
-      }
+      qFields.push({ label: "Previous Organisation", value: formData.schoolName });
+      if (formData.udiseCode) qFields.push({ label: "UDISE Teacher Code", value: formData.udiseCode });
     }
 
-    // --- 6. Footer ---
-    doc.setDrawColor(226, 232, 240);
-    doc.line(15, 275, 195, 275);
-    
-    doc.setFontSize(8);
-    doc.setTextColor(...primaryColor);
-    doc.text(`${schoolProfile?.name || "Holy Name High School"} | Recruitment Cell | ${schoolProfile?.email || "N/A"}`, 105, 282, { align: "center" });
-    
-    doc.setTextColor(148, 163, 184);
-    doc.text("Secured by VidyaBarta Recruitment Portal - A Product of Lencho Solutions", 105, 287, { align: "center" });
+    qFields.forEach((f, i) => {
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(12, currY - 4, 186, 8, 'F');
+      }
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...secondaryColor);
+      doc.text(`${f.label.toUpperCase()}:`, leftColX, currY);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...primaryColor);
+      doc.text(fv(f.value), leftColX + 54, currY);
+      currY += 7;
+    });
 
-    doc.save(`Job_Application_${submittedRef}.pdf`);
-    doc.setFontSize(9);
-    doc.setTextColor(194, 65, 12); // Rust/Amber
-    doc.setFont("helvetica", "bold");
-    doc.text("NOTICE:", 20, currY + 8);
-    doc.setFont("helvetica", "normal");
-    doc.text("Please present this receipt during your scheduled interview. The reference number is ", 20, currY + 13);
-    doc.text("required for all future correspondence regarding this application.", 20, currY + 17);
-
-    // Footer
-    currY += 28;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, currY, 195, currY);
+    // --- 7. Important Notice ---
+    if (currY > 240) { doc.addPage(); currY = 20; }
     currY += 5;
-
-    doc.setFontSize(8);
-    doc.setTextColor(...primaryColor); // Use beautiful blue for footer emphasis
-    const footerContactInfo = [schoolProfile?.name, schoolProfile?.phone, schoolProfile?.email].filter(Boolean).join(" | ");
-    doc.text(footerContactInfo, 105, currY, { align: "center" });
-    currY += 4;
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN')}, ${new Date().toLocaleTimeString('en-IN')}`, 105, currY, { align: "center" });
-    
-    // Software tag box
-    currY += 4;
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(15, currY, 180, 20, 2, 2, 'F');
     doc.setDrawColor(200, 200, 200);
-    doc.rect(60, currY, 90, 10);
-    doc.text("VidyaBarta School Management Software owned by LENCHO SOLUTIONS", 105, currY + 4, { align: "center" });
-    doc.text("Website: https://lenchosolutions.com, https://vidyabarta.com", 105, currY + 8, { align: "center" });
+    doc.setLineWidth(0.3);
+    doc.roundedRect(15, currY, 180, 20, 2, 2, 'D');
+
+    doc.setFontSize(9); doc.setTextColor(...primaryColor); doc.setFont("helvetica", "bold");
+    doc.text("IMPORTANT:", 20, currY + 7);
+    doc.setFontSize(8); doc.setFont("helvetica", "normal");
+    doc.text("Please bring this receipt along with all original documents and certificates for the scheduled interview.", 20, currY + 13);
+    doc.text("Shortlisted candidates will be contacted via email/phone. Keep this receipt for your records.", 20, currY + 17);
+
+    // --- 8. Footer ---
+    doc.setDrawColor(226, 232, 240);
+    doc.line(15, 280, 195, 280);
+    doc.setFontSize(8); doc.setTextColor(...secondaryColor);
+    doc.text(`${schoolProfile?.name || ""} | Contact: ${schoolProfile?.phone || ""}`, cx, 285, { align: "center" });
+    doc.setFontSize(7); doc.setTextColor(180, 180, 180);
+    doc.text("Securely Powered by VidyaBarta School Management Software - A Product of Lencho Solutions", cx, 290, { align: "center" });
 
     doc.save(`Job_Application_Receipt_${submittedRef}.pdf`);
   };
+
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -376,13 +350,42 @@ function JobApplicationForm() {
         }
         data.append(key, value);
       });
-      data.append('appliedFor', jobId || "");
+      data.append('appliedFor', jobTitle || "");
 
-      // Append files
-      Object.keys(files).forEach(key => {
-        if (files[key]) {
-          data.append(key, files[key]);
-        }
+      // Compress image files before upload for faster submission
+      const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
+        return new Promise((resolve) => {
+          if (!file.type.startsWith('image/')) return resolve(file);
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              let w = img.width, h = img.height;
+              if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; }
+              canvas.width = w;
+              canvas.height = h;
+              canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+              canvas.toBlob((blob) => {
+                resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+              }, 'image/jpeg', quality);
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      };
+
+      // Append compressed files in parallel
+      const fileEntries = Object.entries(files).filter(([, f]) => f);
+      const compressedFiles = await Promise.all(
+        fileEntries.map(async ([key, file]) => {
+          const compressed = await compressImage(file);
+          return [key, compressed];
+        })
+      );
+      compressedFiles.forEach(([key, file]) => {
+        data.append(key, file);
       });
 
       const res = await axios.post(`${apiBase}/job-applications`, data, {
@@ -442,7 +445,7 @@ function JobApplicationForm() {
                 </div>
                 <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Applied For</span>
-                  <span className="font-bold text-slate-800 truncate pl-4">{jobId || "General Application"}</span>
+                  <span className="font-bold text-slate-800 truncate pl-4">{jobTitle}</span>
                 </div>
               </div>
 
@@ -480,26 +483,42 @@ function JobApplicationForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-4xl mx-auto px-6">
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+    <div className="min-h-screen bg-[#F8FAFC] pb-20 text-left">
+      {/* Top Navigation / Progress */}
+      <div className="bg-white border-b border-gray-200 py-3 md:py-6 mb-6 md:mb-10 shadow-sm sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 flex justify-between items-center">
+          <button onClick={() => navigate('/career')} className="flex items-center gap-2 text-gray-500 hover:text-primary transition-colors font-bold text-xs md:text-sm group">
+            <FaArrowRight className="group-hover:-translate-x-1 transition-transform rotate-180" /> <span className="hidden sm:inline">Back to Careers</span><span className="sm:hidden">Back</span>
+          </button>
+          <div className="text-right">
+            <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest leading-none mb-1">Recruitment Portal</p>
+            <h1 className="text-sm font-black text-gray-800 uppercase tracking-tight">Employment Application</h1>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 md:px-6">
+        <div className="bg-white rounded-3xl md:rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100">
           
-          {/* Header */}
-          <div className="p-8 md:p-12 text-white relative overflow-hidden bg-primary rounded-none md:rounded-b-[3rem] mb-10 shadow-lg">
-            <div className="absolute inset-0 z-0">
-              <img
-                src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?q=80&w=2070&auto=format&fit=crop"
-                alt="Job Application"
-                className="w-full h-full object-cover opacity-90"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-700/90 via-blue-700/70 to-blue-700/40"></div>
+          {/* Form Banner */}
+          <div className="bg-primary p-6 md:p-12 text-white relative">
+            <div className="absolute top-0 right-0 w-48 h-48 md:w-64 md:h-64 bg-white/5 rounded-bl-full -mr-16 -mt-16 md:-mr-20 md:-mt-20"></div>
+            <div className="relative z-10">
+              <h2 className="text-xl md:text-4xl font-serif font-black leading-tight mb-2">Job Application</h2>
+              <p className="text-white/80 text-sm md:text-lg font-medium">Please provide accurate information for background verification.</p>
+              
+              <div className="flex flex-wrap gap-2 md:gap-4 mt-6">
+                <div className="px-3 py-1.5 md:px-4 md:py-2 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20 text-[9px] md:text-[10px] font-black uppercase tracking-widest">
+                  {jobTitle}
+                </div>
+                <div className="px-3 py-1.5 md:px-4 md:py-2 bg-amber-500 rounded-xl shadow-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest text-primary">
+                  Official Form 2026
+                </div>
+              </div>
             </div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 z-0"></div>
-            <h1 className="text-3xl md:text-4xl font-serif font-bold mb-4 relative z-10">Application Form</h1>
-            <p className="text-white/90 relative z-10 max-w-xl font-medium">Please provide accurate information for background verification and qualification matching.</p>
           </div>
 
-          <form id="job-form" onSubmit={handleSubmit} noValidate className="max-w-5xl mx-auto space-y-8">
+          <form id="job-form" onSubmit={handleSubmit} noValidate className="p-5 md:p-12 space-y-8 md:space-y-12">
             
             {/* --- PREVIEW VIEW --- */}
             <div className={`${showPreview ? 'block' : 'hidden'} animate-fade-in`}>
@@ -581,6 +600,12 @@ function JobApplicationForm() {
                   </div>
                 </div>
 
+                {submitError && (
+                  <div className="mx-8 mt-6 bg-red-500 text-white p-4 rounded-xl flex items-center justify-center gap-3 animate-pulse">
+                    <span className="material-symbols-outlined">error</span>
+                    <p className="text-sm font-bold">{submitError}</p>
+                  </div>
+                )}
                 <div className="p-8 bg-slate-900 flex flex-col sm:flex-row items-center justify-center gap-6">
                   <button 
                     type="button"
@@ -609,55 +634,97 @@ function JobApplicationForm() {
             <div className={`${showPreview ? 'hidden' : 'block'}`}>
                 {/* 1. Personal Details */}
                 <section>
-                  <h2 className="text-xl font-bold text-primary flex items-center mb-6">
-                    <FaUser className="mr-3" /> Personal Information
-                  </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Full Name *</label>
-                  <input required name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">DOB *</label>
-                    <input required type="date" name="dob" value={formData.dob} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                  <h4 className="text-[11px] font-black text-black uppercase tracking-[0.3em] mb-6 flex items-center bg-gray-100 p-2 rounded-lg w-fit pr-6">
+                    <FaUser className="mr-3 text-lg" /> Personal Information
+                  </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Full Name *</label>
+                    <input required name="fullName" value={formData.fullName} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Age (Auto)</label>
-                    <input readOnly name="age" value={formData.age} className="w-full bg-gray-200 border border-gray-300 rounded-xl p-3 cursor-not-allowed" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">DOB *</label>
+                      <input required type="date" name="dob" value={formData.dob} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Age (Auto)</label>
+                      <div className="w-full h-16 px-6 rounded-2xl border border-gray-400 bg-gray-100/50 flex items-center justify-center font-black text-xl text-black">
+                        {formData.age}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Aadhar Number *</label>
-                    <input required name="aadhar" value={formData.aadhar} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                  <div className="space-y-1.5">
+                    <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Aadhar Number *</label>
+                    <input required name="aadhar" value={formData.aadhar} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Gender *</label>
-                    <select required name="gender" value={formData.gender} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all">
+                  <div className="space-y-1.5">
+                    <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Gender *</label>
+                    <select required name="gender" value={formData.gender} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm appearance-none cursor-pointer">
                       <option value="">Select</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
-                </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">PAN Number *</label>
+                    <input required name="pan" value={formData.pan} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Religion *</label>
+                    <select required name="religion" value={formData.religion} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm appearance-none cursor-pointer">
+                      <option value="">SELECT RELIGION</option>
+                      <option value="HINDU">HINDU</option>
+                      <option value="MUSLIM">MUSLIM</option>
+                      <option value="CHRISTIAN">CHRISTIAN</option>
+                      <option value="SIKH">SIKH</option>
+                      <option value="BUDDHIST">BUDDHIST</option>
+                      <option value="JAIN">JAIN</option>
+                      <option value="OTHERS">OTHERS</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Caste *</label>
+                    <select name="caste" value={formData.caste} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm appearance-none cursor-pointer">
+                      <option value="">SELECT CASTE</option>
+                      <option value="GENERAL">GENERAL</option>
+                      <option value="OBC">OBC</option>
+                      <option value="MOBC">MOBC</option>
+                      <option value="SC">SC</option>
+                      <option value="ST(P)">ST(P)</option>
+                      <option value="ST(H)">ST(H)</option>
+                      <option value="OTHER">OTHER</option>
+                    </select>
+                  </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">PAN Number *</label>
                   <input required name="pan" value={formData.pan} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Religion *</label>
-                  <input required name="religion" value={formData.religion} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                  <select required name="religion" value={formData.religion} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all">
+                    <option value="">SELECT RELIGION</option>
+                    <option value="HINDU">HINDU</option>
+                    <option value="MUSLIM">MUSLIM</option>
+                    <option value="CHRISTIAN">CHRISTIAN</option>
+                    <option value="SIKH">SIKH</option>
+                    <option value="BUDDHIST">BUDDHIST</option>
+                    <option value="JAIN">JAIN</option>
+                    <option value="OTHERS">OTHERS</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Caste *</label>
                   <select name="caste" value={formData.caste} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all">
-                    <option value="General">General</option>
+                    <option value="">SELECT CASTE</option>
+                    <option value="GENERAL">GENERAL</option>
                     <option value="OBC">OBC</option>
-                    <option value="SC">SC</option>
-                    <option value="ST">ST</option>
                     <option value="MOBC">MOBC</option>
+                    <option value="SC">SC</option>
+                    <option value="ST(P)">ST(P)</option>
+                    <option value="ST(H)">ST(H)</option>
+                    <option value="OTHER">OTHER</option>
                   </select>
                 </div>
               </div>
@@ -665,47 +732,47 @@ function JobApplicationForm() {
 
             {/* 2. Contact & Address */}
             <section>
-              <h2 className="text-xl font-bold text-primary flex items-center mb-6">
-                <FaMapMarkerAlt className="mr-3" /> Contact & Address
-              </h2>
+              <h4 className="text-[11px] font-black text-black uppercase tracking-[0.3em] mb-6 flex items-center bg-gray-100 p-2 rounded-lg w-fit pr-6">
+                <FaMapMarkerAlt className="mr-3 text-lg" /> Contact & Address
+              </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Email Address *</label>
-                  <input required type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                <div className="space-y-1.5">
+                  <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Email Address *</label>
+                  <input required type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Phone Number *</label>
-                  <input required type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                <div className="space-y-1.5">
+                  <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Phone Number *</label>
+                  <input required type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Post Office</label>
-                  <input name="postOffice" value={formData.postOffice} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                <div className="space-y-1.5">
+                  <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Post Office</label>
+                  <input name="postOffice" value={formData.postOffice} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Police Station</label>
-                  <input name="policeStation" value={formData.policeStation} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                <div className="space-y-1.5">
+                  <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Police Station</label>
+                  <input name="policeStation" value={formData.policeStation} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Pincode</label>
-                  <input name="pincode" value={formData.pincode} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                <div className="space-y-1.5">
+                  <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Pincode</label>
+                  <input name="pincode" value={formData.pincode} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Full Address *</label>
-                <textarea required name="address" value={formData.address} onChange={handleInputChange} rows="3" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase"></textarea>
+              <div className="space-y-1.5">
+                <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Full Address *</label>
+                <textarea required name="address" value={formData.address} onChange={handleInputChange} rows="3" className="w-full px-6 py-4 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase min-h-[120px]"></textarea>
               </div>
             </section>
 
             {/* 3. Qualifications */}
             <section>
-              <h2 className="text-xl font-bold text-primary flex items-center mb-6">
-                <FaGraduationCap className="mr-3" /> Qualifications & Experience
-              </h2>
-              <div className="space-y-2 mb-6">
-                <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Highest Qualification *</label>
-                <input required name="qualification" value={formData.qualification} onChange={handleInputChange} placeholder="e.g. M.Sc B.Ed" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+              <h4 className="text-[11px] font-black text-black uppercase tracking-[0.3em] mb-6 flex items-center bg-gray-100 p-2 rounded-lg w-fit pr-6">
+                <FaGraduationCap className="mr-3 text-lg" /> Qualifications & Experience
+              </h4>
+              <div className="space-y-1.5 mb-6">
+                <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Highest Qualification *</label>
+                <input required name="qualification" value={formData.qualification} onChange={handleInputChange} placeholder="e.g. M.Sc B.Ed" className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
               </div>
               
               <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex items-center justify-between mb-8 transition-all hover:border-primary/20">
@@ -752,16 +819,16 @@ function JobApplicationForm() {
               )}
 
               {formData.isExperienced && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn mt-8">
                   {formData.experienceType === "Teacher" ? (
                     <>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">School Name *</label>
-                        <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                      <div className="space-y-1.5">
+                        <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">School Name *</label>
+                        <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Experience Range *</label>
-                        <select name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all">
+                      <div className="space-y-1.5">
+                        <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Experience Range *</label>
+                        <select name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm appearance-none cursor-pointer">
                           <option value="0-3">0-3 Years</option>
                           <option value="4-5">4-5 Years</option>
                           <option value="6-10">6-10 Years</option>
@@ -769,20 +836,20 @@ function JobApplicationForm() {
                           <option value="16-20">16-20 Years</option>
                         </select>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">UDISE Teacher Code *</label>
-                        <input required={formData.isExperienced} name="udiseCode" value={formData.udiseCode} onChange={handleInputChange} placeholder="Alpha-numeric" className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all" />
+                      <div className="space-y-1.5">
+                        <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">UDISE Teacher Code *</label>
+                        <input required={formData.isExperienced} name="udiseCode" value={formData.udiseCode} onChange={handleInputChange} placeholder="Alpha-numeric" className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm" />
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="md:col-span-2 space-y-2">
-                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Previous Organisation *</label>
-                        <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} placeholder="E.G. GOOGLE, TATA, ETC." className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all uppercase" />
+                      <div className="md:col-span-2 space-y-1.5">
+                        <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Previous Organisation *</label>
+                        <input required={formData.isExperienced} name="schoolName" value={formData.schoolName} onChange={handleInputChange} placeholder="E.G. GOOGLE, TATA, ETC." className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm uppercase" />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Experience Range *</label>
-                        <select name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} className="w-full bg-white border border-gray-200 rounded-xl p-3 focus:border-primary outline-none transition-all">
+                      <div className="space-y-1.5">
+                        <label className="block text-gray-700 font-medium mb-2 text-xs uppercase tracking-wider">Experience Range *</label>
+                        <select name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} className="w-full h-16 px-6 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-black text-lg bg-white transition-all shadow-sm appearance-none cursor-pointer">
                           <option value="0-3">0-3 Years</option>
                           <option value="4-5">4-5 Years</option>
                           <option value="6-10">6-10 Years</option>
@@ -798,9 +865,9 @@ function JobApplicationForm() {
 
             {/* 4. Document Uploads */}
             <section className="space-y-8">
-              <h2 className="text-xl font-bold text-primary flex items-center mb-6">
-                <FaFileUpload className="mr-3" /> Document Uploads
-              </h2>
+              <h4 className="text-[11px] font-black text-black uppercase tracking-[0.3em] mb-6 flex items-center bg-gray-100 p-2 rounded-lg w-fit pr-6">
+                <FaFileUpload className="mr-3 text-lg" /> Document Uploads
+              </h4>
               
               <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 mb-8 flex items-start">
                 <FaExclamationCircle className="text-amber-500 mt-1 mr-4 flex-shrink-0" size={20} />
@@ -813,46 +880,46 @@ function JobApplicationForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
                 
                 {/* 10th Standard */}
-                <div className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                   <h3 className="font-bold text-gray-800 border-l-4 border-amber-500 pl-3">Class 10th Documents *</h3>
+                <div className="space-y-4 p-6 bg-white rounded-2xl border border-gray-400 shadow-sm transition-all hover:border-black/20">
+                   <h3 className="text-xs font-black text-black uppercase tracking-widest border-l-4 border-black pl-3">Class 10th Documents *</h3>
                    <div className="space-y-4">
                      <div>
-                       <label className="block text-xs font-bold text-gray-500 mb-2">MARKSHEET</label>
-                       <input required type="file" name="marksheet10" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all" />
+                       <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">MARKSHEET</label>
+                       <input required type="file" accept=".pdf, image/*" name="marksheet10" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary file:text-white hover:file:bg-blue-700 transition-all cursor-pointer shadow-sm" />
                      </div>
                      <div>
-                       <label className="block text-xs font-bold text-gray-500 mb-2">PASS CERTIFICATE</label>
-                       <input required type="file" name="cert10" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all" />
+                       <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">PASS CERTIFICATE</label>
+                       <input required type="file" accept=".pdf, image/*" name="cert10" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary file:text-white hover:file:bg-blue-700 transition-all cursor-pointer shadow-sm" />
                      </div>
                    </div>
                 </div>
 
                 {/* 12th Standard */}
-                <div className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                   <h3 className="font-bold text-gray-800 border-l-4 border-amber-500 pl-3">Class 12th Documents *</h3>
+                <div className="space-y-4 p-6 bg-white rounded-2xl border border-gray-400 shadow-sm transition-all hover:border-black/20">
+                   <h3 className="text-xs font-black text-black uppercase tracking-widest border-l-4 border-black pl-3">Class 12th Documents *</h3>
                    <div className="space-y-4">
                      <div>
-                       <label className="block text-xs font-bold text-gray-500 mb-2">MARKSHEET</label>
-                       <input required type="file" name="marksheet12" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all" />
+                       <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">MARKSHEET</label>
+                       <input required type="file" accept=".pdf, image/*" name="marksheet12" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary file:text-white hover:file:bg-blue-700 transition-all cursor-pointer shadow-sm" />
                      </div>
                      <div>
-                       <label className="block text-xs font-bold text-gray-500 mb-2">PASS CERTIFICATE</label>
-                       <input required type="file" name="cert12" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all" />
+                       <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">PASS CERTIFICATE</label>
+                       <input required type="file" accept=".pdf, image/*" name="cert12" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary file:text-white hover:file:bg-blue-700 transition-all cursor-pointer shadow-sm" />
                      </div>
                    </div>
                 </div>
 
                 {/* UG */}
-                <div className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                   <h3 className="font-bold text-gray-800 border-l-4 border-amber-500 pl-3">Under-Graduate (UG) *</h3>
+                <div className="space-y-4 p-6 bg-white rounded-2xl border border-gray-400 shadow-sm transition-all hover:border-black/20">
+                   <h3 className="text-xs font-black text-black uppercase tracking-widest border-l-4 border-black pl-3">Under-Graduate (UG) *</h3>
                    <div className="space-y-4">
                      <div>
-                       <label className="block text-xs font-bold text-gray-500 mb-2">MARKSHEET</label>
-                       <input required type="file" name="marksheetUG" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all" />
+                       <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">MARKSHEET</label>
+                       <input required type="file" accept=".pdf, image/*" name="marksheetUG" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary file:text-white hover:file:bg-blue-700 transition-all cursor-pointer shadow-sm" />
                      </div>
                      <div>
-                       <label className="block text-xs font-bold text-gray-500 mb-2">PASS CERTIFICATE</label>
-                       <input required type="file" name="certUG" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all" />
+                       <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">PASS CERTIFICATE</label>
+                       <input required type="file" accept=".pdf, image/*" name="certUG" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary file:text-white hover:file:bg-blue-700 transition-all cursor-pointer shadow-sm" />
                      </div>
                    </div>
                 </div>
@@ -863,39 +930,39 @@ function JobApplicationForm() {
                    <div className="space-y-4">
                      <div>
                        <label className="block text-xs font-bold text-gray-500 mb-2">MARKSHEET (OPTIONAL)</label>
-                       <input type="file" name="marksheetPG" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 transition-all" />
+                       <input type="file" accept=".pdf, image/*" name="marksheetPG" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 transition-all" />
                      </div>
                      <div>
                        <label className="block text-xs font-bold text-gray-500 mb-2">PASS CERTIFICATE (OPTIONAL)</label>
-                       <input type="file" name="certPG" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 transition-all" />
+                       <input type="file" accept=".pdf, image/*" name="certPG" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 transition-all" />
                      </div>
                    </div>
                 </div>
 
                 {/* Professional Qualifications */}
                 <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                    <h3 className="font-bold text-gray-800 border-l-4 border-blue-400 pl-3">B.Ed (If applicable)</h3>
+                  <div className="space-y-4 p-6 bg-white rounded-2xl border border-gray-400 shadow-sm transition-all hover:border-black/20">
+                    <h3 className="text-xs font-black text-black uppercase tracking-widest border-l-4 border-black pl-3">B.Ed (If applicable)</h3>
                     <div className="space-y-4">
-                      <input type="file" name="marksheetBEd" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 transition-all" />
-                      <input type="file" name="certBEd" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 transition-all" />
+                      <input type="file" accept=".pdf, image/*" name="marksheetBEd" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-gray-800 file:text-white hover:file:bg-black transition-all cursor-pointer shadow-sm" />
+                      <input type="file" accept=".pdf, image/*" name="certBEd" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-gray-800 file:text-white hover:file:bg-black transition-all cursor-pointer shadow-sm" />
                     </div>
                   </div>
-                  <div className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                    <h3 className="font-bold text-gray-800 border-l-4 border-blue-400 pl-3">D.Led (If applicable)</h3>
+                  <div className="space-y-4 p-6 bg-white rounded-2xl border border-gray-400 shadow-sm transition-all hover:border-black/20">
+                    <h3 className="text-xs font-black text-black uppercase tracking-widest border-l-4 border-black pl-3">D.Led (If applicable)</h3>
                     <div className="space-y-4">
-                      <input type="file" name="marksheetDLed" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 transition-all" />
-                      <input type="file" name="certDLed" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 transition-all" />
+                      <input type="file" accept=".pdf, image/*" name="marksheetDLed" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-gray-800 file:text-white hover:file:bg-black transition-all cursor-pointer shadow-sm" />
+                      <input type="file" accept=".pdf, image/*" name="certDLed" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-gray-800 file:text-white hover:file:bg-black transition-all cursor-pointer shadow-sm" />
                     </div>
                   </div>
                 </div>
 
                 {/* Caste Certificate Conditional */}
-                {formData.caste !== 'General' && (
+                {formData.caste && formData.caste.toUpperCase() !== 'GENERAL' && (
                   <div className="space-y-4 p-6 bg-red-50 rounded-2xl border border-red-100 animate-fadeIn">
                     <h3 className="font-bold text-red-800 border-l-4 border-red-500 pl-3">Caste Certificate *</h3>
                     <p className="text-xs text-red-600 font-medium">As you've selected {formData.caste}, a certificate is compulsory.</p>
-                    <input required type="file" name="casteCertificate" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-red-100 file:text-red-700 hover:file:bg-red-200 transition-all" />
+                    <input required type="file" accept=".pdf, image/*" name="casteCertificate" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-red-100 file:text-red-700 hover:file:bg-red-200 transition-all" />
                   </div>
                 )}
 
@@ -903,7 +970,7 @@ function JobApplicationForm() {
                 {formData.isExperienced && (
                   <div className="space-y-4 p-6 bg-primary/5 rounded-2xl border border-primary/10 animate-fadeIn">
                     <h3 className="font-bold text-primary-dark border-l-4 border-primary pl-3">Experience Certificate *</h3>
-                    <input required type="file" name="expCertificate" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all" />
+                    <input required type="file" accept=".pdf, image/*" name="expCertificate" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-all" />
                   </div>
                 )}
 
@@ -911,15 +978,15 @@ function JobApplicationForm() {
                 <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-gray-100">
                    <div className="space-y-2">
                      <label className="text-sm font-bold text-gray-500 uppercase tracking-widest">Update Resume *</label>
-                     <input required type="file" name="resume" onChange={handleFileChange} className="block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-800 file:text-white" />
+                     <input required type="file" accept=".pdf, image/*" name="resume" onChange={handleFileChange} className="block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-800 file:text-white" />
                    </div>
                    <div className="space-y-2">
                      <label className="text-sm font-bold text-gray-500 uppercase tracking-widest">Passport Photo *</label>
-                     <input required type="file" name="photo" onChange={handleFileChange} className="block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-800 file:text-white" />
+                     <input required type="file" accept=".pdf, image/*" name="photo" onChange={handleFileChange} className="block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-800 file:text-white" />
                    </div>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-gray-500 uppercase tracking-widest">Signature Image *</label>
-                      <input required type="file" name="signature" onChange={handleFileChange} className="block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-800 file:text-white" />
+                      <input required type="file" accept=".pdf, image/*" name="signature" onChange={handleFileChange} className="block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-800 file:text-white" />
                     </div>
                   </div>
 
@@ -936,21 +1003,25 @@ function JobApplicationForm() {
             )}
 
             {/* Submit Section */}
-            <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6">
-              <p className="text-sm text-gray-500 font-medium">
-                By submitting this form, you certify that the information provided is true and accurate to the best of your knowledge.
+            <div className="pt-10 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-8">
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-widest max-w-md text-center md:text-left">
+                By submitting this form, you certify that all information provided is true and accurate.
               </p>
               <button 
                 type="button" 
                 onClick={handleReview}
                 disabled={submitting}
-                className={`min-w-[200px] flex items-center justify-center bg-primary text-white font-bold py-4 px-8 rounded-2xl hover:bg-primary/90 transition-all shadow-xl hover:-translate-y-1 active:scale-95 ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`w-full md:w-auto min-w-[280px] flex items-center justify-center bg-primary text-white font-black py-5 px-10 rounded-[2rem] hover:bg-blue-700 transition-all shadow-2xl shadow-primary/20 hover:-translate-y-1 active:scale-95 disabled:bg-gray-400 disabled:shadow-none text-lg`}
               >
                 {submitting ? (
                   <>
                     <FaSpinner className="animate-spin mr-3" /> Processing...
                   </>
-                ) : "Review & Preview Application"}
+                ) : (
+                  <>
+                    Review & Preview Application <FaArrowRight className="ml-3" />
+                  </>
+                )}
               </button>
             </div>
 

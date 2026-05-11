@@ -130,8 +130,8 @@ function Career() {
                     <FaSpinner className="animate-spin text-4xl text-primary opacity-50" />
                   </div>
                 ) : vacancies.length > 0 ? (
-                  vacancies.map(job => (
-                    <div key={job._id} className="bg-[#F9F9FB] rounded-2xl border border-gray-200 p-6 md:p-8 hover:shadow-md transition-all duration-300 group">
+                    vacancies.map(job => (
+                    <div key={job.id} className="bg-[#F9F9FB] rounded-2xl border border-gray-200 p-6 md:p-8 hover:shadow-md transition-all duration-300 group">
                       <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4">
                         <div>
                           <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-primary transition-colors">{job.title}</h3>
@@ -166,7 +166,7 @@ function Career() {
                       </div>
                       
                       <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between items-center">
-                        <NavLink to={`/apply/${job._id}`} className="bg-primary text-white font-bold py-3 px-6 rounded-xl hover:bg-primary/90 transition-all shadow-md flex items-center group">
+                        <NavLink to={`/apply/${job.id}`} className="bg-primary text-white font-bold py-3 px-6 rounded-xl hover:bg-primary/90 transition-all shadow-md flex items-center group">
                           Apply Now <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                         </NavLink>
                         <a href={`mailto:${schoolProfile?.email || ""}`} className="text-gray-400 hover:text-primary transition-colors text-sm font-medium">

@@ -8,9 +8,6 @@ const compression = require('compression');
 const morgan = require('morgan');
 require('dotenv').config();
 
-const connectDB = require('./config/db');
-const seedData = require('./utils/seed');
-
 const authRoutes = require('./routes/auth');
 const contentRoutes = require('./routes/content');
 const admissionsRoutes = require('./routes/admissions');
@@ -21,6 +18,8 @@ const jobApplicationRoutes = require('./routes/jobApplications');
 const tenderRoutes = require('./routes/tenders');
 const tenderApplicationRoutes = require('./routes/tenderApplications');
 const appointmentRoutes = require('./routes/appointments');
+const fileRoutes = require('./routes/files');
+const uploadRoutes = require('./routes/upload');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -66,18 +65,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // STATIC FILES
 // ============================================
 
-const uploadsDir = path.join(__dirname, 'uploads');
-const contentUploadsDir = path.join(uploadsDir, 'content');
-const admissionsUploadsDir = path.join(uploadsDir, 'admissions');
-const jobApplicationsUploadsDir = path.join(uploadsDir, 'job-applications');
-
-[uploadsDir, contentUploadsDir, admissionsUploadsDir, jobApplicationsUploadsDir].forEach((dir) => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
-
-app.use('/uploads', express.static(uploadsDir, {
-  maxAge: isProduction ? '7d' : 0, // cache uploaded files for 7 days in prod
-}));
+// Local storage is decommissioned in favor of Supabase Storage.
+// We keep /api/files/proxy for serving external assets securely.
 
 // ============================================
 // API ROUTES
@@ -93,11 +82,12 @@ app.use('/api/students', apiLimiter, studentsRoutes);
 app.use('/api/inquiries', submissionLimiter, inquiriesRoutes);
 app.use('/api/jobs', apiLimiter, jobRoutes);
 app.use('/api/job-applications', apiLimiter, jobApplicationRoutes);
-app.use('/api/payment', apiLimiter, require('./routes/payment'));
 app.use('/api/share', require('./routes/share'));
 app.use('/api/tenders', apiLimiter, tenderRoutes);
 app.use('/api/tender-applications', apiLimiter, tenderApplicationRoutes);
 app.use('/api/appointments', submissionLimiter, appointmentRoutes);
+app.use('/api/files', fileRoutes);
+app.use('/api/upload', apiLimiter, uploadRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -135,10 +125,10 @@ process.on('unhandledRejection', (err) => {
 // ENVIRONMENT VALIDATION
 // ============================================
 const validateEnvironment = () => {
-  const required = ['MONGO_URI', 'JWT_SECRET', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET', 'EMAIL_USER', 'EMAIL_PASS'];
+  const required = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'JWT_SECRET', 'EMAIL_USER', 'EMAIL_PASS'];
   const missing = required.filter(v => !process.env[v]);
   if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    console.warn(`Missing required environment variables: ${missing.join(', ')}`);
   }
 };
 
@@ -153,16 +143,11 @@ const startApp = async () => {
   try {
     // 0. Validate environment
     validateEnvironment();
-    console.log('✅ Environment validation passed');
+    console.log('✅ Environment validation completed');
 
-    // 1. Establish database connection (cached)
-    await connectDB();
+    // Supabase DB is connectionless (REST-based), so no explicit connectDB() needed.
 
-    // 2. Perform background seeding non-blockingly (don't await)
-    // This removes seeding overhead from the request critical path
-    seedData().catch(e => console.error('Background seed failed:', e.message));
-
-    // 3. Start listener if explicitly running as a standalone server
+    // 1. Start listener if explicitly running as a standalone server
     if (require.main === module) {
       const server = app.listen(PORT, '0.0.0.0', () => {
         console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);

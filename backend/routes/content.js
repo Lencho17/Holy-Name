@@ -28,7 +28,8 @@ const getAggregatedContent = async () => {
     { data: faqs },
     { data: courses },
     { data: messages },
-    { data: emeritus }
+    { data: emeritus },
+    { data: centerOfExcellence }
   ] = await Promise.all([
     supabase.from('site_settings').select('*').limit(1).maybeSingle(),
     supabase.from('notices').select('*').order('created_at', { ascending: false }),
@@ -41,7 +42,8 @@ const getAggregatedContent = async () => {
     supabase.from('faqs').select('*').order('order_index', { ascending: true }),
     supabase.from('courses').select('*').order('created_at', { ascending: true }),
     supabase.from('messages').select('*'),
-    supabase.from('emeritus').select('*').order('order_index', { ascending: true })
+    supabase.from('emeritus').select('*').order('order_index', { ascending: true }),
+    supabase.from('center_of_excellence').select('*').order('order_index', { ascending: true })
   ]);
 
   // Aggregate into the format frontend expects
@@ -113,6 +115,7 @@ const getAggregatedContent = async () => {
       signature: messages.find(m => m.type === 'principal').signature
     } : {},
     emeritus: emeritus || [],
+    centerOfExcellence: centerOfExcellence || [],
     headMistress: messages?.find(m => m.type === 'headmistress') ? { 
       ...messages.find(m => m.type === 'headmistress'), 
       photo: messages.find(m => m.type === 'headmistress').image, 
@@ -233,7 +236,8 @@ router.put('/', protect, async (req, res) => {
       { key: 'alumni', table: 'alumni' },
       { key: 'stats', table: 'stats' },
       { key: 'faqs', table: 'faqs' },
-      { key: 'emeritus', table: 'emeritus' }
+      { key: 'emeritus', table: 'emeritus' },
+      { key: 'centerOfExcellence', table: 'center_of_excellence' }
     ];
 
     for (const mod of syncModules) {
@@ -362,6 +366,19 @@ router.put('/', protect, async (req, res) => {
                 tenure: item.tenure,
                 message: item.message || item.description || '',
                 cause_of_death: item.causeOfDeath || item.cause_of_death || '',
+                photo: item.photo || item.image || '',
+                order_index: item.orderIndex || item.order_index || 0
+              };
+            }
+            if (mod.table === 'center_of_excellence') {
+              return {
+                title: item.title,
+                name: item.name,
+                passed_year: item.passedYear || item.passed_year,
+                designation: item.designation,
+                company: item.company,
+                location: item.location,
+                message: item.message || item.description || '',
                 photo: item.photo || item.image || '',
                 order_index: item.orderIndex || item.order_index || 0
               };

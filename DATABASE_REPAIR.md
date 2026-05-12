@@ -74,15 +74,30 @@ CREATE TABLE IF NOT EXISTS emeritus (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. Enable RLS for logs
+-- 7. Create center_of_excellence table
+CREATE TABLE IF NOT EXISTS center_of_excellence (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT,
+    name TEXT NOT NULL,
+    passed_year TEXT,
+    designation TEXT,
+    company TEXT,
+    location TEXT,
+    message TEXT,
+    photo TEXT,
+    order_index INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 8. Enable RLS for logs
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON activity_logs;
 CREATE POLICY "Enable all for authenticated" ON activity_logs FOR ALL USING (true);
 
--- 7. Verification
+-- 9. Verification
 SELECT table_name, column_name, data_type 
 FROM information_schema.columns 
-WHERE table_name IN ('messages', 'site_settings', 'faculty', 'activity_logs', 'emeritus')
+WHERE table_name IN ('messages', 'site_settings', 'faculty', 'activity_logs', 'emeritus', 'center_of_excellence')
 ORDER BY table_name;
 ```
 
@@ -91,6 +106,7 @@ ORDER BY table_name;
 ### What this fixes:
 - ✅ **Auto-save Errors**: Fixes missing columns in Faculty and Principal sections.
 - ✅ **Alumestron Management**: Creates the `emeritus` table needed to save retired/deceased staff records.
+- ✅ **Center of Excellence**: Creates the `center_of_excellence` table for Notable Alumni.
 - ✅ **Principal Desk**: Enables the Signature and Quotes fields.
 - ✅ **Courses Management**: Enables Levels, Streams, and Rules storage.
 - ✅ **Activity Log**: Creates the table needed for the new "Activity" tab.

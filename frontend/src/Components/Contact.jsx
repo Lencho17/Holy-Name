@@ -96,8 +96,31 @@ function Contact() {
 
         </div>
 
+        {/* Map Section */}
+        <div className="mt-16 bg-white rounded-3xl shadow-xl border border-gray-100 p-4 h-[400px] overflow-hidden relative group">
+          {schoolProfile?.mapLink ? (
+            <iframe
+              src={schoolProfile.mapLink}
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen=""
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="rounded-2xl"
+              title="School Location Map"
+            ></iframe>
+          ) : (
+            <div className="absolute inset-0 bg-gray-200 flex flex-col items-center justify-center m-4 rounded-2xl border-2 border-dashed border-gray-400">
+                <FaMapMarkerAlt className="text-4xl text-gray-400 mb-4" />
+                <p className="text-gray-500 font-bold text-xl">Interactive Map Area</p>
+                <p className="text-gray-400 max-w-sm text-center mt-2">Map will be updated soon.</p>
+            </div>
+          )}
+        </div>
+
         {/* FAQ Section */}
-        <div className="mt-16 bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 relative z-20">
+        <div className="mt-12 bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 relative z-20">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 text-amber-600 border border-amber-100 mb-4">
               <span className="material-symbols-outlined text-sm">
@@ -136,28 +159,6 @@ function Contact() {
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="mt-12 bg-white rounded-3xl shadow-xl border border-gray-100 p-4 h-[400px] overflow-hidden relative group">
-          {schoolProfile?.mapLink ? (
-            <iframe
-              src={schoolProfile.mapLink}
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen=""
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="rounded-2xl"
-              title="School Location Map"
-            ></iframe>
-          ) : (
-            <div className="absolute inset-0 bg-gray-200 flex flex-col items-center justify-center m-4 rounded-2xl border-2 border-dashed border-gray-400">
-                <FaMapMarkerAlt className="text-4xl text-gray-400 mb-4" />
-                <p className="text-gray-500 font-bold text-xl">Interactive Map Area</p>
-                <p className="text-gray-400 max-w-sm text-center mt-2">Map will be updated soon.</p>
-            </div>
-          )}
         </div>
 
 

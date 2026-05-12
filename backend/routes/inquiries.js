@@ -99,7 +99,13 @@ router.post('/', async (req, res) => {
       sendInquiryConfirmationEmail(newInquiry);
     }
 
-    res.status(201).json({ message: 'Inquiry submitted successfully.', inquiry: newInquiry });
+    res.status(201).json({ 
+      message: 'Inquiry submitted successfully.', 
+      inquiry: {
+        ...newInquiry,
+        trackingNumber: newInquiry.tracking_number
+      } 
+    });
   } catch (error) {
     console.error('Error submitting inquiry:', error);
     res.status(500).json({ message: 'Server error while submitting inquiry.', error: error.message });

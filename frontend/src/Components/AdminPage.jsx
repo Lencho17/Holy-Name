@@ -6291,24 +6291,24 @@ function AdminPage() {
               {openDropdown === 'content' && (
                 <div className="absolute top-full left-0 mt-2 w-[480px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-4 grid grid-cols-2 gap-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
                   {[
-                    { id: 'schoolProfile', label: 'School Profile', icon: <FaInfoCircle className="text-blue-500"/> },
-                    { id: 'gallery', label: 'Gallery', icon: <FaImage className="text-purple-500"/> },
-                    { id: 'videos', label: 'Video Blog', icon: <FaVideo className="text-red-500"/> },
-                    { id: 'banner', label: 'Popup Banner', icon: <FaImage className="text-amber-500"/> },
-                    { id: 'highlights', label: 'Highlights', icon: <FaStar className="text-yellow-500"/> },
-                    { id: 'events', label: 'Events', icon: <FaCalendarAlt className="text-emerald-500"/> },
-                    { id: 'notices', label: 'Notices', icon: <FaClipboardList className="text-orange-500"/> },
-                    { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher className="text-indigo-500"/> },
-                    { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList className="text-slate-500"/> },
-                    { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap className="text-blue-400"/> },
-                    { id: 'excellence', label: 'Excellence', icon: <FaAward className="text-amber-600"/> },
-                    { id: 'emeritus', label: 'Alumestron', icon: <FaUserTie className="text-purple-600"/> },
-                    { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase className="text-cyan-600"/> },
-                    { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt className="text-blue-600"/> },
-                    { id: 'stats', label: 'Home Stats', icon: <FaChartLine className="text-green-600"/> },
                     { id: 'about', label: 'About Page', icon: <FaInfoCircle className="text-indigo-400"/> },
+                    { id: 'emeritus', label: 'Alumestron', icon: <FaUserTie className="text-purple-600"/> },
+                    { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap className="text-blue-400"/> },
+                    { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase className="text-cyan-600"/> },
                     { id: 'courses', label: 'Courses Page', icon: <FaBookOpen className="text-orange-400"/> },
-                    { id: 'faqs', label: 'FAQs', icon: <FaQuestionCircle className="text-red-400"/> }
+                    { id: 'events', label: 'Events', icon: <FaCalendarAlt className="text-emerald-500"/> },
+                    { id: 'excellence', label: 'Excellence', icon: <FaAward className="text-amber-600"/> },
+                    { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher className="text-indigo-500"/> },
+                    { id: 'faqs', label: 'FAQs', icon: <FaQuestionCircle className="text-red-400"/> },
+                    { id: 'gallery', label: 'Gallery', icon: <FaImage className="text-purple-500"/> },
+                    { id: 'highlights', label: 'Highlights', icon: <FaStar className="text-yellow-500"/> },
+                    { id: 'stats', label: 'Home Stats', icon: <FaChartLine className="text-green-600"/> },
+                    { id: 'notices', label: 'Notices', icon: <FaClipboardList className="text-orange-500"/> },
+                    { id: 'banner', label: 'Popup Banner', icon: <FaImage className="text-amber-500"/> },
+                    { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList className="text-slate-500"/> },
+                    { id: 'schoolProfile', label: 'School Profile', icon: <FaInfoCircle className="text-blue-500"/> },
+                    { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt className="text-blue-600"/> },
+                    { id: 'videos', label: 'Video Blog', icon: <FaVideo className="text-red-500"/> }
                   ].map(item => (
                     <button 
                       key={item.id}
@@ -6341,11 +6341,11 @@ function AdminPage() {
                 <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
                   {[
                     { id: 'admission', label: 'Admission', icon: <FaClipboardList className="text-blue-500"/> },
-                    { id: 'students', label: 'Students', icon: <FaUsers className="text-green-500"/> },
+                    { id: 'appointments', label: 'Appointments', icon: <FaCalendarCheck className="text-teal-500"/>, badge: appointments.filter(a => a.status === 'Pending').length },
                     { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots className="text-purple-500"/>, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
                     { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase className="text-amber-500"/> },
-                    { id: 'tenders', label: 'Tenders', icon: <FaGavel className="text-slate-500"/> },
-                    { id: 'appointments', label: 'Appointments', icon: <FaCalendarCheck className="text-teal-500"/>, badge: appointments.filter(a => a.status === 'Pending').length }
+                    { id: 'students', label: 'Students', icon: <FaUsers className="text-green-500"/> },
+                    { id: 'tenders', label: 'Tenders', icon: <FaGavel className="text-slate-500"/> }
                   ].map(item => (
                     <button 
                       key={item.id}

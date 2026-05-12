@@ -1504,12 +1504,19 @@ function Admission() {
                         <span className="w-1.5 h-6 bg-black rounded-full"></span>
                         Documents
                       </h3>
-                      <p className="text-sm text-gray-500 mb-6">Please upload clear copies of the following documents.</p>
+                      <div className="bg-gray-100 p-4 rounded-xl border border-gray-300 mb-6 flex items-start gap-3">
+                        <span className="text-lg">⚠️</span>
+                        <p className="text-xs font-bold text-gray-700 leading-relaxed">
+                          Large photos will be <span className="text-black underline">automatically optimized</span> for faster upload. 
+                          Please ensure documents are clear and under <span className="text-black">5MB each</span>.
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-500 mb-6 font-medium">Please upload clear copies (JPG, PNG or PDF) of the following documents.</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-gray-700 font-medium mb-2">Student Passport Photo *</label>
                           <input type="file" name="studentPhoto" required accept="image/*" onChange={(e) => handleFilePreview(e, 'studentPhoto')} className="w-full px-4 py-2 rounded-xl border border-gray-400" />
-                          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">JPG OR PNG (MAX 2MB)</p>
+                          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">JPG / PNG (MAX 5MB)</p>
                           {filePreviews.studentPhoto && (
                             <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
                               {filePreviews.studentPhoto.url ? (
@@ -1524,6 +1531,7 @@ function Admission() {
                         <div>
                           <label className="block text-gray-700 font-medium mb-2">Birth Certificate *</label>
                           <input type="file" name="birthCertificate" required accept="image/*,application/pdf" onChange={(e) => handleFilePreview(e, 'birthCertificate')} className="w-full px-4 py-2 rounded-xl border border-gray-400" />
+                          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">JPG / PNG / PDF (MAX 5MB)</p>
                           {filePreviews.birthCertificate && (
                             <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
                               <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-black"><FaFileAlt /></div>
@@ -1534,6 +1542,7 @@ function Admission() {
                         <div>
                           <label className="block text-gray-700 font-medium mb-2">Previous Class Marksheet *</label>
                           <input type="file" name="marksheet" required accept="image/*,application/pdf" onChange={(e) => handleFilePreview(e, 'marksheet')} className="w-full px-4 py-2 rounded-xl border border-gray-400" />
+                          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">JPG / PNG / PDF (MAX 5MB)</p>
                           {filePreviews.marksheet && (
                             <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
                               <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-black"><FaFileAlt /></div>
@@ -1544,6 +1553,7 @@ function Admission() {
                         <div>
                           <label className="block text-gray-700 font-medium mb-2">Aadhaar Card / VID Photo *</label>
                           <input type="file" name="AadhaarVidOrReceipt" required accept="image/*,application/pdf" onChange={(e) => handleFilePreview(e, 'AadhaarVidOrReceipt')} className="w-full px-4 py-2 rounded-xl border border-gray-400" />
+                          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">JPG / PNG / PDF (MAX 5MB)</p>
                           {filePreviews.AadhaarVidOrReceipt && (
                             <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
                               <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-black"><FaFileAlt /></div>
@@ -1562,6 +1572,7 @@ function Admission() {
                             <div>
                               <label className="block text-gray-700 font-medium mb-2">Class X Admit Card *</label>
                               <input type="file" name="admitCard" required accept="image/*,application/pdf" onChange={(e) => handleFilePreview(e, 'admitCard')} className="w-full px-4 py-2 rounded-xl border border-gray-400" />
+                              <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">JPG / PNG / PDF (MAX 5MB)</p>
                               {filePreviews.admitCard && (
                                 <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
                                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-black"><FaFileAlt /></div>
@@ -1572,6 +1583,7 @@ function Admission() {
                             <div>
                               <label className="block text-gray-700 font-medium mb-2">Class X Registration Card *</label>
                               <input type="file" name="registrationCard" required accept="image/*,application/pdf" onChange={(e) => handleFilePreview(e, 'registrationCard')} className="w-full px-4 py-2 rounded-xl border border-gray-400" />
+                              <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">JPG / PNG / PDF (MAX 5MB)</p>
                               {filePreviews.registrationCard && (
                                 <div className="mt-2 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
                                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-black"><FaFileAlt /></div>

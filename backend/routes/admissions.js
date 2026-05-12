@@ -483,13 +483,31 @@ router.post(
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('[SUPABASE INSERT ERROR]:', insertError);
+        return res.status(500).json({ 
+          message: 'Failed to save application to database', 
+          error: insertError.message,
+          details: insertError.details 
+        });
+      }
 
-      // Notifications (fire-and-forget)
-      Promise.all([
-        sendSubmissionEmail(admission),
-        sendApplicantConfirmationEmail(admission)
-      ]).catch(err => console.error('Email sending failed:', err.message));
+      // Notifications (fire-and-forget, non-blocking)
+      const runNotifications = async () => {
+        try {
+          await sendSubmissionEmail(admission);
+        } catch (e) {
+          console.error('Admin notification email failed:', e.message);
+        }
+        
+        try {
+          await sendApplicantConfirmationEmail(admission);
+        } catch (e) {
+          console.error('Applicant confirmation email failed:', e.message);
+        }
+      };
+      
+      runNotifications(); // Don't await, respond to user immediately
 
       res.status(201).json({
         message: 'Application submitted successfully',
@@ -497,8 +515,11 @@ router.post(
         referenceNumber: admission.reference_number
       });
     } catch (error) {
-      console.error('Submission Error:', error);
-      res.status(500).json({ message: 'Submission failed', error: error.message });
+      console.error('CRITICAL Submission Error:', error);
+      res.status(500).json({ 
+        message: 'An unexpected error occurred during submission', 
+        error: error.message 
+      });
     }
   }
 );

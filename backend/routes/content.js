@@ -14,6 +14,97 @@ let contentCache = {
   ttl: 30 * 1000, // 30 seconds
 };
 
+const getAggregatedContent = async () => {
+  // Fetch everything in parallel
+  const [
+    { data: settings },
+    { data: notices },
+    { data: gallery },
+    { data: events },
+    { data: highlights },
+    { data: faculty },
+    { data: alumni },
+    { data: stats },
+    { data: faqs },
+    { data: courses },
+    { data: messages }
+  ] = await Promise.all([
+    supabase.from('site_settings').select('*').limit(1).maybeSingle(),
+    supabase.from('notices').select('*').order('created_at', { ascending: false }),
+    supabase.from('gallery').select('*').order('created_at', { ascending: false }),
+    supabase.from('events').select('*').order('created_at', { ascending: false }),
+    supabase.from('highlights').select('*').order('created_at', { ascending: false }),
+    supabase.from('faculty').select('*').order('order_index', { ascending: true }),
+    supabase.from('alumni').select('*').order('created_at', { ascending: false }),
+    supabase.from('stats').select('*').order('created_at', { ascending: true }),
+    supabase.from('faqs').select('*').order('order_index', { ascending: true }),
+    supabase.from('courses').select('*').order('created_at', { ascending: true }),
+    supabase.from('messages').select('*')
+  ]);
+
+  // Aggregate into the format frontend expects
+  return {
+    schoolProfile: {
+      name: settings?.school_name,
+      logo: settings?.logo,
+      punchLine: settings?.punch_line,
+      email: settings?.email,
+      phone: settings?.phone,
+      officeHours: settings?.office_hours,
+      officeAddress: settings?.office_address,
+      mapLink: settings?.map_link,
+      pageHeroImages: settings?.page_hero_images || {},
+      heroImages: settings?.hero_images || [],
+      affiliation: settings?.affiliation || [],
+      online_admission_instructions: settings?.online_admission_instructions || [],
+      offline_admission_instructions: settings?.offline_admission_instructions || [],
+      establishedYear: settings?.established_year
+    },
+    socialLinks: settings?.social_links || {},
+    notificationEmail: settings?.notification_email,
+    admissionFee: settings?.admission_fee,
+    admissionPaymentEnabled: settings?.admission_payment_enabled,
+    admissionUpiId: settings?.admission_upi_id,
+    visionStatement: settings?.vision_statement,
+    visionStatementExtended: settings?.vision_statement_extended,
+    aimsAndObjectives: settings?.aims_and_objectives || [],
+    admissionFields: settings?.admission_fields || [],
+    banners: settings?.banners || [],
+    videos: settings?.videos || [],
+    notices: notices || [],
+    gallery: gallery || [],
+    events: events || [],
+    highlights: highlights || [],
+    faculty: (faculty || []).reduce((acc, member) => {
+      const dept = member.department || 'Others';
+      if (!acc[dept]) acc[dept] = [];
+      acc[dept].push({
+        id: member.id,
+        name: member.name,
+        Subject: member.subject,
+        EduQua: member.education,
+        classes: member.classes,
+        photo: member.photo_url,
+        facebook: member.facebook_url,
+        instagram: member.instagram_url,
+        whatsapp: member.whatsapp_number,
+        orderIndex: member.order_index,
+        title: member.title
+      });
+      return acc;
+    }, { Science: [], Arts: [], Commerce: [], "High School": [], Nursery: [], Administration: [], "Support Staff": [], Others: [] }),
+    alumni: alumni || [],
+    stats: stats || [],
+    faqs: faqs || [],
+    coursesPage: {
+      courses: courses || []
+    },
+    principal: messages?.find(m => m.type === 'principal') ? { ...messages.find(m => m.type === 'principal'), photo: messages.find(m => m.type === 'principal').image } : {},
+    headMistress: messages?.find(m => m.type === 'headmistress') ? { ...messages.find(m => m.type === 'headmistress'), photo: messages.find(m => m.type === 'headmistress').image, greeting: messages.find(m => m.type === 'headmistress').name } : {},
+    vicePrincipal: messages?.find(m => m.type === 'vice-principal') ? { ...messages.find(m => m.type === 'vice-principal'), photo: messages.find(m => m.type === 'vice-principal').image } : {}
+  };
+};
+
 router.get('/', async (req, res) => {
   try {
     const now = Date.now();
@@ -23,94 +114,7 @@ router.get('/', async (req, res) => {
       return res.json(contentCache.data);
     }
 
-    // Fetch everything in parallel
-    const [
-      { data: settings },
-      { data: notices },
-      { data: gallery },
-      { data: events },
-      { data: highlights },
-      { data: faculty },
-      { data: alumni },
-      { data: stats },
-      { data: faqs },
-      { data: courses },
-      { data: messages }
-    ] = await Promise.all([
-      supabase.from('site_settings').select('*').limit(1).maybeSingle(),
-      supabase.from('notices').select('*').order('created_at', { ascending: false }),
-      supabase.from('gallery').select('*').order('created_at', { ascending: false }),
-      supabase.from('events').select('*').order('created_at', { ascending: false }),
-      supabase.from('highlights').select('*').order('created_at', { ascending: false }),
-      supabase.from('faculty').select('*').order('order_index', { ascending: true }),
-      supabase.from('alumni').select('*').order('created_at', { ascending: false }),
-      supabase.from('stats').select('*').order('created_at', { ascending: true }),
-      supabase.from('faqs').select('*').order('order_index', { ascending: true }),
-      supabase.from('courses').select('*').order('created_at', { ascending: true }),
-      supabase.from('messages').select('*')
-    ]);
-
-    // Aggregate into the format frontend expects
-    const aggregatedContent = {
-      schoolProfile: {
-        name: settings?.school_name,
-        logo: settings?.logo,
-        punchLine: settings?.punch_line,
-        email: settings?.email,
-        phone: settings?.phone,
-        officeHours: settings?.office_hours,
-        officeAddress: settings?.office_address,
-        mapLink: settings?.map_link,
-        pageHeroImages: settings?.page_hero_images || {},
-        heroImages: settings?.hero_images || [],
-        affiliation: settings?.affiliation || [],
-        onlineAdmissionInstructions: settings?.online_admission_instructions || [],
-        offlineAdmissionInstructions: settings?.offline_admission_instructions || [],
-        establishedYear: settings?.established_year
-      },
-      socialLinks: settings?.social_links || {},
-      notificationEmail: settings?.notification_email,
-      admissionFee: settings?.admission_fee,
-      admissionPaymentEnabled: settings?.admission_payment_enabled,
-      admissionUpiId: settings?.admission_upi_id,
-      visionStatement: settings?.vision_statement,
-      visionStatementExtended: settings?.vision_statement_extended,
-      aimsAndObjectives: settings?.aims_and_objectives || [],
-      admissionFields: settings?.admission_fields || [],
-      banners: settings?.banners || [],
-      videos: settings?.videos || [],
-      notices: notices || [],
-      gallery: gallery || [],
-      events: events || [],
-      highlights: highlights || [],
-      faculty: (faculty || []).reduce((acc, member) => {
-        const dept = member.department || 'Others';
-        if (!acc[dept]) acc[dept] = [];
-        acc[dept].push({
-          id: member.id,
-          name: member.name,
-          Subject: member.subject,
-          EduQua: member.education,
-          classes: member.classes,
-          photo: member.photo_url,
-          facebook: member.facebook_url,
-          instagram: member.instagram_url,
-          whatsapp: member.whatsapp_number,
-          orderIndex: member.order_index,
-          title: member.title
-        });
-        return acc;
-      }, { Science: [], Arts: [], Commerce: [], "High School": [], Nursery: [], Administration: [], "Support Staff": [], Others: [] }),
-      alumni: alumni || [],
-      stats: stats || [],
-      faqs: faqs || [],
-      coursesPage: {
-        courses: courses || []
-      },
-      principal: messages?.find(m => m.type === 'principal') ? { ...messages.find(m => m.type === 'principal'), photo: messages.find(m => m.type === 'principal').image } : {},
-      headMistress: messages?.find(m => m.type === 'headmistress') ? { ...messages.find(m => m.type === 'headmistress'), photo: messages.find(m => m.type === 'headmistress').image, greeting: messages.find(m => m.type === 'headmistress').name } : {},
-      vicePrincipal: messages?.find(m => m.type === 'vice-principal') ? { ...messages.find(m => m.type === 'vice-principal'), photo: messages.find(m => m.type === 'vice-principal').image } : {}
-    };
+    const aggregatedContent = await getAggregatedContent();
 
     // Update cache
     contentCache.data = aggregatedContent;
@@ -153,7 +157,7 @@ router.put('/', protect, async (req, res) => {
       vision_statement_extended: updateData.visionStatementExtended,
       aims_and_objectives: updateData.aimsAndObjectives,
       admission_fields: updateData.admissionFields,
-      banners: updateData.banners,
+      banners: updateData.banners || (updateData.banner ? [updateData.banner] : undefined),
       videos: updateData.videos
     };
 
@@ -232,13 +236,42 @@ router.put('/', protect, async (req, res) => {
             if (row.id) delete row.id;
             
             if (mod.table === 'notices') {
-              return { title: item.title, date: item.date, size: item.size, pdf_link: item.pdfLink || item.pdf_link };
+              return { 
+                title: item.title, 
+                date: item.date, 
+                size: item.size, 
+                pdf_link: item.pdfLink || item.pdf_link 
+              };
             }
             if (mod.table === 'gallery') {
-              return { category: item.category, title: item.title, src: item.src, featured: item.featured, description: item.description, views: item.views || 0 };
+              return { 
+                category: item.category, 
+                title: item.title, 
+                src: item.src, 
+                featured: item.featured, 
+                description: item.description, 
+                views: item.views || 0,
+                album_id: item.albumId || item.album_id
+              };
             }
             if (mod.table === 'events') {
-              return { title: item.title, date: item.date, image: item.image, description: item.description, gallery_images: item.gallery_images || item.galleryImages };
+              return { 
+                title: item.title, 
+                date: item.date, 
+                image: item.image, 
+                description: item.description, 
+                gallery_images: item.galleryImages || item.gallery_images 
+              };
+            }
+            if (mod.table === 'highlights') {
+              return { 
+                title: item.title, 
+                date: item.date, 
+                image: item.image, 
+                description: item.description, 
+                category: item.category,
+                gallery_images: item.galleryImages || item.gallery_images 
+              };
             }
             if (mod.table === 'faculty') {
               return { 
@@ -248,7 +281,37 @@ router.put('/', protect, async (req, res) => {
                 education: item.EduQua || item.qualification || item.education, 
                 classes: item.classes,
                 photo_url: item.photo || item.image || item.photo_url,
-                order_index: item.orderIndex || item.order_index || 0 
+                facebook_url: item.facebook || item.facebook_url,
+                instagram_url: item.instagram || item.instagram_url,
+                whatsapp_number: item.whatsapp || item.whatsapp_number,
+                order_index: item.orderIndex || item.order_index || 0,
+                title: item.title
+              };
+            }
+            if (mod.table === 'alumni') {
+              return {
+                name: item.name,
+                passed_year: item.passedYear || item.passed_year,
+                rank: item.rank,
+                percentage: item.percentage,
+                level: item.level,
+                stream: item.stream,
+                subjects: item.subjects,
+                photo: item.photo || item.photo_url,
+                description: item.description
+              };
+            }
+            if (mod.table === 'stats') {
+              return {
+                label: item.label,
+                value: item.value
+              };
+            }
+            if (mod.table === 'faqs') {
+              return {
+                question: item.question,
+                answer: item.answer,
+                order_index: item.orderIndex || item.order_index || 0
               };
             }
             return row;
@@ -277,11 +340,14 @@ router.put('/', protect, async (req, res) => {
       }
     }
 
-    // BUST CACHE
+    // BUST CACHE and trigger a re-fetch to return full updated data
     contentCache.data = null;
     contentCache.lastFetched = 0;
 
-    res.json({ message: 'Content updated successfully' });
+    // Fetch updated content to return to frontend for sync
+    const aggregatedContent = await getAggregatedContent();
+    res.json(aggregatedContent);
+
   } catch (error) {
     console.error('PUT /api/content error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

@@ -169,7 +169,11 @@ export const SiteDataProvider = ({ children }) => {
         if (data.faculty && typeof data.faculty === 'object') setFaculty(data.faculty);
         if (data.principal && typeof data.principal === 'object') setPrincipal({ ...defaultPrincipal, ...data.principal });
         if (data.notificationEmail !== undefined) setNotificationEmail(data.notificationEmail);
-        if (data.banner !== undefined) setBanner(data.banner);
+        if (data.banners !== undefined && Array.isArray(data.banners)) {
+          setBanner(data.banners[0] || { isActive: false, image: null, link: null });
+        } else if (data.banner !== undefined) {
+          setBanner(data.banner);
+        }
         if (data.socialLinks && typeof data.socialLinks === 'object') setSocialLinks(data.socialLinks);
         if (Array.isArray(data.alumni)) setAlumni(data.alumni);
         if (Array.isArray(data.stats)) setStats(data.stats);
@@ -210,20 +214,21 @@ export const SiteDataProvider = ({ children }) => {
       const token = localStorage.getItem('adminToken');
       if (!token) return;
 
-      // Sanitization: Strip _id fields that start with 'temp-' to prevent Mongoose cast errors
+      // Sanitization: Strip internal keys but preserve real IDs
       const sanitize = (data) => {
         if (Array.isArray(data)) {
           return data.map(item => sanitize(item));
         } else if (data !== null && typeof data === 'object') {
           const newObj = {};
           for (const key in data) {
-            // Skip Mongoose internal version key
+            // Skip internal version keys
             if (key === '__v') continue;
             
-            if (key === '_id') {
+            // For Supabase, we want to keep 'id' and '_id' if they are valid UUIDs or ObjectIds
+            // But we SHOULD strip them if they are 'temp-' IDs to let the DB generate new ones
+            if (key === '_id' || key === 'id') {
               const val = data[key];
-              const isObjectId = typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val);
-              if (!isObjectId) continue; // Strip numeric IDs, temp IDs, etc.
+              if (typeof val === 'string' && val.startsWith('temp-')) continue;
             }
             newObj[key] = sanitize(data[key]);
           }
@@ -250,7 +255,11 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.principal) setPrincipal(updatedData.principal);
       if (updatedData.notices) setNotices(updatedData.notices);
       if (updatedData.notificationEmail) setNotificationEmail(updatedData.notificationEmail);
-      if (updatedData.banner) setBanner(updatedData.banner);
+      if (updatedData.banners && Array.isArray(updatedData.banners)) {
+        setBanner(updatedData.banners[0] || { isActive: false, image: null, link: null });
+      } else if (updatedData.banner) {
+        setBanner(updatedData.banner);
+      }
       if (updatedData.socialLinks) setSocialLinks(updatedData.socialLinks);
       if (updatedData.alumni) setAlumni(updatedData.alumni);
       if (updatedData.stats) setStats(updatedData.stats);

@@ -2,55 +2,25 @@ require('dotenv').config();
 const supabase = require('./config/supabase');
 async function test() {
   const payload = {
-    reference_number: "TEST-123456",
+    reference_number: "TEST-UNIQUE-5",
     student_name: "AD",
     date_of_birth: "2017-11-21",
-    place_of_birth: "DULIAJAN",
     gender: "MALE",
-    religion: "HINDU",
-    blood_group: "A+",
-    caste: "GENERAL",
-    previous_school: "TEST SCHOOL",
-    prev_marks_obtained: "400",
-    last_attended_exam: "FINAL",
-    prev_percentage: "80.00",
-    father_name: "FATHER",
-    father_occupation: "JOB",
-    mother_name: "MOTHER",
-    mother_occupation: "JOB",
-    guardian_name: "GUARDIAN",
-    relationship: "UNCLE",
-    contact_number: "1234567890",
-    email: "test@test.com",
-    address: "TEST",
-    po: "TEST",
-    ps: "TEST",
-    pincode: "786602",
-    aadhar_number: "231275881882",
-    pen_number: "123456",
     grade_applied: "Class 1",
-    stream: "SCIENCE",
-    elective: "COMPUTER",
-    selected_subjects: ["PHYSICS"],
-    mil: "ASSAMESE",
-    darpan_id: "123456",
-    board_marks: "500",
-    board_percentage: "83.33",
-    board_division: "FIRST",
-    ncc_interest: true,
-    sports_active: true,
-    sports_type: "CRICKET",
-    upi_transaction_id: "UPI123",
-    status: "pending",
-    transfer_certificate: "url",
-    marksheet: "url",
-    aadhar_vid_or_receipt: "url",
-    student_photo: "url",
-    birth_certificate: "url",
-    caste_certificate: "url",
-    payment_receipt: "url"
+    contact_number: "1234567890",
+    email: "test@example.com",
+    address: "test",
+    aadhar_number: "DUPLICATE_AADHAAR",
+    pen_number: "DUPLICATE_PEN",
+    darpan_id: "DUPLICATE_DARPAN"
   };
-  const { data, error } = await supabase.from('admissions').insert(payload).select().single();
+  await supabase.from('admissions').insert(payload);
+  
+  const payload2 = {
+    ...payload,
+    reference_number: "TEST-UNIQUE-6"
+  };
+  const { data, error } = await supabase.from('admissions').insert(payload2).select().single();
   console.log("ERROR:", error);
 }
 test();

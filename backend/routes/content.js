@@ -97,10 +97,26 @@ const getAggregatedContent = async () => {
     stats: stats || [],
     faqs: faqs || [],
     coursesPage: {
-      courses: courses || []
+      courses: courses || [],
+      streams: settings?.courses_streams || {},
+      levels: settings?.courses_levels || [],
+      rules: settings?.courses_rules || []
     },
-    principal: messages?.find(m => m.type === 'principal') ? { ...messages.find(m => m.type === 'principal'), photo: messages.find(m => m.type === 'principal').image } : {},
-    headMistress: messages?.find(m => m.type === 'headmistress') ? { ...messages.find(m => m.type === 'headmistress'), photo: messages.find(m => m.type === 'headmistress').image, greeting: messages.find(m => m.type === 'headmistress').name } : {},
+    principal: messages?.find(m => m.type === 'principal') ? { 
+      ...messages.find(m => m.type === 'principal'), 
+      photo: messages.find(m => m.type === 'principal').image,
+      message: messages.find(m => m.type === 'principal').content,
+      introQuote: messages.find(m => m.type === 'principal').intro_quote,
+      closingQuote: messages.find(m => m.type === 'principal').closing_quote,
+      signature: messages.find(m => m.type === 'principal').signature
+    } : {},
+    headMistress: messages?.find(m => m.type === 'headmistress') ? { 
+      ...messages.find(m => m.type === 'headmistress'), 
+      photo: messages.find(m => m.type === 'headmistress').image, 
+      greeting: messages.find(m => m.type === 'headmistress').name,
+      message: messages.find(m => m.type === 'headmistress').content,
+      signature: messages.find(m => m.type === 'headmistress').signature
+    } : {},
     vicePrincipal: messages?.find(m => m.type === 'vice-principal') ? { ...messages.find(m => m.type === 'vice-principal'), photo: messages.find(m => m.type === 'vice-principal').image } : {}
   };
 };
@@ -158,7 +174,10 @@ router.put('/', protect, async (req, res) => {
       aims_and_objectives: updateData.aimsAndObjectives,
       admission_fields: updateData.admissionFields,
       banners: updateData.banners || (updateData.banner ? [updateData.banner] : undefined),
-      videos: updateData.videos
+      videos: updateData.videos,
+      courses_streams: updateData.coursesPage?.streams,
+      courses_levels: updateData.coursesPage?.levels,
+      courses_rules: updateData.coursesPage?.rules
     };
 
     // Filter out undefined
@@ -184,10 +203,13 @@ router.put('/', protect, async (req, res) => {
         const dbType = type.toLowerCase() === 'headmistress' ? 'headmistress' : type.toLowerCase() === 'viceprincipal' ? 'vice-principal' : 'principal';
         const { error } = await supabase.from('messages').upsert({
           type: dbType,
-          name: msgData.name,
-          image: msgData.image,
-          designation: msgData.designation,
-          content: msgData.content,
+          name: msgData.name || msgData.greeting || msgData.name,
+          image: msgData.image || msgData.photo || msgData.image,
+          designation: msgData.designation || msgData.title || msgData.designation,
+          content: msgData.content || msgData.message || msgData.content,
+          intro_quote: msgData.introQuote,
+          closing_quote: msgData.closingQuote,
+          signature: msgData.signature,
           updated_at: new Date()
         }, { onConflict: 'type' });
         if (error) throw error;
@@ -251,7 +273,9 @@ router.put('/', protect, async (req, res) => {
                 featured: item.featured, 
                 description: item.description, 
                 views: item.views || 0,
-                album_id: item.albumId || item.album_id
+                album_id: item.albumId || item.album_id,
+                is_album_cover: item.isAlbumCover || item.is_album_cover || false,
+                event_id: item.eventId || item.event_id
               };
             }
             if (mod.table === 'events') {

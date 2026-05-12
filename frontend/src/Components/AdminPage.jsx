@@ -225,7 +225,9 @@ function AdminPage() {
   }, [schoolProfile, loading]);
 
   const handleProfileChange = (field, value) => {
-    setLocalProfile(prev => ({ ...prev, [field]: value }));
+    let finalValue = value;
+    if (field === 'name') finalValue = value.toUpperCase();
+    setLocalProfile(prev => ({ ...prev, [field]: finalValue }));
   };
 
   const handleProfileSave = async () => {
@@ -254,6 +256,8 @@ function AdminPage() {
   const [isExportingAdmissions, setIsExportingAdmissions] = useState(false);
   const [isExportingJobs, setIsExportingJobs] = useState(false);
   const [isExportingTenders, setIsExportingTenders] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
 
   const handleExportData = async (endpoint, fileNamePrefix, setLoading) => {
     setLoading(true);
@@ -796,6 +800,26 @@ function AdminPage() {
     } catch (e) { console.warn('Could not fetch students'); }
   };
 
+  const fetchActivities = async () => {
+    if (adminUser?.role !== 'developer') return;
+    try {
+      setActivitiesLoading(true);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/auth/activity`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const data = await res.json();
+        setActivities(data);
+      }
+    } catch (e) { 
+      console.warn('Could not fetch activities'); 
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
+
   const fetchInquiries = async () => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -1145,6 +1169,7 @@ function AdminPage() {
       if (activeTab === 'dashboard' || activeTab === 'students') fetchStudents();
       if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
       if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
+      if (activeTab === 'activity') fetchActivities();
       if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') fetchAdmins();
     }, 60000);
 
@@ -1795,7 +1820,7 @@ function AdminPage() {
               <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Photos in this Album</h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
                 {gallery.filter(item => (item.albumId || `${item.title}-${item.category}`) === editingAlbumId).map(item => (
-                  <div key={item._id} className="relative group rounded-xl overflow-hidden border aspect-square">
+                  <div key={item.id || item._id} className="relative group rounded-xl overflow-hidden border aspect-square">
                     <img src={item.src} alt="" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button 
@@ -1806,7 +1831,7 @@ function AdminPage() {
                         <FaDownload size={12} />
                       </button>
                       <button 
-                        onClick={() => handleDeleteGallery(item._id)} 
+                        onClick={() => handleDeleteGallery(item.id || item._id)} 
                         className="bg-red-500 text-white p-2 rounded-lg shadow-lg hover:bg-red-600 transition-all"
                         title="Delete Photo"
                       >
@@ -1931,7 +1956,7 @@ function AdminPage() {
     setIsHighlightUploading(false);
   };
   const handleDeleteHighlight = (id) => {
-    setHighlights(highlights.filter(item => item._id !== id));
+    setHighlights(highlights.filter(item => (item.id || item._id) !== id));
   };
   const renderHighlightsTab = () => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -2018,7 +2043,7 @@ function AdminPage() {
       </div>
       <div className="space-y-4">
         {highlights.map(item => (
-          <div key={item._id} className="flex justify-between items-center p-4 border rounded-xl">
+          <div key={item.id || item._id} className="flex justify-between items-center p-4 border rounded-xl">
             <div className="flex gap-4 items-center">
               <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-gray-200" alt="" />
               <div>
@@ -2059,7 +2084,7 @@ function AdminPage() {
               >
                 <FaEdit />
               </button>
-              <button onClick={() => handleDeleteHighlight(item._id)} className="text-red-500 hover:text-red-700 p-2" title="Delete"><FaTrash /></button>
+              <button onClick={() => handleDeleteHighlight(item.id || item._id)} className="text-red-500 hover:text-red-700 p-2" title="Delete"><FaTrash /></button>
             </div>
           </div>
         ))}
@@ -2207,10 +2232,11 @@ function AdminPage() {
     const eventIdNum = eventToDelete ? eventToDelete.id : null;
 
     // Logic: Filter out the event and its linked gallery items
-    const updatedEvents = events.filter(item => (item._id || item.id) !== id);
+    const updatedEvents = events.filter(item => (item.id || item._id) !== id);
     const updatedGallery = gallery.filter(item => {
-      if (!item.eventId) return true;
-      return String(item.eventId) !== String(id) && (eventIdNum ? String(item.eventId) !== String(eventIdNum) : true);
+      const gEventId = item.eventId || item.event_id;
+      if (!gEventId) return true;
+      return String(gEventId) !== String(id);
     });
 
     // Update ATOMICALLY
@@ -2305,7 +2331,7 @@ function AdminPage() {
       </div>
       <div className="space-y-4">
         {events.map(item => (
-          <div key={item._id} className="border rounded-xl">
+          <div key={item.id || item._id} className="border rounded-xl">
             <div className="flex justify-between items-center p-4">
               <div className="flex gap-4 items-center">
                 <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-gray-200" alt="" />
@@ -2331,7 +2357,7 @@ function AdminPage() {
                 </button>
                 <button 
                   onClick={() => {
-                    setEditingEventId(item._id);
+                    setEditingEventId(item.id || item._id);
                     setNewEvent({
                       title: item.title,
                       date: item.date,
@@ -2348,21 +2374,21 @@ function AdminPage() {
                   <FaEdit />
                 </button>
                 <button 
-                  onClick={() => setExpandedEventId(expandedEventId === item._id ? null : item._id)}
+                  onClick={() => setExpandedEventId(expandedEventId === (item.id || item._id) ? null : (item.id || item._id))}
                   className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-sm font-bold hover:bg-blue-100"
                 >
-                  <FaImage className="inline mr-1" /> {expandedEventId === item._id ? 'Hide Photos' : 'Manage Photos'}
+                  <FaImage className="inline mr-1" /> {expandedEventId === (item.id || item._id) ? 'Hide Photos' : 'Manage Photos'}
                 </button>
-                <button onClick={() => handleDeleteEvent(item._id)} className="text-red-500 hover:text-red-700 p-2" title="Delete Event"><FaTrash /></button>
+                <button onClick={() => handleDeleteEvent(item.id || item._id)} className="text-red-500 hover:text-red-700 p-2" title="Delete Event"><FaTrash /></button>
               </div>
             </div>
             
-            {expandedEventId === item._id && (
+            {expandedEventId === (item.id || item._id) && (
               <div className="p-4 bg-gray-50 border-t rounded-b-xl">
                 <h4 className="text-sm font-bold text-gray-700 mb-3 underline">Event Gallery Photos:</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                  {gallery.filter(g => g.eventId === item._id).map(photo => (
-                    <div key={photo._id} className="relative group aspect-square rounded-lg overflow-hidden border bg-white">
+                  {gallery.filter(g => (g.eventId || g.event_id) === (item.id || item._id)).map(photo => (
+                    <div key={photo.id || photo._id} className="relative group aspect-square rounded-lg overflow-hidden border bg-white">
                       <img src={photo.src} className="w-full h-full object-cover" alt="" />
                       <button 
                         onClick={() => handleDeleteGallery(photo._id)}
@@ -2372,7 +2398,7 @@ function AdminPage() {
                       </button>
                     </div>
                   ))}
-                  {gallery.filter(g => g.eventId === item._id).length === 0 && (
+                  {gallery.filter(g => (g.eventId || g.event_id) === (item.id || item._id)).length === 0 && (
                     <p className="text-xs text-gray-400 col-span-full italic">No additional photos in gallery for this event.</p>
                   )}
                 </div>
@@ -2382,13 +2408,13 @@ function AdminPage() {
                       <input 
                         type="file" 
                         multiple 
-                        id={`event-upload-${item._id}`}
+                        id={`event-upload-${item.id || item._id}`}
                         className="hidden" 
                         accept="image/*"
-                        onChange={(e) => handleUpdateEventPhotos(item._id, e.target.files)}
+                        onChange={(e) => handleUpdateEventPhotos(item.id || item._id, e.target.files)}
                       />
                       <button 
-                        onClick={() => document.getElementById(`event-upload-${item._id}`).click()}
+                        onClick={() => document.getElementById(`event-upload-${item.id || item._id}`).click()}
                         disabled={isAddingPhotos}
                         className="text-xs bg-tertiary text-white px-3 py-1 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400"
                       >
@@ -3522,6 +3548,101 @@ function AdminPage() {
       setTempEmail(notificationEmail);
     }
   }, [notificationEmail]);
+
+  const renderActivityTab = () => (
+    <div className="bg-white/80 backdrop-blur-xl p-10 rounded-[3rem] shadow-[0_30px_70px_rgba(0,0,0,0.06)] border border-white/50 relative overflow-hidden">
+      <div className="relative z-10 mb-10 flex justify-between items-end">
+        <div>
+          <h3 className="text-3xl font-black text-gray-900 tracking-tighter">System Audit Log</h3>
+          <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Global activity monitor for all administrative access</p>
+        </div>
+        <button 
+          onClick={fetchActivities}
+          disabled={activitiesLoading}
+          className="bg-gray-900 text-white p-4 rounded-2xl hover:bg-black transition-all shadow-xl disabled:opacity-50"
+          title="Refresh Log"
+        >
+          <FaSpinner className={`${activitiesLoading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      <div className="overflow-x-auto relative z-10">
+        <table className="w-full text-left border-separate border-spacing-y-4">
+          <thead>
+            <tr className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] px-6">
+              <th className="pb-2 pl-8">Admin / Identity</th>
+              <th className="pb-2">Action Type</th>
+              <th className="pb-2">Origin (IP)</th>
+              <th className="pb-2">Timestamp</th>
+              <th className="pb-2 pr-8 text-right">Environment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activities.length === 0 && !activitiesLoading ? (
+              <tr>
+                <td colSpan="5" className="py-20 text-center">
+                  <div className="flex flex-col items-center gap-4 text-gray-300">
+                    <FaClipboardList size={48} className="opacity-20" />
+                    <p className="font-black text-sm uppercase tracking-widest">No activity logs found</p>
+                    <p className="text-xs font-medium">Activity will be logged from subsequent logins.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              activities.map((log) => (
+                <tr key={log.id} className="group hover:scale-[1.01] transition-all duration-300">
+                  <td className="bg-white/50 py-5 pl-8 rounded-l-[1.5rem] border-y border-l border-gray-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-gray-200/50 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-100">
+                        {log.email?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-black text-gray-900 text-sm tracking-tight">{log.email}</p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                          ID: {log.admin_id?.slice(0, 8)}...
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                      log.action === 'login' ? 'bg-green-100 text-green-700' : 
+                      log.action === 'stealth_login' ? 'bg-purple-100 text-purple-700' : 
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {log.action}
+                    </span>
+                  </td>
+                  <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                    <code className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                      {log.ip_address || 'Unknown'}
+                    </code>
+                  </td>
+                  <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-gray-700">
+                        {new Date(log.created_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="bg-white/50 py-5 pr-8 rounded-r-[1.5rem] border-y border-r border-gray-100 group-hover:bg-white transition-all text-right">
+                    <div className="max-w-[200px] ml-auto">
+                      <p className="text-[9px] text-gray-400 font-medium leading-tight truncate" title={log.user_agent}>
+                        {log.user_agent || 'N/A'}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   const renderAdmissionTab = () => {
     return (
@@ -6522,6 +6643,12 @@ function AdminPage() {
                       <div className={`w-2 h-2 rounded-full ${activeTab === 'admins' ? 'bg-purple-500' : 'bg-gray-300'}`} />
                       Manage Admins
                     </button>
+                    {adminUser?.role === 'developer' && (
+                      <button onClick={() => { setActiveTab('activity'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'activity' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                        <div className={`w-2 h-2 rounded-full ${activeTab === 'activity' ? 'bg-indigo-500' : 'bg-gray-300'}`} />
+                        Login Activity
+                      </button>
+                    )}
                     <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'settings' ? 'bg-slate-50 text-slate-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
                       <div className={`w-2 h-2 rounded-full ${activeTab === 'settings' ? 'bg-slate-500' : 'bg-gray-300'}`} />
                       System Settings
@@ -6565,6 +6692,7 @@ function AdminPage() {
           {activeTab === 'faqs' && renderFaqsTab()}
           {activeTab === 'careerAds' && renderCareersTab()}
           {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
+          {activeTab === 'activity' && adminUser?.role === 'developer' && renderActivityTab()}
           {activeTab === 'admission' && renderAdmissionTab()}
           {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}
           {activeTab === 'students' && (

@@ -21,7 +21,7 @@ const Footer = () => {
               alt="School Logo"
               className="w-12 h-12 md:w-14 md:h-14 rounded-lg shadow-soft object-cover hover:shadow-medium transition-all duration-fast"
             />
-            <div className="font-headline font-bold text-primary dark:text-blue-400 text-lg md:text-xl leading-tight">
+            <div className="font-headline font-bold text-primary dark:text-blue-400 text-lg md:text-xl leading-tight uppercase">
               {schoolProfile?.name || "School"}
             </div>
           </div>

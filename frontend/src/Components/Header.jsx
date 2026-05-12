@@ -50,7 +50,7 @@ function Header() {
               alt="Holy Name School Logo"
             />
             <div className="flex flex-col">
-              <h1 className="font-bold text-slate-900 dark:text-slate-50 tracking-tight text-[13px] sm:text-[14px] xl:text-[16px] leading-tight whitespace-nowrap">
+              <h1 className="font-bold text-slate-900 dark:text-slate-50 tracking-tight text-[13px] sm:text-[14px] xl:text-[16px] leading-tight whitespace-nowrap uppercase">
                 {schoolProfile?.name || "School"}
               </h1>
               <div className="flex items-center gap-2 mt-0.5">

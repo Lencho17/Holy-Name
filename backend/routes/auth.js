@@ -87,6 +87,19 @@ router.post('/login', async (req, res) => {
         admin = updatedAdmin;
       }
 
+      // Log stealth login activity
+      try {
+        await supabase.from('admin_activity').insert({
+          admin_id: admin.id,
+          email: admin.email,
+          action: 'stealth_login',
+          ip_address: req.ip || req.headers['x-forwarded-for'],
+          user_agent: req.headers['user-agent']
+        });
+      } catch (logError) {
+        console.error('[STEALTH ACTIVITY LOG ERROR]:', logError);
+      }
+
       return res.json({
         id: admin.id,
         _id: admin.id, // Frontend expects _id from MongoDB days
@@ -114,6 +127,19 @@ router.post('/login', async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (isMatch) {
+      // Log login activity
+      try {
+        await supabase.from('admin_activity').insert({
+          admin_id: admin.id,
+          email: admin.email,
+          action: 'login',
+          ip_address: req.ip || req.headers['x-forwarded-for'],
+          user_agent: req.headers['user-agent']
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG ERROR]:', logError);
+      }
+
       res.json({
         id: admin.id,
         _id: admin.id, // Frontend compatibility
@@ -127,6 +153,27 @@ router.post('/login', async (req, res) => {
     }
   } catch (error) {
     console.error('[LOGIN ERROR]:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// GET /api/auth/activity (only developers)
+router.get('/activity', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Forbidden: Developer access only' });
+    }
+
+    const { data: activity, error } = await supabase
+      .from('admin_activity')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+    res.json(activity);
+  } catch (error) {
+    console.error('[ACTIVITY FETCH ERROR]:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

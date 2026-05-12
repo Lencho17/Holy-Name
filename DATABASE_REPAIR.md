@@ -59,22 +59,38 @@ ADD COLUMN IF NOT EXISTS classes TEXT,
 ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS title TEXT;
 
--- 5. Enable RLS for logs
+-- 5. Create emeritus table for 'Alumestron' management
+CREATE TABLE IF NOT EXISTS emeritus (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    role TEXT,
+    category TEXT,
+    status TEXT,
+    tenure TEXT,
+    message TEXT,
+    cause_of_death TEXT,
+    photo TEXT,
+    order_index INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Enable RLS for logs
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON activity_logs;
 CREATE POLICY "Enable all for authenticated" ON activity_logs FOR ALL USING (true);
 
--- 6. Verification
+-- 7. Verification
 SELECT table_name, column_name, data_type 
 FROM information_schema.columns 
-WHERE table_name IN ('messages', 'site_settings', 'faculty', 'activity_logs')
+WHERE table_name IN ('messages', 'site_settings', 'faculty', 'activity_logs', 'emeritus')
 ORDER BY table_name;
 ```
 
 ---
 
 ### What this fixes:
-- ✅ **Auto-save Errors**: Fixes the "Could not find column 'classes'" error in the Faculty management section.
+- ✅ **Auto-save Errors**: Fixes missing columns in Faculty and Principal sections.
+- ✅ **Alumestron Management**: Creates the `emeritus` table needed to save retired/deceased staff records.
 - ✅ **Principal Desk**: Enables the Signature and Quotes fields.
 - ✅ **Courses Management**: Enables Levels, Streams, and Rules storage.
 - ✅ **Activity Log**: Creates the table needed for the new "Activity" tab.

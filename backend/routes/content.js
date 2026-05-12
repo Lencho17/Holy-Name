@@ -27,7 +27,8 @@ const getAggregatedContent = async () => {
     { data: stats },
     { data: faqs },
     { data: courses },
-    { data: messages }
+    { data: messages },
+    { data: emeritus }
   ] = await Promise.all([
     supabase.from('site_settings').select('*').limit(1).maybeSingle(),
     supabase.from('notices').select('*').order('created_at', { ascending: false }),
@@ -39,7 +40,8 @@ const getAggregatedContent = async () => {
     supabase.from('stats').select('*').order('created_at', { ascending: true }),
     supabase.from('faqs').select('*').order('order_index', { ascending: true }),
     supabase.from('courses').select('*').order('created_at', { ascending: true }),
-    supabase.from('messages').select('*')
+    supabase.from('messages').select('*'),
+    supabase.from('emeritus').select('*').order('order_index', { ascending: true })
   ]);
 
   // Aggregate into the format frontend expects
@@ -110,6 +112,7 @@ const getAggregatedContent = async () => {
       closingQuote: messages.find(m => m.type === 'principal').closing_quote,
       signature: messages.find(m => m.type === 'principal').signature
     } : {},
+    emeritus: emeritus || [],
     headMistress: messages?.find(m => m.type === 'headmistress') ? { 
       ...messages.find(m => m.type === 'headmistress'), 
       photo: messages.find(m => m.type === 'headmistress').image, 
@@ -229,7 +232,8 @@ router.put('/', protect, async (req, res) => {
       { key: 'faculty', table: 'faculty' },
       { key: 'alumni', table: 'alumni' },
       { key: 'stats', table: 'stats' },
-      { key: 'faqs', table: 'faqs' }
+      { key: 'faqs', table: 'faqs' },
+      { key: 'emeritus', table: 'emeritus' }
     ];
 
     for (const mod of syncModules) {
@@ -346,6 +350,19 @@ router.put('/', protect, async (req, res) => {
               return {
                 question: item.question,
                 answer: item.answer,
+                order_index: item.orderIndex || item.order_index || 0
+              };
+            }
+            if (mod.table === 'emeritus') {
+              return {
+                name: item.name,
+                role: item.role,
+                category: item.category,
+                status: item.status,
+                tenure: item.tenure,
+                message: item.message || item.description || '',
+                cause_of_death: item.causeOfDeath || item.cause_of_death || '',
+                photo: item.photo || item.image || '',
                 order_index: item.orderIndex || item.order_index || 0
               };
             }

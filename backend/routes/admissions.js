@@ -319,29 +319,6 @@ router.get('/status', async (req, res) => {
 // SHARED: Build the database record from input
 // ============================================
 const buildAdmissionRecord = (input, filesData = {}) => {
-  // Define standard fields we expect
-  const standardFields = [
-    'studentName', 'dateOfBirth', 'placeOfBirth', 'gender', 'religion', 'bloodGroup',
-    'caste', 'previousSchool', 'prevMarksObtained', 'lastAttendedExam', 'prevPercentage',
-    'fatherName', 'fatherOccupation', 'motherName', 'motherOccupation', 'guardianName',
-    'relationship', 'contactNumber', 'email', 'address', 'po', 'ps', 'pincode',
-    'aadharNumber', 'AadhaarNumber', 'penNumber', 'gradeApplied', 'stream', 'elective',
-    'selectedSubjects', 'mil', 'darpanId', 'boardMarks', 'boardPercentage',
-    'boardDivision', 'nccInterest', 'sportsActive', 'sportsType', 'upiTransactionId',
-    // Document URL fields (sent by direct-upload flow)
-    'transferCertificateUrl', 'marksheetUrl', 'AadhaarVidOrReceiptUrl',
-    'studentPhotoUrl', 'birthCertificateUrl', 'casteCertificateUrl',
-    'paymentReceiptUrl', 'admitCardUrl', 'registrationCardUrl'
-  ];
-
-  // Collect any "Dynamic" fields (anything not in standardFields)
-  const additionalInfo = {};
-  Object.keys(input).forEach(key => {
-    if (!standardFields.includes(key)) {
-      additionalInfo[key] = input[key];
-    }
-  });
-
   return {
     reference_number: `HNS-${new Date().getFullYear()}-${require('crypto').randomBytes(3).toString('hex').toUpperCase()}`,
     student_name: (input.studentName || '').toUpperCase().trim(),
@@ -385,7 +362,6 @@ const buildAdmissionRecord = (input, filesData = {}) => {
     sports_type: (input.sportsType || '').toUpperCase().trim(),
     upi_transaction_id: (input.upiTransactionId || '').toUpperCase().trim(),
     status: 'pending',
-    additional_info: additionalInfo,
     // Merge file URLs (from either multipart or direct-upload)
     ...filesData
   };

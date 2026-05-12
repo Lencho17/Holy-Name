@@ -306,6 +306,42 @@ function Admission() {
     </div>
   );
 
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      if (file.type === 'application/pdf' || file.size < 500 * 1024) {
+        resolve(file); // Don't compress PDFs or small images
+        return;
+      }
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
+          if (width > height && width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          } else if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            const compressedFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+            resolve(compressedFile);
+          }, 'image/jpeg', 0.7);
+        };
+      };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -404,7 +440,7 @@ function Admission() {
       return;
     }
 
-    // File uploads
+    // File uploads with compression
     const tcFile = form.querySelector('[name="transferCertificate"]')?.files[0];
     const msFile = form.querySelector('[name="marksheet"]')?.files[0];
     const AadhaarFile = form.querySelector('[name="AadhaarVidOrReceipt"]')?.files[0];
@@ -414,14 +450,14 @@ function Admission() {
     const admitCardFile = form.querySelector('[name="admitCard"]')?.files[0];
     const regCardFile = form.querySelector('[name="registrationCard"]')?.files[0];
 
-    if (tcFile) formData.append('transferCertificate', tcFile);
-    if (msFile) formData.append('marksheet', msFile);
-    if (AadhaarFile) formData.append('AadhaarVidOrReceipt', AadhaarFile);
-    if (photoFile) formData.append('studentPhoto', photoFile);
-    if (birthFile) formData.append('birthCertificate', birthFile);
-    if (casteFile) formData.append('casteCertificate', casteFile);
-    if (admitCardFile) formData.append('admitCard', admitCardFile);
-    if (regCardFile) formData.append('registrationCard', regCardFile);
+    if (tcFile) formData.append('transferCertificate', await compressImage(tcFile));
+    if (msFile) formData.append('marksheet', await compressImage(msFile));
+    if (AadhaarFile) formData.append('AadhaarVidOrReceipt', await compressImage(AadhaarFile));
+    if (photoFile) formData.append('studentPhoto', await compressImage(photoFile));
+    if (birthFile) formData.append('birthCertificate', await compressImage(birthFile));
+    if (casteFile) formData.append('casteCertificate', await compressImage(casteFile));
+    if (admitCardFile) formData.append('admitCard', await compressImage(admitCardFile));
+    if (regCardFile) formData.append('registrationCard', await compressImage(regCardFile));
     // (Removed payment file and transaction ID logic)
 
     try {

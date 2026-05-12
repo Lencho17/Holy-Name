@@ -53,9 +53,11 @@ const corsOptions = {
       'https://www.holynameschool.edu',
       'https://holy-name.vercel.app',
       'https://holy-name-frontend.vercel.app'
-    ].filter(Boolean);
+    ].filter(Boolean).map(url => url.replace(/\/$/, ''));
     
-    if (!isProduction || !origin || allowedOrigins.some(o => origin.startsWith(o)) || allowedOrigins.includes(origin)) {
+    const sanitizedOrigin = origin ? origin.replace(/\/$/, '') : null;
+    
+    if (!isProduction || !sanitizedOrigin || allowedOrigins.includes(sanitizedOrigin)) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked for origin: ${origin}`);

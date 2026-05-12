@@ -1,13 +1,8 @@
-const mongoose = require('mongoose');
 require('dotenv').config();
-const SiteContent = require('./models/SiteContent');
-const connectDB = require('./config/db');
-
-async function checkFields() {
-    await connectDB();
-    const content = await SiteContent.findOne();
-    console.log(JSON.stringify(content.admissionFields, null, 2));
-    process.exit(0);
+const supabase = require('./config/supabase');
+async function test() {
+  const { data, error } = await supabase.from('admissions').select('*').limit(1);
+  if (error) console.error(error);
+  else console.log(Object.keys(data[0] || {}));
 }
-
-checkFields();
+test();

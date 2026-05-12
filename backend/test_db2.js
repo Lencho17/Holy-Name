@@ -1,23 +1,18 @@
-const mongoose = require('mongoose');
 require('dotenv').config();
-
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then(async () => {
-    const Admin = require('./models/Admin.js');
-    console.log("Updating role logic...");
-    let admin = await Admin.findOne({ email: 'narayanphukan30@gmail.com' });
-    if(admin) {
-         admin.role = 'developer';
-         admin.isApproved = true;
-         // bypass validation on phone if not set correctly (the model requires /^[0-9]{10}$/)
-         if(!admin.phone || !/^[0-9]{10}$/.test(admin.phone)) {
-             admin.phone = '9876543210';
-         }
-         await admin.save();
-         console.log("Admin updated successfully", admin);
-    }
-    process.exit(0);
-}).catch(console.error);
-
+const supabase = require('./config/supabase');
+async function test() {
+  const payload = {
+    reference_number: "TEST-1234567",
+    student_name: "AD",
+    date_of_birth: "2017-11-21",
+    gender: "MALE",
+    grade_applied: "Class 1",
+    contact_number: "1234567890",
+    email: "test@example.com",
+    address: "test",
+    selected_subjects: "PHYSICS"
+  };
+  const { data, error } = await supabase.from('admissions').insert(payload).select().single();
+  console.log("ERROR:", error);
+}
+test();

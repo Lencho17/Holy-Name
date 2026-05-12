@@ -1226,7 +1226,7 @@ function Admission() {
                         Academic Background
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {!["class10", "class12"].includes(gradeKey) && (
+                        {!["class10", "class11", "class12"].includes(gradeKey) && (
                           <div className="md:col-span-2">
                             <label className="block text-gray-700 font-medium mb-3">Any Previous School Attended? *</label>
                             <div className="flex gap-4 mb-4">

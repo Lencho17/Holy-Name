@@ -63,7 +63,13 @@ router.post('/', upload.fields([
       .single();
 
     if (error) throw error;
-    res.status(201).json({ message: 'Appointment booked successfully.', appointment });
+    res.status(201).json({ 
+      message: 'Appointment booked successfully.', 
+      appointment: {
+        ...appointment,
+        appointmentNumber: appointment.appointment_number
+      } 
+    });
   } catch (error) {
     console.error('Error booking appointment:', error);
     res.status(500).json({ message: 'Server error while booking appointment.', error: error.message });

@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/s/:id",
-      "destination": "https://holy-name-np4x.onrender.com/api/share/:id"
+      "destination": "https://holy-name-sb9t.vercel.app/api/share/:id"
     },
     {
       "source": "/(.*)",

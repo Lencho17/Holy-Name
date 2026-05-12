@@ -7,7 +7,7 @@ const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
+  const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
   if (allowedMimes.includes(file.mimetype) || (file.originalname && file.originalname.toLowerCase().endsWith(".pdf"))) {
     cb(null, true);
   } else {

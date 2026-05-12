@@ -5403,7 +5403,7 @@ function AdminPage() {
                 value={(localCoursesPage?.streams?.[stream] || []).join('\n')}
                 onChange={(e) => {
                   const newStreams = { ...(localCoursesPage?.streams || {}) };
-                  newStreams[stream] = e.target.value.split('\n').filter(s => s.trim());
+                  newStreams[stream] = e.target.value.split('\n');
                   setLocalCoursesPage({ ...localCoursesPage, streams: newStreams });
                 }}
                 className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"

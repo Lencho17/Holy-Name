@@ -2619,6 +2619,8 @@ function AdminPage() {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Upload PDF</label>
           <input type="file" accept=".pdf" onChange={handlePdfUpload} disabled={isPdfUploading} className="w-full p-[5px] border bg-white rounded-lg text-sm disabled:bg-gray-100" />
+          {isPdfUploading && <p className="text-xs text-blue-500 mt-1 flex items-center"><FaSpinner className="animate-spin mr-1"/> Uploading PDF, please wait...</p>}
+          {!isPdfUploading && newNotice.pdfLink && <p className="text-xs text-green-600 mt-1">✅ PDF Uploaded & Ready!</p>}
         </div>
         <button 
           onClick={handleAddNotice} 

@@ -46,22 +46,28 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Enable RLS for logs
+-- 4. Fix 'faculty' table columns
+ALTER TABLE faculty
+ADD COLUMN IF NOT EXISTS classes TEXT,
+ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS title TEXT;
+
+-- 5. Enable RLS for logs
 ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON activity_logs;
 CREATE POLICY "Enable all for authenticated" ON activity_logs FOR ALL USING (true);
 
--- 5. Verification
+-- 6. Verification
 SELECT table_name, column_name, data_type 
 FROM information_schema.columns 
-WHERE table_name IN ('messages', 'site_settings')
+WHERE table_name IN ('messages', 'site_settings', 'faculty', 'activity_logs')
 ORDER BY table_name;
 ```
 
 ---
 
 ### What this fixes:
-- ✅ **Auto-save Errors**: Fixes the "Could not find column" error for both Principal Desk and Courses Page.
+- ✅ **Auto-save Errors**: Fixes the "Could not find column 'classes'" error in the Faculty management section.
 - ✅ **Principal Desk**: Enables the Signature and Quotes fields.
 - ✅ **Courses Management**: Enables Levels, Streams, and Rules storage.
 - ✅ **Activity Log**: Creates the table needed for the new "Activity" tab.

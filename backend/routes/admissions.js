@@ -315,12 +315,110 @@ router.get('/status', async (req, res) => {
   }
 });
 
+// ============================================
+// SHARED: Build the database record from input
+// ============================================
+const buildAdmissionRecord = (input, filesData = {}) => {
+  // Define standard fields we expect
+  const standardFields = [
+    'studentName', 'dateOfBirth', 'placeOfBirth', 'gender', 'religion', 'bloodGroup',
+    'caste', 'previousSchool', 'prevMarksObtained', 'lastAttendedExam', 'prevPercentage',
+    'fatherName', 'fatherOccupation', 'motherName', 'motherOccupation', 'guardianName',
+    'relationship', 'contactNumber', 'email', 'address', 'po', 'ps', 'pincode',
+    'aadharNumber', 'AadhaarNumber', 'penNumber', 'gradeApplied', 'stream', 'elective',
+    'selectedSubjects', 'mil', 'darpanId', 'boardMarks', 'boardPercentage',
+    'boardDivision', 'nccInterest', 'sportsActive', 'sportsType', 'upiTransactionId',
+    // Document URL fields (sent by direct-upload flow)
+    'transferCertificateUrl', 'marksheetUrl', 'AadhaarVidOrReceiptUrl',
+    'studentPhotoUrl', 'birthCertificateUrl', 'casteCertificateUrl',
+    'paymentReceiptUrl', 'admitCardUrl', 'registrationCardUrl'
+  ];
+
+  // Collect any "Dynamic" fields (anything not in standardFields)
+  const additionalInfo = {};
+  Object.keys(input).forEach(key => {
+    if (!standardFields.includes(key)) {
+      additionalInfo[key] = input[key];
+    }
+  });
+
+  return {
+    reference_number: `HNS-${new Date().getFullYear()}-${require('crypto').randomBytes(3).toString('hex').toUpperCase()}`,
+    student_name: (input.studentName || '').toUpperCase().trim(),
+    date_of_birth: input.dateOfBirth,
+    place_of_birth: (input.placeOfBirth || '').toUpperCase().trim(),
+    gender: (input.gender || '').toUpperCase(),
+    religion: (input.religion || '').toUpperCase().trim(),
+    blood_group: (input.bloodGroup || '').toUpperCase().trim(),
+    caste: (input.caste || '').toUpperCase().trim(),
+    previous_school: (input.previousSchool || '').toUpperCase().trim(),
+    prev_marks_obtained: input.prevMarksObtained,
+    last_attended_exam: (input.lastAttendedExam || '').toUpperCase().trim(),
+    prev_percentage: input.prevPercentage,
+    father_name: (input.fatherName || '').toUpperCase().trim(),
+    father_occupation: (input.fatherOccupation || '').toUpperCase().trim(),
+    mother_name: (input.motherName || '').toUpperCase().trim(),
+    mother_occupation: (input.motherOccupation || '').toUpperCase().trim(),
+    guardian_name: (input.guardianName || '').toUpperCase().trim(),
+    relationship: (input.relationship || '').toUpperCase().trim(),
+    contact_number: input.contactNumber,
+    email: (input.email || '').toLowerCase().trim(),
+    address: (input.address || '').toUpperCase().trim(),
+    po: (input.po || '').toUpperCase().trim(),
+    ps: (input.ps || '').toUpperCase().trim(),
+    pincode: input.pincode,
+    aadhar_number: input.AadhaarNumber || input.aadharNumber,
+    pen_number: (input.penNumber || '').toUpperCase().trim(),
+    grade_applied: (input.gradeApplied || '').toUpperCase(),
+    stream: (input.stream || '').toUpperCase(),
+    elective: (input.elective || '').toUpperCase(),
+    selected_subjects: Array.isArray(input.selectedSubjects)
+      ? input.selectedSubjects.map(s => s.toUpperCase())
+      : input.selectedSubjects,
+    mil: (input.mil || '').toUpperCase(),
+    darpan_id: (input.darpanId || '').toUpperCase().trim(),
+    board_marks: input.boardMarks,
+    board_percentage: input.boardPercentage,
+    board_division: (input.boardDivision || '').toUpperCase().trim(),
+    ncc_interest: input.nccInterest === 'true' || input.nccInterest === true,
+    sports_active: input.sportsActive === 'true' || input.sportsActive === true,
+    sports_type: (input.sportsType || '').toUpperCase().trim(),
+    upi_transaction_id: (input.upiTransactionId || '').toUpperCase().trim(),
+    status: 'pending',
+    additional_info: additionalInfo,
+    // Merge file URLs (from either multipart or direct-upload)
+    ...filesData
+  };
+};
+
+// Validate required admission fields
+const validateAdmissionInput = (input) => {
+  const missingFields = [];
+  if (!input.studentName) missingFields.push('studentName');
+  if (!input.dateOfBirth) missingFields.push('dateOfBirth');
+  if (!input.gender) missingFields.push('gender');
+  if (!input.gradeApplied) missingFields.push('gradeApplied');
+  if (!input.contactNumber) missingFields.push('contactNumber');
+  if (!input.email) missingFields.push('email');
+  if (!input.address) missingFields.push('address');
+  return missingFields;
+};
+
 // POST /api/admissions — public, submit an application
+// Supports TWO modes:
+//   1. multipart/form-data (legacy) — files uploaded through server → Cloudinary
+//   2. application/json (new) — files pre-uploaded to Cloudinary by frontend, URLs sent as JSON
 router.post(
   '/',
   submissionLimiter,
   (req, res, next) => {
-    // Wrap multer to catch upload errors gracefully
+    // If the request is JSON (direct-upload flow), skip multer entirely
+    const contentType = req.headers['content-type'] || '';
+    if (contentType.includes('application/json')) {
+      return next();
+    }
+
+    // Legacy multipart flow: wrap multer to catch upload errors gracefully
     const uploadFields = upload.fields([
       { name: 'transferCertificate', maxCount: 1 },
       { name: 'marksheet', maxCount: 1 },
@@ -348,29 +446,42 @@ router.post(
   },
   async (req, res) => {
     try {
-      const validation = require('../utils/validation');
       const input = req.body;
 
       // Validate required fields
-      const missingFields = [];
-      if (!input.studentName) missingFields.push('studentName');
-      if (!input.dateOfBirth) missingFields.push('dateOfBirth');
-      if (!input.gender) missingFields.push('gender');
-      if (!input.gradeApplied) missingFields.push('gradeApplied');
-      if (!input.contactNumber) missingFields.push('contactNumber');
-      if (!input.email) missingFields.push('email');
-      if (!input.address) missingFields.push('address');
+      const missingFields = validateAdmissionInput(input);
       if (missingFields.length > 0) {
         return res.status(400).json({ message: `Missing required fields: ${missingFields.join(', ')}`, fields: missingFields });
       }
 
-      // Map file uploads
+      // Build file URLs map
       const filesData = {};
-      if (req.files) {
+
+      // Check if this is a JSON request with pre-uploaded Cloudinary URLs
+      const contentType = req.headers['content-type'] || '';
+      if (contentType.includes('application/json')) {
+        // Direct-upload flow: extract URLs from the JSON body
+        const urlFieldMap = {
+          'transferCertificateUrl': 'transfer_certificate',
+          'marksheetUrl': 'marksheet',
+          'AadhaarVidOrReceiptUrl': 'aadhar_vid_or_receipt',
+          'studentPhotoUrl': 'student_photo',
+          'birthCertificateUrl': 'birth_certificate',
+          'casteCertificateUrl': 'caste_certificate',
+          'paymentReceiptUrl': 'payment_receipt',
+          'admitCardUrl': 'admit_card',
+          'registrationCardUrl': 'registration_card'
+        };
+        Object.entries(urlFieldMap).forEach(([jsonKey, dbKey]) => {
+          if (input[jsonKey]) {
+            filesData[dbKey] = input[jsonKey];
+          }
+        });
+      } else if (req.files) {
+        // Legacy multipart flow: upload files through server to Cloudinary
         const uploadPromises = Object.keys(req.files).map(async (key) => {
           const file = req.files[key][0];
           const publicUrl = await uploadToCloudinary(file, undefined, 'admissions');
-          // Map to snake_case
           const mappedKey = {
             'transferCertificate': 'transfer_certificate',
             'marksheet': 'marksheet',
@@ -387,72 +498,8 @@ router.post(
         await Promise.all(uploadPromises);
       }
 
-      // 1. Define standard fields we expect
-      const standardFields = [
-        'studentName', 'dateOfBirth', 'placeOfBirth', 'gender', 'religion', 'bloodGroup', 
-        'caste', 'previousSchool', 'prevMarksObtained', 'lastAttendedExam', 'prevPercentage', 
-        'fatherName', 'fatherOccupation', 'motherName', 'motherOccupation', 'guardianName', 
-        'relationship', 'contactNumber', 'email', 'address', 'po', 'ps', 'pincode', 
-        'aadharNumber', 'AadhaarNumber', 'penNumber', 'gradeApplied', 'stream', 'elective', 
-        'selectedSubjects', 'mil', 'darpanId', 'boardMarks', 'boardPercentage', 
-        'boardDivision', 'nccInterest', 'sportsActive', 'sportsType', 'upiTransactionId'
-      ];
-
-      // 2. Collect any "Dynamic" fields (anything not in standardFields)
-      const additionalInfo = {};
-      Object.keys(input).forEach(key => {
-        if (!standardFields.includes(key)) {
-          additionalInfo[key] = input[key];
-        }
-      });
-
-      // 3. Prepare database record
-      const data = {
-        reference_number: `HNS-${new Date().getFullYear()}-${require('crypto').randomBytes(3).toString('hex').toUpperCase()}`,
-        student_name: (input.studentName || '').toUpperCase().trim(),
-        date_of_birth: input.dateOfBirth,
-        place_of_birth: (input.placeOfBirth || '').toUpperCase().trim(),
-        gender: (input.gender || '').toUpperCase(),
-        religion: (input.religion || '').toUpperCase().trim(),
-        blood_group: (input.bloodGroup || '').toUpperCase().trim(),
-        caste: (input.caste || '').toUpperCase().trim(),
-        previous_school: (input.previousSchool || '').toUpperCase().trim(),
-        prev_marks_obtained: input.prevMarksObtained,
-        last_attended_exam: (input.lastAttendedExam || '').toUpperCase().trim(),
-        prev_percentage: input.prevPercentage,
-        father_name: (input.fatherName || '').toUpperCase().trim(),
-        father_occupation: (input.fatherOccupation || '').toUpperCase().trim(),
-        mother_name: (input.motherName || '').toUpperCase().trim(),
-        mother_occupation: (input.motherOccupation || '').toUpperCase().trim(),
-        guardian_name: (input.guardianName || '').toUpperCase().trim(),
-        relationship: (input.relationship || '').toUpperCase().trim(),
-        contact_number: input.contactNumber,
-        email: (input.email || '').toLowerCase().trim(),
-        address: (input.address || '').toUpperCase().trim(),
-        po: (input.po || '').toUpperCase().trim(),
-        ps: (input.ps || '').toUpperCase().trim(),
-        pincode: input.pincode,
-        aadhar_number: input.AadhaarNumber || input.aadharNumber,
-        pen_number: (input.penNumber || '').toUpperCase().trim(),
-        grade_applied: (input.gradeApplied || '').toUpperCase(),
-        stream: (input.stream || '').toUpperCase(),
-        elective: (input.elective || '').toUpperCase(),
-        selected_subjects: Array.isArray(input.selectedSubjects) 
-          ? input.selectedSubjects.map(s => s.toUpperCase()) 
-          : input.selectedSubjects,
-        mil: (input.mil || '').toUpperCase(),
-        darpan_id: (input.darpanId || '').toUpperCase().trim(),
-        board_marks: input.boardMarks,
-        board_percentage: input.boardPercentage,
-        board_division: (input.boardDivision || '').toUpperCase().trim(),
-        ncc_interest: input.nccInterest === 'true' || input.nccInterest === true,
-        sports_active: input.sportsActive === 'true' || input.sportsActive === true,
-        sports_type: (input.sportsType || '').toUpperCase().trim(),
-        upi_transaction_id: (input.upiTransactionId || '').toUpperCase().trim(),
-        status: 'pending',
-        additional_info: additionalInfo, // Save all dynamic fields here
-        ...filesData
-      };
+      // Build and insert the record
+      const data = buildAdmissionRecord(input, filesData);
 
       const { data: admission, error: insertError } = await supabase
         .from('admissions')
@@ -462,16 +509,16 @@ router.post(
 
       if (insertError) throw insertError;
 
-      // Notifications
+      // Notifications (fire-and-forget)
       Promise.all([
         sendSubmissionEmail(admission),
         sendApplicantConfirmationEmail(admission)
       ]).catch(err => console.error('Email sending failed:', err.message));
 
-      res.status(201).json({ 
-        message: 'Application submitted successfully', 
+      res.status(201).json({
+        message: 'Application submitted successfully',
         id: admission.id,
-        referenceNumber: admission.reference_number 
+        referenceNumber: admission.reference_number
       });
     } catch (error) {
       console.error('Submission Error:', error);

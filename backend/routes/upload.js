@@ -45,4 +45,39 @@ router.post('/', upload.single('file'), (req, res) => {
   }
 });
 
+// ============================================
+// CLOUDINARY SIGNED UPLOAD PARAMS
+// ============================================
+// This endpoint generates signed upload parameters so the frontend can upload
+// files directly to Cloudinary, bypassing the Vercel 4.5MB body size limit.
+router.get('/sign', (req, res) => {
+  try {
+    const folder = req.query.folder || 'admissions';
+    const timestamp = Math.round(Date.now() / 1000);
+
+    // Build the params to sign
+    const paramsToSign = {
+      timestamp,
+      folder,
+    };
+
+    // Generate the signature using the Cloudinary API secret
+    const signature = cloudinary.utils.api_sign_request(
+      paramsToSign,
+      process.env.CLOUDINARY_API_SECRET
+    );
+
+    res.json({
+      signature,
+      timestamp,
+      folder,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey: process.env.CLOUDINARY_API_KEY,
+    });
+  } catch (error) {
+    console.error('Cloudinary Sign Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate upload signature' });
+  }
+});
+
 module.exports = router;

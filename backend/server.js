@@ -48,6 +48,7 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.CLIENT_URL,
       'https://holy-name-liard.vercel.app',
+      'https://holy-name-sb9t.vercel.app',
       'https://holynamehsschool.in',
       'https://www.holynamehsschool.in',
       'https://www.holynameschool.edu',

@@ -342,62 +342,97 @@ function Admission() {
     });
   };
 
+  // Upload a single file directly to Cloudinary from the browser using signed upload
+  const uploadFileToCloudinary = async (file, folder = 'admissions') => {
+    // 1. Get signed upload params from our backend
+    const signRes = await axios.get(`${apiBase}/upload/sign?folder=${folder}`);
+    const { signature, timestamp, cloudName, apiKey } = signRes.data;
+
+    // 2. Compress if it's an image
+    const processedFile = await compressImage(file);
+
+    // 3. Upload directly to Cloudinary
+    const cloudFormData = new FormData();
+    cloudFormData.append('file', processedFile);
+    cloudFormData.append('signature', signature);
+    cloudFormData.append('timestamp', timestamp);
+    cloudFormData.append('folder', folder);
+    cloudFormData.append('api_key', apiKey);
+    // Use 'raw' for PDFs so Cloudinary returns a directly accessible URL
+    const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+    const resourceType = isPdf ? 'raw' : 'auto';
+
+    const uploadRes = await axios.post(
+      `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
+      cloudFormData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+
+    return uploadRes.data.secure_url;
+  };
+
+  const [uploadProgress, setUploadProgress] = useState('');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setSubmitError(null);
     setErrorField(null);
+    setUploadProgress('');
 
     const form = e.target;
-    const formData = new FormData();
 
     // Helper to get uppercase value
     const getUVal = (name) => (form.querySelector(`[name="${name}"]`)?.value || '').trim().toUpperCase();
 
-    formData.append('studentName', getUVal('studentName'));
-    formData.append('dateOfBirth', form.querySelector('[name="dateOfBirth"]')?.value || '');
-    formData.append('placeOfBirth', getUVal('placeOfBirth'));
-    formData.append('gender', getUVal('gender'));
-    formData.append('religion', getUVal('religion'));
-    formData.append('caste', getUVal('caste'));
-    formData.append('bloodGroup', getUVal('bloodGroup'));
-    formData.append('AadhaarNumber', AadhaarNumber);
-    formData.append('pincode', pincode);
-    formData.append('penNumber', getUVal('penNumber'));
+    // Build JSON payload (text data only — no files)
+    const payload = {
+      studentName: getUVal('studentName'),
+      dateOfBirth: form.querySelector('[name="dateOfBirth"]')?.value || '',
+      placeOfBirth: getUVal('placeOfBirth'),
+      gender: getUVal('gender'),
+      religion: getUVal('religion'),
+      caste: getUVal('caste'),
+      bloodGroup: getUVal('bloodGroup'),
+      AadhaarNumber: AadhaarNumber,
+      pincode: pincode,
+      penNumber: getUVal('penNumber'),
+      gradeApplied: gradeApplied,
+      stream: getUVal('stream'),
+      nccInterest: nccInterest,
+      sportsActive: sportsActive,
+      fatherName: getUVal('fatherName'),
+      fatherOccupation: getUVal('fatherOccupation'),
+      motherName: getUVal('motherName'),
+      motherOccupation: getUVal('motherOccupation'),
+      guardianName: getUVal('guardianName'),
+      relationship: getUVal('relationship'),
+      contactNumber: contactNumber,
+      email: (form.querySelector('[name="email"]')?.value || '').trim().toLowerCase(),
+      address: getUVal('address'),
+      po: getUVal('po'),
+      ps: getUVal('ps'),
+      elective: getUVal('elective'),
+      mil: getUVal('mil'),
+    };
+
     if (!["class10", "class12"].includes(gradeKey)) {
-      formData.append('previousSchool', previousSchool);
+      payload.previousSchool = previousSchool;
       if (hasPreviousSchool) {
-        formData.append('prevMarksObtained', prevMarksObtained);
-        formData.append('lastAttendedExam', lastAttendedExam);
-        formData.append('prevPercentage', prevPercentage);
+        payload.prevMarksObtained = prevMarksObtained;
+        payload.lastAttendedExam = lastAttendedExam;
+        payload.prevPercentage = prevPercentage;
       }
     }
-    formData.append('gradeApplied', gradeApplied);
-    formData.append('stream', getUVal('stream'));
-    formData.append('nccInterest', nccInterest);
-    formData.append('sportsActive', sportsActive);
-    if (sportsActive && sportsType) formData.append('sportsType', sportsType.toUpperCase());
-    if (gradeKey === 'class11' && boardMarks) {
-      formData.append('boardMarks', boardMarks);
-      const pct = ((parseFloat(boardMarks) / 600) * 100).toFixed(2);
-      formData.append('boardPercentage', pct);
-      formData.append('boardDivision', boardDivision);
-      formData.append('darpanId', darpanId);
-    }
 
-    formData.append('fatherName', getUVal('fatherName'));
-    formData.append('fatherOccupation', getUVal('fatherOccupation'));
-    formData.append('motherName', getUVal('motherName'));
-    formData.append('motherOccupation', getUVal('motherOccupation'));
-    formData.append('guardianName', getUVal('guardianName'));
-    formData.append('relationship', getUVal('relationship'));
-    formData.append('contactNumber', contactNumber);
-    formData.append('email', (form.querySelector('[name="email"]')?.value || '').trim().toLowerCase());
-    formData.append('address', getUVal('address'));
-    formData.append('po', getUVal('po'));
-    formData.append('ps', getUVal('ps'));
-    formData.append('elective', getUVal('elective'));
-    formData.append('mil', getUVal('mil'));
+    if (sportsActive && sportsType) payload.sportsType = sportsType.toUpperCase();
+    if (gradeKey === 'class11' && boardMarks) {
+      payload.boardMarks = boardMarks;
+      const pct = ((parseFloat(boardMarks) / 600) * 100).toFixed(2);
+      payload.boardPercentage = pct;
+      payload.boardDivision = boardDivision;
+      payload.darpanId = darpanId;
+    }
 
     // Class 11-12 specialized subjects
     if (gradeKey && (gradeKey === 'class11' || gradeKey === 'class12')) {
@@ -407,12 +442,12 @@ function Admission() {
         setSubmitting(false);
         return;
       }
-      // For Science, auto-append compulsory Physics & Chemistry
+      const subjects = [];
       if (selectedStream === 'science') {
-        formData.append('selectedSubjects[]', 'PHYSICS');
-        formData.append('selectedSubjects[]', 'CHEMISTRY');
+        subjects.push('PHYSICS', 'CHEMISTRY');
       }
-      selectedSubjects.forEach(subject => formData.append('selectedSubjects[]', subject.toUpperCase()));
+      selectedSubjects.forEach(subject => subjects.push(subject.toUpperCase()));
+      payload.selectedSubjects = subjects;
     }
 
     // Validate Aadhaar if provided
@@ -425,7 +460,7 @@ function Admission() {
     }
 
     // At least one parent/guardian check
-    if (!formData.get('fatherName') && !formData.get('motherName') && !formData.get('guardianName')) {
+    if (!payload.fatherName && !payload.motherName && !payload.guardianName) {
       setSubmitError('Please provide at least one Parent or Guardian name.');
       setSubmitting(false);
       setShowPreview(false);
@@ -433,65 +468,76 @@ function Admission() {
     }
 
     // Relationship is required if Guardian is provided
-    if (formData.get('guardianName') && !formData.get('relationship')) {
+    if (payload.guardianName && !payload.relationship) {
       setSubmitError('Please specify your relationship to the student.');
       setSubmitting(false);
       setShowPreview(false);
       return;
     }
 
-    // File uploads with compression
-    const tcFile = form.querySelector('[name="transferCertificate"]')?.files[0];
-    const msFile = form.querySelector('[name="marksheet"]')?.files[0];
-    const AadhaarFile = form.querySelector('[name="AadhaarVidOrReceipt"]')?.files[0];
-    const photoFile = form.querySelector('[name="studentPhoto"]')?.files[0];
-    const birthFile = form.querySelector('[name="birthCertificate"]')?.files[0];
-    const casteFile = form.querySelector('[name="casteCertificate"]')?.files[0];
-    const admitCardFile = form.querySelector('[name="admitCard"]')?.files[0];
-    const regCardFile = form.querySelector('[name="registrationCard"]')?.files[0];
-
-    if (tcFile) formData.append('transferCertificate', await compressImage(tcFile));
-    if (msFile) formData.append('marksheet', await compressImage(msFile));
-    if (AadhaarFile) formData.append('AadhaarVidOrReceipt', await compressImage(AadhaarFile));
-    if (photoFile) formData.append('studentPhoto', await compressImage(photoFile));
-    if (birthFile) formData.append('birthCertificate', await compressImage(birthFile));
-    if (casteFile) formData.append('casteCertificate', await compressImage(casteFile));
-    if (admitCardFile) formData.append('admitCard', await compressImage(admitCardFile));
-    if (regCardFile) formData.append('registrationCard', await compressImage(regCardFile));
-    // (Removed payment file and transaction ID logic)
+    // --- DIRECT CLOUDINARY UPLOAD ---
+    // Upload each file directly to Cloudinary from the browser, collect URLs
+    const fileFields = [
+      { name: 'transferCertificate', urlKey: 'transferCertificateUrl', label: 'Transfer Certificate' },
+      { name: 'marksheet', urlKey: 'marksheetUrl', label: 'Marksheet' },
+      { name: 'AadhaarVidOrReceipt', urlKey: 'AadhaarVidOrReceiptUrl', label: 'Aadhaar Document' },
+      { name: 'studentPhoto', urlKey: 'studentPhotoUrl', label: 'Student Photo' },
+      { name: 'birthCertificate', urlKey: 'birthCertificateUrl', label: 'Birth Certificate' },
+      { name: 'casteCertificate', urlKey: 'casteCertificateUrl', label: 'Caste Certificate' },
+      { name: 'admitCard', urlKey: 'admitCardUrl', label: 'Admit Card' },
+      { name: 'registrationCard', urlKey: 'registrationCardUrl', label: 'Registration Card' },
+    ];
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || '/api';
-      const res = await axios.post(`${apiBase}/admissions`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      
-      const fullDataForPayment = {};
-      for (let [key, value] of formData.entries()) {
-        fullDataForPayment[key] = value;
-      }
-      
-      // (Removed payment initiation logic)
+      // Collect files that need uploading
+      const filesToUpload = fileFields
+        .map(f => ({ ...f, file: form.querySelector(`[name="${f.name}"]`)?.files[0] }))
+        .filter(f => f.file);
 
-      const fullData = {};
-      for (let [key, value] of formData.entries()) {
-        fullData[key] = value;
+      if (filesToUpload.length > 0) {
+        setUploadProgress(`Uploading documents (0/${filesToUpload.length})...`);
+
+        for (let i = 0; i < filesToUpload.length; i++) {
+          const { file, urlKey, label } = filesToUpload[i];
+          setUploadProgress(`Uploading ${label} (${i + 1}/${filesToUpload.length})...`);
+          try {
+            const url = await uploadFileToCloudinary(file);
+            payload[urlKey] = url;
+          } catch (uploadErr) {
+            console.error(`Failed to upload ${label}:`, uploadErr);
+            setSubmitError(`Failed to upload ${label}. Please check the file and try again.`);
+            setErrorField('documents');
+            setSubmitting(false);
+            setUploadProgress('');
+            return;
+          }
+        }
+        setUploadProgress('All documents uploaded. Submitting application...');
       }
+
+      // Submit as JSON (no large files in the payload)
+      const res = await axios.post(`${apiBase}/admissions`, payload, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const fullData = { ...payload };
       fullData.referenceNumber = res.data.referenceNumber;
       fullData.selectedSubjects = [...selectedSubjects];
       fullData.dateOfApplication = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
       setSubmittedData(fullData);
+      setUploadProgress('');
       window.scrollTo({ top: document.getElementById('apply').offsetTop - 100, behavior: 'smooth' });
     } catch (err) {
       const data = err.response?.data;
       const msg = data?.message || 'Submission failed. Please try again.';
       setSubmitError(msg);
       setShowPreview(false);
-      
+      setUploadProgress('');
+
       // Detect file upload errors and mark the documents section
       const isUploadError = msg.toLowerCase().includes('upload') || msg.toLowerCase().includes('file') || msg.toLowerCase().includes('resource');
       setErrorField(isUploadError ? 'documents' : (data?.field || (data?.fields?.[0]) || null));
-      
+
       // Scroll to the relevant section
       setTimeout(() => {
         if (isUploadError) {
@@ -1056,9 +1102,20 @@ function Admission() {
                         disabled={submitting}
                         className="w-full md:w-auto min-w-[280px] px-12 py-5 bg-primary text-white font-black rounded-[1.5rem] shadow-2xl shadow-primary/10 hover:shadow-primary/20 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
                       >
-                        {submitting ? 'Processing...' : 'Confirm & Final Submit'}
+                        {submitting ? (
+                          <>
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {uploadProgress || 'Processing...'}
+                          </>
+                        ) : 'Confirm & Final Submit'}
                       </button>
                     </div>
+                    {uploadProgress && (
+                      <p className="text-center text-sm text-blue-600 mt-3 animate-pulse font-medium">{uploadProgress}</p>
+                    )}
                   </div>
                 )}
               </div>

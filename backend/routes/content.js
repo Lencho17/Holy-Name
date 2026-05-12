@@ -147,6 +147,10 @@ router.get('/', async (req, res) => {
 router.put('/', protect, async (req, res) => {
   try {
     const updateData = req.body;
+    console.log(`[CONTENT UPDATE] Request received. Keys: ${Object.keys(updateData).join(', ')}`);
+    if (updateData.events) console.log(`[CONTENT UPDATE] Events count: ${updateData.events.length}`);
+    if (updateData.gallery) console.log(`[CONTENT UPDATE] Gallery count: ${updateData.gallery.length}`);
+    if (updateData.notices) console.log(`[CONTENT UPDATE] Notices count: ${updateData.notices.length}`);
     
     // 1. Update site_settings (Single Row)
     const settingsFields = {
@@ -230,8 +234,15 @@ router.put('/', protect, async (req, res) => {
 
     for (const mod of syncModules) {
       if (updateData[mod.key]) {
-        // Delete all existing for this module
-        await supabase.from(mod.table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        // Delete all existing for this module using a robust timestamp-based range filter
+        const { error: delError } = await supabase.from(mod.table).delete().gte('created_at', '1900-01-01');
+        if (delError) {
+          console.error(`[DELETE ERROR] Table: ${mod.table}:`, delError.message);
+          // Fallback to ID-based filter if created_at is missing
+          await supabase.from(mod.table).delete().not('id', 'is', null);
+        } else {
+          console.log(`[SYNC] Cleared table: ${mod.table}`);
+        }
         
         let rows = [];
         if (mod.key === 'faculty' && !Array.isArray(updateData[mod.key])) {

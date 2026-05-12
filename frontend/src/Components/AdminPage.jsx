@@ -139,6 +139,10 @@ function AdminPage() {
     return () => clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'activity') fetchActivities();
+  }, [activeTab]);
+
   const formatTimer = (secs) => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
@@ -818,6 +822,89 @@ function AdminPage() {
     } finally {
       setActivitiesLoading(false);
     }
+  };
+
+  const renderActivitiesTab = () => {
+    if (adminUser?.role !== 'developer') return null;
+    
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-headline font-bold text-gray-800">System Activity Logs</h2>
+            <p className="text-gray-500 mt-2">Monitoring login activities and administrative actions across the portal.</p>
+          </div>
+          <button 
+            onClick={fetchActivities}
+            className="p-3 bg-white text-primary border border-primary/20 rounded-xl hover:bg-primary/5 transition-all shadow-sm"
+            title="Refresh Logs"
+          >
+            <FaSpinner className={activitiesLoading ? 'animate-spin' : ''} />
+          </button>
+        </header>
+
+        <section className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                  <th className="py-4 px-6">Admin User</th>
+                  <th className="py-4 px-6">Action</th>
+                  <th className="py-4 px-6">IP Address</th>
+                  <th className="py-4 px-6">Device / Browser</th>
+                  <th className="py-4 px-6">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {activitiesLoading && activities.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-20 text-center">
+                      <FaSpinner className="animate-spin text-4xl text-primary/30 mx-auto" />
+                    </td>
+                  </tr>
+                ) : activities.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-20 text-center text-gray-400 italic">
+                      No activity records found.
+                    </td>
+                  </tr>
+                ) : activities.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="py-4 px-6">
+                      <div className="font-bold text-gray-800">{log.admin_name}</div>
+                      <div className="text-[10px] text-gray-400 font-medium">{log.admin_email}</div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${
+                        log.action === 'LOGIN' ? 'bg-green-100 text-green-700' : 
+                        log.action === 'LOGOUT' ? 'bg-amber-100 text-amber-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 font-mono text-[10px] text-gray-500">
+                      {log.ip_address || 'N/A'}
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="text-[10px] text-gray-600 truncate max-w-[200px]" title={log.user_agent}>
+                        {log.user_agent || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-[11px] font-medium text-gray-500">
+                      {new Date(log.created_at).toLocaleString('en-GB', { 
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    );
   };
 
   const fetchInquiries = async () => {
@@ -6394,6 +6481,15 @@ function AdminPage() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center justify-center gap-4 absolute left-1/2 -translate-x-1/2">
+            {adminUser?.role === 'developer' && (
+              <button 
+                onClick={() => { setActiveTab('activity'); setOpenDropdown(null); }}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${activeTab === 'activity' ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+              >
+                <FaChartLine className={activeTab === 'activity' ? 'text-blue-600' : 'text-blue-400'} />
+                Activity Logs
+              </button>
+            )}
             <button 
               onClick={() => { setActiveTab('dashboard'); setOpenDropdown(null); }}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${activeTab === 'dashboard' ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}

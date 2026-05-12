@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -803,7 +803,10 @@ function AdminPage() {
       if (res.status === 401) return handleLogout();
       if (res.ok) {
         const data = await res.json();
-        setInquiries(mapSupabaseToLegacy(data));
+        console.log('Fetched Inquiries (Raw):', data);
+        const mappedData = mapSupabaseToLegacy(data);
+        console.log('Fetched Inquiries (Mapped):', mappedData);
+        setInquiries(mappedData);
       }
     } catch (e) { console.warn('Could not fetch inquiries'); }
   };
@@ -1003,6 +1006,19 @@ function AdminPage() {
     }
   };
 
+  const handleOpenInquiry = (inquiry) => {
+    setInquiryReplyModal({ 
+      open: true, 
+      inquiry, 
+      reply: inquiry.adminReply || '', 
+      status: inquiry.status || 'Submitted' 
+    });
+
+    if (!inquiry.isRead) {
+      handleInquiryReadToggle(inquiry._id, false);
+    }
+  };
+
   const handleInquiryReadToggle = async (inquiryId, currentStatus) => {
     // Optimistic Update
     const prevInquiries = [...inquiries];
@@ -1016,7 +1032,8 @@ function AdminPage() {
       
       // Update with final state from server
       if (res.data.inquiry) {
-        setInquiries(inquiries.map(i => i._id === inquiryId ? { ...i, isRead: res.data.inquiry.isRead } : i));
+        const mappedInquiry = mapSupabaseToLegacy(res.data.inquiry);
+        setInquiries(prev => prev.map(i => i._id === inquiryId ? { ...i, isRead: mappedInquiry.isRead } : i));
       }
     } catch (err) {
       console.error("Failed to toggle read status:", err.message);
@@ -1050,7 +1067,8 @@ function AdminPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.inquiry) {
-        setInquiries(inquiries.map(i => i._id === inquiryId ? { ...i, ...res.data.inquiry } : i));
+        const mappedInquiry = mapSupabaseToLegacy(res.data.inquiry);
+        setInquiries(prev => prev.map(i => i._id === inquiryId ? { ...i, ...mappedInquiry } : i));
       }
       setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' });
     } catch (err) {
@@ -6777,16 +6795,19 @@ function AdminPage() {
                                <div className="text-xs text-emerald-600 mt-1 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 line-clamp-1"><strong>Reply:</strong> {inquiry.adminReply}</div>
                              )}
                           </td>
-                          <td className="py-4 text-right align-top whitespace-nowrap">
+                          <td className="py-4 text-right align-top whitespace-nowrap flex items-center justify-end gap-2">
                              <button 
-                               onClick={() => setInquiryReplyModal({ open: true, inquiry, reply: inquiry.adminReply || '', status: inquiry.status || 'Submitted' })}
-                               className="text-emerald-500 hover:text-emerald-700 font-bold text-xs mr-2 transition-colors"
-                             >Reply</button>
+                               onClick={() => handleOpenInquiry(inquiry)}
+                               className="text-primary hover:bg-primary hover:text-white font-black text-[10px] uppercase tracking-widest transition-all bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/10 flex items-center gap-1.5"
+                             >
+                               Open
+                             </button>
                              <button 
                                onClick={() => handleInquiryReadToggle(inquiry._id, inquiry.isRead)} 
-                               className={`${inquiry.isRead ? 'text-gray-400' : 'text-primary' } hover:underline font-medium text-xs mr-2 transition-colors`}
+                               className={`${inquiry.isRead ? 'text-gray-300' : 'text-primary' } hover:text-gray-600 transition-colors`}
+                               title={inquiry.isRead ? "Mark as Unread" : "Mark as Read"}
                              >
-                               {inquiry.isRead ? 'Unread' : 'Read'}
+                               {inquiry.isRead ? <FaEnvelopeOpen /> : <FaEnvelope />}
                              </button>
                              <button 
                                onClick={async () => {
@@ -6817,38 +6838,80 @@ function AdminPage() {
             );
           })()}
 
-          {/* Inquiry Reply/Status Modal */}
+          {/* Inquiry Detail/Reply Modal */}
           {inquiryReplyModal.open && inquiryReplyModal.inquiry && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}>
-              <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-bold text-gray-800 mb-1">Reply & Update Status</h3>
-                <p className="text-xs text-gray-400 font-mono mb-4">{inquiryReplyModal.inquiry.trackingNumber}</p>
-                <div className="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-100">
-                  <div className="text-xs text-gray-500 mb-1"><strong>From:</strong> {inquiryReplyModal.inquiry.name} ({inquiryReplyModal.inquiry.type})</div>
-                  <div className="text-sm font-bold text-gray-800">{inquiryReplyModal.inquiry.subject}</div>
-                  <div className="text-xs text-gray-600 mt-1 line-clamp-3">{inquiryReplyModal.inquiry.message}</div>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}>
+              <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-2xl w-full overflow-hidden animate-slideUp" onClick={e => e.stopPropagation()}>
+                <div className="bg-gray-50 px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-2xl font-black text-gray-800 tracking-tight">Inquiry Details</h3>
+                    <p className="text-xs font-bold text-primary uppercase tracking-widest mt-1">Tracking ID: {inquiryReplyModal.inquiry.trackingNumber}</p>
+                  </div>
+                  <button onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })} className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-2xl shadow-sm hover:text-red-500 hover:rotate-90 transition-all"><FaTimes /></button>
                 </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Status</label>
-                  <select value={inquiryReplyModal.status} onChange={e => setInquiryReplyModal(p => ({...p, status: e.target.value}))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm font-bold">
-                    <option value="Submitted">Submitted</option>
-                    <option value="Under Review">Under Review</option>
-                    <option value="Resolved">Resolved</option>
-                    <option value="Closed">Closed</option>
-                  </select>
+
+                <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar text-left">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Sender Name</label>
+                        <p className="text-lg font-black text-gray-800">{inquiryReplyModal.inquiry.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Contact Info</label>
+                        <p className="text-sm font-bold text-gray-700">{inquiryReplyModal.inquiry.phone || 'No phone'}</p>
+                        <p className="text-sm text-gray-500">{inquiryReplyModal.inquiry.email || 'No email'}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Inquiry Type</label>
+                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${
+                          inquiryReplyModal.inquiry.type === 'Complain' ? 'bg-red-100 text-red-700' :
+                          inquiryReplyModal.inquiry.type === 'Suggestion' ? 'bg-green-100 text-green-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {inquiryReplyModal.inquiry.type}
+                        </span>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Date Submitted</label>
+                        <p className="text-sm font-bold text-gray-700">{new Date(inquiryReplyModal.inquiry.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-8 p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Message Body</label>
+                    <h4 className="text-lg font-black text-gray-800 mb-2">{inquiryReplyModal.inquiry.subject}</h4>
+                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{inquiryReplyModal.inquiry.message}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Internal Status</label>
+                      <select value={inquiryReplyModal.status} onChange={e => setInquiryReplyModal(p => ({...p, status: e.target.value}))}
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 focus:ring-2 focus:ring-primary/10 outline-none text-sm font-bold appearance-none">
+                        <option value="Submitted">Submitted</option>
+                        <option value="Under Review">Under Review</option>
+                        <option value="Resolved">Resolved</option>
+                        <option value="Closed">Closed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Admin Response</label>
+                      <textarea value={inquiryReplyModal.reply} onChange={e => setInquiryReplyModal(p => ({...p, reply: e.target.value}))}
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 focus:ring-2 focus:ring-primary/10 outline-none text-sm resize-none"
+                        rows={3} placeholder="Type your response..." />
+                    </div>
+                  </div>
                 </div>
-                <div className="mb-5">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Admin Reply</label>
-                  <textarea value={inquiryReplyModal.reply} onChange={e => setInquiryReplyModal(p => ({...p, reply: e.target.value}))}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm resize-none"
-                    rows={4} placeholder="Write your reply here..." />
-                </div>
-                <div className="flex gap-3 justify-end">
+
+                <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                   <button onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}
-                    className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all">Cancel</button>
+                    className="px-8 py-3 bg-white text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-200 hover:bg-gray-100 transition-all">Discard</button>
                   <button onClick={() => handleInquiryStatusUpdate(inquiryReplyModal.inquiry._id, inquiryReplyModal.status, inquiryReplyModal.reply)}
-                    className="px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">Save</button>
+                    className="px-8 py-3 bg-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20">Save & Close</button>
                 </div>
               </div>
             </div>

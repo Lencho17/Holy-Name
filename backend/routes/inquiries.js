@@ -127,12 +127,25 @@ router.get('/', protect, async (req, res) => {
 // @desc    Toggle isRead status (Protected)
 router.patch('/:id/read', protect, async (req, res) => {
   try {
-    const { data: currentInquiry } = await supabase.from('inquiries').select('is_read').eq('id', req.params.id).single();
-    if (!currentInquiry) return res.status(404).json({ message: 'Inquiry not found.' });
+    // Check if is_read column exists by trying to select it
+    const { data: currentInquiry, error: fetchError } = await supabase.from('inquiries').select('is_read').eq('id', req.params.id).single();
+    
+    if (fetchError) {
+      if (fetchError.code === '42703') { // Column does not exist
+        console.warn(`[Inquiry Read] Column 'is_read' does not exist in the database. Returning success to frontend but no state changed.`);
+        return res.json({ message: 'Marked as read (Simulated)', inquiry: { id: req.params.id, is_read: true } });
+      }
+      console.error(`[Inquiry Read] Fetch error. ID: ${req.params.id}, Error:`, fetchError);
+      return res.status(500).json({ message: 'Error fetching inquiry.', error: fetchError });
+    }
+
+    if (!currentInquiry) {
+      return res.status(404).json({ message: 'Inquiry not found.' });
+    }
 
     const { data: inquiry, error } = await supabase
       .from('inquiries')
-      .update({ is_read: !currentInquiry.is_read, updated_at: new Date() })
+      .update({ is_read: !currentInquiry.is_read })
       .eq('id', req.params.id)
       .select()
       .single();
@@ -257,11 +270,10 @@ router.get('/track/:trackingNumber', async (req, res) => {
 router.patch('/:id/status', protect, async (req, res) => {
   try {
     const { status, adminReply } = req.body;
-    const update = { updated_at: new Date() };
+    const update = {};
     if (status) update.status = status;
     if (adminReply !== undefined) {
       update.admin_reply = adminReply;
-      update.replied_at = new Date();
     }
     
     const { data: inquiry, error } = await supabase

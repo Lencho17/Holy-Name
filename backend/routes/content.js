@@ -107,9 +107,9 @@ router.get('/', async (req, res) => {
       coursesPage: {
         courses: courses || []
       },
-      principal: messages?.find(m => m.type === 'principal') || {},
-      headMistress: messages?.find(m => m.type === 'headmistress') || {},
-      vicePrincipal: messages?.find(m => m.type === 'vice-principal') || {}
+      principal: messages?.find(m => m.type === 'principal') ? { ...messages.find(m => m.type === 'principal'), photo: messages.find(m => m.type === 'principal').image } : {},
+      headMistress: messages?.find(m => m.type === 'headmistress') ? { ...messages.find(m => m.type === 'headmistress'), photo: messages.find(m => m.type === 'headmistress').image, greeting: messages.find(m => m.type === 'headmistress').name } : {},
+      vicePrincipal: messages?.find(m => m.type === 'vice-principal') ? { ...messages.find(m => m.type === 'vice-principal'), photo: messages.find(m => m.type === 'vice-principal').image } : {}
     };
 
     // Update cache

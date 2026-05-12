@@ -5374,7 +5374,20 @@ function AdminPage() {
 
   const renderCoursesPageTab = () => {
     const handleCoursesSave = async () => {
-      await updateSiteContent({ coursesPage: localCoursesPage });
+      // Create a copy of localCoursesPage to process
+      const pageToSave = JSON.parse(JSON.stringify(localCoursesPage));
+      
+      // Convert text-based streams back to filtered arrays for the backend
+      if (pageToSave.streams) {
+        Object.keys(pageToSave.streams).forEach(stream => {
+          const val = pageToSave.streams[stream];
+          if (typeof val === 'string') {
+            pageToSave.streams[stream] = val.split('\n').map(s => s.trim()).filter(Boolean);
+          }
+        });
+      }
+
+      await updateSiteContent({ coursesPage: pageToSave });
       alert('Courses page updated successfully!');
     };
 
@@ -5400,13 +5413,17 @@ function AdminPage() {
             <div key={stream} className="mb-6 last:mb-0">
               <h4 className="font-bold text-primary mb-2">{stream} Subjects</h4>
               <textarea
-                value={(localCoursesPage?.streams?.[stream] || []).join('\n')}
+                value={
+                  typeof (localCoursesPage?.streams?.[stream]) === 'string' 
+                    ? localCoursesPage.streams[stream] 
+                    : (localCoursesPage?.streams?.[stream] || []).join('\n')
+                }
                 onChange={(e) => {
                   const newStreams = { ...(localCoursesPage?.streams || {}) };
-                  newStreams[stream] = e.target.value.split('\n');
+                  newStreams[stream] = e.target.value;
                   setLocalCoursesPage({ ...localCoursesPage, streams: newStreams });
                 }}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[150px] font-mono text-sm"
                 placeholder="Enter subjects, one per line"
               />
               <p className="text-xs text-gray-500 mt-1">Enter one subject per line.</p>

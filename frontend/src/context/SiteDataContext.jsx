@@ -149,6 +149,24 @@ export const SiteDataProvider = ({ children }) => {
 
 
   const lastSaveRef = useRef(0);
+  
+  // Helper to map Supabase snake_case to legacy camelCase and provide _id fallback
+  const mapSupabaseToLegacy = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(mapSupabaseToLegacy);
+    
+    const mapped = {};
+    Object.keys(obj).forEach(key => {
+      // Convert snake_case to camelCase (e.g. pdf_link -> pdfLink)
+      const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
+      mapped[camelKey] = mapSupabaseToLegacy(obj[key]);
+    });
+    
+    // Fallback for MongoDB style IDs often used in legacy slice/map logic
+    if (obj.id && !mapped._id) mapped._id = String(obj.id);
+    
+    return mapped;
+  };
 
   // Fetch content from backend on mount and via polling
   useEffect(() => {
@@ -161,31 +179,32 @@ export const SiteDataProvider = ({ children }) => {
 
       try {
         const { data } = await axios.get(`${API_URL}/content`);
-        if (Array.isArray(data.gallery)) setGallery(data.gallery);
-        if (Array.isArray(data.events)) setEvents(data.events);
-        if (Array.isArray(data.highlights)) setHighlights(data.highlights);
-        if (Array.isArray(data.videos)) setVideos(data.videos);
-        if (Array.isArray(data.notices)) setNotices(data.notices);
-        if (data.faculty && typeof data.faculty === 'object') setFaculty(data.faculty);
-        if (data.principal && typeof data.principal === 'object') setPrincipal({ ...defaultPrincipal, ...data.principal });
-        if (data.notificationEmail !== undefined) setNotificationEmail(data.notificationEmail);
-        if (data.banners !== undefined && Array.isArray(data.banners)) {
-          setBanner(data.banners[0] || { isActive: false, image: null, link: null });
-        } else if (data.banner !== undefined) {
-          setBanner(data.banner);
+        const legacyData = mapSupabaseToLegacy(data);
+        if (Array.isArray(legacyData.gallery)) setGallery(legacyData.gallery);
+        if (Array.isArray(legacyData.events)) setEvents(legacyData.events);
+        if (Array.isArray(legacyData.highlights)) setHighlights(legacyData.highlights);
+        if (Array.isArray(legacyData.videos)) setVideos(legacyData.videos);
+        if (Array.isArray(legacyData.notices)) setNotices(legacyData.notices);
+        if (legacyData.faculty && typeof legacyData.faculty === 'object') setFaculty(legacyData.faculty);
+        if (legacyData.principal && typeof legacyData.principal === 'object') setPrincipal({ ...defaultPrincipal, ...legacyData.principal });
+        if (legacyData.notificationEmail !== undefined) setNotificationEmail(legacyData.notificationEmail);
+        if (legacyData.banners !== undefined && Array.isArray(legacyData.banners)) {
+          setBanner(legacyData.banners[0] || { isActive: false, image: null, link: null });
+        } else if (legacyData.banner !== undefined) {
+          setBanner(legacyData.banner);
         }
-        if (data.socialLinks && typeof data.socialLinks === 'object') setSocialLinks(data.socialLinks);
-        if (Array.isArray(data.alumni)) setAlumni(data.alumni);
-        if (Array.isArray(data.stats)) setStats(data.stats);
-        if (Array.isArray(data.faqs)) setFaqs(data.faqs);
-        if (data.visionStatement !== undefined) setVisionStatement(data.visionStatement);
-        if (data.aimsAndObjectives) setAimsAndObjectives(data.aimsAndObjectives);
-        if (data.headMistress && typeof data.headMistress === 'object') setHeadMistress({ ...defaultHeadMistress, ...data.headMistress });
-        if (data.schoolProfile && typeof data.schoolProfile === 'object') setSchoolProfile({ ...defaultSchoolProfile, ...data.schoolProfile });
-        if (Array.isArray(data.emeritus)) setEmeritus(data.emeritus);
-        if (Array.isArray(data.centerOfExcellence)) setCenterOfExcellence(data.centerOfExcellence);
-        if (data.coursesPage && typeof data.coursesPage === 'object') setCoursesPage(data.coursesPage);
-        if (Array.isArray(data.admissionFields)) setAdmissionFields(data.admissionFields);
+        if (legacyData.socialLinks && typeof legacyData.socialLinks === 'object') setSocialLinks(legacyData.socialLinks);
+        if (Array.isArray(legacyData.alumni)) setAlumni(legacyData.alumni);
+        if (Array.isArray(legacyData.stats)) setStats(legacyData.stats);
+        if (Array.isArray(legacyData.faqs)) setFaqs(legacyData.faqs);
+        if (legacyData.visionStatement !== undefined) setVisionStatement(legacyData.visionStatement);
+        if (legacyData.aimsAndObjectives) setAimsAndObjectives(legacyData.aimsAndObjectives);
+        if (legacyData.headMistress && typeof legacyData.headMistress === 'object') setHeadMistress({ ...defaultHeadMistress, ...legacyData.headMistress });
+        if (legacyData.schoolProfile && typeof legacyData.schoolProfile === 'object') setSchoolProfile({ ...defaultSchoolProfile, ...legacyData.schoolProfile });
+        if (Array.isArray(legacyData.emeritus)) setEmeritus(legacyData.emeritus);
+        if (Array.isArray(legacyData.centerOfExcellence)) setCenterOfExcellence(legacyData.centerOfExcellence);
+        if (legacyData.coursesPage && typeof legacyData.coursesPage === 'object') setCoursesPage(legacyData.coursesPage);
+        if (Array.isArray(legacyData.admissionFields)) setAdmissionFields(legacyData.admissionFields);
         retryCount = 0; // Reset on success
         setLoading(false);
       } catch (error) {

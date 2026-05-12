@@ -331,26 +331,48 @@ function JobApplicationForm() {
     }
   };
 
+  // Upload a single file directly to Cloudinary from the browser using signed upload
+  const uploadFileToCloudinary = async (file, folder = 'recruitment') => {
+    const signRes = await axios.get(`${apiBase}/upload/sign?folder=${folder}`);
+    const { signature, timestamp, cloudName, apiKey } = signRes.data;
+
+    const cloudFormData = new FormData();
+    cloudFormData.append('file', file);
+    cloudFormData.append('signature', signature);
+    cloudFormData.append('timestamp', timestamp);
+    cloudFormData.append('folder', folder);
+    cloudFormData.append('api_key', apiKey);
+
+    const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+    const resourceType = isPdf ? 'raw' : 'auto';
+
+    const uploadRes = await axios.post(
+      `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
+      cloudFormData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return uploadRes.data.secure_url;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setSubmitError(null);
 
     try {
-      const data = new FormData();
+      const payload = {};
       
       // Append text fields with normalization
       Object.keys(formData).forEach(key => {
         let value = formData[key];
-        // Normalize to uppercase except for email and specific fields
         if (typeof value === 'string' && key !== 'email' && key !== 'dob') {
           value = value.trim().toUpperCase();
         } else if (typeof value === 'string' && key === 'email') {
           value = value.trim().toLowerCase();
         }
-        data.append(key, value);
+        payload[key] = value;
       });
-      data.append('appliedFor', jobTitle || "");
+      payload.appliedFor = jobTitle || "";
 
       // Compress image files before upload for faster submission
       const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
@@ -376,20 +398,22 @@ function JobApplicationForm() {
         });
       };
 
-      // Append compressed files in parallel
+      // Upload compressed files in parallel directly to Cloudinary
       const fileEntries = Object.entries(files).filter(([, f]) => f);
-      const compressedFiles = await Promise.all(
+      const uploadedFiles = await Promise.all(
         fileEntries.map(async ([key, file]) => {
           const compressed = await compressImage(file);
-          return [key, compressed];
+          const url = await uploadFileToCloudinary(compressed);
+          return { key, url };
         })
       );
-      compressedFiles.forEach(([key, file]) => {
-        data.append(key, file);
+      
+      uploadedFiles.forEach(({ key, url }) => {
+        payload[`${key}Url`] = url;
       });
 
-      const res = await axios.post(`${apiBase}/job-applications`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const res = await axios.post(`${apiBase}/job-applications`, payload, {
+        headers: { 'Content-Type': 'application/json' }
       });
 
       setSubmittedRef(res.data.referenceNumber);

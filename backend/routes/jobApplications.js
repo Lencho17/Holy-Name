@@ -38,6 +38,11 @@ const { upload, uploadToCloudinary } = require('../middleware/upload');
 // @route   POST /api/job-applications
 // @access  Public
 router.post('/', (req, res, next) => {
+  const contentType = req.headers['content-type'] || '';
+  if (contentType.includes('application/json')) {
+    return next();
+  }
+
   const uploadFields = upload.fields([
     { name: 'marksheet10', maxCount: 1 },
     { name: 'cert10', maxCount: 1 },
@@ -61,6 +66,9 @@ router.post('/', (req, res, next) => {
   uploadFields(req, res, (err) => {
     if (err) {
       console.error('Multer Upload Error:', err);
+      if (err.name === 'MulterError' && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: 'File too large. Ensure files are under 5MB each.' });
+      }
       return res.status(400).json({ success: false, message: 'File upload failed', error: err.message });
     }
     next();
@@ -70,14 +78,29 @@ router.post('/', (req, res, next) => {
     const crypto = require('crypto');
     const refNum = `JOB-${new Date().getFullYear()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
-    // Map file uploads to Supabase
-    if (req.files) {
-      const uploadPromises = Object.keys(req.files).map(async (key) => {
-        const file = req.files[key][0];
-        const publicUrl = await uploadToCloudinary(file, undefined, 'recruitment');
-        req.body[key] = publicUrl;
+    // Extract file URLs from direct JSON payload
+    const contentType = req.headers['content-type'] || '';
+    if (contentType.includes('application/json')) {
+      const urlFields = [
+        'marksheet10', 'cert10', 'marksheet12', 'cert12', 'marksheetUG', 'certUG',
+        'marksheetPG', 'certPG', 'marksheetBEd', 'certBEd', 'marksheetDLed', 'certDLed',
+        'expCertificate', 'resume', 'photo', 'signature', 'casteCertificate'
+      ];
+      urlFields.forEach(field => {
+        if (req.body[`${field}Url`]) {
+          req.body[field] = req.body[`${field}Url`];
+        }
       });
-      await Promise.all(uploadPromises);
+    } else {
+      // Legacy multipart logic
+      if (req.files) {
+        const uploadPromises = Object.keys(req.files).map(async (key) => {
+          const file = req.files[key][0];
+          const publicUrl = await uploadToCloudinary(file, undefined, 'recruitment');
+          req.body[key] = publicUrl;
+        });
+        await Promise.all(uploadPromises);
+      }
     }
 
     const applicationData = {

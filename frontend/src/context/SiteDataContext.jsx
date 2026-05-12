@@ -167,7 +167,7 @@ export const SiteDataProvider = ({ children }) => {
         if (Array.isArray(data.videos)) setVideos(data.videos);
         if (Array.isArray(data.notices)) setNotices(data.notices);
         if (data.faculty && typeof data.faculty === 'object') setFaculty(data.faculty);
-        if (data.principal && typeof data.principal === 'object') setPrincipal(data.principal);
+        if (data.principal && typeof data.principal === 'object') setPrincipal({ ...defaultPrincipal, ...data.principal });
         if (data.notificationEmail !== undefined) setNotificationEmail(data.notificationEmail);
         if (data.banner !== undefined) setBanner(data.banner);
         if (data.socialLinks && typeof data.socialLinks === 'object') setSocialLinks(data.socialLinks);
@@ -176,8 +176,8 @@ export const SiteDataProvider = ({ children }) => {
         if (Array.isArray(data.faqs)) setFaqs(data.faqs);
         if (data.visionStatement !== undefined) setVisionStatement(data.visionStatement);
         if (data.aimsAndObjectives) setAimsAndObjectives(data.aimsAndObjectives);
-        if (data.headMistress && typeof data.headMistress === 'object') setHeadMistress(data.headMistress);
-        if (data.schoolProfile && typeof data.schoolProfile === 'object') setSchoolProfile(data.schoolProfile);
+        if (data.headMistress && typeof data.headMistress === 'object') setHeadMistress({ ...defaultHeadMistress, ...data.headMistress });
+        if (data.schoolProfile && typeof data.schoolProfile === 'object') setSchoolProfile({ ...defaultSchoolProfile, ...data.schoolProfile });
         if (Array.isArray(data.emeritus)) setEmeritus(data.emeritus);
         if (Array.isArray(data.centerOfExcellence)) setCenterOfExcellence(data.centerOfExcellence);
         if (data.coursesPage && typeof data.coursesPage === 'object') setCoursesPage(data.coursesPage);

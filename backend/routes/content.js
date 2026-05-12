@@ -83,7 +83,24 @@ router.get('/', async (req, res) => {
       gallery: gallery || [],
       events: events || [],
       highlights: highlights || [],
-      faculty: faculty || [],
+      faculty: (faculty || []).reduce((acc, member) => {
+        const dept = member.department || 'Others';
+        if (!acc[dept]) acc[dept] = [];
+        acc[dept].push({
+          id: member.id,
+          name: member.name,
+          Subject: member.subject,
+          EduQua: member.education,
+          classes: member.classes,
+          photo: member.photo_url,
+          facebook: member.facebook_url,
+          instagram: member.instagram_url,
+          whatsapp: member.whatsapp_number,
+          orderIndex: member.order_index,
+          title: member.title
+        });
+        return acc;
+      }, { Science: [], Arts: [], Commerce: [], "High School": [], Nursery: [], Administration: [], "Support Staff": [], Others: [] }),
       alumni: alumni || [],
       stats: stats || [],
       faqs: faqs || [],
@@ -174,7 +191,6 @@ router.put('/', protect, async (req, res) => {
     }
 
     // 3. Update Arrays (Sync Logic: Delete & Re-insert for simplicity/legacy compatibility)
-    // NOTE: This approach is chosen because the frontend sends the FULL array every time.
     const syncModules = [
       { key: 'notices', table: 'notices' },
       { key: 'gallery', table: 'gallery' },
@@ -187,31 +203,57 @@ router.put('/', protect, async (req, res) => {
     ];
 
     for (const mod of syncModules) {
-      if (updateData[mod.key] && Array.isArray(updateData[mod.key])) {
+      if (updateData[mod.key]) {
         // Delete all existing for this module
-        await supabase.from(mod.table).delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        await supabase.from(mod.table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
         
-        // Prepare data (handling snake_case mapping for specific tables)
-        const rows = updateData[mod.key].map(item => {
-          const row = { ...item };
-          if (row._id) delete row._id; // Remove MongoDB ID
-          if (row.id) delete row.id;   // Remove any existing ID to let Supabase generate new ones
-          
-          // Table specific mappings
-          if (mod.table === 'notices') {
-            return { title: item.title, date: item.date, size: item.size, pdf_link: item.pdfLink || item.pdf_link };
-          }
-          if (mod.table === 'gallery') {
-            return { category: item.category, title: item.title, src: item.src, featured: item.featured, description: item.description, views: item.views || 0 };
-          }
-          if (mod.table === 'events') {
-            return { title: item.title, date: item.date, image: item.image, description: item.description, gallery_images: item.gallery_images || item.galleryImages };
-          }
-          if (mod.table === 'faculty') {
-            return { name: item.name, designation: item.designation, image: item.image, qualification: item.qualification, order_index: item.orderIndex || item.order_index };
-          }
-          return row;
-        });
+        let rows = [];
+        if (mod.key === 'faculty' && !Array.isArray(updateData[mod.key])) {
+          // Flatten grouped faculty object
+          rows = Object.entries(updateData[mod.key]).flatMap(([dept, members]) => 
+            members.map(item => ({
+              name: item.name,
+              department: dept,
+              subject: item.Subject || item.subject,
+              education: item.EduQua || item.qualification || item.education,
+              classes: item.classes,
+              photo_url: item.photo || item.image || item.photo_url,
+              facebook_url: item.facebook || item.facebook_url,
+              instagram_url: item.instagram || item.instagram_url,
+              whatsapp_number: item.whatsapp || item.whatsapp_number,
+              order_index: item.orderIndex || item.order_index || 0,
+              title: item.title
+            }))
+          );
+        } else if (Array.isArray(updateData[mod.key])) {
+          rows = updateData[mod.key].map(item => {
+            const row = { ...item };
+            if (row._id) delete row._id;
+            if (row.id) delete row.id;
+            
+            if (mod.table === 'notices') {
+              return { title: item.title, date: item.date, size: item.size, pdf_link: item.pdfLink || item.pdf_link };
+            }
+            if (mod.table === 'gallery') {
+              return { category: item.category, title: item.title, src: item.src, featured: item.featured, description: item.description, views: item.views || 0 };
+            }
+            if (mod.table === 'events') {
+              return { title: item.title, date: item.date, image: item.image, description: item.description, gallery_images: item.gallery_images || item.galleryImages };
+            }
+            if (mod.table === 'faculty') {
+              return { 
+                name: item.name, 
+                department: item.department, 
+                subject: item.Subject || item.subject, 
+                education: item.EduQua || item.qualification || item.education, 
+                classes: item.classes,
+                photo_url: item.photo || item.image || item.photo_url,
+                order_index: item.orderIndex || item.order_index || 0 
+              };
+            }
+            return row;
+          });
+        }
 
         if (rows.length > 0) {
           const { error } = await supabase.from(mod.table).insert(rows);

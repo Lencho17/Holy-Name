@@ -13,9 +13,9 @@ function Principal() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          title: `Message from the Principal - ${principal.name}`, 
-          desc: principal.introQuote, 
-          image: principal.photo || schoolProfile?.pageHeroImages?.principal || "", 
+          title: `Message from the Principal - ${principal?.name || ''}`, 
+          desc: principal?.introQuote || '', 
+          image: principal?.photo || schoolProfile?.pageHeroImages?.principal || "", 
           page: '/principal' 
         }),
       });
@@ -96,7 +96,7 @@ function Principal() {
           )}
 
           <div className="space-y-6 text-on-surface-variant leading-relaxed text-lg text-justify md:text-left font-medium">
-            {principal.message.split('\n').filter(p => p.trim() !== '').map((paragraph, index) => (
+            {(principal.message || '').split('\n').filter(p => p.trim() !== '').map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
             

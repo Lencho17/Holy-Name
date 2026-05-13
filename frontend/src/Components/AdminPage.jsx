@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -161,7 +161,7 @@ function AdminPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.forceLogout) {
-            alert('Your session has been terminated by an administrator.');
+            alert('Your session has expired. Please log in again.');
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminData');
             localStorage.removeItem('loginTimestamp');
@@ -174,7 +174,7 @@ function AdminPage() {
 
     // Send initial heartbeat on mount
     heartbeat();
-    const hbInterval = setInterval(heartbeat, 2 * 60 * 1000); // every 2 minutes
+    const hbInterval = setInterval(heartbeat, 15 * 1000); // every 15 seconds for fast force-logout
 
     return () => clearInterval(hbInterval);
   }, [API_URL]);
@@ -303,6 +303,7 @@ function AdminPage() {
   const [activities, setActivities] = useState([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState(null);
+  const [selectedLogs, setSelectedLogs] = useState(new Set());
 
   const handleExportData = async (endpoint, fileNamePrefix, setLoading) => {
     setLoading(true);
@@ -3711,21 +3712,61 @@ function AdminPage() {
           <h3 className="text-3xl font-black text-gray-900 tracking-tighter">System Audit Log</h3>
           <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Global activity monitor for all administrative access</p>
         </div>
-        <button 
-          onClick={fetchActivities}
-          disabled={activitiesLoading}
-          className="bg-gray-900 text-white p-4 rounded-2xl hover:bg-black transition-all shadow-xl disabled:opacity-50"
-          title="Refresh Log"
-        >
-          <FaSpinner className={`${activitiesLoading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-3">
+          {selectedLogs.size > 0 && (
+            <button
+              onClick={() => {
+                if (window.confirm(`Delete ${selectedLogs.size} selected log(s)? This cannot be undone.`)) {
+                  const token = localStorage.getItem('adminToken');
+                  fetch(`${API_URL}/auth/activity`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [...selectedLogs] })
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                    alert(data.message || 'Deleted');
+                    setSelectedLogs(new Set());
+                    fetchActivities();
+                  })
+                  .catch(() => alert('Failed to delete'));
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all shadow-xl text-xs font-black uppercase tracking-wider"
+            >
+              <FaTrash size={11} /> Delete ({selectedLogs.size})
+            </button>
+          )}
+          <button 
+            onClick={() => { setSelectedLogs(new Set()); fetchActivities(); }}
+            disabled={activitiesLoading}
+            className="bg-gray-900 text-white p-4 rounded-2xl hover:bg-black transition-all shadow-xl disabled:opacity-50"
+            title="Refresh Log"
+          >
+            <FaSpinner className={`${activitiesLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto relative z-10">
         <table className="w-full text-left border-separate border-spacing-y-3">
           <thead>
             <tr className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] px-6">
-              <th className="pb-2 pl-8">Admin / Identity</th>
+              <th className="pb-2 pl-4 w-10">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 cursor-pointer accent-indigo-600"
+                  checked={activities.length > 0 && selectedLogs.size === activities.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedLogs(new Set(activities.map(a => a.id)));
+                    } else {
+                      setSelectedLogs(new Set());
+                    }
+                  }}
+                />
+              </th>
+              <th className="pb-2 pl-4">Admin / Identity</th>
               <th className="pb-2">Action Type</th>
               <th className="pb-2">Origin (IP)</th>
               <th className="pb-2">Location</th>
@@ -3736,7 +3777,7 @@ function AdminPage() {
           <tbody>
             {activities.length === 0 && !activitiesLoading ? (
               <tr>
-                <td colSpan="6" className="py-20 text-center">
+                <td colSpan="7" className="py-20 text-center">
                   <div className="flex flex-col items-center gap-4 text-gray-300">
                     <FaClipboardList size={48} className="opacity-20" />
                     <p className="font-black text-sm uppercase tracking-widest">No activity logs found</p>
@@ -3756,7 +3797,21 @@ function AdminPage() {
                     className="group cursor-pointer hover:scale-[1.01] transition-all duration-300"
                     onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                   >
-                    <td className={`bg-white/50 py-5 pl-8 ${isExpanded ? 'rounded-tl-[1.5rem]' : 'rounded-l-[1.5rem]'} border-y border-l border-gray-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-gray-200/50 transition-all`}>
+                    <td className={`bg-white/50 py-5 pl-4 w-10 ${isExpanded ? 'rounded-tl-[1.5rem]' : 'rounded-l-[1.5rem]'} border-y border-l border-gray-100 group-hover:bg-white transition-all`}>
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 cursor-pointer accent-indigo-600"
+                        checked={selectedLogs.has(log.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          const next = new Set(selectedLogs);
+                          if (e.target.checked) next.add(log.id);
+                          else next.delete(log.id);
+                          setSelectedLogs(next);
+                        }}
+                      />
+                    </td>
+                    <td className={`bg-white/50 py-5 pl-4 border-y border-gray-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-gray-200/50 transition-all`}>
                       <div className="flex items-center gap-4">
                         <div className="relative">
                           <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-100">
@@ -3846,7 +3901,7 @@ function AdminPage() {
                   {/* Expanded Detail Panel */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan="6" className="px-0 pb-2">
+                      <td colSpan="7" className="px-0 pb-2">
                         <div className="bg-gray-50 mx-2 rounded-b-[1.5rem] border border-t-0 border-gray-100 p-8 animate-in fade-in slide-in-from-top-2 duration-300">
                           <div className="flex items-center gap-3 mb-6">
                             <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
@@ -4000,36 +4055,92 @@ function AdminPage() {
                             </code>
                           </div>
 
-                          {/* Force Logout Button */}
-                          {log.onlineStatus?.isOnline && (
-                            <div className="mt-4 flex justify-end">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`Force logout ${log.email}? Their session will be terminated within 2 minutes.`)) {
-                                    const token = localStorage.getItem('adminToken');
-                                    fetch(`${API_URL}/auth/force-logout`, {
-                                      method: 'POST',
-                                      headers: { 
-                                        Authorization: `Bearer ${token}`,
-                                        'Content-Type': 'application/json'
-                                      },
-                                      body: JSON.stringify({ targetEmail: log.email })
-                                    })
-                                    .then(res => res.json())
-                                    .then(data => {
-                                      alert(data.message || 'Force logout issued');
-                                      fetchActivities();
-                                    })
-                                    .catch(() => alert('Failed to issue force logout'));
-                                  }
-                                }}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
-                              >
-                                <FaPowerOff size={10} /> Force Logout
-                              </button>
+                          {/* Developer Controls */}
+                          <div className="mt-6 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                            <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                              <FaShieldAlt size={10} className="text-indigo-400" /> Developer Controls
+                            </h5>
+                            <div className="flex flex-wrap gap-3">
+                              {/* Force Logout */}
+                              {log.onlineStatus?.isOnline && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Force logout ${log.email}? Their session will be terminated.`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/force-logout`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ targetEmail: log.email })
+                                      })
+                                      .then(r => r.json())
+                                      .then(() => fetchActivities())
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaPowerOff size={10} /> Force Logout
+                                </button>
+                              )}
+
+                              {/* Block IP */}
+                              {!log.isIpBlocked ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Block IP ${log.ip_address}?\n\nThis will:\n• Prevent all logins from this IP\n• Force logout any active session\n\nThe user will see "Access denied from this device."`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/block-ip`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ip: log.ip_address, targetEmail: log.email })
+                                      })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        alert(data.message || 'IP blocked');
+                                        fetchActivities();
+                                      })
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaBan size={10} /> Block IP
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Unblock IP ${log.ip_address}?`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/unblock-ip`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ip: log.ip_address })
+                                      })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        alert(data.message || 'IP unblocked');
+                                        fetchActivities();
+                                      })
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaUnlock size={10} /> Unblock IP
+                                </button>
+                              )}
+
+                              {/* Blocked badge */}
+                              {log.isIpBlocked && (
+                                <span className="flex items-center gap-1.5 px-3 py-2.5 bg-red-100 text-red-700 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                                  <FaBan size={9} /> IP Blocked
+                                </span>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
                       </td>
                     </tr>

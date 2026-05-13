@@ -1,10 +1,10 @@
 import React, { useContext } from "react";
-import { FaTools } from "react-icons/fa";
+import { FaTools, FaLock } from "react-icons/fa";
 import Header from "./Components/Header.jsx";
 import Footer from "./Components/Footer.jsx";
 import PopupBanner from "./Components/PopupBanner.jsx";
 import ScrollToTop from "./Components/ScrollToTop.jsx";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { SiteDataContext } from "./context/SiteDataContext.jsx";
 
 // Premium skeleton loading screen shown while backend is waking up
@@ -103,6 +103,7 @@ function SkeletonLoader() {
 function Layout() {
   const { loading, isMaintenanceMode, schoolProfile } = useContext(SiteDataContext);
   const isAdmin = localStorage.getItem('adminToken');
+  const navigate = useNavigate();
 
   if (loading) {
     return <SkeletonLoader />;
@@ -152,6 +153,17 @@ function Layout() {
           <div className="mt-12 flex flex-col items-center opacity-30">
              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-900 mb-2">Est. 1986</span>
              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Holy Name High School, Sivasagar</p>
+          </div>
+
+          {/* Admin Login Button */}
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={() => navigate('/adminLogin')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/60 hover:bg-white border border-gray-200 hover:border-gray-300 text-gray-400 hover:text-gray-600 text-xs font-semibold uppercase tracking-widest transition-all duration-300 shadow-sm hover:shadow-md backdrop-blur-sm cursor-pointer"
+            >
+              <FaLock size={10} />
+              Admin Login
+            </button>
           </div>
         </div>
       </div>

@@ -80,6 +80,14 @@ app.use(morgan(isProduction ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Request Client Hints from browsers for accurate OS/device detection
+// Chrome on Android 10+ sends a frozen UA string; this header asks the browser
+// to include the real platform version on subsequent requests.
+app.use((req, res, next) => {
+  res.setHeader('Accept-CH', 'Sec-CH-UA-Platform-Version, Sec-CH-UA-Platform, Sec-CH-UA');
+  next();
+});
+
 // ============================================
 // STATIC FILES
 // ============================================

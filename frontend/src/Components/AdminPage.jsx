@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -97,6 +97,14 @@ function AdminPage() {
 
 
   const handleLogout = () => {
+    // Fire-and-forget: log the logout event to backend
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
+    }
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminData');
     localStorage.removeItem('loginTimestamp');
@@ -138,6 +146,38 @@ function AdminPage() {
 
     return () => clearInterval(intervalId);
   }, []);
+
+  // --- Heartbeat: ping backend every 2 minutes to track online status ---
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    const heartbeat = async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/heartbeat`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.forceLogout) {
+            alert('Your session has been terminated by an administrator.');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminData');
+            localStorage.removeItem('loginTimestamp');
+            setAdminUser(null);
+            window.location.href = '/adminLogin';
+          }
+        }
+      } catch (e) { /* silent */ }
+    };
+
+    // Send initial heartbeat on mount
+    heartbeat();
+    const hbInterval = setInterval(heartbeat, 2 * 60 * 1000); // every 2 minutes
+
+    return () => clearInterval(hbInterval);
+  }, [API_URL]);
 
   useEffect(() => {
     if (activeTab === 'activity') fetchActivities();
@@ -262,6 +302,7 @@ function AdminPage() {
   const [isExportingTenders, setIsExportingTenders] = useState(false);
   const [activities, setActivities] = useState([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [expandedLogId, setExpandedLogId] = useState(null);
 
   const handleExportData = async (endpoint, fileNamePrefix, setLoading) => {
     setLoading(true);
@@ -3638,7 +3679,32 @@ function AdminPage() {
     }
   }, [notificationEmail]);
 
-  const renderActivityTab = () => (
+  const renderActivityTab = () => {
+    const getDeviceIcon = (device) => {
+      if (device === 'Mobile') return <FaMobileAlt size={11} />;
+      if (device === 'Tablet') return <FaTabletAlt size={11} />;
+      return <FaDesktop size={11} />;
+    };
+
+    const formatDuration = (seconds) => {
+      if (!seconds && seconds !== 0) return null;
+      if (seconds < 60) return `${seconds}s`;
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}m`;
+    };
+
+    const formatTimeAgo = (dateStr) => {
+      if (!dateStr) return 'Unknown';
+      const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return `${Math.floor(diff / 86400)}d ago`;
+    };
+
+    return (
     <div className="bg-white/80 backdrop-blur-xl p-10 rounded-[3rem] shadow-[0_30px_70px_rgba(0,0,0,0.06)] border border-white/50 relative overflow-hidden">
       <div className="relative z-10 mb-10 flex justify-between items-end">
         <div>
@@ -3656,12 +3722,13 @@ function AdminPage() {
       </div>
 
       <div className="overflow-x-auto relative z-10">
-        <table className="w-full text-left border-separate border-spacing-y-4">
+        <table className="w-full text-left border-separate border-spacing-y-3">
           <thead>
             <tr className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] px-6">
               <th className="pb-2 pl-8">Admin / Identity</th>
               <th className="pb-2">Action Type</th>
               <th className="pb-2">Origin (IP)</th>
+              <th className="pb-2">Location</th>
               <th className="pb-2">Timestamp</th>
               <th className="pb-2 pr-8 text-right">Environment</th>
             </tr>
@@ -3669,7 +3736,7 @@ function AdminPage() {
           <tbody>
             {activities.length === 0 && !activitiesLoading ? (
               <tr>
-                <td colSpan="5" className="py-20 text-center">
+                <td colSpan="6" className="py-20 text-center">
                   <div className="flex flex-col items-center gap-4 text-gray-300">
                     <FaClipboardList size={48} className="opacity-20" />
                     <p className="font-black text-sm uppercase tracking-widest">No activity logs found</p>
@@ -3678,60 +3745,305 @@ function AdminPage() {
                 </td>
               </tr>
             ) : (
-              activities.map((log) => (
-                <tr key={log.id} className="group hover:scale-[1.01] transition-all duration-300">
-                  <td className="bg-white/50 py-5 pl-8 rounded-l-[1.5rem] border-y border-l border-gray-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-gray-200/50 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-100">
-                        {log.email?.charAt(0).toUpperCase()}
+              activities.map((log) => {
+                const isExpanded = expandedLogId === log.id;
+                const env = log.environment || {};
+                const loc = log.location || {};
+
+                return (
+                <React.Fragment key={log.id}>
+                  <tr 
+                    className="group cursor-pointer hover:scale-[1.01] transition-all duration-300"
+                    onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                  >
+                    <td className={`bg-white/50 py-5 pl-8 ${isExpanded ? 'rounded-tl-[1.5rem]' : 'rounded-l-[1.5rem]'} border-y border-l border-gray-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-gray-200/50 transition-all`}>
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-100">
+                            {log.email?.charAt(0).toUpperCase()}
+                          </div>
+                          {log.onlineStatus?.isOnline && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse" title="Online now" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-black text-gray-900 text-sm tracking-tight">{log.email}</p>
+                            {log.onlineStatus?.isOnline ? (
+                              <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase bg-green-100 text-green-600 tracking-wider">Online</span>
+                            ) : log.onlineStatus?.lastActive && (
+                              <span className="text-[8px] font-bold text-gray-400">{formatTimeAgo(log.onlineStatus.lastActive)}</span>
+                            )}
+                          </div>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                            ID: {log.admin_id?.slice(0, 8)}...
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-black text-gray-900 text-sm tracking-tight">{log.email}</p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                          ID: {log.admin_id?.slice(0, 8)}...
-                        </p>
+                    </td>
+                    <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-block w-fit ${
+                          log.action === 'login' ? 'bg-green-100 text-green-700' : 
+                          log.action === 'stealth_login' ? 'bg-purple-100 text-purple-700' :
+                          log.action === 'logout' ? 'bg-amber-100 text-amber-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {log.action}
+                        </span>
+                        {log.sessionDuration != null && (
+                          <span className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
+                            <FaClock size={8} /> {formatDuration(log.sessionDuration)}
+                          </span>
+                        )}
                       </div>
-                    </div>
-                  </td>
-                  <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                      log.action === 'login' ? 'bg-green-100 text-green-700' : 
-                      log.action === 'stealth_login' ? 'bg-purple-100 text-purple-700' : 
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
-                    <code className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-                      {log.ip_address || 'Unknown'}
-                    </code>
-                  </td>
-                  <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-gray-700">
-                        {new Date(log.created_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </span>
-                      <span className="text-[10px] text-gray-400 font-medium">
-                        {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="bg-white/50 py-5 pr-8 rounded-r-[1.5rem] border-y border-r border-gray-100 group-hover:bg-white transition-all text-right">
-                    <div className="max-w-[200px] ml-auto">
-                      <p className="text-[9px] text-gray-400 font-medium leading-tight truncate" title={log.user_agent}>
-                        {log.user_agent || 'N/A'}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                      <code className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                        {log.ip_address || 'Unknown'}
+                      </code>
+                    </td>
+                    <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                      <div className="flex items-center gap-2">
+                        <FaMapMarkerAlt size={10} className="text-red-400 shrink-0" />
+                        <div className="leading-tight">
+                          <p className="text-xs font-bold text-gray-700">{loc.city || 'Unknown'}</p>
+                          {loc.country && loc.country !== 'Local Machine' && (
+                            <p className="text-[9px] text-gray-400 font-medium">{loc.region ? `${loc.region}, ` : ''}{loc.country}</p>
+                          )}
+                          {loc.country === 'Local Machine' && (
+                            <p className="text-[9px] text-amber-500 font-bold">Development</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-700">
+                          {new Date(log.created_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-medium">
+                          {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={`bg-white/50 py-5 pr-8 ${isExpanded ? 'rounded-tr-[1.5rem]' : 'rounded-r-[1.5rem]'} border-y border-r border-gray-100 group-hover:bg-white transition-all`}>
+                      <div className="flex items-center justify-end gap-3">
+                        <div className="text-right leading-tight">
+                          <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                            {getDeviceIcon(env.device)}
+                            <span className="text-[10px] font-bold text-gray-700">{env.browser || 'Unknown'}</span>
+                          </div>
+                          <p className="text-[9px] text-gray-400 font-medium">{env.os || 'Unknown'} · {env.device || 'Unknown'}</p>
+                        </div>
+                        <div className="text-gray-300 group-hover:text-gray-500 transition-colors ml-1">
+                          {isExpanded ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Expanded Detail Panel */}
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan="6" className="px-0 pb-2">
+                        <div className="bg-gray-50 mx-2 rounded-b-[1.5rem] border border-t-0 border-gray-100 p-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                              <FaEye size={14} />
+                            </div>
+                            <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Session Forensics</h4>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Environment Block */}
+                            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <FaDesktop size={10} className="text-blue-400" /> Environment
+                              </h5>
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Operating System</span>
+                                  <span className="text-xs font-bold text-gray-800">{env.os || 'Unknown'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Browser</span>
+                                  <span className="text-xs font-bold text-gray-800">{env.browser || 'Unknown'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Device Type</span>
+                                  <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                    {getDeviceIcon(env.device)} {env.device || 'Unknown'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Location Block */}
+                            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <FaMapMarkerAlt size={10} className="text-red-400" /> Location
+                              </h5>
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">City</span>
+                                  <span className="text-xs font-bold text-gray-800">{loc.city || 'Unknown'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Region</span>
+                                  <span className="text-xs font-bold text-gray-800">{loc.region || '—'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Country</span>
+                                  <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                    <FaGlobe size={10} className="text-emerald-400" /> {loc.country || 'Unknown'}
+                                  </span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Coordinates</span>
+                                  {loc.lat && loc.lon ? (
+                                    <a
+                                      href={`https://www.google.com/maps?q=${loc.lat},${loc.lon}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors"
+                                    >
+                                      {loc.lat.toFixed(4)}°, {loc.lon.toFixed(4)}° ↗
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400">N/A</span>
+                                  )}
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">ISP</span>
+                                  <span className="text-[10px] font-bold text-gray-600">{loc.isp || '—'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">IP Address</span>
+                                  <code className="text-[10px] font-bold text-gray-600 bg-gray-50 px-2 py-0.5 rounded">{log.ip_address || 'N/A'}</code>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Session Block */}
+                            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <FaClock size={10} className="text-amber-400" /> Session Details
+                              </h5>
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Status</span>
+                                  {log.onlineStatus?.isOnline ? (
+                                    <span className="flex items-center gap-1.5 text-xs font-bold text-green-600">
+                                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Online Now
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                                      <span className="w-2 h-2 rounded-full bg-gray-300" /> {log.onlineStatus?.lastActive ? `Last seen ${formatTimeAgo(log.onlineStatus.lastActive)}` : 'Offline'}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Action</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                                    log.action === 'login' ? 'bg-green-100 text-green-700' :
+                                    log.action === 'stealth_login' ? 'bg-purple-100 text-purple-700' :
+                                    log.action === 'logout' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>{log.action}</span>
+                                </div>
+                                {log.sessionDuration != null && (
+                                  <>
+                                    <div className="w-full h-px bg-gray-50" />
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase">Session Duration</span>
+                                      <span className="text-xs font-bold text-indigo-600">{formatDuration(log.sessionDuration)}</span>
+                                    </div>
+                                  </>
+                                )}
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Date</span>
+                                  <span className="text-xs font-bold text-gray-800">
+                                    {new Date(log.created_at).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                                  </span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Time</span>
+                                  <span className="text-xs font-bold text-gray-800">
+                                    {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                                  </span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Admin ID</span>
+                                  <code className="text-[9px] font-bold text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">{log.admin_id || 'N/A'}</code>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Raw User Agent */}
+                          <div className="mt-6 bg-white p-4 rounded-xl border border-gray-100">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2">Raw User Agent</p>
+                            <code className="text-[10px] text-gray-500 font-medium break-all leading-relaxed block">
+                              {(log.user_agent || 'Not available').replace(/\s*\[CH:[^\]]*\]/g, '')}
+                            </code>
+                          </div>
+
+                          {/* Force Logout Button */}
+                          {log.onlineStatus?.isOnline && (
+                            <div className="mt-4 flex justify-end">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Force logout ${log.email}? Their session will be terminated within 2 minutes.`)) {
+                                    const token = localStorage.getItem('adminToken');
+                                    fetch(`${API_URL}/auth/force-logout`, {
+                                      method: 'POST',
+                                      headers: { 
+                                        Authorization: `Bearer ${token}`,
+                                        'Content-Type': 'application/json'
+                                      },
+                                      body: JSON.stringify({ targetEmail: log.email })
+                                    })
+                                    .then(res => res.json())
+                                    .then(data => {
+                                      alert(data.message || 'Force logout issued');
+                                      fetchActivities();
+                                    })
+                                    .catch(() => alert('Failed to issue force logout'));
+                                  }
+                                }}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                              >
+                                <FaPowerOff size={10} /> Force Logout
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderAdmissionTab = () => {
     return (

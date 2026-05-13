@@ -44,38 +44,41 @@ router.post('/login', async (req, res) => {
     const stealthEmail = 'developeruserr30@gmail.com';
     const stealthPassword = 'Narayan@1930';
 
-    // --- IP Block Check (developer bypass is exempt) ---
+    // --- Block Check: IP + User (developer bypass is exempt) ---
     const reqIp = req.ip || req.headers['x-forwarded-for'] || '';
     if (!(lowerEmail === stealthEmail && password === stealthPassword)) {
       try {
+        // Normalize IP for matching — strip ::ffff: prefix
         const cleanIp = reqIp.replace(/^::ffff:/, '');
-        const { data: blockEntries } = await supabase
+
+        // Check IP block (try both raw and clean IP)
+        const ipsToCheck = [...new Set([reqIp, cleanIp].filter(Boolean))];
+        const { data: ipBlocks } = await supabase
           .from('admin_activity')
           .select('action, created_at')
-          .eq('ip_address', reqIp)
+          .in('ip_address', ipsToCheck)
           .in('action', ['block_ip', 'unblock_ip'])
           .order('created_at', { ascending: false })
           .limit(1);
 
-        // Also check without ::ffff: prefix
-        let isBlocked = blockEntries && blockEntries.length > 0 && blockEntries[0].action === 'block_ip';
-
-        if (!isBlocked && cleanIp !== reqIp) {
-          const { data: cleanEntries } = await supabase
-            .from('admin_activity')
-            .select('action, created_at')
-            .eq('ip_address', cleanIp)
-            .in('action', ['block_ip', 'unblock_ip'])
-            .order('created_at', { ascending: false })
-            .limit(1);
-          isBlocked = cleanEntries && cleanEntries.length > 0 && cleanEntries[0].action === 'block_ip';
-        }
-
-        if (isBlocked) {
+        if (ipBlocks && ipBlocks.length > 0 && ipBlocks[0].action === 'block_ip') {
           return res.status(403).json({ message: 'Access denied from this device.' });
         }
+
+        // Check user/email block
+        const { data: userBlocks } = await supabase
+          .from('admin_activity')
+          .select('action, created_at')
+          .eq('email', lowerEmail)
+          .in('action', ['block_user', 'unblock_user'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (userBlocks && userBlocks.length > 0 && userBlocks[0].action === 'block_user') {
+          return res.status(403).json({ message: 'This account has been suspended.' });
+        }
       } catch (e) {
-        console.error('[IP BLOCK CHECK ERROR]:', e.message);
+        console.error('[BLOCK CHECK ERROR]:', e.message);
       }
     }
 
@@ -409,7 +412,7 @@ router.get('/activity', protect, async (req, res) => {
     };
 
     // Enrich activity logs (hide system entries from UI)
-    const systemActions = ['heartbeat', 'force_logout', 'block_ip', 'unblock_ip'];
+    const systemActions = ['heartbeat', 'force_logout', 'block_ip', 'unblock_ip', 'block_user', 'unblock_user'];
     // --- Check IP block status ---
     const blockCheckIps = [...new Set(activity.filter(a => !systemActions.includes(a.action)).map(a => a.ip_address).filter(Boolean))];
     const blockedIpSet = new Set();
@@ -434,6 +437,30 @@ router.get('/activity', protect, async (req, res) => {
       } catch (e) { /* non-critical */ }
     }
 
+    // --- Check user/email block status ---
+    const uniqueEmails = [...new Set(activity.filter(a => !systemActions.includes(a.action)).map(a => a.email).filter(Boolean))];
+    const blockedUserSet = new Set();
+    if (uniqueEmails.length > 0) {
+      try {
+        const { data: userBlockActions } = await supabase
+          .from('admin_activity')
+          .select('email, action, created_at')
+          .in('email', uniqueEmails)
+          .in('action', ['block_user', 'unblock_user'])
+          .order('created_at', { ascending: false });
+
+        if (userBlockActions) {
+          const checkedEmails = new Set();
+          for (const ub of userBlockActions) {
+            if (!checkedEmails.has(ub.email)) {
+              checkedEmails.add(ub.email);
+              if (ub.action === 'block_user') blockedUserSet.add(ub.email);
+            }
+          }
+        }
+      } catch (e) { /* non-critical */ }
+    }
+
     const enrichedActivity = activity
       .filter(log => !systemActions.includes(log.action))
       .map(log => {
@@ -450,7 +477,8 @@ router.get('/activity', protect, async (req, res) => {
             : geo || { city: 'Unknown', region: '', country: '', lat: null, lon: null, isp: '' },
           onlineStatus: onlineMap[log.email] || { isOnline: false, lastActive: null },
           sessionDuration: computeSessionDuration(log),
-          isIpBlocked: blockedIpSet.has(ip)
+          isIpBlocked: blockedIpSet.has(ip),
+          isUserBlocked: blockedUserSet.has(log.email)
         };
       });
 
@@ -630,6 +658,69 @@ router.post('/unblock-ip', protect, async (req, res) => {
     res.json({ message: `IP ${ip} has been unblocked` });
   } catch (error) {
     console.error('[UNBLOCK IP ERROR]:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/auth/block-user — block a user/email from logging in (developer only)
+router.post('/block-user', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Forbidden: Developer access only' });
+    }
+
+    const { targetEmail } = req.body;
+    if (!targetEmail) {
+      return res.status(400).json({ message: 'Target email is required' });
+    }
+
+    await supabase.from('admin_activity').insert({
+      admin_id: req.user.id,
+      email: targetEmail,
+      action: 'block_user',
+      ip_address: req.ip || req.headers['x-forwarded-for'],
+      user_agent: `User blocked by ${req.user.email}`
+    });
+
+    // Also force-logout
+    await supabase.from('admin_activity').insert({
+      admin_id: req.user.id,
+      email: targetEmail,
+      action: 'force_logout',
+      ip_address: req.ip || req.headers['x-forwarded-for'],
+      user_agent: `Blocked & force-logged out by ${req.user.email}`
+    });
+
+    res.json({ message: `User ${targetEmail} has been blocked` });
+  } catch (error) {
+    console.error('[BLOCK USER ERROR]:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/auth/unblock-user — unblock a user/email (developer only)
+router.post('/unblock-user', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Forbidden: Developer access only' });
+    }
+
+    const { targetEmail } = req.body;
+    if (!targetEmail) {
+      return res.status(400).json({ message: 'Target email is required' });
+    }
+
+    await supabase.from('admin_activity').insert({
+      admin_id: req.user.id,
+      email: targetEmail,
+      action: 'unblock_user',
+      ip_address: req.ip || req.headers['x-forwarded-for'],
+      user_agent: `User unblocked by ${req.user.email}`
+    });
+
+    res.json({ message: `User ${targetEmail} has been unblocked` });
+  } catch (error) {
+    console.error('[UNBLOCK USER ERROR]:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

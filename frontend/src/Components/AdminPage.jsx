@@ -4139,6 +4139,62 @@ function AdminPage() {
                                   <FaBan size={9} /> IP Blocked
                                 </span>
                               )}
+
+                              {/* Block / Unblock User */}
+                              {!log.isUserBlocked ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Block user ${log.email}?\n\nThis will:\n• Suspend their account\n• Force logout their session\n• They will see "This account has been suspended."`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/block-user`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ targetEmail: log.email })
+                                      })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        alert(data.message || 'User blocked');
+                                        fetchActivities();
+                                      })
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaUserTie size={10} /> Block User
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Unblock user ${log.email}?`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/unblock-user`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ targetEmail: log.email })
+                                      })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        alert(data.message || 'User unblocked');
+                                        fetchActivities();
+                                      })
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaUnlock size={10} /> Unblock User
+                                </button>
+                              )}
+
+                              {/* User blocked badge */}
+                              {log.isUserBlocked && (
+                                <span className="flex items-center gap-1.5 px-3 py-2.5 bg-rose-100 text-rose-700 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                                  <FaUserTie size={9} /> User Suspended
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>

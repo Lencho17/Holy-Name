@@ -62,7 +62,8 @@ const getAggregatedContent = async () => {
       affiliation: settings?.affiliation || [],
       online_admission_instructions: settings?.online_admission_instructions || [],
       offline_admission_instructions: settings?.offline_admission_instructions || [],
-      establishedYear: settings?.established_year
+      establishedYear: settings?.established_year,
+      isMaintenanceMode: settings?.is_maintenance_mode || false
     },
     socialLinks: settings?.social_links || {},
     notificationEmail: settings?.notification_email,
@@ -187,7 +188,8 @@ router.put('/', protect, async (req, res) => {
       videos: updateData.videos,
       courses_streams: updateData.coursesPage?.streams,
       courses_levels: updateData.coursesPage?.levels,
-      courses_rules: updateData.coursesPage?.rules
+      courses_rules: updateData.coursesPage?.rules,
+      is_maintenance_mode: updateData.isMaintenanceMode
     };
 
     // Filter out undefined

@@ -144,6 +144,7 @@ export const SiteDataProvider = ({ children }) => {
   const [centerOfExcellence, setCenterOfExcellence] = useState([]);
   const [coursesPage, setCoursesPage] = useState(defaultCoursesPage);
   const [admissionFields, setAdmissionFields] = useState([]);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
 
 
@@ -205,6 +206,7 @@ export const SiteDataProvider = ({ children }) => {
         if (Array.isArray(legacyData.centerOfExcellence)) setCenterOfExcellence(legacyData.centerOfExcellence);
         if (legacyData.coursesPage && typeof legacyData.coursesPage === 'object') setCoursesPage(legacyData.coursesPage);
         if (Array.isArray(legacyData.admissionFields)) setAdmissionFields(legacyData.admissionFields);
+        if (legacyData.schoolProfile?.isMaintenanceMode !== undefined) setIsMaintenanceMode(legacyData.schoolProfile.isMaintenanceMode);
         retryCount = 0; // Reset on success
         setLoading(false);
       } catch (error) {
@@ -291,6 +293,7 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.centerOfExcellence) setCenterOfExcellence(updatedData.centerOfExcellence);
       if (updatedData.coursesPage) setCoursesPage(updatedData.coursesPage);
       if (updatedData.admissionFields) setAdmissionFields(updatedData.admissionFields);
+      if (updatedData.schoolProfile?.isMaintenanceMode !== undefined) setIsMaintenanceMode(updatedData.schoolProfile.isMaintenanceMode);
 
       // console.log("Auto-save successful");
     } catch (err) {
@@ -324,6 +327,7 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.centerOfExcellence !== undefined) setCenterOfExcellence(updates.centerOfExcellence);
     if (updates.coursesPage !== undefined) setCoursesPage(updates.coursesPage);
     if (updates.admissionFields !== undefined) setAdmissionFields(updates.admissionFields);
+    if (updates.isMaintenanceMode !== undefined) setIsMaintenanceMode(updates.isMaintenanceMode);
 
     // 2. Persist to backend in ONE request
     saveToBackend(updates);
@@ -426,6 +430,7 @@ export const SiteDataProvider = ({ children }) => {
       centerOfExcellence, setCenterOfExcellence: wrapSetCenterOfExcellence,
       coursesPage, setCoursesPage: wrapSetCoursesPage,
       admissionFields, setAdmissionFields: (val) => { setAdmissionFields(val); saveToBackend({ admissionFields: val }); },
+      isMaintenanceMode, setIsMaintenanceMode: (val) => { setIsMaintenanceMode(val); saveToBackend({ isMaintenanceMode: val }); },
       updateSiteContent,
       uploadImage,
       uploadEventPhotos,

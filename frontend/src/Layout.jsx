@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { FaTools } from "react-icons/fa";
 import Header from "./Components/Header.jsx";
 import Footer from "./Components/Footer.jsx";
 import PopupBanner from "./Components/PopupBanner.jsx";
@@ -100,10 +101,61 @@ function SkeletonLoader() {
 }
 
 function Layout() {
-  const { loading } = useContext(SiteDataContext);
+  const { loading, isMaintenanceMode, schoolProfile } = useContext(SiteDataContext);
+  const isAdmin = localStorage.getItem('adminToken');
 
   if (loading) {
     return <SkeletonLoader />;
+  }
+
+  if (isMaintenanceMode && !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden p-4 font-sans">
+        {/* Soft Background Glows */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-40">
+           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-100 blur-[120px] rounded-full" />
+           <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-50 blur-[120px] rounded-full" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-xl">
+          <div className="bg-white rounded-[3rem] p-12 md:p-20 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-white text-center">
+            {/* Minimalist Logo */}
+            {schoolProfile?.logo && (
+              <div className="flex justify-center mb-12">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-primary/10 blur-2xl rounded-full animate-pulse" />
+                  <img src={schoolProfile.logo} alt="School Logo" className="relative w-24 h-24 rounded-full border-4 border-white shadow-xl" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col items-center">
+              <h1 className="text-5xl md:text-6xl font-black text-gray-900 mb-6 tracking-tight">
+                Be right <span className="text-primary">back.</span>
+              </h1>
+              
+              <div className="w-12 h-1.5 bg-primary/20 rounded-full mb-8" />
+
+              <p className="text-gray-500 text-xl font-medium leading-relaxed max-w-md mx-auto mb-12">
+                {schoolProfile?.name || "Holy Name High School"} is getting a scheduled upgrade. We're making things better for you.
+              </p>
+
+              <div className="space-y-4">
+                 <div className="inline-flex items-center gap-3 bg-gray-50 px-6 py-3 rounded-2xl border border-gray-100">
+                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    <span className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Maintenance in progress</span>
+                 </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-12 flex flex-col items-center opacity-30">
+             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-900 mb-2">Est. 1986</span>
+             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Holy Name High School, Sivasagar</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

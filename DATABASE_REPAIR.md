@@ -32,7 +32,8 @@ ADD COLUMN IF NOT EXISTS online_admission_instructions JSONB DEFAULT '[]'::jsonb
 ADD COLUMN IF NOT EXISTS offline_admission_instructions JSONB DEFAULT '[]'::jsonb,
 ADD COLUMN IF NOT EXISTS admission_fields JSONB DEFAULT '[]'::jsonb,
 ADD COLUMN IF NOT EXISTS aims_and_objectives JSONB DEFAULT '[]'::jsonb,
-ADD COLUMN IF NOT EXISTS established_year TEXT;
+ADD COLUMN IF NOT EXISTS established_year TEXT,
+ADD COLUMN IF NOT EXISTS is_maintenance_mode BOOLEAN DEFAULT FALSE;
 
 -- 3. Create activity_logs table for the 'Activity' tab
 CREATE TABLE IF NOT EXISTS activity_logs (

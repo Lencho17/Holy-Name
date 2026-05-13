@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -28,7 +28,7 @@ function AdminPage() {
   }, []);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, admissionFields, setAdmissionFields, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, admissionFields, setAdmissionFields, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -4452,6 +4452,44 @@ function AdminPage() {
               </p>
             </div>
           </div>
+        </div>
+        
+        <div className="mt-8 bg-amber-50 p-6 rounded-xl border border-amber-100">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 ${isMaintenanceMode ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'} rounded-full flex items-center justify-center`}>
+                {isMaintenanceMode ? <FaPowerOff size={20} /> : <FaTools size={20} />}
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-800">Maintenance Mode</h4>
+                <p className="text-xs text-gray-500">When active, the public site will show a maintenance message.</p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => {
+                const confirmed = window.confirm(`Are you sure you want to ${isMaintenanceMode ? 'DISABLE' : 'ENABLE'} maintenance mode?`);
+                if (confirmed) {
+                  updateSiteContent({ isMaintenanceMode: !isMaintenanceMode });
+                }
+              }}
+              className={`px-6 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 ${
+                isMaintenanceMode 
+                ? 'bg-green-500 text-white hover:bg-green-600 shadow-green-100' 
+                : 'bg-red-500 text-white hover:bg-red-600 shadow-red-100'
+              }`}
+            >
+              {isMaintenanceMode ? <FaPowerOff /> : <FaTools />}
+              {isMaintenanceMode ? 'Turn Off Maintenance' : 'Go Under Maintenance'}
+            </button>
+          </div>
+          
+          {isMaintenanceMode && (
+            <div className="mt-4 flex items-center gap-2 text-red-600 text-[10px] font-bold uppercase animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-red-600" />
+              Site is currently inaccessible to the public
+            </div>
+          )}
         </div>
 
         <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">

@@ -109,7 +109,7 @@ function AdminPage() {
     localStorage.removeItem('adminData');
     localStorage.removeItem('loginTimestamp');
     setAdminUser(null);
-    window.location.href = '/adminLogin';
+    window.location.href = '/';
   };
 
   const [sessionRemaining, setSessionRemaining] = useState(7200);
@@ -166,7 +166,7 @@ function AdminPage() {
             localStorage.removeItem('adminData');
             localStorage.removeItem('loginTimestamp');
             setAdminUser(null);
-            window.location.href = '/adminLogin';
+            window.location.href = '/';
           }
         }
       } catch (e) { /* silent */ }
@@ -3706,11 +3706,11 @@ function AdminPage() {
     };
 
     return (
-    <div className="bg-white/80 backdrop-blur-xl p-10 rounded-[3rem] shadow-[0_30px_70px_rgba(0,0,0,0.06)] border border-white/50 relative overflow-hidden">
-      <div className="relative z-10 mb-10 flex justify-between items-end">
+    <div className="bg-white/80 backdrop-blur-xl p-4 sm:p-6 md:p-10 rounded-2xl md:rounded-[3rem] shadow-[0_30px_70px_rgba(0,0,0,0.06)] border border-white/50 relative overflow-hidden">
+      <div className="relative z-10 mb-6 md:mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h3 className="text-3xl font-black text-gray-900 tracking-tighter">System Audit Log</h3>
-          <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Global activity monitor for all administrative access</p>
+          <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tighter">System Audit Log</h3>
+          <p className="text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-[0.2em] sm:tracking-[0.3em] mt-1 sm:mt-2">Global activity monitor for all administrative access</p>
         </div>
         <div className="flex items-center gap-3">
           {selectedLogs.size > 0 && (
@@ -4216,8 +4216,8 @@ function AdminPage() {
     return (
       <div className="space-y-6">
         <header className="mb-4">
-          <h2 className="text-3xl font-headline font-bold text-gray-800">Admission Management</h2>
-          <p className="text-gray-500 mt-2">Manage student applications, customize the admission form, and set instructions.</p>
+          <h2 className="text-2xl sm:text-3xl font-headline font-bold text-gray-800">Admission Management</h2>
+          <p className="text-gray-500 mt-1 sm:mt-2 text-sm">Manage student applications, customize the admission form, and set instructions.</p>
         </header>
 
         <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 mb-8 overflow-x-auto no-scrollbar">
@@ -5039,7 +5039,7 @@ function AdminPage() {
 
       {/* Recent Applications Table */}
       <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white/50 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative">
-        <div className="p-8 border-b border-gray-100/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+        <div className="p-4 sm:p-6 md:p-8 border-b border-gray-100/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
           <div>
             <h3 className="text-xl font-black text-gray-900 tracking-tight">Recent Activity</h3>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Latest student admission requests</p>
@@ -7302,7 +7302,7 @@ function AdminPage() {
       {/* Main Content */}
       <div className="flex-1 w-full overflow-y-auto">
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8" style={{ backgroundColor: '#F8FAFC' }}>
+        <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-8" style={{ backgroundColor: '#F8FAFC' }}>
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'gallery' && renderGalleryTab()}
           {activeTab === 'tenders' && renderTendersTab()}
@@ -7601,8 +7601,8 @@ function AdminPage() {
           {/* Inquiry Detail/Reply Modal */}
           {inquiryReplyModal.open && inquiryReplyModal.inquiry && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}>
-              <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-2xl w-full overflow-hidden animate-slideUp" onClick={e => e.stopPropagation()}>
-                <div className="bg-gray-50 px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+              <div className="bg-white rounded-2xl sm:rounded-[2.5rem] shadow-2xl max-w-2xl w-full overflow-hidden animate-slideUp" onClick={e => e.stopPropagation()}>
+                <div className="bg-gray-50 px-4 sm:px-8 py-4 sm:py-6 border-b border-gray-100 flex justify-between items-center">
                   <div>
                     <h3 className="text-2xl font-black text-gray-800 tracking-tight">Inquiry Details</h3>
                     <p className="text-xs font-bold text-primary uppercase tracking-widest mt-1">Tracking ID: {inquiryReplyModal.inquiry.trackingNumber}</p>
@@ -7610,7 +7610,7 @@ function AdminPage() {
                   <button onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })} className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-2xl shadow-sm hover:text-red-500 hover:rotate-90 transition-all"><FaTimes /></button>
                 </div>
 
-                <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar text-left">
+                <div className="p-4 sm:p-8 max-h-[70vh] overflow-y-auto custom-scrollbar text-left">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                     <div className="space-y-4">
                       <div>
@@ -7667,7 +7667,7 @@ function AdminPage() {
                   </div>
                 </div>
 
-                <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+                <div className="px-4 sm:px-8 py-4 sm:py-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-3">
                   <button onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}
                     className="px-8 py-3 bg-white text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-200 hover:bg-gray-100 transition-all">Discard</button>
                   <button onClick={() => handleInquiryStatusUpdate(inquiryReplyModal.inquiry._id, inquiryReplyModal.status, inquiryReplyModal.reply)}
@@ -7946,8 +7946,8 @@ function AdminPage() {
           })()}
 
           {activeTab === 'jobApplications' && (
-            <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+            <div className="bg-white/80 backdrop-blur-xl p-4 sm:p-6 md:p-8 rounded-2xl md:rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tight">Recruitment Console</h3>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Review and process faculty job applications</p>
@@ -8112,10 +8112,10 @@ function AdminPage() {
         {/* --- Job Application View Modal --- */}
         {selectedJobApp && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
-              <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
+              <div className="p-4 sm:p-6 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800">Job Candidate Details</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Job Candidate Details</h2>
                   <p className="text-sm text-gray-500">Ref: <span className="font-mono font-bold text-blue-600">{selectedJobApp.referenceNumber}</span></p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -8146,9 +8146,9 @@ function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
                 {/* Header Info */}
-                <div className="flex flex-col md:flex-row gap-8 mb-10 pb-8 border-b border-gray-100">
+                <div className="flex flex-col md:flex-row gap-4 sm:gap-8 mb-6 sm:mb-10 pb-6 sm:pb-8 border-b border-gray-100">
                   {selectedJobApp.photo && (
                     <img src={selectedJobApp.photo} alt="Candidate" className="w-32 h-32 rounded-2xl object-cover border-4 border-white shadow-xl" />
                   )}
@@ -8279,13 +8279,13 @@ function AdminPage() {
 
         {selectedApp && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
+            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
               <div className="p-4 sm:p-6 border-b flex justify-between items-center bg-gray-50">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-800">Student Application Details</h2>
                   <p className="text-sm text-gray-500">App ID: {selectedApp.referenceNumber || selectedApp._id.slice(-6).toUpperCase()}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <button 
                     onClick={() => handleDownloadPDF(selectedApp)}
                     disabled={isDownloadingPDF}
@@ -8346,7 +8346,7 @@ function AdminPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 mb-6 sm:mb-10">
                   <div className="col-span-1 border-r border-gray-100 pr-4">
                     <h4 className="text-xs uppercase font-bold text-gray-400 mb-3 tracking-widest">Personal Information</h4>
                     <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Name:</span> <span className="text-gray-900 font-medium block text-lg">{selectedApp.studentName}</span></p>
@@ -8601,7 +8601,7 @@ function AdminPage() {
         {/* --- OTP Verification Modal --- */}
         {otpModalVisible && pendingAdminAction && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Security Verification</h2>
               <p className="text-sm text-gray-500 mb-6">
                 A dual-OTP verification is required. OTPs have been sent to your Super Admin email and the target admin email.

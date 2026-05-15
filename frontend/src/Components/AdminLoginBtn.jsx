@@ -26,7 +26,7 @@ function AdminLoginBtn({ onClick }) {
   };
 
   const handleLogin = () => {
-    navigate('/adminLogin');
+    window.open('/adminLogin', '_blank');
     if (onClick) onClick();
   };
 

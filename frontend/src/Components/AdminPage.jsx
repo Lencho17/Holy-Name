@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt, FaLeaf } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -28,7 +28,7 @@ function AdminPage() {
   }, []);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, coursesPage, admissionFields, setAdmissionFields, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -213,6 +213,8 @@ function AdminPage() {
 
   // --- Fetch real admission applications && Inquiries ---
   const [applications, setApplications] = useState([]);
+  const [prospectusLeads, setProspectusLeads] = useState([]);
+  const [fetchingProspectus, setFetchingProspectus] = useState(false);
   const [appPage, setAppPage] = useState(1);
   const [appTotalPages, setAppTotalPages] = useState(1);
   const [appStats, setAppStats] = useState({ total: 0, accepted: 0, pending: 0 });
@@ -339,6 +341,21 @@ function AdminPage() {
   };
   const handleExportJobs = () => handleExportData('job-applications', 'job_apps', setIsExportingJobs);
   const handleExportTenders = () => handleExportData('tender-applications', 'tender_apps', setIsExportingTenders);
+
+  const fetchProspectusLeads = async () => {
+    try {
+      setFetchingProspectus(true);
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/admissions/prospectus/leads`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProspectusLeads(res.data);
+    } catch (err) {
+      console.error('Error fetching prospectus leads:', err);
+    } finally {
+      setFetchingProspectus(false);
+    }
+  };
 
   const fetchApps = async (page = appPage, search = searchQuery) => {
     try {
@@ -1267,11 +1284,13 @@ function AdminPage() {
     // Initial fetch and fetch on tab change
     if (activeTab === 'dashboard') {
       fetchApps();
+      fetchProspectusLeads();
       fetchStudents();
       fetchInquiries();
       fetchJobApplications();
     } else if (activeTab === 'admission' || activeTab === 'applications') {
       fetchApps();
+      fetchProspectusLeads();
     } else if (activeTab === 'inquiries') {
       fetchInquiries();
     } else if (activeTab === 'students') {
@@ -1295,6 +1314,7 @@ function AdminPage() {
     const interval = setInterval(() => {
       // Only poll summary data if on dashboard or relevant list
       if (activeTab === 'dashboard' || activeTab === 'admission' || activeTab === 'applications') fetchApps();
+      if (activeTab === 'dashboard' || activeTab === 'admission') fetchProspectusLeads();
       if (activeTab === 'dashboard' || activeTab === 'students') fetchStudents();
       if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
       if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
@@ -2879,36 +2899,57 @@ function AdminPage() {
     setIsEditingPrincipal(false);
   };
 
-  const renderPrincipalTab = () => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <div className="flex justify-between flex-wrap items-center mb-6">
-        <h3 className="text-xl font-bold text-gray-800">Manage Principal's Desk</h3>
-        {!isEditingPrincipal ? (
-          <button onClick={startEditingPrincipal} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Info</button>
-        ) : (
-          <div className="flex gap-2 mt-2 sm:mt-0">
-            <button onClick={cancelPrincipal} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
-            <button onClick={savePrincipal} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors">Save Changes</button>
+  const getPrincipalWordCount = () => {
+    const text = isEditingPrincipal ? editPrincipal.message : principal.message;
+    if (!text) return 0;
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
+
+  const renderPrincipalTab = () => {
+    const wordCount = getPrincipalWordCount();
+    const isOverLimit = wordCount > 400;
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex justify-between flex-wrap items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-800">Manage Principal's Desk</h3>
+          {!isEditingPrincipal ? (
+            <button onClick={startEditingPrincipal} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Info</button>
+          ) : (
+            <div className="flex gap-2 mt-2 sm:mt-0">
+              <button onClick={cancelPrincipal} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
+              <button 
+                onClick={savePrincipal} 
+                disabled={isOverLimit}
+                className={`px-4 py-2 rounded-lg font-bold transition-colors ${isOverLimit ? 'bg-red-400 cursor-not-allowed text-white' : 'bg-green-600 text-white hover:bg-green-700'}`}
+              >
+                Save Changes
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.name : principal.name} onChange={e => handlePrincipalChange('name', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400" />
           </div>
-        )}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.name : principal.name} onChange={e => handlePrincipalChange('name', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400:text-gray-400" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.title : principal.title} onChange={e => handlePrincipalChange('title', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400:text-gray-400" />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Introductory Quote</label>
-          <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.introQuote : principal.introQuote} onChange={e => handlePrincipalChange('introQuote', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400:text-gray-400" />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Main Message (Use Enter for new paragraphs)</label>
-          <textarea disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.message : principal.message} onChange={e => handlePrincipalChange('message', e.target.value)} className="w-full p-2 border rounded-lg font-sans text-sm disabled:bg-gray-200 disabled:text-gray-500:text-gray-400:text-gray-400" rows="10"></textarea>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.title : principal.title} onChange={e => handlePrincipalChange('title', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Introductory Quote</label>
+            <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.introQuote : principal.introQuote} onChange={e => handlePrincipalChange('introQuote', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400" />
+          </div>
+          <div className="md:col-span-2">
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-gray-700">Main Message (Use Enter for new paragraphs)</label>
+              <span className={`text-xs font-bold ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
+                {wordCount} / 400 words {isOverLimit && '(Limit exceeded)'}
+              </span>
+            </div>
+            <textarea disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.message : principal.message} onChange={e => handlePrincipalChange('message', e.target.value)} className={`w-full p-2 border rounded-lg font-sans text-sm disabled:bg-gray-200 disabled:text-gray-500:text-gray-400 ${isOverLimit ? 'border-red-500 focus:ring-red-200' : ''}`} rows="10"></textarea>
+          </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Closing Quote (Optional)</label>
           <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.closingQuote : principal.closingQuote} onChange={e => handlePrincipalChange('closingQuote', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400:text-gray-400" />
@@ -2940,6 +2981,7 @@ function AdminPage() {
       </div>
     </div>
   );
+  };
 
   // --- Banner Tab ---
   const [isEditingBanner, setIsEditingBanner] = useState(false);
@@ -4222,7 +4264,9 @@ function AdminPage() {
 
         <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 mb-8 overflow-x-auto no-scrollbar">
           {[
+            { id: 'page_content', label: 'Page Content', icon: <FaGlobe /> },
             { id: 'applications', label: 'Applications', icon: <FaClipboardList /> },
+            { id: 'prospectus_leads', label: 'Prospectus Leads', icon: <FaUsers /> },
             { id: 'config', label: 'Form Configuration', icon: <FaEdit /> },
             { id: 'instructions', label: 'Instructions & Fees', icon: <FaInfoCircle /> }
           ].map(tab => (
@@ -4236,9 +4280,222 @@ function AdminPage() {
           ))}
         </div>
 
+        {admissionSubTab === 'page_content' && renderAdmissionPageContentSubTab()}
+        {admissionSubTab === 'prospectus_leads' && renderProspectusLeadsSubTab()}
         {admissionSubTab === 'applications' && renderApplicationsSubTab()}
         {admissionSubTab === 'config' && renderAdmissionFieldsSubTab()}
         {admissionSubTab === 'instructions' && renderAdmissionInstructionsSubTab()}
+      </div>
+    );
+  };
+
+  const renderAdmissionPageContentSubTab = () => {
+    return (
+      <div className="space-y-6 animate-fade-in-up">
+        {/* Advertisements */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaImage className="text-primary mr-2" /> Advertisements</h3>
+          <p className="text-sm text-gray-500 mb-4">Upload 2-3 advertisement banners for the admissions page.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            {(admissionPage?.advertisements || []).map((imgUrl, i) => (
+              <div key={i} className="relative group rounded-xl overflow-hidden shadow-sm border border-gray-200 aspect-video">
+                <img src={imgUrl} className="w-full h-full object-cover" alt={`Ad ${i}`} />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                  <button onClick={() => {
+                    const newAds = [...admissionPage.advertisements];
+                    newAds.splice(i, 1);
+                    setAdmissionPage({ ...admissionPage, advertisements: newAds });
+                  }} className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600"><FaTrash /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4">
+            <label className="flex items-center gap-2 cursor-pointer bg-primary/10 text-primary px-4 py-2 rounded-lg hover:bg-primary/20 w-max font-bold text-sm">
+              <FaPlus /> Add Image
+              <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                if (e.target.files[0]) {
+                  try {
+                    const url = await uploadImage(e.target.files[0]);
+                    setAdmissionPage({ ...admissionPage, advertisements: [...(admissionPage?.advertisements || []), url] });
+                  } catch (err) {
+                    alert("Upload failed: " + err.message);
+                  }
+                }
+              }} />
+            </label>
+          </div>
+        </section>
+
+        {/* Procedures & Rules */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="col-span-1 md:col-span-2">
+            <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaGavel className="text-primary mr-2" /> Rules & Regulations</h3>
+            <textarea
+              value={admissionPage?.rules || ''}
+              onChange={(e) => setAdmissionPage({ ...admissionPage, rules: e.target.value })}
+              className="w-full p-3 border border-gray-200 rounded-xl min-h-[150px] focus:ring-2 focus:ring-primary outline-none"
+              placeholder="Enter 500-600 words describing the school rules..."
+            />
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaBuilding className="text-blue-500 mr-2" /> Offline Procedure</h3>
+            <textarea
+              value={admissionPage?.offlineProcedure || ''}
+              onChange={(e) => setAdmissionPage({ ...admissionPage, offlineProcedure: e.target.value })}
+              className="w-full p-3 border border-gray-200 rounded-xl min-h-[120px] focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaLaptop className="text-amber-500 mr-2" /> Online Procedure</h3>
+            <textarea
+              value={admissionPage?.onlineProcedure || ''}
+              onChange={(e) => setAdmissionPage({ ...admissionPage, onlineProcedure: e.target.value })}
+              className="w-full p-3 border border-gray-200 rounded-xl min-h-[120px] focus:ring-2 focus:ring-amber-500 outline-none"
+            />
+          </div>
+        </section>
+
+        {/* Vacant Seats */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Vacant Seats by Class</h3>
+            <button
+              onClick={() => setAdmissionPage({...admissionPage, vacantSeats: [...(admissionPage?.vacantSeats || []), { className: 'New Class', vacant: '0' }]})}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Class
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(admissionPage?.vacantSeats || []).map((seat, i) => (
+              <div key={i} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
+                <input
+                  type="text"
+                  value={seat.className}
+                  onChange={(e) => {
+                    const newSeats = [...admissionPage.vacantSeats];
+                    newSeats[i].className = e.target.value;
+                    setAdmissionPage({...admissionPage, vacantSeats: newSeats});
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold"
+                  placeholder="Class Name"
+                />
+                <input
+                  type="number"
+                  value={seat.vacant}
+                  onChange={(e) => {
+                    const newSeats = [...admissionPage.vacantSeats];
+                    newSeats[i].vacant = e.target.value;
+                    setAdmissionPage({...admissionPage, vacantSeats: newSeats});
+                  }}
+                  className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center font-bold text-primary"
+                  placeholder="Seats"
+                />
+                <button
+                  onClick={() => {
+                    const newSeats = admissionPage.vacantSeats.filter((_, idx) => idx !== i);
+                    setAdmissionPage({...admissionPage, vacantSeats: newSeats});
+                  }}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Prospectus PDF Upload */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaFileAlt className="text-primary mr-2" /> Custom Prospectus PDF</h3>
+          <p className="text-sm text-gray-500 mb-4">Upload a custom PDF for the prospectus. If no PDF is uploaded, a default generated one will be used.</p>
+          
+          <div className="flex items-center gap-4">
+            {admissionPage?.prospectusPdfLink && (
+              <a href={admissionPage.prospectusPdfLink} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline font-bold text-sm flex items-center gap-2">
+                <FaEye /> View Current PDF
+              </a>
+            )}
+            <label className="flex items-center gap-2 cursor-pointer bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 font-bold text-sm">
+              <FaFileUpload /> {admissionPage?.prospectusPdfLink ? 'Replace PDF' : 'Upload PDF'}
+              <input type="file" className="hidden" accept="application/pdf" onChange={async (e) => {
+                if (e.target.files[0]) {
+                  try {
+                    const url = await uploadImage(e.target.files[0]); // uploadImage proxy supports PDFs
+                    setAdmissionPage({ ...admissionPage, prospectusPdfLink: url });
+                  } catch (err) {
+                    alert("Upload failed: " + err.message);
+                  }
+                }
+              }} />
+            </label>
+            {admissionPage?.prospectusPdfLink && (
+              <button 
+                onClick={() => setAdmissionPage({ ...admissionPage, prospectusPdfLink: null })}
+                className="text-red-500 hover:text-red-600 p-2"
+                title="Remove Custom PDF"
+              >
+                <FaTrash />
+              </button>
+            )}
+          </div>
+        </section>
+
+        <button onClick={() => updateSiteContent({ admissionPage })} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/30">
+          <FaSave /> Save Admissions Content
+        </button>
+      </div>
+    );
+  };
+
+  const renderProspectusLeadsSubTab = () => {
+    return (
+      <div className="space-y-6 animate-fade-in-up">
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800 flex items-center"><FaUsers className="text-primary mr-2" /> Prospectus Leads</h3>
+            <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">{prospectusLeads.length} Leads</span>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200 text-sm text-gray-600">
+                  <th className="p-4 font-bold rounded-tl-xl">Ref No.</th>
+                  <th className="p-4 font-bold">Student Name</th>
+                  <th className="p-4 font-bold">Email</th>
+                  <th className="p-4 font-bold">Phone</th>
+                  <th className="p-4 font-bold">Date</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {fetchingProspectus ? (
+                  <tr>
+                    <td colSpan="5" className="p-8 text-center text-gray-500">
+                      <FaSpinner className="animate-spin inline mr-2" /> Loading leads...
+                    </td>
+                  </tr>
+                ) : prospectusLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="p-8 text-center text-gray-500 font-medium">No prospectus leads found.</td>
+                  </tr>
+                ) : (
+                  prospectusLeads.map((lead) => (
+                    <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                      <td className="p-4 font-mono font-bold text-gray-800">{lead.reference_number}</td>
+                      <td className="p-4 font-bold text-primary">{lead.student_name}</td>
+                      <td className="p-4 text-gray-600"><a href={`mailto:${lead.email}`} className="hover:text-blue-500">{lead.email}</a></td>
+                      <td className="p-4 text-gray-600"><a href={`tel:${lead.phone}`} className="hover:text-blue-500">{lead.phone}</a></td>
+                      <td className="p-4 text-gray-500">{new Date(lead.created_at).toLocaleString()}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     );
   };
@@ -5307,17 +5564,17 @@ function AdminPage() {
   // --- School Profile Tab ---
   const [localVisionStatement, setLocalVisionStatement] = useState(visionStatement);
   const [localAimsAndObjectives, setLocalAimsAndObjectives] = useState(aimsAndObjectives);
-  const [localHeadMistress, setLocalHeadMistress] = useState(headMistress);
+  const [localAboutPage, setLocalAboutPage] = useState(aboutPage);
   const localAboutInitRef = useRef(false);
 
   useEffect(() => {
     if (!localAboutInitRef.current && !loading) {
       if (visionStatement !== undefined) setLocalVisionStatement(visionStatement);
       if (aimsAndObjectives !== undefined) setLocalAimsAndObjectives(aimsAndObjectives);
-      if (headMistress !== undefined) setLocalHeadMistress(headMistress);
+      if (aboutPage !== undefined) setLocalAboutPage(aboutPage);
       localAboutInitRef.current = true;
     }
-  }, [visionStatement, aimsAndObjectives, headMistress, loading]);
+  }, [visionStatement, aimsAndObjectives, aboutPage, loading]);
 
   const [localCoursesPage, setLocalCoursesPage] = useState(coursesPage);
   const localCoursesInitRef = useRef(false);
@@ -5729,25 +5986,110 @@ function AdminPage() {
 
   const renderAboutTab = () => {
     const handleAboutSave = async () => {
+      // Validate word limits before saving
+      const getWc = (txt) => (txt || '').trim().split(/\s+/).filter(w=>w).length;
+      if (getWc(localAboutPage?.shortDescription?.text) > 100) return alert("Short description exceeds 100 words.");
+      if (getWc(localAboutPage?.founder?.text) > 100) return alert("Founder details exceed 100 words.");
+      if (getWc(localAboutPage?.history?.text) > 200) return alert("History section exceeds 200 words.");
+      
+      let pErr = false;
+      (localAboutPage?.principals || []).forEach(p => {
+        if (getWc(p.text) > 200) pErr = true;
+      });
+      if (pErr) return alert("One or more principal details exceed 200 words.");
+
+      const hmText = localAboutPage?.leadership?.showHeadMistress ? (localAboutPage?.leadership?.headMistress?.text || '') : '';
+      const vpText = localAboutPage?.leadership?.showVicePrincipal ? (localAboutPage?.leadership?.vicePrincipal?.text || '') : '';
+      if (getWc(hmText) + getWc(vpText) > 200) return alert("Combined Head Mistress and Vice Principal speech exceeds 200 words.");
+
       await updateSiteContent({
         visionStatement: localVisionStatement,
         aimsAndObjectives: localAimsAndObjectives,
-        headMistress: localHeadMistress
+        aboutPage: localAboutPage
       });
       alert('About page updated successfully!');
     };
+
+    const getWordCount = (text) => {
+      if (!text) return 0;
+      return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    };
+
+    const handleUpload = async (path, e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const url = await uploadImage(file);
+        // path is an array of keys to nested update localAboutPage
+        const newState = { ...localAboutPage };
+        let curr = newState;
+        for (let i = 0; i < path.length - 1; i++) {
+          curr = curr[path[i]];
+        }
+        curr[path[path.length - 1]] = url;
+        setLocalAboutPage(newState);
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      }
+    };
+
+    const TextSection = ({ title, objKey, maxWords, placeholder }) => {
+      const data = localAboutPage?.[objKey] || { text: '', image: '' };
+      const wc = getWordCount(data.text);
+      const isOver = wc > maxWords;
+      return (
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">{title}</h3>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="w-full md:w-1/3 shrink-0">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Image</label>
+              <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-gray-200 h-48 group bg-gray-50 flex items-center justify-center">
+                {data.image ? (
+                  <>
+                    <img src={data.image} alt="Preview" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded">Change Image</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center text-gray-400">
+                    <FaFileUpload className="text-3xl mb-2" />
+                    <span className="text-sm font-bold">Upload Image</span>
+                  </div>
+                )}
+                <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={(e) => handleUpload([objKey, 'image'], e)} />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex justify-between mb-2">
+                <label className="text-sm font-bold text-gray-700">Description text</label>
+                <span className={`text-xs font-bold ${isOver ? 'text-red-500' : 'text-gray-500'}`}>{wc} / {maxWords} words</span>
+              </div>
+              <textarea
+                value={data.text || ''}
+                onChange={(e) => setLocalAboutPage({ ...localAboutPage, [objKey]: { ...data, text: e.target.value } })}
+                className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-primary h-48 ${isOver ? 'border-red-500 focus:ring-red-200' : 'border-gray-200'}`}
+                placeholder={placeholder}
+              />
+            </div>
+          </div>
+        </section>
+      );
+    };
+
+    const leadership = localAboutPage?.leadership || { showHeadMistress: false, headMistress: {}, showVicePrincipal: false, vicePrincipal: {} };
+    const hmWC = getWordCount(leadership.headMistress?.text);
+    const vpWC = getWordCount(leadership.vicePrincipal?.text);
+    const totalLdrWC = (leadership.showHeadMistress ? hmWC : 0) + (leadership.showVicePrincipal ? vpWC : 0);
 
     return (
       <div className="space-y-8 animate-fadeIn">
         <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-3xl font-headline font-bold text-gray-800">About Page Management</h2>
-            <p className="text-gray-500 mt-2">Manage the content displayed on the public About page.</p>
+            <p className="text-gray-500 mt-2">Manage all sections and details on the public About page.</p>
           </div>
-          <button 
-            onClick={handleAboutSave} 
-            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-md"
-          >
+          <button onClick={handleAboutSave} className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 shadow-md">
             <FaSave /> Save All Changes
           </button>
         </header>
@@ -5758,7 +6100,7 @@ function AdminPage() {
           <textarea
             value={localVisionStatement}
             onChange={(e) => setLocalVisionStatement(e.target.value)}
-            className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent min-h-[150px]"
+            className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[120px]"
             placeholder="Enter the school's vision statement..."
           />
         </section>
@@ -5769,7 +6111,7 @@ function AdminPage() {
             <h3 className="text-xl font-bold text-gray-800">Aims & Objectives</h3>
             <button
               onClick={() => setLocalAimsAndObjectives([...(localAimsAndObjectives || []), { title: 'New Aim', description: 'Description here' }])}
-              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-semibold"
             >
               <FaPlus className="mr-2" /> Add Aim
             </button>
@@ -5778,115 +6120,141 @@ function AdminPage() {
             {(localAimsAndObjectives || []).map((aim, index) => (
               <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
                 <div className="flex-1 space-y-3">
-                  <input
-                    type="text"
-                    value={aim.title}
-                    onChange={(e) => {
-                      const newAims = [...localAimsAndObjectives];
-                      newAims[index].title = e.target.value;
-                      setLocalAimsAndObjectives(newAims);
-                    }}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold"
-                    placeholder="Aim Title"
-                  />
-                  <textarea
-                    value={aim.description}
-                    onChange={(e) => {
-                      const newAims = [...localAimsAndObjectives];
-                      newAims[index].description = e.target.value;
-                      setLocalAimsAndObjectives(newAims);
-                    }}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[80px]"
-                    placeholder="Aim Description"
-                  />
+                  <input type="text" value={aim.title} onChange={(e) => { const n = [...localAimsAndObjectives]; n[index].title = e.target.value; setLocalAimsAndObjectives(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg font-bold focus:ring-2 focus:ring-primary" placeholder="Aim Title" />
+                  <textarea value={aim.description} onChange={(e) => { const n = [...localAimsAndObjectives]; n[index].description = e.target.value; setLocalAimsAndObjectives(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg min-h-[80px] focus:ring-2 focus:ring-primary" placeholder="Aim Description" />
                 </div>
-                <button
-                  onClick={() => {
-                    const newAims = localAimsAndObjectives.filter((_, i) => i !== index);
-                    setLocalAimsAndObjectives(newAims);
-                  }}
-                  className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
-                  title="Remove Aim"
-                >
-                  <FaTrash />
-                </button>
+                <button onClick={() => setLocalAimsAndObjectives(localAimsAndObjectives.filter((_, i) => i !== index))} className="p-3 text-red-500 hover:bg-red-50 rounded-lg mt-1" title="Remove Aim"><FaTrash /></button>
               </div>
             ))}
-            {(!localAimsAndObjectives || localAimsAndObjectives.length === 0) && (
-              <p className="text-center text-gray-500 py-4 italic">No aims and objectives added yet.</p>
-            )}
           </div>
         </section>
 
-        {/* Head Mistress Section */}
-        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Head Mistress Message</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Greeting</label>
-                <input
-                  type="text"
-                  value={localHeadMistress?.greeting || ''}
-                  onChange={(e) => setLocalHeadMistress({...localHeadMistress, greeting: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
-                  placeholder="e.g., Message from the Head Mistress"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Signature (Name)</label>
-                <input
-                  type="text"
-                  value={localHeadMistress?.signature || ''}
-                  onChange={(e) => setLocalHeadMistress({...localHeadMistress, signature: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
-                  placeholder="e.g., Sr. Name"
-                />
-              </div>
+        <TextSection title="Short Description" objKey="shortDescription" maxWords={100} placeholder="A short description about the school..." />
+        <TextSection title="Founder Details" objKey="founder" maxWords={100} placeholder="Details about the founder of the school..." />
+        <TextSection title="History & Planning Stage" objKey="history" maxWords={200} placeholder="History and planning stage of the school..." />
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Photo</label>
-                <div className="flex items-center gap-4">
-                  {localHeadMistress?.photo && (
-                    <img src={localHeadMistress.photo} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
-                  )}
-                  <div className="relative overflow-hidden">
-                    <button className="px-6 py-2 bg-primary/10 text-primary rounded-lg border border-primary/20 hover:bg-primary/20 font-medium transition-colors flex items-center gap-2">
-                      <FaImage /> Upload New Photo
-                    </button>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      title="Upload Photo"
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        const uploadedUrl = await uploadImage(file);
-                        if (uploadedUrl) {
-                          setLocalHeadMistress({...localHeadMistress, photo: uploadedUrl});
-                        }
-                      }}
-                    />
+        {/* Principals List Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Past Principals</h3>
+            <button
+              onClick={() => setLocalAboutPage({ ...localAboutPage, principals: [...(localAboutPage?.principals || []), { name: '', years: '', text: '', image: '' }] })}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Principal
+            </button>
+          </div>
+          <div className="space-y-6">
+            {(localAboutPage?.principals || []).map((p, index) => {
+              const pwc = getWordCount(p.text);
+              const pOver = pwc > 200;
+              return (
+                <div key={index} className="flex flex-col md:flex-row gap-6 p-6 bg-gray-50 rounded-xl border border-gray-200 relative">
+                  <button onClick={() => { const newP = [...localAboutPage.principals]; newP.splice(index, 1); setLocalAboutPage({ ...localAboutPage, principals: newP }); }} className="absolute top-4 right-4 p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200" title="Remove"><FaTrash /></button>
+                  <div className="w-full md:w-48 shrink-0">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Image</label>
+                    <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-gray-200 h-48 flex items-center justify-center bg-white group">
+                      {p.image ? (
+                        <><img src={p.image} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center"><span className="text-white text-xs px-2 py-1 bg-black/50 rounded">Change</span></div></>
+                      ) : (
+                        <div className="text-center text-gray-400"><FaFileUpload className="text-2xl mx-auto mb-1"/><span className="text-xs">Upload</span></div>
+                      )}
+                      <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUpload(['principals', index, 'image'], e)} />
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Name</label>
+                        <input type="text" value={p.name} onChange={(e) => { const n = [...localAboutPage.principals]; n[index].name = e.target.value; setLocalAboutPage({...localAboutPage, principals: n}); }} className="w-full p-2 border border-gray-200 rounded-lg" placeholder="e.g. Rev. Fr. John Doe" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tenure (Years)</label>
+                        <input type="text" value={p.years} onChange={(e) => { const n = [...localAboutPage.principals]; n[index].years = e.target.value; setLocalAboutPage({...localAboutPage, principals: n}); }} className="w-full p-2 border border-gray-200 rounded-lg" placeholder="e.g. 1999-2005" />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Details</label>
+                        <span className={`text-xs font-bold ${pOver ? 'text-red-500' : 'text-gray-500'}`}>{pwc} / 200 words</span>
+                      </div>
+                      <textarea value={p.text} onChange={(e) => { const n = [...localAboutPage.principals]; n[index].text = e.target.value; setLocalAboutPage({...localAboutPage, principals: n}); }} className={`w-full p-3 border rounded-lg h-24 ${pOver ? 'border-red-500' : 'border-gray-200'}`} placeholder="Details about their tenure..." />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {(!localAboutPage?.principals || localAboutPage.principals.length === 0) && <p className="text-center text-gray-500 py-4 italic">No principals added yet.</p>}
+          </div>
+        </section>
+
+        {/* Leadership Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">Leadership Speeches</h3>
+              <p className="text-sm text-gray-500 mt-1">Head Mistress and/or Vice Principal speeches (Combined max 200 words).</p>
+            </div>
+            <span className={`px-4 py-2 rounded-full font-bold text-sm ${totalLdrWC > 200 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+              Total: {totalLdrWC} / 200 words
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* Head Mistress */}
+            <div className={`p-5 rounded-xl border-2 transition-all ${leadership.showHeadMistress ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-bold text-gray-800">Head Mistress</h4>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-sm font-bold text-gray-600">Show</span>
+                  <input type="checkbox" checked={leadership.showHeadMistress} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, showHeadMistress: e.target.checked}})} className="w-5 h-5 text-blue-600 rounded" />
+                </label>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-24 shrink-0">
+                  <div className="relative h-24 rounded-full border border-gray-300 overflow-hidden bg-white flex items-center justify-center group">
+                    {leadership.headMistress?.image ? <img src={leadership.headMistress.image} className="w-full h-full object-cover" /> : <FaFileUpload className="text-gray-300 text-xl" />}
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUpload(['leadership', 'headMistress', 'image'], e)} disabled={!leadership.showHeadMistress} />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <input type="text" value={leadership.headMistress?.name || ''} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, headMistress: {...leadership.headMistress, name: e.target.value}}})} className="w-full p-2 border border-gray-200 rounded-lg text-sm" placeholder="Name" disabled={!leadership.showHeadMistress} />
+                  <div>
+                    <div className="flex justify-between mb-1"><label className="text-xs font-bold text-gray-500">Speech</label><span className="text-xs text-gray-500">{hmWC} w</span></div>
+                    <textarea value={leadership.headMistress?.text || ''} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, headMistress: {...leadership.headMistress, text: e.target.value}}})} className="w-full p-2 border border-gray-200 rounded-lg text-sm h-24" placeholder="Speech text..." disabled={!leadership.showHeadMistress} />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Message</label>
-              <textarea
-                value={localHeadMistress?.message || ''}
-                onChange={(e) => setLocalHeadMistress({...localHeadMistress, message: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[250px]"
-                placeholder="Enter the message paragraphs here..."
-              />
-              <p className="text-xs text-gray-500 mt-2">Line breaks will be converted to paragraphs on the public page.</p>
+            {/* Vice Principal */}
+            <div className={`p-5 rounded-xl border-2 transition-all ${leadership.showVicePrincipal ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-bold text-gray-800">Vice Principal</h4>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-sm font-bold text-gray-600">Show</span>
+                  <input type="checkbox" checked={leadership.showVicePrincipal} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, showVicePrincipal: e.target.checked}})} className="w-5 h-5 text-blue-600 rounded" />
+                </label>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-24 shrink-0">
+                  <div className="relative h-24 rounded-full border border-gray-300 overflow-hidden bg-white flex items-center justify-center group">
+                    {leadership.vicePrincipal?.image ? <img src={leadership.vicePrincipal.image} className="w-full h-full object-cover" /> : <FaFileUpload className="text-gray-300 text-xl" />}
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUpload(['leadership', 'vicePrincipal', 'image'], e)} disabled={!leadership.showVicePrincipal} />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <input type="text" value={leadership.vicePrincipal?.name || ''} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, vicePrincipal: {...leadership.vicePrincipal, name: e.target.value}}})} className="w-full p-2 border border-gray-200 rounded-lg text-sm" placeholder="Name" disabled={!leadership.showVicePrincipal} />
+                  <div>
+                    <div className="flex justify-between mb-1"><label className="text-xs font-bold text-gray-500">Speech</label><span className="text-xs text-gray-500">{vpWC} w</span></div>
+                    <textarea value={leadership.vicePrincipal?.text || ''} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, vicePrincipal: {...leadership.vicePrincipal, text: e.target.value}}})} className="w-full p-2 border border-gray-200 rounded-lg text-sm h-24" placeholder="Speech text..." disabled={!leadership.showVicePrincipal} />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
+
       </div>
     );
   };
@@ -5925,12 +6293,31 @@ function AdminPage() {
           </button>
         </header>
 
-        {/* Streams Section */}
+        {/* --- 1. Higher Education --- */}
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Streams (Higher Secondary)</h3>
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Higher Education (Graduate/Diploma/PG)</h3>
+          <textarea
+            value={localCoursesPage?.higherEducation?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, higherEducation: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+            placeholder="Details about Graduate, Diploma, and PG courses..."
+          />
+        </section>
+
+        {/* --- 2. Higher Secondary --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Higher Secondary (XI & XII)</h3>
+          <textarea
+            value={localCoursesPage?.higherSecondary?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, higherSecondary: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px] mb-6"
+            placeholder="Introduction to Higher Secondary courses..."
+          />
+          
+          <h4 className="font-bold text-gray-700 mb-4">Streams</h4>
           {['Science', 'Commerce', 'Arts'].map((stream) => (
             <div key={stream} className="mb-6 last:mb-0">
-              <h4 className="font-bold text-primary mb-2">{stream} Subjects</h4>
+              <h5 className="font-bold text-primary mb-2">{stream} Subjects</h5>
               <textarea
                 value={
                   typeof (localCoursesPage?.streams?.[stream]) === 'string' 
@@ -5942,77 +6329,44 @@ function AdminPage() {
                   newStreams[stream] = e.target.value;
                   setLocalCoursesPage({ ...localCoursesPage, streams: newStreams });
                 }}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[150px] font-mono text-sm"
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px] font-mono text-sm"
                 placeholder="Enter subjects, one per line"
               />
-              <p className="text-xs text-gray-500 mt-1">Enter one subject per line.</p>
             </div>
           ))}
         </section>
 
-        {/* Levels Section */}
+        {/* --- 3. Upper Primary --- */}
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center border-b pb-4 mb-4">
-            <h3 className="text-xl font-bold text-gray-800">Educational Wings (Levels)</h3>
-            <button
-              onClick={() => setLocalCoursesPage({...localCoursesPage, levels: [...(localCoursesPage?.levels || []), { title: 'New Level', desc: '', iconType: 'FaBookOpen' }]})}
-              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
-            >
-              <FaPlus className="mr-2" /> Add Level
-            </button>
-          </div>
-          <div className="space-y-4">
-            {(localCoursesPage?.levels || []).map((level, index) => (
-              <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
-                <div className="flex-1 space-y-3">
-                  <input
-                    type="text"
-                    value={level.title}
-                    onChange={(e) => {
-                      const newLevels = [...localCoursesPage.levels];
-                      newLevels[index].title = e.target.value;
-                      setLocalCoursesPage({...localCoursesPage, levels: newLevels});
-                    }}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold"
-                    placeholder="Level Title"
-                  />
-                  <textarea
-                    value={level.desc}
-                    onChange={(e) => {
-                      const newLevels = [...localCoursesPage.levels];
-                      newLevels[index].desc = e.target.value;
-                      setLocalCoursesPage({...localCoursesPage, levels: newLevels});
-                    }}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[60px]"
-                    placeholder="Description"
-                  />
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-semibold text-gray-600">Icon Name:</label>
-                    <input
-                      type="text"
-                      value={level.iconType}
-                      onChange={(e) => {
-                        const newLevels = [...localCoursesPage.levels];
-                        newLevels[index].iconType = e.target.value;
-                        setLocalCoursesPage({...localCoursesPage, levels: newLevels});
-                      }}
-                      className="px-3 py-1 border border-gray-200 rounded-lg text-sm w-48"
-                      placeholder="e.g. FaChild, FaBookOpen"
-                    />
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    const newLevels = localCoursesPage.levels.filter((_, i) => i !== index);
-                    setLocalCoursesPage({...localCoursesPage, levels: newLevels});
-                  }}
-                  className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
-                >
-                  <FaTrash />
-                </button>
-              </div>
-            ))}
-          </div>
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Upper Primary (IX & X)</h3>
+          <textarea
+            value={localCoursesPage?.upperPrimary?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, upperPrimary: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+            placeholder="Details about IX & X courses..."
+          />
+        </section>
+
+        {/* --- 4. Lower Primary --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Lower Primary (I to VIII)</h3>
+          <textarea
+            value={localCoursesPage?.lowerPrimary?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, lowerPrimary: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+            placeholder="Details about I to VIII courses..."
+          />
+        </section>
+
+        {/* --- 5. Play School & Nursery --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Play School & Nursery</h3>
+          <textarea
+            value={localCoursesPage?.prePrimary?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, prePrimary: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+            placeholder="Details about Play School & Nursery courses..."
+          />
         </section>
 
         {/* Rules Section */}
@@ -6993,6 +7347,147 @@ function AdminPage() {
     );
   };
 
+  // ========== AMENITIES TAB ==========
+  const [amenityUploadingIndex, setAmenityUploadingIndex] = useState(null);
+
+  const renderAmenitiesTab = () => {
+    const iconOptions = ['FaLeaf', 'FaBook', 'FaChalkboardTeacher', 'FaUserFriends', 'FaFaucet', 'FaTheaterMasks', 'FaParking', 'FaUtensils', 'FaBed', 'FaLaptop', 'FaFlask', 'FaDesktop', 'FaStar', 'FaBuilding', 'FaGraduationCap', 'FaAward', 'FaGlobe', 'FaTools'];
+
+    const handleAmenityChange = (index, field, value) => {
+      const updated = [...amenities];
+      updated[index] = { ...updated[index], [field]: value };
+      updateSiteContent({ amenities: updated });
+    };
+
+    const handleAmenityImageUpload = async (index, file) => {
+      setAmenityUploadingIndex(index);
+      try {
+        const url = await uploadImage(file);
+        handleAmenityChange(index, 'image', url);
+      } catch (err) {
+        alert('Image upload failed: ' + err.message);
+      } finally {
+        setAmenityUploadingIndex(null);
+      }
+    };
+
+    const handleAddAmenity = () => {
+      updateSiteContent({ amenities: [...amenities, { title: '', details: '', icon: 'FaLeaf', image: '' }] });
+    };
+
+    const handleRemoveAmenity = (index) => {
+      if (!window.confirm('Remove this amenity?')) return;
+      const updated = amenities.filter((_, i) => i !== index);
+      updateSiteContent({ amenities: updated });
+    };
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800">Campus Amenities</h3>
+            <p className="text-sm text-gray-500 mt-1">Manage amenities shown on the homepage. Upload images that appear on hover.</p>
+          </div>
+          <button onClick={handleAddAmenity} className="bg-tertiary text-white px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 shadow-lg transition-all">
+            <FaPlus /> Add Amenity
+          </button>
+        </div>
+
+        {amenities.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+            <FaLeaf className="mx-auto text-4xl text-gray-300 mb-3" />
+            <p className="text-gray-400 font-medium">No amenities added yet</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {amenities.map((item, index) => (
+              <div key={index} className="border border-gray-100 rounded-2xl p-4 bg-gray-50/50 hover:border-blue-200 transition-all group relative">
+                {/* Remove button */}
+                <button
+                  onClick={() => handleRemoveAmenity(index)}
+                  className="absolute top-3 right-3 w-7 h-7 bg-red-50 text-red-400 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600 z-10"
+                  title="Remove amenity"
+                >
+                  <FaTrash className="text-xs" />
+                </button>
+
+                {/* Image Upload Area */}
+                <div className="mb-3">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Hover Image</label>
+                  
+                  {/* Uploading overlay */}
+                  {amenityUploadingIndex === index ? (
+                    <div className="flex flex-col items-center justify-center h-32 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                      <FaSpinner className="animate-spin text-blue-500 text-2xl mb-2" />
+                      <span className="text-xs font-bold text-blue-600 tracking-wide">Uploading...</span>
+                    </div>
+                  ) : item.image ? (
+                    <div className="relative rounded-xl overflow-hidden h-32 group/img">
+                      <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <label className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-blue-50 transition-colors">
+                          Change
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && handleAmenityImageUpload(index, e.target.files[0])} />
+                        </label>
+                        <button onClick={() => handleAmenityChange(index, 'image', '')} className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 transition-colors">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+                      <FaFileUpload className="text-gray-300 text-xl mb-1" />
+                      <span className="text-xs text-gray-400 font-medium">Upload Image</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && handleAmenityImageUpload(index, e.target.files[0])} />
+                    </label>
+                  )}
+                </div>
+
+                {/* Title */}
+                <div className="mb-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={item.title || ''}
+                    onChange={(e) => handleAmenityChange(index, 'title', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all"
+                    placeholder="e.g. Science Labs"
+                  />
+                </div>
+
+                {/* Details */}
+                <div className="mb-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</label>
+                  <input
+                    type="text"
+                    value={item.details || ''}
+                    onChange={(e) => handleAmenityChange(index, 'details', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all"
+                    placeholder="e.g. Dedicated science labs"
+                  />
+                </div>
+
+                {/* Icon Selector */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Icon</label>
+                  <select
+                    value={item.icon || 'FaLeaf'}
+                    onChange={(e) => handleAmenityChange(index, 'icon', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all bg-white"
+                  >
+                    {iconOptions.map(ic => (
+                      <option key={ic} value={ic}>{ic.replace('Fa', '')}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-sans relative overflow-x-hidden" style={{ backgroundColor: '#F1F5F9' }}>
       {/* Top Navbar */}
@@ -7037,7 +7532,7 @@ function AdminPage() {
             <div className="relative nav-dropdown-container">
               <button 
                 onClick={() => setOpenDropdown(openDropdown === 'content' ? null : 'content')}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
               >
                 <FaImage /> Content <FaAngleDown className={`transition-transform ${openDropdown === 'content' ? 'rotate-180' : ''}`} />
               </button>
@@ -7045,6 +7540,7 @@ function AdminPage() {
                 <div className="absolute top-full left-0 mt-2 w-[480px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-4 grid grid-cols-2 gap-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
                   {[
                     { id: 'about', label: 'About Page', icon: <FaInfoCircle className="text-indigo-400"/> },
+                    { id: 'amenities', label: 'Amenities', icon: <FaLeaf className="text-emerald-500"/> },
                     { id: 'emeritus', label: 'Alumestron', icon: <FaUserTie className="text-purple-600"/> },
                     { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap className="text-blue-400"/> },
                     { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase className="text-cyan-600"/> },
@@ -7250,7 +7746,7 @@ function AdminPage() {
                   <div className="h-px bg-gray-200 flex-1"></div>
                 </div>
                 <div className="space-y-1">
-                  {['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs'].map(id => (
+                  {['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].map(id => (
                     <button key={id} onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
                       <div className={`w-2 h-2 rounded-full ${activeTab === id ? 'bg-blue-500' : 'bg-gray-300'}`} />
                       {id.charAt(0).toUpperCase() + id.slice(1).replace(/([A-Z])/g, ' $1').trim()}
@@ -7322,6 +7818,7 @@ function AdminPage() {
           {activeTab === 'about' && renderAboutTab()}
           {activeTab === 'courses' && renderCoursesPageTab()}
           {activeTab === 'faqs' && renderFaqsTab()}
+          {activeTab === 'amenities' && renderAmenitiesTab()}
           {activeTab === 'careerAds' && renderCareersTab()}
           {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
           {activeTab === 'activity' && adminUser?.role === 'developer' && renderActivityTab()}

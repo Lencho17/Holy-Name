@@ -96,9 +96,17 @@ function Principal() {
           )}
 
           <div className="space-y-6 text-on-surface-variant leading-relaxed text-lg text-justify md:text-left font-medium">
-            {(principal.message || '').split('\n').filter(p => p.trim() !== '').map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
-            ))}
+            {(() => {
+              const msg = principal.message || '';
+              const words = msg.split(/\s+/).filter(w => w.length > 0);
+              const truncatedMsg = words.length > 400 
+                ? words.slice(0, 400).join(' ') + '...'
+                : msg;
+                
+              return truncatedMsg.split('\n').filter(p => p.trim() !== '').map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ));
+            })()}
             
             {principal.closingQuote && (
               <div className="p-6 bg-primary-container/30 rounded-2xl border border-primary/10 mt-8">

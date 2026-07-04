@@ -76,6 +76,9 @@ const getAggregatedContent = async () => {
     admissionFields: settings?.admission_fields || [],
     banners: settings?.banners || [],
     videos: settings?.videos || [],
+    amenities: settings?.amenities || [],
+    aboutPage: settings?.about_page || {},
+    admissionPage: settings?.admission_page || {},
     notices: notices || [],
     gallery: gallery || [],
     events: events || [],
@@ -189,7 +192,10 @@ router.put('/', protect, async (req, res) => {
       courses_streams: updateData.coursesPage?.streams,
       courses_levels: updateData.coursesPage?.levels,
       courses_rules: updateData.coursesPage?.rules,
-      is_maintenance_mode: updateData.isMaintenanceMode
+      is_maintenance_mode: updateData.isMaintenanceMode,
+      amenities: updateData.amenities,
+      about_page: updateData.aboutPage,
+      admission_page: updateData.admissionPage
     };
 
     // Filter out undefined

@@ -95,7 +95,27 @@ const defaultSchoolProfile = {
   affiliation: []
 };
 
+const defaultAmenities = [
+  { title: "Clean / holistic", details: "Clean & holistic environment", icon: "FaLeaf", image: "" },
+  { title: "Co-ciricul", details: "Supplementary co-curricular activities", icon: "FaBook", image: "" },
+  { title: "Dedicated teacher", details: "Supportive teachers and staff", icon: "FaChalkboardTeacher", image: "" },
+  { title: "NCC/scouts & guides", details: "Residential camp for NCC and Scouts & Guide", icon: "FaUserFriends", image: "" },
+  { title: "Drinking water", details: "RO drinking water facility", icon: "FaFaucet", image: "" },
+  { title: "Auditorium", details: "Personal Amphitheatre", icon: "FaTheaterMasks", image: "" },
+  { title: "Parking", details: "Parking space for HS Students", icon: "FaParking", image: "" },
+  { title: "Canteen", details: "Hygienic school canteen", icon: "FaUtensils", image: "" },
+  { title: "Hostel", details: "Hostel facility for girls", icon: "FaBed", image: "" },
+  { title: "Smart classes", details: "Digital classrooms", icon: "FaLaptop", image: "" },
+  { title: "Science labs", details: "Dedicated science labs", icon: "FaFlask", image: "" },
+  { title: "Comp labs", details: "Two upgraded computer labs", icon: "FaDesktop", image: "" }
+];
+
 const defaultCoursesPage = {
+  higherEducation: { text: "Details about Graduate, Diploma, and PG courses will be updated soon." },
+  higherSecondary: { text: "Details about XI & XII courses will be updated soon." },
+  upperPrimary: { text: "Details about IX & X courses will be updated soon." },
+  lowerPrimary: { text: "Details about I to VIII courses will be updated soon." },
+  prePrimary: { text: "Details about Play School & Nursery courses will be updated soon." },
   streams: {
     Science: ["Physics", "Chemistry", "Biology", "Mathematics", "Computer Science"],
     Commerce: ["Accountancy", "Business Studies", "Economics", "Mathematics", "Informatics Practices"],
@@ -122,6 +142,35 @@ const defaultCoursesPage = {
   ]
 };
 
+const defaultAppointmentSettings = {
+  isSchoolOpen: true,
+  isPrincipalAvailable: true,
+  schoolTiming: "08:30 AM - 03:00 PM"
+};
+
+const defaultAboutPage = {
+  shortDescription: { text: "", image: "" },
+  founder: { text: "", image: "" },
+  history: { text: "", image: "" },
+  principals: [],
+  leadership: {
+    showHeadMistress: true,
+    headMistress: { name: "", text: "", image: "" },
+    showVicePrincipal: false,
+    vicePrincipal: { name: "", text: "", image: "" }
+  }
+};
+
+const defaultAdmissionPage = {
+  advertisements: [], // array of image URLs
+  rules: "Please abide by all school rules and regulations.",
+  offlineProcedure: "Visit the school office between 9 AM and 1 PM with required documents.",
+  onlineProcedure: "Download the prospectus, fill the online form, upload documents, and track status.",
+  vacantSeats: [
+    { className: "Class I", vacant: "10" }
+  ]
+};
+
 export const SiteDataProvider = ({ children }) => {
   const [videos, setVideos] = useState([]);
   const [highlights, setHighlights] = useState(defaultHighlights);
@@ -130,6 +179,7 @@ export const SiteDataProvider = ({ children }) => {
   const [principal, setPrincipal] = useState(defaultPrincipal);
   const [faculty, setFaculty] = useState(defaultFaculty);
   const [notices, setNotices] = useState(defaultNotices);
+  const [admissionPage, setAdmissionPage] = useState(defaultAdmissionPage);
   const [notificationEmail, setNotificationEmail] = useState('office@lenchosolutions.com');
   const [banner, setBanner] = useState({ isActive: false, image: null, link: null });
   const [socialLinks, setSocialLinks] = useState(defaultSocialLinks);
@@ -145,6 +195,9 @@ export const SiteDataProvider = ({ children }) => {
   const [coursesPage, setCoursesPage] = useState(defaultCoursesPage);
   const [admissionFields, setAdmissionFields] = useState([]);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [amenities, setAmenities] = useState(defaultAmenities);
+  const [aboutPage, setAboutPage] = useState(defaultAboutPage);
+  const [appointmentSettings, setAppointmentSettings] = useState(defaultAppointmentSettings);
   const [loading, setLoading] = useState(true);
 
 
@@ -207,6 +260,9 @@ export const SiteDataProvider = ({ children }) => {
         if (legacyData.coursesPage && typeof legacyData.coursesPage === 'object') setCoursesPage(legacyData.coursesPage);
         if (Array.isArray(legacyData.admissionFields)) setAdmissionFields(legacyData.admissionFields);
         if (legacyData.schoolProfile?.isMaintenanceMode !== undefined) setIsMaintenanceMode(legacyData.schoolProfile.isMaintenanceMode);
+        if (Array.isArray(legacyData.amenities) && legacyData.amenities.length > 0) setAmenities(legacyData.amenities);
+        if (legacyData.aboutPage && Object.keys(legacyData.aboutPage).length > 0) setAboutPage(legacyData.aboutPage);
+        if (legacyData.appointmentSettings && typeof legacyData.appointmentSettings === 'object') setAppointmentSettings(legacyData.appointmentSettings);
         retryCount = 0; // Reset on success
         setLoading(false);
       } catch (error) {
@@ -294,6 +350,8 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.coursesPage) setCoursesPage(updatedData.coursesPage);
       if (updatedData.admissionFields) setAdmissionFields(updatedData.admissionFields);
       if (updatedData.schoolProfile?.isMaintenanceMode !== undefined) setIsMaintenanceMode(updatedData.schoolProfile.isMaintenanceMode);
+      if (updatedData.amenities) setAmenities(updatedData.amenities);
+      if (updatedData.aboutPage) setAboutPage(updatedData.aboutPage);
 
       // console.log("Auto-save successful");
     } catch (err) {
@@ -328,6 +386,9 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.coursesPage !== undefined) setCoursesPage(updates.coursesPage);
     if (updates.admissionFields !== undefined) setAdmissionFields(updates.admissionFields);
     if (updates.isMaintenanceMode !== undefined) setIsMaintenanceMode(updates.isMaintenanceMode);
+    if (updates.amenities !== undefined) setAmenities(updates.amenities);
+    if (updates.aboutPage !== undefined) setAboutPage(updates.aboutPage);
+    if (updates.admissionPage !== undefined) setAdmissionPage(updates.admissionPage);
 
     // 2. Persist to backend in ONE request
     saveToBackend(updates);
@@ -405,6 +466,10 @@ export const SiteDataProvider = ({ children }) => {
   const wrapSetEmeritus = (val) => { setEmeritus(val); saveToBackend({ emeritus: val }); };
   const wrapSetCenterOfExcellence = (val) => { setCenterOfExcellence(val); saveToBackend({ centerOfExcellence: val }); };
   const wrapSetCoursesPage = (val) => { setCoursesPage(val); saveToBackend({ coursesPage: val }); };
+  const wrapSetAmenities = (val) => { setAmenities(val); saveToBackend({ amenities: val }); };
+  const wrapSetAboutPage = (val) => { setAboutPage(val); saveToBackend({ aboutPage: val }); };
+  const wrapSetAdmissionPage = (val) => { setAdmissionPage(val); saveToBackend({ admissionPage: val }); };
+  const wrapSetAppointmentSettings = (val) => { setAppointmentSettings(val); saveToBackend({ appointmentSettings: val }); };
 
   return (
     <SiteDataContext.Provider value={{
@@ -431,6 +496,10 @@ export const SiteDataProvider = ({ children }) => {
       coursesPage, setCoursesPage: wrapSetCoursesPage,
       admissionFields, setAdmissionFields: (val) => { setAdmissionFields(val); saveToBackend({ admissionFields: val }); },
       isMaintenanceMode, setIsMaintenanceMode: (val) => { setIsMaintenanceMode(val); saveToBackend({ isMaintenanceMode: val }); },
+      amenities, setAmenities: wrapSetAmenities,
+      aboutPage, setAboutPage: wrapSetAboutPage,
+      admissionPage, setAdmissionPage: wrapSetAdmissionPage,
+      appointmentSettings, setAppointmentSettings: wrapSetAppointmentSettings,
       updateSiteContent,
       uploadImage,
       uploadEventPhotos,

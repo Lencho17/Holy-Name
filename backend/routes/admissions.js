@@ -163,6 +163,68 @@ const sendStatusUpdateEmail = async (admissionData, newStatus) => {
   }
 };
 
+// --- Prospectus / Lead Gen Routes ---
+
+// GET /api/admissions/prospectus/leads — protected, list all prospectus downloads
+router.get('/prospectus/leads', protect, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('prospectus_downloads')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// POST /api/admissions/prospectus — public, submit lead and generate payment order
+router.post('/prospectus', async (req, res) => {
+  try {
+    const { student_name, email, phone, address } = req.body;
+    if (!student_name || !email || !phone) {
+      return res.status(400).json({ message: 'Name, email, and phone are required.' });
+    }
+
+    const refNum = `PR-${new Date().getFullYear()}-${require('crypto').randomBytes(3).toString('hex').toUpperCase()}`;
+
+    const { data, error } = await supabase
+      .from('prospectus_downloads')
+      .insert([{
+        reference_number: refNum,
+        student_name,
+        email,
+        phone,
+        address,
+        payment_status: 'Pending'
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Simulate Razorpay or return mock order
+    // In a real scenario, instantiate Razorpay here if process.env.RAZORPAY_KEY_ID exists
+    res.status(201).json({ lead: data, refNum, mockPaymentRequired: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// POST /api/admissions/prospectus/verify — public, verify payment
+router.post('/prospectus/verify', async (req, res) => {
+  try {
+    const { refNum } = req.body;
+    // Mocking success verification
+    await supabase.from('prospectus_downloads').update({ payment_status: 'Paid' }).eq('reference_number', refNum);
+    res.json({ success: true, message: 'Payment simulated successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // --- Admission Routes ---
 
 // GET /api/admissions/export — protected, export applications to XLS (supports class & status filters)

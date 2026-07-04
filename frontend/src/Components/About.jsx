@@ -1,8 +1,9 @@
 import React, { useContext } from 'react';
 import { SiteDataContext } from '../context/SiteDataContext';
 import vargheseImage from '../Pictures/varghese.png';
+
 const About = () => {
-  const { visionStatement, aimsAndObjectives, headMistress, schoolProfile } = useContext(SiteDataContext);
+  const { visionStatement, aimsAndObjectives, headMistress, schoolProfile, aboutPage } = useContext(SiteDataContext);
 
   const headMistressPhoto = headMistress?.photo || "/Pictures/assets/head_mistress_photo.png";
   return (
@@ -37,6 +38,43 @@ const About = () => {
 
       <div className="max-w-7xl mx-auto px-4 md:px-8">
 
+        {/* --- DYNAMIC TOP SECTIONS (Short Description & Founder) --- */}
+        {(aboutPage?.shortDescription?.text || aboutPage?.founder?.text) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
+            {aboutPage?.shortDescription?.text && (
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100">
+                <h2 className="text-2xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
+                  <span className="material-symbols-outlined text-secondary text-3xl">school</span>
+                  About The School
+                </h2>
+                {aboutPage.shortDescription.image && (
+                  <img src={aboutPage.shortDescription.image} className="w-full h-48 object-cover rounded-xl mb-6 shadow-sm" alt="School" />
+                )}
+                <p className="text-gray-700 leading-relaxed font-medium whitespace-pre-line">
+                  {aboutPage.shortDescription.text}
+                </p>
+              </div>
+            )}
+            
+            {aboutPage?.founder?.text && (
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100">
+                <h2 className="text-2xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
+                  <span className="material-symbols-outlined text-secondary text-3xl">account_balance</span>
+                  Our Founder
+                </h2>
+                {aboutPage.founder.image && (
+                  <img src={aboutPage.founder.image} className="w-full h-48 object-cover rounded-xl mb-6 shadow-sm grayscale hover:grayscale-0 transition-all duration-500" alt="Founder" />
+                )}
+                <p className="text-gray-700 leading-relaxed font-medium whitespace-pre-line">
+                  {aboutPage.founder.text}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+
+        {/* ORIGINAL HARDCODED HISTORY */}
         <div className="bg-surface-container-low shadow-2xl rounded-3xl p-8 md:p-14 border border-outline-variant/30 mb-16 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
 
@@ -308,8 +346,56 @@ const About = () => {
           </div>
         </div>
 
-        {/* Info Grid - Aims & Objectives, Vision */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* --- DYNAMIC HISTORY BLOCK --- */}
+        {aboutPage?.history?.text && (
+          <div className="bg-surface-container-low shadow-2xl rounded-3xl p-8 md:p-14 border border-outline-variant/30 relative overflow-hidden mb-16">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+            <h3 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-10 border-b border-outline-variant pb-4 relative z-10">
+              History & <span className="text-amber-600 italic">Planning Stage</span>
+            </h3>
+            
+            <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
+              {aboutPage.history.image && (
+                <div className="w-full md:w-1/3 shrink-0">
+                  <img src={aboutPage.history.image} className="w-full h-auto rounded-2xl shadow-lg border border-outline-variant/30 sepia hover:sepia-0 transition-all duration-500" alt="History" />
+                </div>
+              )}
+              <div className="flex-1 text-on-surface-variant text-lg leading-relaxed font-medium whitespace-pre-line">
+                {aboutPage.history.text}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- DYNAMIC PRINCIPALS --- */}
+        {aboutPage?.principals && aboutPage.principals.length > 0 && (
+          <div className="mb-16">
+            <h3 className="font-serif text-3xl font-black text-gray-900 mb-8 border-b border-outline-variant pb-4">
+              Our <span className="text-amber-600 italic">Past Principals</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {aboutPage.principals.map((p, idx) => (
+                <div key={idx} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:-translate-y-2 transition-all duration-500 group">
+                  <div className="h-48 overflow-hidden bg-gray-100">
+                    {p.image ? (
+                      <img src={p.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt={p.name} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300"><span className="material-symbols-outlined text-6xl">person</span></div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <h4 className="text-xl font-bold text-primary academic-serif mb-1">{p.name}</h4>
+                    <p className="text-secondary text-sm font-bold uppercase tracking-widest mb-4">{p.years}</p>
+                    <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{p.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Info Grid - ORIGINAL AIMS, VISION & HEAD MISTRESS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
 
           <div className="p-8 hover:-translate-y-2 transition duration-500">
             <h2 className="text-3xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
@@ -373,6 +459,67 @@ const About = () => {
 
           </div>
         </div>
+
+        {/* --- DYNAMIC LEADERSHIP SPEECHES --- */}
+        {(aboutPage?.leadership?.showHeadMistress || aboutPage?.leadership?.showVicePrincipal) && (
+          <div className="bg-gradient-to-br from-blue-50 to-white shadow-xl rounded-3xl p-8 md:p-14 border border-blue-100 relative overflow-hidden">
+            <h3 className="font-serif text-3xl font-black text-gray-900 mb-10 border-b border-blue-200 pb-4">
+              Leadership <span className="text-amber-600 italic">Message</span>
+            </h3>
+            
+            <div className={`grid grid-cols-1 ${aboutPage.leadership.showHeadMistress && aboutPage.leadership.showVicePrincipal ? 'lg:grid-cols-2' : ''} gap-12`}>
+              
+              {/* Head Mistress */}
+              {aboutPage.leadership.showHeadMistress && (
+                <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="shrink-0">
+                    <div className="w-32 h-32 rounded-full shadow-lg border-4 border-white overflow-hidden bg-white">
+                      {aboutPage.leadership.headMistress?.image ? (
+                        <img src={aboutPage.leadership.headMistress.image} className="w-full h-full object-cover" alt="Head Mistress" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300"><span className="material-symbols-outlined text-5xl">face_3</span></div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-on-surface-variant font-medium space-y-3">
+                    <h4 className="font-bold text-primary text-xl">Head Mistress</h4>
+                    <p className="whitespace-pre-line leading-relaxed">{aboutPage.leadership.headMistress?.text}</p>
+                    {aboutPage.leadership.headMistress?.name && (
+                      <p className="font-serif italic text-lg text-primary font-bold tracking-wider pt-4 border-t border-gray-200 mt-4">
+                        {aboutPage.leadership.headMistress.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Vice Principal */}
+              {aboutPage.leadership.showVicePrincipal && (
+                <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="shrink-0">
+                    <div className="w-32 h-32 rounded-full shadow-lg border-4 border-white overflow-hidden bg-white">
+                      {aboutPage.leadership.vicePrincipal?.image ? (
+                        <img src={aboutPage.leadership.vicePrincipal.image} className="w-full h-full object-cover" alt="Vice Principal" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300"><span className="material-symbols-outlined text-5xl">person</span></div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-on-surface-variant font-medium space-y-3">
+                    <h4 className="font-bold text-primary text-xl">Vice Principal</h4>
+                    <p className="whitespace-pre-line leading-relaxed">{aboutPage.leadership.vicePrincipal?.text}</p>
+                    {aboutPage.leadership.vicePrincipal?.name && (
+                      <p className="font-serif italic text-lg text-primary font-bold tracking-wider pt-4 border-t border-gray-200 mt-4">
+                        {aboutPage.leadership.vicePrincipal.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

@@ -4,6 +4,50 @@ const supabase = require('../config/supabase');
 const { protect } = require('../middleware/auth');
 const { upload, uploadToCloudinary } = require('../middleware/upload');
 
+// @route   GET /api/appointments/slots
+// @desc    Get available time slots for a specific date (Public)
+router.get('/slots', async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ message: 'Date is required.' });
+
+    // Fetch site settings for appointment settings
+    const { data: settingsData } = await supabase.from('site_settings').select('appointment_settings').single();
+    const settings = settingsData?.appointment_settings || { isSchoolOpen: true, isPrincipalAvailable: true, schoolTiming: "08:30 AM - 03:00 PM" };
+    
+    if (!settings.isSchoolOpen || !settings.isPrincipalAvailable) {
+      return res.json([]); // No slots if school is closed or principal unavailable
+    }
+
+    // Default slots 9:00 AM to 2:00 PM
+    const allSlots = [
+      "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", 
+      "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM", "02:00 PM"
+    ];
+
+    // Fetch booked slots for the date (limit to e.g., 2 appointments per slot, or 1)
+    const { data: appointments, error } = await supabase
+      .from('appointments')
+      .select('time_slot')
+      .eq('appointment_date', date)
+      .not('status', 'eq', 'Cancelled');
+
+    if (error) throw error;
+
+    const slotCounts = appointments.reduce((acc, apt) => {
+      acc[apt.time_slot] = (acc[apt.time_slot] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Assuming max 2 appointments per slot
+    const availableSlots = allSlots.filter(slot => (slotCounts[slot] || 0) < 2);
+    res.json(availableSlots);
+  } catch (error) {
+    console.error('Error fetching slots:', error);
+    res.status(500).json({ message: 'Server error while fetching slots.' });
+  }
+});
+
 // @route   POST /api/appointments
 // @desc    Book a new appointment (Public)
 router.post('/', upload.fields([
@@ -11,25 +55,64 @@ router.post('/', upload.fields([
   { name: 'aadhaarDocument', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { category, name, phone, email, purpose, studentName, studentClass, aadhaarNumber, appointmentDate } = req.body;
+    const { 
+      category, name, phone, email, purpose, studentName, studentClass, 
+      aadhaarNumber, appointmentDate, address, po_ps, state, country, 
+      gr_number, persons_count, time_slot, overrideAdvance 
+    } = req.body;
 
-    if (!category || !name || !phone || !purpose) {
-      return res.status(400).json({ message: 'Category, name, phone, and purpose are required.' });
+    // Time block check: 10:00 PM to 5:30 AM IST
+    // Get current time in India (or server timezone)
+    const now = new Date();
+    // For safety, converting to IST (UTC+5:30) roughly
+    const istOffset = 5.5 * 60 * 60 * 1000; 
+    const istTime = new Date(now.getTime() + istOffset);
+    const hours = istTime.getUTCHours();
+    const minutes = istTime.getUTCMinutes();
+    
+    // Check if time is between 22:00 and 05:30
+    if (hours >= 22 || (hours < 5) || (hours === 5 && minutes <= 30)) {
+      return res.status(403).json({ message: 'Appointment booking is closed from 10:00 PM to 5:30 AM.' });
     }
 
-    if (category === 'Parent' && (!studentName || !studentClass)) {
-      return res.status(400).json({ message: 'Student name and class are required for parents.' });
+    // 1-Day Advance rule unless admin override
+    if (appointmentDate && overrideAdvance !== 'true') {
+      const today = new Date().toISOString().split('T')[0];
+      if (appointmentDate <= today) {
+        return res.status(400).json({ message: 'Appointments must be booked at least 1 day in advance.' });
+      }
     }
 
-    if (category === 'Visitor' && !aadhaarNumber) {
-      return res.status(400).json({ message: 'Aadhaar number is required for visitors.' });
+    if (!category || !name || !phone || !purpose || !appointmentDate || !time_slot) {
+      return res.status(400).json({ message: 'Required fields missing (Name, Phone, Purpose, Date, Time).' });
+    }
+
+    if (persons_count > 2) {
+      return res.status(400).json({ message: 'Only up to 2 persons are allowed per appointment.' });
+    }
+
+    let status = 'Pending';
+    let isAutoAccepted = false;
+
+    // Check GR number for parents to auto-accept
+    if (category === 'Parent' && gr_number) {
+      const { data: studentMatch } = await supabase
+        .from('students')
+        .select('*')
+        .eq('admission_id', gr_number)
+        .maybeSingle();
+      
+      if (studentMatch) {
+        status = 'Approved';
+        isAutoAccepted = true;
+      }
     }
 
     const crypto = require('crypto');
     const catCode = category === 'Parent' ? 'PAR' : 'VIS';
     const appointmentNumber = `HNS/APT/${catCode}/${new Date().getFullYear()}/${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
-    // Handle file uploads to Supabase
+    // Handle file uploads to Supabase (Cloudinary proxy)
     let schoolIdCardUrl = null;
     let aadhaarDocumentUrl = null;
 
@@ -53,7 +136,11 @@ router.post('/', upload.fields([
       aadhaar_number: category === 'Visitor' ? aadhaarNumber : null,
       aadhaar_document: aadhaarDocumentUrl,
       appointment_date: appointmentDate || null,
-      status: 'Pending'
+      time_slot: time_slot || null,
+      address, po_ps, state, country, gr_number,
+      persons_count: parseInt(persons_count) || 1,
+      is_auto_accepted: isAutoAccepted,
+      status
     };
 
     const { data: appointment, error } = await supabase
@@ -126,10 +213,11 @@ router.get('/track/:appointmentNumber', async (req, res) => {
 // @desc    Update appointment status (Protected)
 router.patch('/:id/status', protect, async (req, res) => {
   try {
-    const { status, adminRemark } = req.body;
+    const { status, adminRemark, adminCancelReason } = req.body;
     const update = { updated_at: new Date() };
     if (status) update.status = status;
     if (adminRemark !== undefined) update.admin_remark = adminRemark;
+    if (adminCancelReason !== undefined) update.admin_cancel_reason = adminCancelReason;
 
     const { data: apt, error } = await supabase
       .from('appointments')

@@ -1,26 +1,12 @@
 import React, { useState, useContext } from "react";
 import { SiteDataContext } from "../context/SiteDataContext";
-import { FaBookOpen, FaAtom, FaBalanceScale, FaLandmark, FaChild, FaGraduationCap, FaShieldAlt } from "react-icons/fa";
+import { FaBookOpen, FaAtom, FaBalanceScale, FaLandmark, FaChild, FaGraduationCap, FaShieldAlt, FaUniversity } from "react-icons/fa";
 
 function Courses() {
   const { schoolProfile, coursesPage } = useContext(SiteDataContext);
   const [selectedCategory, setSelectedCategory] = useState("Science");
 
-  const getIcon = (iconName, className) => {
-    switch (iconName) {
-      case "FaChild": return <FaChild className={className} />;
-      case "FaBookOpen": return <FaBookOpen className={className} />;
-      case "FaGraduationCap": return <FaGraduationCap className={className} />;
-      case "FaAtom": return <FaAtom className={className} />;
-      case "FaBalanceScale": return <FaBalanceScale className={className} />;
-      case "FaLandmark": return <FaLandmark className={className} />;
-      case "FaShieldAlt": return <FaShieldAlt className={className} />;
-      default: return <FaBookOpen className={className} />;
-    }
-  };
-
   const courses = coursesPage?.streams || {};
-  const levels = coursesPage?.levels || [];
   const rules = coursesPage?.rules || [];
 
   return (
@@ -53,47 +39,44 @@ function Courses() {
         </div>
       </section>
 
-      {/* School Levels Grid */}
-      <section className="py-20 px-4 md:px-8 max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-4">Educational Wings</h2>
-          <div className="h-1 w-20 bg-amber-500 mx-auto rounded-full"></div>
-          <p className="mt-6 text-gray-600 max-w-2xl mx-auto text-lg leading-relaxed">
-            From early childhood setting the foundation to secondary education shaping future leaders, we provide a seamless educational journey.
-          </p>
+      {/* --- Course Sections --- */}
+      <section className="py-16 px-4 md:px-8 max-w-7xl mx-auto space-y-16">
+
+        {/* 1. Higher Education */}
+        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-xl transition-all duration-500">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-blue-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-100 transition-colors duration-500"></div>
+          <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
+            <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+              <FaUniversity className="text-3xl text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Higher Education <span className="text-lg text-gray-500 font-sans block mt-1">(Graduate/Diploma/PG)</span></h2>
+              <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-line">
+                {coursesPage?.higherEducation?.text || "Details about Graduate, Diploma, and PG courses will be updated soon."}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {levels.map((level, index) => (
-            <div key={index} className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl:shadow-none:shadow-none transition-all duration-300 border border-gray-100 group relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
-              <div className="relative z-10">
-                <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-6 shadow-md">
-                  {getIcon(level.iconType, "text-3xl text-amber-500")}
-                </div>
-                <h3 className="text-2xl font-serif font-bold text-primary mb-3">{level.title}</h3>
-                <p className="text-gray-600 leading-relaxed group-hover:text-gray-800:text-gray-100:text-gray-100 transition-colors">
-                  {level.desc}
+        {/* 2. Higher Secondary */}
+        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-xl transition-all duration-500">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-amber-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-amber-100 transition-colors duration-500"></div>
+          <div className="relative z-10">
+            <div className="flex flex-col md:flex-row gap-8 items-start mb-10">
+              <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+                <FaGraduationCap className="text-3xl text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Higher Secondary <span className="text-lg text-gray-500 font-sans block mt-1">(XI & XII)</span></h2>
+                <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-line">
+                  {coursesPage?.higherSecondary?.text || "Details about XI & XII courses will be updated soon."}
                 </p>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* Higher Secondary Section (11th & 12th) */}
-      <section className="py-20 bg-[#F9F9FB]">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between mb-12">
-            <div className="md:w-1/2 mb-8 md:mb-0 pr-0 md:pr-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary mb-4">Higher Secondary</h2>
-              <h3 className="text-xl text-amber-600 font-semibold mb-6">Grades XI & XII</h3>
-              <p className="text-gray-600 text-lg leading-relaxed mb-6">
-                Our senior secondary curriculum provides specialized streams allowing students to focus on their passions and prepare meticulously for higher education and competitive examinations.
-              </p>
-              
-              {/* Custom Tab Navigation */}
-              <div className="flex flex-wrap gap-3">
+            {/* Streams Tab */}
+            <div className="mt-8 bg-gray-50 p-6 md:p-8 rounded-2xl border border-gray-100">
+              <div className="flex flex-wrap gap-3 mb-8">
                 {Object.keys(courses).map((category) => (
                   <button
                     key={category}
@@ -101,7 +84,7 @@ function Courses() {
                     className={`px-6 py-2.5 rounded-full font-medium text-sm md:text-base transition-all duration-300 shadow-sm ${
                       selectedCategory === category
                         ? "bg-primary text-white shadow-md transform scale-105"
-                        : "bg-white text-gray-600 hover:bg-white:bg-[#1E293B]:bg-[#1E293B] hover:text-primary hover:shadow-md border border-gray-200"
+                        : "bg-white text-gray-600 hover:text-primary hover:shadow-md border border-gray-200"
                     }`}
                   >
                     {category === "Science" && <FaAtom className="inline-block mr-2 -mt-1" />}
@@ -111,18 +94,15 @@ function Courses() {
                   </button>
                 ))}
               </div>
-            </div>
 
-            {/* Subject List Display */}
-            <div className="md:w-1/2 w-full">
-              <div className="bg-white rounded-2xl shadow-lg p-8 md:p-10 border-t-4 border-primary">
+              <div className="bg-white rounded-xl shadow-sm p-6 md:p-8 border-l-4 border-primary">
                 <h3 className="text-2xl font-serif font-bold text-primary mb-6 flex items-center">
                   <span className="bg-amber-100 text-amber-700 p-2 rounded-lg mr-3">
                     {selectedCategory === "Science" && <FaAtom />}
                     {selectedCategory === "Commerce" && <FaBalanceScale />}
                     {selectedCategory === "Arts" && <FaLandmark />}
                   </span>
-                  {selectedCategory} Stream
+                  {selectedCategory} Subjects
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {(courses[selectedCategory] || []).map((subject, index) => (
@@ -136,6 +116,55 @@ function Courses() {
             </div>
           </div>
         </div>
+
+        {/* 3. Upper Primary */}
+        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-xl transition-all duration-500">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-green-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-green-100 transition-colors duration-500"></div>
+          <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
+            <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+              <FaBookOpen className="text-3xl text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Upper Primary <span className="text-lg text-gray-500 font-sans block mt-1">(IX & X)</span></h2>
+              <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-line">
+                {coursesPage?.upperPrimary?.text || "Details about IX & X courses will be updated soon."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Lower Primary */}
+        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-xl transition-all duration-500">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-purple-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-purple-100 transition-colors duration-500"></div>
+          <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
+            <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+              <FaBookOpen className="text-3xl text-purple-600" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Lower Primary <span className="text-lg text-gray-500 font-sans block mt-1">(I to VIII)</span></h2>
+              <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-line">
+                {coursesPage?.lowerPrimary?.text || "Details about I to VIII courses will be updated soon."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Play School & Nursery */}
+        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-xl transition-all duration-500">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-pink-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-pink-100 transition-colors duration-500"></div>
+          <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
+            <div className="w-16 h-16 bg-pink-100 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+              <FaChild className="text-3xl text-pink-500" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-gray-900 mb-4">Play School & Nursery</h2>
+              <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-line">
+                {coursesPage?.prePrimary?.text || "Details about Play School & Nursery courses will be updated soon."}
+              </p>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       {/* Rules and Regulations */}
@@ -174,4 +203,3 @@ function Courses() {
 }
 
 export default Courses;
-

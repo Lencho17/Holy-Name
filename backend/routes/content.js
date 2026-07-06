@@ -63,7 +63,8 @@ const getAggregatedContent = async () => {
       online_admission_instructions: settings?.online_admission_instructions || [],
       offline_admission_instructions: settings?.offline_admission_instructions || [],
       establishedYear: settings?.established_year,
-      isMaintenanceMode: settings?.is_maintenance_mode || false
+      isMaintenanceMode: settings?.is_maintenance_mode || false,
+      facultyVisibility: settings?.faculty_visibility || { graduate: true, higher_secondary: true, upper_primary: true, primary: true, play_school: true, administration: true, support_staff: true }
     },
     socialLinks: settings?.social_links || {},
     notificationEmail: settings?.notification_email,
@@ -79,6 +80,7 @@ const getAggregatedContent = async () => {
     amenities: settings?.amenities || [],
     aboutPage: settings?.about_page || {},
     admissionPage: settings?.admission_page || {},
+    careerPage: settings?.career_page || { eligibility: [], qualification: [], documents: [], offline_process: [], online_process: [] },
     notices: notices || [],
     gallery: gallery || [],
     events: events || [],
@@ -97,7 +99,10 @@ const getAggregatedContent = async () => {
         instagram: member.instagram_url,
         whatsapp: member.whatsapp_number,
         orderIndex: member.order_index,
-        title: member.title
+        title: member.title,
+        section: member.section || 'Others',
+        teachingExperience: member.teaching_experience,
+        jobTitle: member.job_title
       });
       return acc;
     }, { Science: [], Arts: [], Commerce: [], "High School": [], Nursery: [], Administration: [], "Support Staff": [], Others: [] }),
@@ -195,7 +200,9 @@ router.put('/', protect, async (req, res) => {
       is_maintenance_mode: updateData.isMaintenanceMode,
       amenities: updateData.amenities,
       about_page: updateData.aboutPage,
-      admission_page: updateData.admissionPage
+      admission_page: updateData.admissionPage,
+      career_page: updateData.careerPage,
+      faculty_visibility: updateData.schoolProfile?.facultyVisibility
     };
 
     // Filter out undefined
@@ -275,7 +282,10 @@ router.put('/', protect, async (req, res) => {
               instagram_url: item.instagram || item.instagram_url,
               whatsapp_number: item.whatsapp || item.whatsapp_number,
               order_index: item.orderIndex || item.order_index || 0,
-              title: item.title
+              title: item.title,
+              section: item.section || 'Others',
+              teaching_experience: item.teachingExperience || item.teaching_experience,
+              job_title: item.jobTitle || item.job_title
             }))
           );
         } else if (Array.isArray(updateData[mod.key])) {
@@ -336,7 +346,10 @@ router.put('/', protect, async (req, res) => {
                 instagram_url: item.instagram || item.instagram_url,
                 whatsapp_number: item.whatsapp || item.whatsapp_number,
                 order_index: item.orderIndex || item.order_index || 0,
-                title: item.title
+                title: item.title,
+                section: item.section || 'Others',
+                teaching_experience: item.teachingExperience || item.teaching_experience,
+                job_title: item.jobTitle || item.job_title
               };
             }
             if (mod.table === 'alumni') {

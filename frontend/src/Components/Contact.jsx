@@ -96,6 +96,40 @@ function Contact() {
 
         </div>
 
+        {/* Virtual Tour Section */}
+        <div className="mt-16 bg-[#181445] rounded-3xl shadow-2xl p-8 md:p-12 relative overflow-hidden text-center group">
+          <div className="absolute inset-0 z-0">
+            <img
+              src={schoolProfile?.pageHeroImages?.contact || "https://images.unsplash.com/photo-1541888946425-d81bb19480c5?q=80&w=2070&auto=format&fit=crop"}
+              alt="Virtual Tour Background"
+              className="w-full h-full object-cover opacity-30 mix-blend-overlay group-hover:scale-105 transition-transform duration-1000"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#181445] via-[#181445]/80 to-transparent"></div>
+          </div>
+          
+          <div className="relative z-10 max-w-3xl mx-auto flex flex-col items-center">
+            <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-6 backdrop-blur-md border border-white/20 shadow-[0_0_40px_rgba(255,255,255,0.1)] group-hover:bg-white/20 transition-all cursor-pointer">
+              <span className="material-symbols-outlined text-4xl text-white ml-2">
+                play_arrow
+              </span>
+            </div>
+            
+            <h2 className="text-3xl md:text-5xl font-black text-white font-serif mb-4">
+              Explore Our <span className="text-amber-400 italic">Campus</span>
+            </h2>
+            <p className="text-white/80 text-lg md:text-xl font-medium mb-8">
+              Take an interactive 360° virtual tour of Holy Name School. Experience our world-class facilities and vibrant learning environment from the comfort of your home.
+            </p>
+            
+            <button className="bg-amber-500 text-[#181445] font-black text-xs md:text-sm uppercase tracking-widest py-4 px-10 rounded-full hover:bg-amber-400 transition-all shadow-xl hover:shadow-amber-500/20 active:scale-95 flex items-center gap-3">
+              <span className="material-symbols-outlined text-lg">
+                360
+              </span>
+              Start Virtual Tour
+            </button>
+          </div>
+        </div>
+
         {/* Map Section */}
         <div className="mt-16 bg-white rounded-3xl shadow-xl border border-gray-100 p-4 h-[400px] overflow-hidden relative group">
           {schoolProfile?.mapLink ? (

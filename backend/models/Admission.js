@@ -39,6 +39,8 @@ const admissionSchema = new mongoose.Schema({
   casteCertificate: String, // file path (compulsory if not General)
   paymentReceipt: String, // file path for fee payment proof
   upiTransactionId: String, // 12-digit UTR/Transaction ID for manual verification
+  purchasedItems: [{ name: String, price: Number }],
+  paymentTotal: { type: Number, default: 0 },
   nccInterest: { type: Boolean, default: false },
   sportsActive: { type: Boolean, default: false },
   sportsType: String,

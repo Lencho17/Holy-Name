@@ -129,15 +129,15 @@ exports.getStudentById = async (req, res) => {
 exports.updateStudent = async (req, res) => {
   try {
     const updateData = {
-      student_name: req.body.studentName,
-      admission_id: req.body.admissionId,
-      grade: req.body.grade,
-      guardian_name: req.body.guardianName,
-      contact_number: req.body.contactNumber,
+      name: req.body.name || req.body.studentName,
+      roll_number: req.body.rollNumber || req.body.admissionId,
+      class_level: req.body.classLevel || req.body.grade,
+      section: req.body.section,
+      parents_name: req.body.parentsName || req.body.guardianName,
+      phone: req.body.phone || req.body.contactNumber,
       email: req.body.email,
-      aadhar_number: req.body.aadharNumber,
-      pen_number: req.body.penNumber,
       address: req.body.address,
+      status: req.body.status,
       updated_at: new Date()
     };
 
@@ -179,15 +179,15 @@ exports.deleteStudent = async (req, res) => {
 exports.createStudent = async (req, res) => {
   try {
     const studentData = {
-      student_name: req.body.studentName,
-      admission_id: req.body.admissionId,
-      grade: req.body.grade,
-      guardian_name: req.body.guardianName,
-      contact_number: req.body.contactNumber,
+      name: req.body.name || req.body.studentName,
+      roll_number: req.body.rollNumber || req.body.admissionId,
+      class_level: req.body.classLevel || req.body.grade,
+      section: req.body.section,
+      parents_name: req.body.parentsName || req.body.guardianName,
+      phone: req.body.phone || req.body.contactNumber,
       email: req.body.email,
-      aadhar_number: req.body.aadharNumber,
-      pen_number: req.body.penNumber,
-      address: req.body.address
+      address: req.body.address,
+      status: req.body.status || 'Active'
     };
 
     const { data: student, error } = await supabase

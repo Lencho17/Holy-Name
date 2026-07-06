@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { FaGavel, FaBuilding, FaBriefcase, FaEnvelopeOpenText, FaSpinner, FaArrowRight, FaFilePdf, FaHistory, FaCheckCircle, FaExclamationCircle, FaShareAlt, FaSearch } from "react-icons/fa";
+import { FaGavel, FaBuilding, FaBriefcase, FaEnvelopeOpenText, FaSpinner, FaArrowRight, FaFilePdf, FaHistory, FaCheckCircle, FaExclamationCircle, FaShareAlt, FaSearch, FaInfoCircle } from "react-icons/fa";
 import { Link, NavLink } from "react-router-dom";
 import { SiteDataContext } from "../context/SiteDataContext";
 
@@ -136,6 +136,18 @@ function Tenders() {
       </section>
 
       <div className="max-w-7xl mx-auto px-6 -mt-20 relative z-20">
+        
+        {/* VidyaBarta Disclaimer */}
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-6 flex items-start gap-3 shadow-sm">
+          <FaInfoCircle className="text-indigo-500 text-xl mt-0.5 flex-shrink-0" />
+          <div>
+            <h4 className="text-xs font-black text-indigo-800 uppercase tracking-widest">VidyaBarta Portal Integration</h4>
+            <p className="text-sm text-indigo-700 leading-relaxed mt-1 font-medium">
+              Note: All details regarding Admissions, Appointments, Job Applications, and Tenders are securely processed through the official VidyaBarta website portal.
+            </p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           
           {/* Main Listings - Tenders */}

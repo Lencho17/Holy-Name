@@ -92,7 +92,8 @@ const defaultSchoolProfile = {
   mapLink: "",
   heroImages: [],
   pageHeroImages: {},
-  affiliation: []
+  affiliation: [],
+  facultyVisibility: { graduate: true, higher_secondary: true, upper_primary: true, primary: true, play_school: true, administration: true, support_staff: true }
 };
 
 const defaultAmenities = [
@@ -171,6 +172,39 @@ const defaultAdmissionPage = {
   ]
 };
 
+const defaultCareerPage = {
+  eligibility: [
+    "Prior teaching or school experience is highly preferred.",
+    "A clean background and good moral conduct.",
+    "Fluency in English and the relevant instruction languages."
+  ],
+  qualification: [
+    "Bachelor's or Master's degree in the relevant subject area.",
+    "Professional training certification (B.Ed or D.El.Ed) is preferred."
+  ],
+  documents: [
+    "Bio-data / Resume",
+    "Passport size Photograph",
+    "Signature Image",
+    "Matriculation (10th) Marksheet & Pass Certificate",
+    "Aadhaar Card Document",
+    "Employment Exchange Registration Certificate",
+    "Highest Qualification Marksheet & Pass Certificate"
+  ],
+  offline_process: [
+    "Fill in your name, email, phone number, address, role, and qualification.",
+    "Complete the registration fee payment online (INR 250).",
+    "Download and print the generated Job Application form containing your Serial Number.",
+    "Submit the physical form along with self-attested documents to the school office."
+  ],
+  online_process: [
+    "Choose your desired Job Opening from the vacant postings list.",
+    "Fill out the online application form and upload all requested documents.",
+    "Pay the registration fee of INR 250 via the UPI QR code (free of cost for subsequent submissions using the same email within the year).",
+    "Submit the form and download the PDF Acknowledgement Receipt with your unique Reference ID."
+  ]
+};
+
 export const SiteDataProvider = ({ children }) => {
   const [videos, setVideos] = useState([]);
   const [highlights, setHighlights] = useState(defaultHighlights);
@@ -180,6 +214,7 @@ export const SiteDataProvider = ({ children }) => {
   const [faculty, setFaculty] = useState(defaultFaculty);
   const [notices, setNotices] = useState(defaultNotices);
   const [admissionPage, setAdmissionPage] = useState(defaultAdmissionPage);
+  const [careerPage, setCareerPage] = useState(defaultCareerPage);
   const [notificationEmail, setNotificationEmail] = useState('office@lenchosolutions.com');
   const [banner, setBanner] = useState({ isActive: false, image: null, link: null });
   const [socialLinks, setSocialLinks] = useState(defaultSocialLinks);
@@ -263,6 +298,7 @@ export const SiteDataProvider = ({ children }) => {
         if (Array.isArray(legacyData.amenities) && legacyData.amenities.length > 0) setAmenities(legacyData.amenities);
         if (legacyData.aboutPage && Object.keys(legacyData.aboutPage).length > 0) setAboutPage(legacyData.aboutPage);
         if (legacyData.appointmentSettings && typeof legacyData.appointmentSettings === 'object') setAppointmentSettings(legacyData.appointmentSettings);
+        if (legacyData.careerPage && typeof legacyData.careerPage === 'object') setCareerPage(legacyData.careerPage);
         retryCount = 0; // Reset on success
         setLoading(false);
       } catch (error) {
@@ -354,10 +390,12 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.aboutPage) setAboutPage(updatedData.aboutPage);
 
       // console.log("Auto-save successful");
+      return true;
     } catch (err) {
       console.error("Failed to auto-save to backend:", err);
       const errorDetail = err.response?.data?.error || err.response?.data?.message || err.message;
       alert("Failed to auto-save to backend: " + errorDetail);
+      return false;
     }
   };
 
@@ -389,9 +427,10 @@ export const SiteDataProvider = ({ children }) => {
     if (updates.amenities !== undefined) setAmenities(updates.amenities);
     if (updates.aboutPage !== undefined) setAboutPage(updates.aboutPage);
     if (updates.admissionPage !== undefined) setAdmissionPage(updates.admissionPage);
+    if (updates.careerPage !== undefined) setCareerPage(updates.careerPage);
 
     // 2. Persist to backend in ONE request
-    saveToBackend(updates);
+    return saveToBackend(updates);
   };
 
   // --- Image Handling Helpers ---
@@ -500,6 +539,7 @@ export const SiteDataProvider = ({ children }) => {
       aboutPage, setAboutPage: wrapSetAboutPage,
       admissionPage, setAdmissionPage: wrapSetAdmissionPage,
       appointmentSettings, setAppointmentSettings: wrapSetAppointmentSettings,
+      careerPage, setCareerPage: (val) => { setCareerPage(val); saveToBackend({ careerPage: val }); },
       updateSiteContent,
       uploadImage,
       uploadEventPhotos,

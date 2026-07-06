@@ -696,6 +696,41 @@ router.delete('/bulk', protect, async (req, res) => {
   }
 });
 
+router.post('/checkout/:refNum', async (req, res) => {
+  try {
+    const { refNum } = req.params;
+    const { purchasedItems, paymentTotal } = req.body;
+
+    if (!purchasedItems || typeof paymentTotal === 'undefined') {
+      return res.status(400).json({ message: 'purchasedItems and paymentTotal are required.' });
+    }
+
+    // Since we don't have direct DB schema access to add purchased_items column right now,
+    // we'll serialize the items into a JSON string and store it in status_remark or another suitable text field,
+    // OR we use upi_transaction_id to simulate payment success flag. 
+    // Ideally we update status_remark with the stringified JSON.
+    const checkoutData = JSON.stringify({ purchasedItems, paymentTotal });
+
+    const { data, error } = await supabase
+      .from('admissions')
+      .update({
+        status_remark: checkoutData,
+        upi_transaction_id: 'PAID-' + Date.now() // Mark as paid with a pseudo-ID
+      })
+      .eq('reference_number', refNum)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ message: 'Admission not found' });
+
+    res.json({ message: 'Checkout successful', admission: data });
+  } catch (error) {
+    console.error('Checkout error:', error);
+    res.status(500).json({ message: 'Server error during checkout' });
+  }
+});
+
 // DELETE /api/admissions/:id — protected, delete application
 router.delete('/:id', protect, async (req, res) => {
   try {

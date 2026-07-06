@@ -6,6 +6,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 function Gallery() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedImage, setSelectedImage] = useState(null);
+  const [activeTab, setActiveTab] = useState("photos"); // "photos" or "videos"
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -60,7 +61,7 @@ function Gallery() {
 
   const categories = ["All", "Campus Life", "Academic Events", "Sports", "Cultural Programs"];
 
-  const { gallery: galleryItems, events, schoolProfile } = useContext(SiteDataContext);
+  const { gallery: galleryItems, events, schoolProfile, videos } = useContext(SiteDataContext);
 
   // Check if we're filtering by a specific event
   const eventId = searchParams.get("event") || null;
@@ -82,6 +83,36 @@ function Gallery() {
     }
   }, [galleryItems]);
 
+  useEffect(() => {
+    if (eventId) {
+      setActiveTab("photos");
+    }
+  }, [eventId]);
+
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return '';
+    try {
+      let videoId = '';
+      if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1].split('?')[0];
+      } else if (url.includes('youtube.com/watch')) {
+        const urlParams = new URLSearchParams(new URL(url).search);
+        videoId = urlParams.get('v');
+      } else if (url.includes('youtube.com/embed/')) {
+        videoId = url.split('youtube.com/embed/')[1].split('?')[0];
+      } else {
+        return url;
+      }
+      return `https://www.youtube.com/embed/${videoId}?rel=0`;
+    } catch {
+      return url;
+    }
+  };
+
+  const isYouTube = (url) => {
+    if (!url) return false;
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  };
 
   // Build the display items — if filtered by event, show only that event's gallery images
   let displayItems = galleryItems;
@@ -110,7 +141,7 @@ function Gallery() {
       }
     });
 
-    displayItems = combined;
+    displayItems = combined.slice(0, 10);
   } else {
     // Filter out any gallery items that belong to an event which no longer exists
     const validGalleryItems = galleryItems.filter(item => 
@@ -157,7 +188,7 @@ function Gallery() {
       };
     });
 
-    displayItems = [...eventAlbums, ...titleAlbums];
+    displayItems = [...eventAlbums, ...titleAlbums].slice(0, 20);
   }
 
   // Compute total views for album tiles
@@ -169,9 +200,9 @@ function Gallery() {
   // Ensure current image's collection is used for lightbox navigation
   const lightboxItems = useMemo(() => {
     if (!selectedImage) return [];
-    if (eventId) return displayItems; // Stay in the event
-    // Show all photos with same title+category (album browsing)
-    return galleryItems.filter(i => i.title === selectedImage.title && i.category === selectedImage.category);
+    if (eventId) return displayItems; // Stay in the event (already limited to 10)
+    // Show all photos with same title+category (album browsing), limited to 10
+    return galleryItems.filter(i => i.title === selectedImage.title && i.category === selectedImage.category).slice(0, 10);
   }, [selectedImage, galleryItems, eventId, displayItems]);
 
   const handleNext = (e) => {
@@ -203,8 +234,6 @@ function Gallery() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedImage, displayItems]);
 
-
-
   return (
     <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
       {/* Hero Section */}
@@ -217,7 +246,7 @@ function Gallery() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-blue-700/60 via-blue-700/30 to-transparent"></div>
         </div>
-        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 w-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 w-full text-left">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50/30 text-white border border-white/20 backdrop-blur-sm shadow-sm mb-4">
             <span className="material-symbols-outlined text-sm text-white drop-shadow-sm">
               imagesmode
@@ -227,7 +256,7 @@ function Gallery() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            {currentEvent ? currentEvent.title : "Photo"} <span className="text-amber-400 italic drop-shadow-md">{currentEvent ? "" : "Gallery"}</span>
+            {currentEvent ? currentEvent.title : "School"} <span className="text-amber-400 italic drop-shadow-md">{currentEvent ? "" : "Gallery"}</span>
           </h1>
           <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
             {currentEvent
@@ -243,92 +272,172 @@ function Gallery() {
         {eventId && (
           <button
             onClick={() => navigate("/gallery")}
-            className="mb-6 px-6 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl transition-all duration-300 flex items-center gap-2 border border-primary/20"
+            className="mb-6 px-6 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl transition-all duration-300 flex items-center gap-2 border border-indigo-100 self-start"
           >
             <FaArrowLeft /> Back to All Photos
           </button>
         )}
-        
-        {/* Filter Navigation — hidden when viewing event-specific gallery */}
+
+        {/* Tab Selector - hidden when viewing event-specific gallery */}
         {!eventId && (
-          <div className="bg-white rounded-2xl shadow-lg p-2 mb-12 flex flex-wrap justify-center border border-gray-100">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`px-6 py-3 m-1 rounded-xl text-sm font-bold transition-all duration-300 ${
-                  activeCategory === category
-                    ? "bg-primary text-white shadow-md transform scale-105"
-                    : "bg-transparent text-gray-500 hover:bg-gray-50:bg-[#0F172A]:bg-[#0F172A] hover:text-primary"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
+          <div className="flex justify-center gap-4 mb-10">
+            <button
+              onClick={() => setActiveTab("photos")}
+              className={`px-8 py-3 rounded-xl font-bold text-sm shadow-sm transition-all duration-300 border ${
+                activeTab === "photos"
+                  ? "bg-primary text-white border-primary scale-105"
+                  : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50"
+              }`}
+            >
+              Photo Gallery
+            </button>
+            <button
+              onClick={() => setActiveTab("videos")}
+              className={`px-8 py-3 rounded-xl font-bold text-sm shadow-sm transition-all duration-300 border ${
+                activeTab === "videos"
+                  ? "bg-primary text-white border-primary scale-105"
+                  : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50"
+              }`}
+            >
+              Video Gallery
+            </button>
           </div>
         )}
-
-        {/* Mobile Horizontal Scroll / Desktop Grid */}
-        <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-6 p-2 lg:p-4 rounded-xl snap-x snap-mandatory pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {displayItems.map((item) => (
-            <div 
-              key={item._id} 
-              className="relative flex items-center justify-center shrink-0 snap-start w-[40vw] sm:w-auto h-auto transition-transform"
-              onClick={() => {
-                if (item._isAlbum && item._albumEventId) {
-                  trackView(item._albumPhotos ? item._albumPhotos.map(p => p._id) : [item._id]);
-                  navigate(`/gallery?event=${item._albumEventId}`);
-                } else if (item._isAlbum && item._albumPhotos) {
-                  trackView(item._albumPhotos.map(p => p._id));
-                  setSelectedImage(item._albumPhotos[0]);
-                } else {
-                  trackView([item._id]);
-                  setSelectedImage(item);
-                }
-              }}
-            >
-              {/* Card Container */ }
-              <div className="relative overflow-hidden group cursor-pointer w-full aspect-[2/3] bg-white rounded-xl border border-gray-200 shadow-lg transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0 hover:border-primary/40 hover:shadow-xl">
-                <img 
-                  src={item.src || null} 
-                  alt={item.title} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500"></div>
-                
-                {/* Album photo count badge */}
-                {item._isAlbum && item._photoCount > 1 && (
-                  <div className="absolute top-3 right-3 z-30 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
-                    <FaImages className="text-[10px]" />
-                    {item._photoCount}
-                  </div>
-                )}
-
-                <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end p-2 md:p-6 text-center z-20 transition-transform duration-500 translate-y-1 group-hover:translate-y-0">
-                  <h3 className="text-white text-xs md:text-xl font-sans font-bold mb-1 shadow-black drop-shadow-2xl tracking-wide leading-tight px-1 line-clamp-2">
-                    {item.title}
-                  </h3>
-                  <p className="text-amber-300 text-[9px] md:text-sm font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
-                    {item.category}
-                  </p>
-                  {getViews(item) > 0 && (
-                    <span className="flex items-center gap-1 text-white/70 text-[9px] md:text-xs mt-0.5">
-                      <FaEye className="text-[8px] md:text-[10px]" /> {getViews(item)}
-                    </span>
-                  )}
-                </div>
+        
+        {/* Photo Gallery Tab Content */}
+        {activeTab === "photos" && (
+          <>
+            {/* Filter Navigation — hidden when viewing event-specific gallery */}
+            {!eventId && (
+              <div className="bg-white rounded-2xl shadow-lg p-2 mb-12 flex flex-wrap justify-center border border-gray-100">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={`px-6 py-3 m-1 rounded-xl text-sm font-bold transition-all duration-300 ${
+                      activeCategory === category
+                        ? "bg-primary text-white shadow-md transform scale-105"
+                        : "bg-transparent text-gray-500 hover:bg-gray-50 hover:text-primary"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
+            )}
 
-        {displayItems.length === 0 && (
-          <div className="text-center py-20 bg-white rounded-3xl shadow-lg border border-gray-100">
-            <FaImages className="text-6xl text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-500">
-              {eventId ? "No photos found for this event yet." : "No images found in this category."}
-            </h3>
-            <p className="text-gray-400 mt-2 text-sm">Please check back later for new photos.</p>
+            {/* Mobile Horizontal Scroll / Desktop Grid */}
+            <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 p-2 lg:p-4 rounded-xl snap-x snap-mandatory pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {displayItems.map((item) => (
+                <div 
+                  key={item._id} 
+                  className="relative flex items-center justify-center shrink-0 snap-start w-[60vw] sm:w-auto h-auto transition-transform"
+                  onClick={() => {
+                    if (item._isAlbum && item._albumEventId) {
+                      trackView(item._albumPhotos ? item._albumPhotos.map(p => p._id) : [item._id]);
+                      navigate(`/gallery?event=${item._albumEventId}`);
+                    } else if (item._isAlbum && item._albumPhotos) {
+                      trackView(item._albumPhotos.map(p => p._id));
+                      setSelectedImage(item._albumPhotos[0]);
+                    } else {
+                      trackView([item._id]);
+                      setSelectedImage(item);
+                    }
+                  }}
+                >
+                  {/* Card Container */ }
+                  <div className="relative overflow-hidden group cursor-pointer w-full aspect-[3/4] bg-white rounded-xl border border-gray-200 shadow-md transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0 hover:border-primary/40 hover:shadow-xl">
+                    <img 
+                      src={item.src || null} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    
+                    {/* Album photo count badge */}
+                    {item._isAlbum && item._photoCount > 1 && (
+                      <div className="absolute top-3 right-3 z-30 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
+                        <FaImages className="text-[10px]" />
+                        {item._photoCount}
+                      </div>
+                    )}
+
+                    <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end p-4 text-center z-20 transition-transform duration-500 translate-y-1 group-hover:translate-y-0">
+                      <h3 className="text-white text-sm md:text-base font-sans font-bold mb-1 shadow-black drop-shadow-2xl tracking-wide leading-tight px-1 line-clamp-2">
+                        {item.title}
+                      </h3>
+                      <p className="text-amber-300 text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
+                        {item.category}
+                      </p>
+                      {getViews(item) > 0 && (
+                        <span className="flex items-center gap-1 text-white/70 text-[10px] md:text-xs mt-0.5">
+                          <FaEye className="text-[10px]" /> {getViews(item)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {displayItems.length === 0 && (
+              <div className="text-center py-20 bg-white rounded-3xl shadow-lg border border-gray-100">
+                <FaImages className="text-6xl text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-500">
+                  {eventId ? "No photos found for this event yet." : "No images found in this category."}
+                </h3>
+                <p className="text-gray-400 mt-2 text-sm">Please check back later for new photos.</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Video Gallery Tab Content */}
+        {activeTab === "videos" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {videos.slice(0, 4).map((video, idx) => {
+              const embedUrl = getYouTubeEmbedUrl(video.src);
+              return (
+                <div key={video._id || idx} className="bg-white rounded-3xl border border-gray-100 shadow-md p-5 flex flex-col overflow-hidden hover:shadow-2xl transition-all duration-300">
+                  <div className="aspect-video bg-slate-100 flex items-center justify-center rounded-2xl overflow-hidden mb-5">
+                    {isYouTube(video.src) ? (
+                      <iframe 
+                        src={embedUrl || null}
+                        width="100%" 
+                        height="100%" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allowFullScreen 
+                        title={video.title}
+                        className="w-full h-full"
+                      ></iframe>
+                    ) : (
+                      <video 
+                        src={video.src || null}
+                        width="100%" 
+                        height="100%" 
+                        controls
+                        title={video.title}
+                        className="bg-black object-cover w-full h-full"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                  </div>
+                  <h3 className="font-serif text-xl font-bold text-gray-800 mb-2 px-1 text-left">{video.title}</h3>
+                  <p className="text-gray-600 text-sm leading-relaxed px-1 text-left whitespace-pre-line mt-2">
+                    {video.description || "Video highlight from Holy Name School."}
+                  </p>
+                </div>
+              );
+            })}
+            {videos.length === 0 && (
+              <div className="col-span-full text-center py-20 bg-white rounded-3xl shadow-lg border border-gray-100">
+                <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">video_library</span>
+                <h3 className="text-xl font-bold text-gray-500">No videos found.</h3>
+                <p className="text-gray-400 mt-2 text-sm">Please check back later for new video events.</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -373,7 +482,7 @@ function Gallery() {
             {/* Sub-panel */}
             <div className="mt-6 w-full max-w-4xl bg-white/5 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="flex-1">
+                <div className="flex-1 text-left">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded uppercase tracking-wider border border-amber-500/20">{selectedImage.category}</span>
                     <h3 className="text-xl md:text-3xl font-serif font-bold text-white tracking-tight">{selectedImage.title}</h3>

@@ -83,7 +83,19 @@ function Admission() {
       )}
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-12 grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-12">
+        {/* VidyaBarta Disclaimer */}
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-6 flex items-start gap-3 shadow-sm">
+          <FaInfoCircle className="text-indigo-500 text-xl mt-0.5 flex-shrink-0" />
+          <div>
+            <h4 className="text-xs font-black text-indigo-800 uppercase tracking-widest">VidyaBarta Portal Integration</h4>
+            <p className="text-sm text-indigo-700 leading-relaxed mt-1 font-medium">
+              Note: All details regarding Admissions, Appointments, Job Applications, and Tenders are securely processed through the official VidyaBarta website portal.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         
         {/* Left Column: Rules & Vacant Seats */}
         <div className="lg:col-span-2 space-y-10">
@@ -218,6 +230,7 @@ function Admission() {
           </div>
         </div>
 
+      </div>
       </div>
     </div>
   );

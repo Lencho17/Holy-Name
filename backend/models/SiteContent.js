@@ -228,6 +228,17 @@ const siteContentSchema = new mongoose.Schema({
       validationRegex: String,
       errorMessage: String,
     }
+  ],
+  admissionKits: [
+    {
+      className: String, // e.g., "CLASS 10", "CLASS 11"
+      compulsoryItems: [
+        { name: String, price: Number }
+      ],
+      optionalItems: [
+        { name: String, price: Number }
+      ]
+    }
   ]
 }, { timestamps: true });
 

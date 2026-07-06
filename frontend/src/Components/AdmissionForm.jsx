@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -9,6 +9,7 @@ import { SiteDataContext } from "../context/SiteDataContext";
 
 function AdmissionForm() {
   const { schoolProfile, admissionFields, API_URL: ctxApiUrl } = useContext(SiteDataContext);
+  const navigate = useNavigate();
   const apiBase = ctxApiUrl || import.meta.env.VITE_API_URL || '/api';
   const steps = [
     { title: "Registration", desc: "Start by registering your ward's details online or at the school office." },
@@ -524,9 +525,9 @@ function AdmissionForm() {
       fullData.referenceNumber = res.data.referenceNumber;
       fullData.selectedSubjects = [...selectedSubjects];
       fullData.dateOfApplication = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-      setSubmittedData(fullData);
-      setUploadProgress('');
-      window.scrollTo({ top: document.getElementById('apply').offsetTop - 100, behavior: 'smooth' });
+      
+      // Redirect to checkout page directly
+      navigate(`/admission/checkout/${res.data.referenceNumber || res.data.reference_number}`);
     } catch (err) {
       const data = err.response?.data;
       const msg = data?.message || 'Submission failed. Please try again.';

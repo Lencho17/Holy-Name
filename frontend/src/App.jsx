@@ -21,6 +21,7 @@ const Courses = React.lazy(() => import("./Components/Courses"));
 const Complaints = React.lazy(() => import("./Components/Complaints"));
 const Admission = React.lazy(() => import("./Components/Admission"));
 const AdmissionForm = React.lazy(() => import("./Components/AdmissionForm"));
+const AdmissionCheckout = React.lazy(() => import("./Components/AdmissionCheckout"));
 const Faculty = React.lazy(() => import("./Components/Faculty"));
 const Emeritus = React.lazy(() => import("./Components/Emeritus"));
 const Notice = React.lazy(() => import("./Components/Notice"));
@@ -34,7 +35,9 @@ const Appointment = React.lazy(() => import("./Components/Appointment"));
 
 const AdminLogin = React.lazy(() => import("./Components/AdminLogin"));
 const AdminSignUp = React.lazy(() => import("./Components/AdminSignUp"));
+const StaffSignUp = React.lazy(() => import("./Components/StaffSignUp"));
 const AdminPage = React.lazy(() => import("./Components/AdminPage"));
+const StaffPage = React.lazy(() => import("./Components/StaffPage"));
 
 const SuspenseFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -115,6 +118,7 @@ function App() {
         <Route path="complaints" element={<Suspense fallback={<SuspenseFallback />}><Complaints /></Suspense>} />
         <Route path="admission" element={<Suspense fallback={<SuspenseFallback />}><Admission /></Suspense>} />
         <Route path="admission/apply" element={<Suspense fallback={<SuspenseFallback />}><AdmissionForm /></Suspense>} />
+        <Route path="admission/checkout/:refNum" element={<Suspense fallback={<SuspenseFallback />}><AdmissionCheckout /></Suspense>} />
         <Route path="faculty" element={<Suspense fallback={<SuspenseFallback />}><Faculty /></Suspense>} />
         <Route path="excellence" element={<Suspense fallback={<SuspenseFallback />}><CenterOfExcellence /></Suspense>} />
         <Route path="emeritus" element={<Suspense fallback={<SuspenseFallback />}><Emeritus /></Suspense>} />
@@ -130,8 +134,10 @@ function App() {
 
       {/* Admin routes without Header/Footer layout */}
       <Route path="adminLogin" element={<Suspense fallback={<SuspenseFallback />}><AdminLogin /></Suspense>} />
-      <Route path="signup" element={<Suspense fallback={<SuspenseFallback />}><AdminSignUp /></Suspense>} />
+      <Route path="admin-signup" element={<Suspense fallback={<SuspenseFallback />}><AdminSignUp /></Suspense>} />
+      <Route path="staff-signup" element={<Suspense fallback={<SuspenseFallback />}><StaffSignUp /></Suspense>} />
       <Route path="admin" element={<Suspense fallback={<SuspenseFallback />}><AdminPage /></Suspense>} />
+      <Route path="staff" element={<Suspense fallback={<SuspenseFallback />}><StaffPage /></Suspense>} />
     </Route>
     ),
   );

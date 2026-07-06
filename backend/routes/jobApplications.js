@@ -60,7 +60,10 @@ router.post('/', (req, res, next) => {
     { name: 'resume', maxCount: 1 },
     { name: 'photo', maxCount: 1 },
     { name: 'signature', maxCount: 1 },
-    { name: 'casteCertificate', maxCount: 1 }
+    { name: 'casteCertificate', maxCount: 1 },
+    { name: 'aadharDoc', maxCount: 1 },
+    { name: 'employmentExchangeCert', maxCount: 1 },
+    { name: 'otherDoc', maxCount: 1 }
   ]);
 
   uploadFields(req, res, (err) => {
@@ -84,7 +87,8 @@ router.post('/', (req, res, next) => {
       const urlFields = [
         'marksheet10', 'cert10', 'marksheet12', 'cert12', 'marksheetUG', 'certUG',
         'marksheetPG', 'certPG', 'marksheetBEd', 'certBEd', 'marksheetDLed', 'certDLed',
-        'expCertificate', 'resume', 'photo', 'signature', 'casteCertificate'
+        'expCertificate', 'resume', 'photo', 'signature', 'casteCertificate',
+        'aadharDoc', 'employmentExchangeCert', 'otherDoc'
       ];
       urlFields.forEach(field => {
         if (req.body[`${field}Url`]) {
@@ -129,7 +133,19 @@ router.post('/', (req, res, next) => {
       photo: req.body.photo,
       signature: req.body.signature,
       caste_certificate: req.body.casteCertificate,
-      status: 'pending'
+      status: 'pending',
+      application_type: req.body.applicationType || 'online',
+      parents_name: req.body.parentsName,
+      mother_tongue: req.body.motherTongue,
+      state: req.body.state,
+      post_office: req.body.postOffice,
+      police_station: req.body.policeStation,
+      pincode: req.body.pincode,
+      payment_transaction_id: req.body.paymentTransactionId,
+      payment_status: req.body.paymentStatus || 'pending',
+      aadhar_doc: req.body.aadharDoc,
+      employment_exchange_cert: req.body.employmentExchangeCert,
+      other_doc: req.body.otherDoc
     };
 
     const { data: application, error } = await supabase
@@ -235,6 +251,35 @@ router.get('/export', protect, authorize('admin', 'superadmin'), async (req, res
   }
 });
 
+// @desc    Check if an email has already paid in the current year
+// @route   GET /api/job-applications/has-paid
+// @access  Public
+router.get('/has-paid', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    
+    const currentYear = new Date().getFullYear();
+    const startOfYear = `${currentYear}-01-01T00:00:00.000Z`;
+    
+    const { data: applications, error } = await supabase
+      .from('job_applications')
+      .select('id, payment_status, created_at')
+      .eq('email', email.toLowerCase())
+      .gte('created_at', startOfYear);
+      
+    if (error) throw error;
+    
+    const hasPaid = applications && applications.length > 0;
+    res.json({ hasPaid });
+  } catch (err) {
+    console.error('Check has-paid error:', err.message);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 // @desc    Track a job application by reference number (Public)
 // @route   GET /api/job-applications/track/:refNumber
 // @access  Public
@@ -249,7 +294,7 @@ router.get('/track/:refNumber', async (req, res) => {
 
     const { data: application, error } = await supabase
       .from('job_applications')
-      .select('reference_number, full_name, status, created_at')
+      .select('reference_number, full_name, status, created_at, interview_date, interview_status, interview_result_date, admin_message, preliminary_appointment_letter')
       .eq('reference_number', refNumber.toUpperCase())
       .eq('email', email.toLowerCase())
       .maybeSingle();
@@ -264,7 +309,12 @@ router.get('/track/:refNumber', async (req, res) => {
       referenceNumber: application.reference_number,
       applicantName: application.full_name,
       status: application.status,
-      createdAt: application.created_at
+      createdAt: application.created_at,
+      interviewDate: application.interview_date,
+      interviewStatus: application.interview_status,
+      interviewResultDate: application.interview_result_date,
+      adminMessage: application.admin_message,
+      preliminaryAppointmentLetter: application.preliminary_appointment_letter
     });
   } catch (error) {
     console.error('Track Job Application Error:', error.message);
@@ -304,6 +354,49 @@ router.patch('/:id/status', protect, authorize('admin', 'superadmin'), async (re
 
     res.json(application);
   } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @desc    Update application tracking details
+// @route   PATCH /api/job-applications/:id/tracking
+// @access  Private/Admin
+router.patch('/:id/tracking', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const { 
+      status, 
+      interview_date, 
+      interview_status, 
+      interview_result_date, 
+      admin_message, 
+      preliminary_appointment_letter 
+    } = req.body;
+
+    const updateFields = {
+      status,
+      interview_date,
+      interview_status,
+      interview_result_date,
+      admin_message,
+      preliminary_appointment_letter
+    };
+
+    const cleanUpdate = Object.fromEntries(Object.entries(updateFields).filter(([_, v]) => v !== undefined));
+
+    const { data: application, error } = await supabase
+      .from('job_applications')
+      .update(cleanUpdate)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error || !application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    res.json(application);
+  } catch (error) {
+    console.error('Update tracking error:', error.message);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

@@ -200,7 +200,16 @@ router.get('/track/:appointmentNumber', async (req, res) => {
       purpose: apt.purpose,
       status: apt.status,
       adminRemark: apt.admin_remark || null,
+      adminCancelReason: apt.admin_cancel_reason || null,
       appointmentDate: apt.appointment_date,
+      timeSlot: apt.time_slot,
+      personsCount: apt.persons_count,
+      grNumber: apt.gr_number,
+      studentName: apt.student_name,
+      studentClass: apt.student_class,
+      schoolIdCard: apt.school_id_card,
+      aadhaarNumber: apt.aadhaar_number,
+      aadhaarDocument: apt.aadhaar_document,
       createdAt: apt.created_at
     });
   } catch (error) {

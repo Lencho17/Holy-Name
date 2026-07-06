@@ -7,6 +7,16 @@ import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { SiteDataContext } from '../context/SiteDataContext';
+import SchoolStatusSettings from './SchoolStatusSettings';
+import BulkUpload from './BulkUpload';
+import HolidaySettings from './HolidaySettings';
+import IDCardViewer from './IDCardViewer';
+import AdminStaffLeaves from './AdminStaffLeaves';
+import AdminStaffRequests from './AdminStaffRequests';
+import AdminStaffAssignments from './AdminStaffAssignments';
+import AdminPayroll from './AdminPayroll';
+import AdminAnnouncements from './AdminAnnouncements';
+import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn } from 'react-icons/fa';
 
 function AdminPage() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('adminActiveTab') || 'dashboard');
@@ -28,7 +38,7 @@ function AdminPage() {
   }, []);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, careerPage, setCareerPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -38,6 +48,7 @@ function AdminPage() {
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
   const [admins, setAdmins] = useState([]);
+  const [pendingStaff, setPendingStaff] = useState([]);
   const [students, setStudents] = useState([]);
   const [mapExtracted, setMapExtracted] = useState(false);
   const [tenders, setTenders] = useState([]);
@@ -244,6 +255,85 @@ function AdminPage() {
   const [selectedAppIds, setSelectedAppIds] = useState([]);
   const [selectedJobAppIds, setSelectedJobAppIds] = useState([]);
   const [classFilter, setClassFilter] = useState('All');
+
+  const [careerSubTab, setCareerSubTab] = useState('openings');
+  const [localCareerPage, setLocalCareerPage] = useState({ eligibility: [], qualification: [], documents: [], offline_process: [], online_process: [] });
+  const localCareerPageInitRef = useRef(false);
+
+  useEffect(() => {
+    if (!localCareerPageInitRef.current && !loading && careerPage) {
+      setLocalCareerPage(careerPage);
+      localCareerPageInitRef.current = true;
+    }
+  }, [careerPage, loading]);
+
+  const handleCareerPageSave = async () => {
+    try {
+      await updateSiteContent({ careerPage: localCareerPage });
+      alert("Career Page Guidelines saved successfully!");
+    } catch (err) {
+      alert("Failed to save Career Guidelines: " + err.message);
+    }
+  };
+
+  const [trackingForm, setTrackingForm] = useState({
+    interviewDate: "",
+    interviewStatus: "scheduled",
+    interviewResultDate: "",
+    adminMessage: "",
+    hasLetter: false,
+    recruitmentType: "TEMPORARY",
+    salary: "",
+    noticePeriod: "",
+    letterNotes: ""
+  });
+
+  useEffect(() => {
+    if (selectedJobApp) {
+      const letter = selectedJobApp.preliminaryAppointmentLetter || {};
+      setTrackingForm({
+        interviewDate: selectedJobApp.interviewDate || "",
+        interviewStatus: selectedJobApp.interviewStatus || "scheduled",
+        interviewResultDate: selectedJobApp.interviewResultDate || "",
+        adminMessage: selectedJobApp.adminMessage || "",
+        hasLetter: !!selectedJobApp.preliminaryAppointmentLetter,
+        recruitmentType: letter.recruitmentType || "TEMPORARY",
+        salary: letter.salary || "",
+        noticePeriod: letter.noticePeriod || "",
+        letterNotes: letter.additionalNotes || ""
+      });
+    }
+  }, [selectedJobApp]);
+
+  const handleSaveTracking = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const payload = {
+        status: selectedJobApp.status,
+        interview_date: trackingForm.interviewDate,
+        interview_status: trackingForm.interviewStatus,
+        interview_result_date: trackingForm.interviewResultDate,
+        admin_message: trackingForm.adminMessage,
+        preliminary_appointment_letter: trackingForm.hasLetter ? {
+          recruitmentType: trackingForm.recruitmentType,
+          salary: trackingForm.salary,
+          noticePeriod: trackingForm.noticePeriod,
+          additionalNotes: trackingForm.letterNotes
+        } : null
+      };
+
+      const res = await axios.patch(`${API_URL}/job-applications/${selectedJobApp._id}/tracking`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Update local state
+      setJobApplications(jobApplications.map(a => a._id === selectedJobApp._id ? { ...a, ...res.data } : a));
+      setSelectedJobApp({ ...selectedJobApp, ...res.data });
+      alert("Recruitment Tracking details saved successfully!");
+    } catch (err) {
+      alert("Failed to save tracking: " + (err.response?.data?.message || err.message));
+    }
+  };
   const [statusFilter, setStatusFilter] = useState('All');
   const [jobStatusFilter, setJobStatusFilter] = useState('All');
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -850,6 +940,17 @@ function AdminPage() {
     } catch (e) { console.warn('Could not fetch admins'); }
   };
 
+  const fetchPendingStaff = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/staff/admin/pending-staff`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingStaff(data);
+      }
+    } catch (e) { console.warn('Could not fetch pending staff'); }
+  };
+
   const fetchStudents = async () => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -1297,6 +1398,8 @@ function AdminPage() {
       fetchStudents();
     } else if (activeTab === 'admins') {
       fetchAdmins();
+    } else if (activeTab === 'staffAccessRequests') {
+      fetchPendingStaff();
     } else if (activeTab === 'careerAds') {
       fetchJobs();
     } else if (activeTab === 'jobApplications') {
@@ -1308,7 +1411,10 @@ function AdminPage() {
       fetchAppointments();
     }
 
-    if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') fetchAdmins();
+    if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') {
+      fetchAdmins();
+      fetchPendingStaff();
+    }
 
     // Live changes: poll for new data every 60 seconds (reduced frequency to save resources)
     const interval = setInterval(() => {
@@ -1319,7 +1425,10 @@ function AdminPage() {
       if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
       if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
       if (activeTab === 'activity') fetchActivities();
-      if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') fetchAdmins();
+      if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') {
+        fetchAdmins();
+        fetchPendingStaff();
+      }
     }, 60000);
 
     return () => clearInterval(interval);
@@ -1336,6 +1445,25 @@ function AdminPage() {
   const [isOtpLoading, setIsOtpLoading] = useState(false);
   const [editingAdminId, setEditingAdminId] = useState(null);
   const [editAdminData, setEditAdminData] = useState({});
+  const [viewingIdCardFor, setViewingIdCardFor] = useState(null);
+  
+  const [selectedStudents, setSelectedStudents] = useState([]);
+
+  const toggleStudentSelection = (studentId) => {
+    setSelectedStudents(prev => 
+      prev.includes(studentId) 
+      ? prev.filter(id => id !== studentId)
+      : [...prev, studentId]
+    );
+  };
+
+  const toggleAllStudents = () => {
+    if (selectedStudents.length === students.length && students.length > 0) {
+      setSelectedStudents([]);
+    } else {
+      setSelectedStudents(students.map(s => s._id || s.id));
+    }
+  };
 
   const requestOtp = async (actionType, adminData) => {
     // DEVELOPER BYPASS: Execute action directly without OTP modal
@@ -1483,6 +1611,25 @@ function AdminPage() {
       : "Are you sure you want to approve this administrator? Dual-OTP verification will be required.";
     if (!window.confirm(confirmMsg)) return;
     await requestOtp('approve', adminId);
+  };
+
+  const handleApproveStaff = async (staffId) => {
+    if (!window.confirm("Approve this staff member?")) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/auth/approve-staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ staffId })
+      });
+      if (res.ok) {
+        alert("Staff approved and temporary password sent via email!");
+        fetchPendingStaff();
+      } else {
+        const d = await res.json();
+        alert(d.message || "Approval failed");
+      }
+    } catch (err) { alert("An error occurred during staff approval"); }
   };
 
   const handleRejectAdmin = async (adminId) => {
@@ -1720,12 +1867,34 @@ function AdminPage() {
       return;
     }
     
+    // 1. Enforce batch upload limit (at most 10 photos)
+    if (galleryFiles.length > 10) {
+      alert("You can upload a maximum of 10 photos in each event section.");
+      return;
+    }
+
+    // 2. Enforce total albums limit (at most 20 albums)
+    const existingAlbumsCount = Object.keys(
+      gallery.reduce((acc, item) => {
+        const isLinkedToEvent = item.eventId && events.find(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId));
+        if (isLinkedToEvent) return acc;
+        const effectiveAlbumId = item.albumId || `${item.title}-${item.category}`;
+        acc[effectiveAlbumId] = true;
+        return acc;
+      }, {})
+    ).length;
+
+    if (existingAlbumsCount >= 20) {
+      alert("Maximum limit of 20 photo event sections (albums) reached. Please delete an existing album before adding a new one.");
+      return;
+    }
+
     const token = localStorage.getItem('adminToken');
     if (!token) return;
 
     setIsGalleryUploading(true);
     try {
-      const filesToUpload = galleryFiles.slice(0, 30);
+      const filesToUpload = galleryFiles.slice(0, 10);
       const newItems = [];
       const albumId = `album-${Date.now()}`; // Always generate albumId
 
@@ -1966,28 +2135,44 @@ function AdminPage() {
                 </div>
               </div>
 
-              <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Photos in this Album</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                 {gallery.filter(item => (item.albumId || `${item.title}-${item.category}`) === editingAlbumId).map(item => (
-                  <div key={item.id || item._id} className="relative group rounded-xl overflow-hidden border aspect-square">
-                    <img src={item.src} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <button 
-                        onClick={() => handleDownloadImage(item.src, `${item.title || 'gallery'}.jpg`)} 
-                        className="bg-white text-primary p-2 rounded-lg shadow-lg hover:bg-gray-100 transition-all"
-                        title="Download Photo"
-                      >
-                        <FaDownload size={12} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteGallery(item.id || item._id)} 
-                        className="bg-red-500 text-white p-2 rounded-lg shadow-lg hover:bg-red-600 transition-all"
-                        title="Delete Photo"
-                      >
-                        <FaTrash size={12} />
-                      </button>
+                  <div key={item.id || item._id} className="flex flex-col border rounded-xl overflow-hidden bg-gray-50 p-2">
+                    <div className="relative aspect-square rounded-lg overflow-hidden group">
+                      <img src={item.src} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => handleDownloadImage(item.src, `${item.title || 'gallery'}.jpg`)} 
+                          className="bg-white text-primary p-2 rounded-lg shadow-lg hover:bg-gray-100 transition-all"
+                          title="Download Photo"
+                        >
+                          <FaDownload size={12} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteGallery(item.id || item._id)} 
+                          className="bg-red-500 text-white p-2 rounded-lg shadow-lg hover:bg-red-600 transition-all"
+                          title="Delete Photo"
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </div>
+                      {item.isAlbumCover && <div className="absolute top-1 left-1 bg-yellow-400 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Cover</div>}
                     </div>
-                    {item.isAlbumCover && <div className="absolute top-1 left-1 bg-yellow-400 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Cover</div>}
+                    {/* One line description input */}
+                    <input 
+                      type="text" 
+                      placeholder="One line description..." 
+                      value={item.description || ''} 
+                      onChange={e => {
+                        const updatedGallery = gallery.map(gItem => 
+                          (gItem._id === item._id || gItem.id === item.id) 
+                            ? { ...gItem, description: e.target.value } 
+                            : gItem
+                        );
+                        setGallery(updatedGallery);
+                      }}
+                      className="mt-2 text-xs p-1.5 border rounded-lg bg-white w-full"
+                    />
                   </div>
                 ))}
               </div>
@@ -2580,37 +2765,110 @@ function AdminPage() {
   );
 
   // --- Videos Tab ---
-  const [newVideo, setNewVideo] = useState({ title: '', src: '' });
-  const handleAddVideo = () => {
+  const [newVideo, setNewVideo] = useState({ title: '', src: '', description: '' });
+  const handleAddVideo = async () => {
     if (!newVideo.title || !newVideo.src) return;
-    setVideos([{ ...newVideo, _id: `temp-${Date.now()}` }, ...videos]);
-    setNewVideo({ title: '', src: '' });
+    
+    if (videos.length >= 4) {
+      alert("Maximum limit of 4 video sections reached. Please delete a video before adding a new one.");
+      return;
+    }
+
+    const updatedVideos = [{ ...newVideo, _id: `temp-${Date.now()}` }, ...videos];
+    await updateSiteContent({ videos: updatedVideos });
+    setNewVideo({ title: '', src: '', description: '' });
   };
-  const handleDeleteVideo = (id) => {
-    setVideos(videos.filter(vid => vid._id !== id));
+
+  const handleDeleteVideo = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this video section?")) return;
+    const updatedVideos = videos.filter(vid => vid._id !== id);
+    await updateSiteContent({ videos: updatedVideos });
   };
-  const renderVideosTab = () => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Video Blog</h3>
-      <div className="flex flex-col sm:flex-row gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 items-center">
-        <input type="text" placeholder="Video Title" value={newVideo.title} onChange={e => setNewVideo({...newVideo, title: e.target.value})} className="flex-1 p-2 border rounded-lg" />
-        <input type="text" placeholder="Video Source URL" value={newVideo.src} onChange={e => setNewVideo({...newVideo, src: e.target.value})} className="flex-1 p-2 border rounded-lg" />
-        <button onClick={handleAddVideo} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 h-[42px]"><FaPlus className="inline mr-2"/> Add Video</button>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {videos.map((vid, idx) => (
-          <div key={vid._id || idx} className="border rounded-xl p-4 flex flex-col items-center">
-            <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
-              <span className="text-gray-400">Video Placeholder</span>
+
+  const renderVideosTab = () => {
+    const descWordCount = newVideo.description.trim().split(/\s+/).filter(Boolean).length;
+    const isWordCountOptimal = descWordCount >= 30 && descWordCount <= 40;
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Video Gallery</h3>
+        <p className="text-sm text-gray-500 mb-6">Create up to 4 video event sections featuring embedded YouTube videos. Descriptions should be between 30 and 40 words.</p>
+
+        <div className="flex flex-col gap-4 mb-8 bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Video Title</label>
+              <input 
+                type="text" 
+                placeholder="Video Title" 
+                value={newVideo.title} 
+                onChange={e => setNewVideo({...newVideo, title: e.target.value})} 
+                className="p-2 border rounded-lg bg-white" 
+              />
             </div>
-            <p className="font-bold flex-1">{vid.title}</p>
-            <p className="text-xs text-gray-400 truncate w-full text-center mt-1 mb-4">{vid.src}</p>
-            <button onClick={() => handleDeleteVideo(vid._id)} className="text-red-500 text-sm hover:underline"><FaTrash className="inline mr-1" /> Remove</button>
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">YouTube Video Link</label>
+              <input 
+                type="text" 
+                placeholder="e.g. https://www.youtube.com/watch?v=xxxx" 
+                value={newVideo.src} 
+                onChange={e => setNewVideo({...newVideo, src: e.target.value})} 
+                className="p-2 border rounded-lg bg-white" 
+              />
+            </div>
           </div>
-        ))}
+
+          <div className="flex flex-col">
+            <label className="text-xs font-bold text-gray-500 mb-1 flex justify-between">
+              <span>Video Description</span>
+              <span className={`text-[11px] font-bold ${isWordCountOptimal ? 'text-green-600' : 'text-amber-600'}`}>
+                {descWordCount} words (Target: 30-40)
+              </span>
+            </label>
+            <textarea 
+              placeholder="Provide a short description of the video event..." 
+              value={newVideo.description} 
+              onChange={e => setNewVideo({...newVideo, description: e.target.value})} 
+              className="p-2.5 border rounded-lg bg-white h-24"
+              rows={3}
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <button 
+              onClick={handleAddVideo} 
+              disabled={videos.length >= 4}
+              className="bg-tertiary text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <FaPlus /> Add Video Section
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {videos.map((vid, idx) => (
+            <div key={vid._id || idx} className="border border-gray-100 shadow-sm rounded-2xl p-5 flex flex-col bg-white">
+              <div className="w-full aspect-video bg-gray-100 rounded-xl mb-4 flex items-center justify-center border border-gray-200">
+                <span className="material-symbols-outlined text-gray-400 text-4xl">video_library</span>
+              </div>
+              <h4 className="font-bold text-gray-800 text-lg text-left truncate">{vid.title}</h4>
+              <p className="text-xs text-gray-400 font-mono truncate text-left mt-1 mb-2">{vid.src}</p>
+              {vid.description && (
+                <p className="text-xs text-gray-600 leading-relaxed text-left flex-1 line-clamp-3 mt-1 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                  {vid.description}
+                </p>
+              )}
+              <div className="flex justify-end mt-4 pt-3 border-t border-gray-50">
+                <button onClick={() => handleDeleteVideo(vid._id)} className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-1">
+                  <FaTrash size={12} /> Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // --- Notices Tab ---
   const [newNotice, setNewNotice] = useState({ title: '', date: '', size: '', pdfLink: '' });
@@ -2717,20 +2975,29 @@ function AdminPage() {
   );
 
   // --- Faculty Tab ---
-  const [newFaculty, setNewFaculty] = useState({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: 'Science' });
+  const [newFaculty, setNewFaculty] = useState({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: 'Science', section: 'Graduate', teachingExperience: '', jobTitle: '' });
   const [facultyFile, setFacultyFile] = useState(null);
   const [isFacultyUploading, setIsFacultyUploading] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState(null); // { dept, index }
 
   const handleAddFaculty = async () => {
-    if (!newFaculty.name || !newFaculty.Subject) return;
+    if (!newFaculty.name) return;
     
     setIsFacultyUploading(true);
     try {
       let photoUrl = newFaculty.photo;
       if (facultyFile) { photoUrl = await uploadImage(facultyFile); }
       
-      const dept = newFaculty.department;
+      const dept = newFaculty.department || 'Others';
+      const payloadMember = {
+        ...newFaculty,
+        photo: photoUrl,
+        title: newFaculty.teachingExperience || newFaculty.title || '',
+        classes: newFaculty.jobTitle || newFaculty.classes || '',
+        Subject: newFaculty.Subject || ''
+      };
+      
+      let updatedFaculty = { ...faculty };
       
       if (editingFaculty) {
         // Update existing member
@@ -2739,30 +3006,23 @@ function AdminPage() {
         
         if (oldDept === dept) {
           // Same department, just update
-          updatedDeptList[index] = { ...newFaculty, photo: photoUrl };
-          setFaculty({
-            ...faculty,
-            [dept]: updatedDeptList
-          });
+          updatedDeptList[index] = payloadMember;
+          updatedFaculty[dept] = updatedDeptList;
         } else {
           // Changed department: remove from old, add to new
           const filteredOldDept = updatedDeptList.filter((_, i) => i !== index);
-          setFaculty({
-            ...faculty,
-            [oldDept]: filteredOldDept,
-            [dept]: [{ ...newFaculty, photo: photoUrl }, ...(faculty[dept] || [])]
-          });
+          updatedFaculty[oldDept] = filteredOldDept;
+          updatedFaculty[dept] = [payloadMember, ...(faculty[dept] || [])];
         }
         setEditingFaculty(null);
       } else {
         // Add new member
-        setFaculty({
-          ...faculty,
-          [dept]: [{ ...newFaculty, photo: photoUrl, _id: `temp-${Date.now()}` }, ...(faculty[dept] || [])]
-        });
+        updatedFaculty[dept] = [{ ...payloadMember, _id: `temp-${Date.now()}` }, ...(faculty[dept] || [])];
       }
       
-      setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: dept });
+      await updateSiteContent({ faculty: updatedFaculty });
+      
+      setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: dept, section: newFaculty.section || 'Graduate', teachingExperience: '', jobTitle: '' });
       setFacultyFile(null);
     } catch (err) {
       alert("Faculty update failed: " + err.message);
@@ -2771,7 +3031,13 @@ function AdminPage() {
   };
 
   const handleStartEdit = (dept, index, member) => {
-    setNewFaculty({ ...member, department: dept });
+    setNewFaculty({ 
+      ...member, 
+      department: dept,
+      section: member.section || 'Graduate',
+      teachingExperience: member.teachingExperience || member.title || '',
+      jobTitle: member.jobTitle || member.classes || ''
+    });
     setEditingFaculty({ dept, index });
     // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2779,87 +3045,251 @@ function AdminPage() {
 
   const handleCancelEdit = () => {
     setEditingFaculty(null);
-    setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: 'Science' });
+    setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: 'Science', section: 'Graduate', teachingExperience: '', jobTitle: '' });
     setFacultyFile(null);
   };
-  const handleDeleteFaculty = (dept, idToRemove, indexToRemove) => {
-    setFaculty({
-      ...faculty,
-      [dept]: (faculty[dept] || []).filter((f, i) => (f._id || f.id) ? (f._id || f.id) !== idToRemove : i !== indexToRemove)
-    });
-  };
-  const renderFacultyTab = () => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h3 className="text-xl font-bold text-gray-800 mb-4">{editingFaculty ? 'Edit Faculty Member' : 'Manage Faculty'}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
-        <input type="text" placeholder="Name" value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} className="p-2 border rounded-lg" />
-        <input type="text" placeholder="Subject" value={newFaculty.Subject} onChange={e => setNewFaculty({...newFaculty, Subject: e.target.value})} className="p-2 border rounded-lg" />
-        <select value={newFaculty.department} onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} className="p-2 border rounded-lg">
-          <option value="Science">Science</option>
-          <option value="Arts">Arts</option>
-          <option value="Commerce">Commerce</option>
-          <option value="High School">High School</option>
-          <option value="Nursery">Nursery</option>
-          <option value="Administration">Administration</option>
-          <option value="Support Staff">Support Staff</option>
-          <option value="Others">Others</option>
-        </select>
-        <input type="text" placeholder="Qualifications (e.g. MSc, PhD)" value={newFaculty.EduQua} onChange={e => setNewFaculty({...newFaculty, EduQua: e.target.value})} className="p-2 border rounded-lg" />
-        <input type="text" placeholder="Total Experience (e.g. 5+ yrs exp)" value={newFaculty.title} onChange={e => setNewFaculty({...newFaculty, title: e.target.value})} className="p-2 border rounded-lg" />
-        <input type="url" placeholder="Facebook Profile Link" value={newFaculty.facebook || ''} onChange={e => setNewFaculty({...newFaculty, facebook: e.target.value})} className="p-2 border rounded-lg" />
-        <input type="url" placeholder="Instagram Profile Link" value={newFaculty.instagram || ''} onChange={e => setNewFaculty({...newFaculty, instagram: e.target.value})} className="p-2 border rounded-lg" />
-        <input type="url" placeholder="WhatsApp Link (e.g. https://wa.me/91XXXXXXXXXX)" value={newFaculty.whatsapp || ''} onChange={e => setNewFaculty({...newFaculty, whatsapp: e.target.value})} className="p-2 border rounded-lg" />
-        <textarea placeholder="Classes Taught (e.g. IX, X, XI)" value={newFaculty.classes || ''} onChange={e => setNewFaculty({...newFaculty, classes: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows={2} />
-        <div className="p-2 border rounded-lg bg-white flex flex-col">
-          <label className="text-gray-400 text-sm mb-1">Teacher Photo:</label>
-          <input 
-            type="file" 
-            accept="image/*"
-            onChange={e => setFacultyFile(e.target.files[0])} 
-            className="w-full text-sm p-1 border rounded" 
-          />
-        </div>
-        <div className="flex gap-2 md:col-span-3">
-          <button 
-            onClick={handleAddFaculty} 
-            disabled={isFacultyUploading}
-            className={`flex-1 ${editingFaculty ? 'bg-amber-500' : 'bg-tertiary'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400`}
-          >
-            {editingFaculty ? <><FaSave className="inline mr-2"/> {isFacultyUploading ? 'Updating...' : 'Update Faculty Member'}</> : <><FaPlus className="inline mr-2"/> {isFacultyUploading ? 'Adding...' : 'Add Faculty Member'}</>}
-          </button>
-          {editingFaculty && (
-            <button 
-              onClick={handleCancelEdit}
-              className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </div>
 
-      {Object.keys(faculty).filter(dept => dept !== 'Guest').map(dept => (
-        <div key={dept} className="mb-8 border-t pt-4">
-          <h4 className="font-bold text-lg mb-3 text-primary">{dept} Department</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {faculty[dept].map((f, idx) => (
-              <div key={f._id || f.id || idx} className="flex gap-4 p-3 border rounded-xl items-center bg-gray-50">
-                <img src={f.photo || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150"} className="w-12 h-12 rounded-full object-cover bg-gray-200" alt="" />
-                <div className="flex-1">
-                  <p className="font-bold text-sm">{f.name}</p>
-                  <p className="text-xs text-gray-500">{f.Subject}</p>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => handleStartEdit(dept, idx, f)} className="text-blue-500 hover:text-blue-700 p-2"><FaEdit size={14}/></button>
-                  <button onClick={() => handleDeleteFaculty(dept, f._id || f.id, idx)} className="text-red-500 hover:text-red-700 p-2"><FaTrash size={14}/></button>
-                </div>
-              </div>
+  const handleDeleteFaculty = async (dept, idToRemove, indexToRemove) => {
+    if (!window.confirm("Are you sure you want to delete this faculty member?")) return;
+    const updatedDeptList = (faculty[dept] || []).filter((f, i) => (f._id || f.id) ? (f._id || f.id) !== idToRemove : i !== indexToRemove);
+    const updatedFaculty = {
+      ...faculty,
+      [dept]: updatedDeptList
+    };
+    await updateSiteContent({ faculty: updatedFaculty });
+  };
+
+  const renderFacultyTab = () => {
+    const vis = schoolProfile?.facultyVisibility || { graduate: true, higher_secondary: true, upper_primary: true, primary: true, play_school: true, administration: true, support_staff: true };
+
+    const toggleVisibility = async (key) => {
+      const updatedVis = { ...vis, [key]: !vis[key] };
+      await updateSiteContent({
+        schoolProfile: {
+          ...schoolProfile,
+          facultyVisibility: updatedVis
+        }
+      });
+    };
+
+    return (
+      <div className="space-y-8">
+        {/* Section Visibility Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <FaEye className="text-indigo-500" />
+            Faculty Page Section Visibility
+          </h3>
+          <p className="text-sm text-gray-500 mb-6">Choose which academic sections should be visible on the public school website.</p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { key: 'graduate', label: 'Graduate Section' },
+              { key: 'higher_secondary', label: 'Higher Secondary Section' },
+              { key: 'upper_primary', label: 'Upper Primary Section' },
+              { key: 'primary', label: 'Primary Section' },
+              { key: 'play_school', label: 'Play School Section' },
+              { key: 'administration', label: 'Administration' },
+              { key: 'support_staff', label: 'Support Staff' }
+            ].map(sec => (
+              <label key={sec.key} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100/50 cursor-pointer transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={vis[sec.key] !== false} 
+                  onChange={() => toggleVisibility(sec.key)}
+                  className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" 
+                />
+                <span className="text-sm font-semibold text-gray-700">{sec.label}</span>
+              </label>
             ))}
           </div>
         </div>
-      ))}
-    </div>
-  );
+
+        {/* Add/Edit Faculty Form */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">{editingFaculty ? 'Edit Faculty Member' : 'Add Faculty Member'}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+            
+            {/* Academic Section */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Academic Section</label>
+              <select 
+                value={newFaculty.section || 'Graduate'} 
+                onChange={e => {
+                  const sec = e.target.value;
+                  let defaultDept = 'Others';
+                  if (sec === 'Graduate') defaultDept = 'Science';
+                  else if (sec === 'Higher Secondary') defaultDept = 'Science';
+                  else if (sec === 'Upper Primary') defaultDept = 'Science';
+                  else if (sec === 'Primary') defaultDept = 'Primary';
+                  else if (sec === 'Play School') defaultDept = 'Play School';
+                  else if (sec === 'Administration') defaultDept = 'Administration';
+                  else if (sec === 'Support Staff') defaultDept = 'Support Staff';
+
+                  setNewFaculty({
+                    ...newFaculty,
+                    section: sec,
+                    department: defaultDept
+                  });
+                }} 
+                className="p-2 border rounded-lg bg-white"
+              >
+                <option value="Graduate">Graduate Section</option>
+                <option value="Higher Secondary">Higher Secondary Section</option>
+                <option value="Upper Primary">Upper Primary Section</option>
+                <option value="Primary">Primary Section</option>
+                <option value="Play School">Play School Section</option>
+                <option value="Administration">Administration</option>
+                <option value="Support Staff">Support Staff</option>
+                <option value="Others">Others</option>
+              </select>
+            </div>
+
+            {/* Department / Stream (conditional display) */}
+            {['Graduate', 'Higher Secondary', 'Upper Primary'].includes(newFaculty.section || 'Graduate') ? (
+              <div className="flex flex-col">
+                <label className="text-xs font-bold text-gray-500 mb-1">
+                  {newFaculty.section === 'Graduate' ? 'Department (e.g. Physics, English)' : 'Stream'}
+                </label>
+                {newFaculty.section === 'Graduate' ? (
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Physics, Chemistry" 
+                    value={newFaculty.department || ''} 
+                    onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} 
+                    className="p-2 border rounded-lg bg-white" 
+                  />
+                ) : (
+                  <select 
+                    value={newFaculty.department || 'Science'} 
+                    onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} 
+                    className="p-2 border rounded-lg bg-white"
+                  >
+                    <option value="Science">Science</option>
+                    <option value="Commerce">Commerce</option>
+                    <option value="Arts">Arts</option>
+                    <option value="Others">Others</option>
+                  </select>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col opacity-50 cursor-not-allowed">
+                <label className="text-xs font-bold text-gray-500 mb-1">Department / Stream</label>
+                <input type="text" value={newFaculty.department || ''} disabled className="p-2 border rounded-lg bg-gray-100 cursor-not-allowed" />
+              </div>
+            )}
+
+            {/* Name */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Name</label>
+              <input type="text" placeholder="Name" value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Qualifications */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Qualifications</label>
+              <input type="text" placeholder="e.g. MSc, B.Ed, PhD" value={newFaculty.EduQua} onChange={e => setNewFaculty({...newFaculty, EduQua: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Teaching Experience */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Teaching Experience</label>
+              <input type="text" placeholder="e.g. 5+ years" value={newFaculty.teachingExperience || newFaculty.title || ''} onChange={e => setNewFaculty({...newFaculty, teachingExperience: e.target.value, title: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Job Title */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Job Title</label>
+              <input type="text" placeholder="e.g. Asst Prof, HOD, Class Teacher" value={newFaculty.jobTitle || newFaculty.classes || ''} onChange={e => setNewFaculty({...newFaculty, jobTitle: e.target.value, classes: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Subjects Taught */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Subject / Subjects Taught</label>
+              <input type="text" placeholder="e.g. Physics, English" value={newFaculty.Subject} onChange={e => setNewFaculty({...newFaculty, Subject: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Facebook Link */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Facebook Link (optional)</label>
+              <input type="url" placeholder="Facebook Profile Link" value={newFaculty.facebook || ''} onChange={e => setNewFaculty({...newFaculty, facebook: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Instagram Link */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Instagram Link (optional)</label>
+              <input type="url" placeholder="Instagram Profile Link" value={newFaculty.instagram || ''} onChange={e => setNewFaculty({...newFaculty, instagram: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* WhatsApp Link */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">WhatsApp Link (optional)</label>
+              <input type="url" placeholder="WhatsApp Link" value={newFaculty.whatsapp || ''} onChange={e => setNewFaculty({...newFaculty, whatsapp: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Teacher Photo */}
+            <div className="p-2 border rounded-lg bg-white flex flex-col">
+              <label className="text-gray-400 text-sm mb-1 font-semibold">Teacher Photo:</label>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={e => setFacultyFile(e.target.files[0])} 
+                className="w-full text-sm p-1 border rounded" 
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 md:col-span-3 mt-4">
+              <button 
+                onClick={handleAddFaculty} 
+                disabled={isFacultyUploading}
+                className={`flex-1 ${editingFaculty ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400`}
+              >
+                {editingFaculty ? <><FaSave className="inline mr-2"/> {isFacultyUploading ? 'Updating...' : 'Update Faculty Member'}</> : <><FaPlus className="inline mr-2"/> {isFacultyUploading ? 'Adding...' : 'Add Faculty Member'}</>}
+              </button>
+              {editingFaculty && (
+                <button 
+                  onClick={handleCancelEdit}
+                  className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Faculty Directory grouped by departments */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Faculty Directory</h3>
+          {Object.keys(faculty).filter(dept => dept !== 'Guest').map(dept => (
+            <div key={dept} className="mb-8 border-b pb-6 last:border-b-0 last:pb-0">
+              <h4 className="font-bold text-lg mb-3 text-indigo-900 border-l-4 border-indigo-500 pl-3">{dept}</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {faculty[dept].map((f, idx) => (
+                  <div key={f._id || f.id || idx} className="flex gap-4 p-3 border rounded-xl items-center bg-gray-50 hover:bg-gray-100/50 transition-colors">
+                    <img src={f.photo || "https://images.unsplash.com/photo-1544717302-de2939b7ef71?w=150&h=150&fit=crop"} className="w-12 h-12 rounded-full object-cover bg-gray-200 shrink-0" alt="" />
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="font-bold text-sm text-gray-800 truncate">{f.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{f.Subject || 'No Subject'}</p>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-medium">{f.section || 'Others'}</span>
+                        {f.EduQua && <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-medium">{f.EduQua}</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => handleStartEdit(dept, idx, f)} className="text-blue-500 hover:text-blue-700 p-2"><FaEdit size={14}/></button>
+                      <button onClick={() => handleDeleteFaculty(dept, f._id || f.id, idx)} className="text-red-500 hover:text-red-700 p-2"><FaTrash size={14}/></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // --- Principal Tab ---
   const [isEditingPrincipal, setIsEditingPrincipal] = useState(false);
@@ -4407,6 +4837,175 @@ function AdminPage() {
           </div>
         </section>
 
+
+        {/* Admission Kits */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800 flex items-center"><FaBriefcase className="text-primary mr-2" /> Admission Kits</h3>
+              <p className="text-sm text-gray-500 mt-1">Configure compulsory and optional items for each class.</p>
+            </div>
+            <button 
+              onClick={() => {
+                const newKits = [...(admissionPage?.admissionKits || [])];
+                newKits.push({ 
+                  className: 'Class ' + (newKits.length + 1), 
+                  compulsoryItems: [
+                    { name: 'School Notebooks (10)', price: 0 },
+                    { name: 'Tie', price: 0 },
+                    { name: 'Belt', price: 0 },
+                    { name: 'ID Card', price: 0 }
+                  ], 
+                  optionalItems: [
+                    { name: 'Books', price: 0 }
+                  ] 
+                });
+                setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+              }}
+              className="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"
+            >
+              <FaPlus /> Add Class Kit
+            </button>
+          </div>
+          
+          <div className="space-y-6">
+            {(admissionPage?.admissionKits || []).map((kit, kIdx) => (
+              <div key={kIdx} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="flex justify-between items-center mb-4">
+                  <select
+                    value={kit.className || ''}
+                    onChange={(e) => {
+                      const newKits = [...admissionPage.admissionKits];
+                      newKits[kIdx].className = e.target.value;
+                      setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                    }}
+                    className="font-bold text-lg bg-white border border-gray-300 rounded px-3 py-1 outline-none uppercase cursor-pointer"
+                  >
+                    <option value="">SELECT CLASS</option>
+                    <option value="PRE-NURSERY">PRE-NURSERY</option>
+                    <option value="KG I (LKG)">KG I (LKG)</option>
+                    <option value="KG II (UKG)">KG II (UKG)</option>
+                    <option value="CLASS I">CLASS I</option>
+                    <option value="CLASS II">CLASS II</option>
+                    <option value="CLASS III">CLASS III</option>
+                    <option value="CLASS IV">CLASS IV</option>
+                    <option value="CLASS V">CLASS V</option>
+                    <option value="CLASS VI">CLASS VI</option>
+                    <option value="CLASS VII">CLASS VII</option>
+                    <option value="CLASS VIII">CLASS VIII</option>
+                    <option value="CLASS IX">CLASS IX</option>
+                    <option value="CLASS X">CLASS X</option>
+                    <option value="CLASS XI">CLASS XI</option>
+                    <option value="CLASS XII">CLASS XII</option>
+                  </select>
+                  <button 
+                    onClick={() => {
+                      const newKits = admissionPage.admissionKits.filter((_, idx) => idx !== kIdx);
+                      setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                    }}
+                    className="text-red-500 hover:bg-red-100 p-2 rounded"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Compulsory */}
+                  <div className="bg-white p-4 rounded-lg border">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-bold text-sm text-gray-700">Compulsory Items</h4>
+                      <button onClick={() => {
+                        const newKits = [...admissionPage.admissionKits];
+                        if (!newKits[kIdx].compulsoryItems) newKits[kIdx].compulsoryItems = [];
+                        newKits[kIdx].compulsoryItems.push({ name: '', price: 0 });
+                        setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                      }} className="text-primary text-xs flex items-center gap-1"><FaPlus /> Add Item</button>
+                    </div>
+                    {kit.compulsoryItems?.map((cItem, cIdx) => (
+                      <div key={cIdx} className="flex gap-2 mb-2">
+                        <input type="text" value={cItem.name} onChange={(e) => {
+                          const newKits = [...admissionPage.admissionKits];
+                          newKits[kIdx].compulsoryItems[cIdx].name = e.target.value;
+                          setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                        }} placeholder="Item Name" className="flex-1 p-1 text-sm border rounded" />
+                        <input type="number" value={cItem.price} onChange={(e) => {
+                          const newKits = [...admissionPage.admissionKits];
+                          newKits[kIdx].compulsoryItems[cIdx].price = e.target.value;
+                          setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                        }} placeholder="Price" className="w-20 p-1 text-sm border rounded" />
+                        <button onClick={() => {
+                          const newKits = [...admissionPage.admissionKits];
+                          newKits[kIdx].compulsoryItems.splice(cIdx, 1);
+                          setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                        }} className="text-red-500"><FaTimes /></button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Optional */}
+                  <div className="bg-white p-4 rounded-lg border">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-bold text-sm text-gray-700">Optional Items</h4>
+                      <button onClick={() => {
+                        const newKits = [...admissionPage.admissionKits];
+                        if (!newKits[kIdx].optionalItems) newKits[kIdx].optionalItems = [];
+                        newKits[kIdx].optionalItems.push({ name: '', price: 0 });
+                        setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                      }} className="text-primary text-xs flex items-center gap-1"><FaPlus /> Add Item</button>
+                    </div>
+                    {kit.optionalItems?.map((oItem, oIdx) => (
+                      <div key={oIdx} className="flex flex-col gap-2 mb-2 p-2 bg-gray-50 border rounded-lg">
+                        <div className="flex gap-2">
+                          <input type="text" value={oItem.name} onChange={(e) => {
+                            const newKits = [...admissionPage.admissionKits];
+                            newKits[kIdx].optionalItems[oIdx].name = e.target.value;
+                            setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                          }} placeholder="Item Name" className="flex-1 p-1 text-sm border rounded" />
+                          <input type="number" value={oItem.price} onChange={(e) => {
+                            const newKits = [...admissionPage.admissionKits];
+                            newKits[kIdx].optionalItems[oIdx].price = e.target.value;
+                            setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                          }} placeholder="Price" className="w-20 p-1 text-sm border rounded" />
+                          <button onClick={() => {
+                            const newKits = [...admissionPage.admissionKits];
+                            newKits[kIdx].optionalItems.splice(oIdx, 1);
+                            setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                          }} className="text-red-500 hover:text-red-600"><FaTimes /></button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {oItem.image && <img src={oItem.image} alt={oItem.name} className="h-8 w-8 object-cover rounded" />}
+                          <label className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 flex items-center gap-1 font-bold">
+                            <FaImage /> {oItem.image ? 'Change Image' : 'Upload Image'}
+                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                              if (e.target.files[0]) {
+                                try {
+                                  const url = await uploadImage(e.target.files[0]);
+                                  const newKits = [...admissionPage.admissionKits];
+                                  newKits[kIdx].optionalItems[oIdx].image = url;
+                                  setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                                } catch (err) {
+                                  alert("Upload failed: " + err.message);
+                                }
+                              }
+                            }} />
+                          </label>
+                          {oItem.image && (
+                            <button onClick={() => {
+                              const newKits = [...admissionPage.admissionKits];
+                              newKits[kIdx].optionalItems[oIdx].image = '';
+                              setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                            }} className="text-red-500 hover:text-red-600 text-xs p-1" title="Remove image"><FaTrash /></button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Prospectus PDF Upload */}
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaFileAlt className="text-primary mr-2" /> Custom Prospectus PDF</h3>
@@ -4443,7 +5042,10 @@ function AdminPage() {
           </div>
         </section>
 
-        <button onClick={() => updateSiteContent({ admissionPage })} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/30">
+        <button onClick={async () => {
+          const success = await updateSiteContent({ admissionPage });
+          if (success) alert("Admissions Content saved successfully!");
+        }} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/30">
           <FaSave /> Save Admissions Content
         </button>
       </div>
@@ -5227,6 +5829,10 @@ function AdminPage() {
             </div>
           )}
         </div>
+
+        <SchoolStatusSettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />
+        <HolidaySettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />
+
 
         <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
           <h4 className="text-blue-800 font-bold text-sm mb-1">System Information</h4>
@@ -6429,23 +7035,107 @@ function AdminPage() {
 
   const renderCareersTab = () => {
     return (
-      <div className="space-y-8 animate-fade-in">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-3xl font-serif font-bold text-primary">Career Openings</h2>
-            <p className="text-gray-500">Manage job postings listed on the Careers page.</p>
-          </div>
+      <div className="space-y-8 animate-fade-in text-left">
+        <div className="flex border-b border-gray-200 mb-6">
           <button 
-            onClick={() => {
-              setIsAddingJob(true);
-              setEditingJobId(null);
-              setCurrentJob({ title: '', department: 'Science', type: 'Full-Time', experience: '', qualifications: '', deadline: 'Open until filled' });
-            }}
-            className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all shadow-md transform hover:-translate-y-1"
+            onClick={() => setCareerSubTab('openings')}
+            className={`pb-4 px-6 font-bold text-sm border-b-2 transition-all ${careerSubTab === 'openings' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
           >
-            <FaPlus /> Post Job Opening
+            Job Openings
           </button>
-        </header>
+          <button 
+            onClick={() => setCareerSubTab('guidelines')}
+            className={`pb-4 px-6 font-bold text-sm border-b-2 transition-all ${careerSubTab === 'guidelines' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+          >
+            Guidelines & Requirements
+          </button>
+        </div>
+
+        {careerSubTab === 'guidelines' ? (
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+            <h3 className="text-xl font-bold text-gray-800">Recruitment Guidelines</h3>
+            <p className="text-sm text-gray-500">Edit the text lines that appear under the guidelines sections of the Careers page. Enter each point on a new line.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700">Eligibility Criteria</label>
+                <textarea 
+                  value={(localCareerPage.eligibility || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, eligibility: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter eligibility rules, one per line"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700">Qualifications Required</label>
+                <textarea 
+                  value={(localCareerPage.qualification || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, qualification: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter qualifications required, one per line"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700">Required Documents</label>
+                <textarea 
+                  value={(localCareerPage.documents || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, documents: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter documents needed, one per line"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 font-bold">Online Application Process</label>
+                <textarea 
+                  value={(localCareerPage.online_process || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, online_process: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter online process steps, one per line"
+                />
+              </div>
+              <div className="col-span-full space-y-2">
+                <label className="block text-sm font-bold text-gray-700 font-bold">Offline Application Process</label>
+                <textarea 
+                  value={(localCareerPage.offline_process || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, offline_process: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter offline process steps, one per line"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <button 
+                onClick={handleCareerPageSave}
+                className="px-8 py-3.5 bg-primary text-white rounded-xl font-bold hover:opacity-90 shadow-md transform hover:-translate-y-0.5 active:scale-95 transition-all text-xs"
+              >
+                Save Guidelines & Settings
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-primary">Career Openings</h2>
+              <p className="text-gray-500">Manage job postings listed on the Careers page.</p>
+            </div>
+            <button 
+              onClick={() => {
+                setIsAddingJob(true);
+                setEditingJobId(null);
+                setCurrentJob({ title: '', department: 'Science', type: 'Full-Time', experience: '', qualifications: '', deadline: 'Open until filled' });
+              }}
+              className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all shadow-md transform hover:-translate-y-1 text-xs"
+            >
+              <FaPlus /> Post Job Opening
+            </button>
+          </header>
 
         {isAddingJob && (
           <form onSubmit={handleJobSubmit} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
@@ -6611,6 +7301,8 @@ function AdminPage() {
             </div>
           ))}
         </div>
+        </>
+        )}
       </div>
     );
   };
@@ -7593,6 +8285,11 @@ function AdminPage() {
                     { id: 'appointments', label: 'Appointments', icon: <FaCalendarCheck className="text-teal-500"/>, badge: appointments.filter(a => a.status === 'Pending').length },
                     { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots className="text-purple-500"/>, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
                     { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase className="text-amber-500"/> },
+                    { id: 'staffLeaves', label: 'Staff Leaves', icon: <FaCalendarAlt className="text-rose-500"/> },
+                    { id: 'staffRequests', label: 'Staff Requests', icon: <FaEnvelopeOpenText className="text-cyan-500"/> },
+                    { id: 'staffAssignments', label: 'Staff Assignments', icon: <FaCalendarCheck className="text-indigo-500"/> },
+                    { id: 'staffPayroll', label: 'Payroll', icon: <FaMoneyCheckAlt className="text-green-500"/> },
+                    { id: 'staffAnnouncements', label: 'Announcements', icon: <FaBullhorn className="text-yellow-500"/> },
                     { id: 'students', label: 'Students', icon: <FaUsers className="text-green-500"/> },
                     { id: 'tenders', label: 'Tenders', icon: <FaGavel className="text-slate-500"/> }
                   ].map(item => (
@@ -7625,7 +8322,8 @@ function AdminPage() {
                 {openDropdown === 'system' && (
                   <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
                     {[
-                      { id: 'adminRequests', label: 'Admin Requests', icon: <FaIdCard className="text-amber-500"/>, badge: inquiries.filter(i => i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
+                      { id: 'adminRequests', label: 'Admin Access Requests', icon: <FaIdCard className="text-amber-500"/>, badge: admins.filter(a => !a.isApproved).length },
+                      { id: 'staffAccessRequests', label: 'Staff Access Requests', icon: <FaIdCard className="text-purple-500"/>, badge: pendingStaff.length },
                       { id: 'admins', label: 'Manage Admins', icon: <FaUsers className="text-blue-500"/> },
                       { id: 'settings', label: 'Settings', icon: <FaCog className="text-slate-500"/> }
                     ].map(item => (
@@ -7802,6 +8500,11 @@ function AdminPage() {
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'gallery' && renderGalleryTab()}
           {activeTab === 'tenders' && renderTendersTab()}
+          {activeTab === 'staffLeaves' && <AdminStaffLeaves />}
+          {activeTab === 'staffRequests' && <AdminStaffRequests />}
+          {activeTab === 'staffAssignments' && <AdminStaffAssignments />}
+          {activeTab === 'staffPayroll' && <AdminPayroll />}
+          {activeTab === 'staffAnnouncements' && <AdminAnnouncements />}
           {activeTab === 'videos' && renderVideosTab()}
           {activeTab === 'banner' && renderBannerTab()}
           {activeTab === 'highlights' && renderHighlightsTab()}
@@ -7843,6 +8546,16 @@ function AdminPage() {
                 </div>
               </div>
 
+              <div className="mb-6">
+                <BulkUpload 
+                  apiUrl={API_URL} 
+                  endpoint="students" 
+                  token={localStorage.getItem('adminToken')} 
+                  entityName="Students" 
+                  onUploadSuccess={fetchStudents} 
+                />
+              </div>
+
               {students.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                   <FaUsers className="mx-auto text-gray-300 text-4xl mb-3" />
@@ -7853,6 +8566,14 @@ function AdminPage() {
                   <table className="w-full text-left">
                     <thead>
                       <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2 w-10">
+                          <input 
+                            type="checkbox" 
+                            checked={students.length > 0 && selectedStudents.length === students.length}
+                            onChange={toggleAllStudents}
+                            className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary cursor-pointer"
+                          />
+                        </th>
                         <th className="pb-3 px-2">Name</th>
                         <th className="pb-3">Class</th>
                         <th className="pb-3">Gender</th>
@@ -7862,8 +8583,18 @@ function AdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {students.map(student => (
-                        <tr key={student._id} className="hover:bg-gray-50/50 transition-colors">
+                      {students.map(student => {
+                        const sId = student._id || student.id;
+                        return (
+                        <tr key={sId} className={`hover:bg-gray-50/50 transition-colors ${selectedStudents.includes(sId) ? 'bg-primary/5' : ''}`}>
+                          <td className="py-4 px-2">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedStudents.includes(sId)}
+                              onChange={() => toggleStudentSelection(sId)}
+                              className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary cursor-pointer"
+                            />
+                          </td>
                           <td className="py-4 px-2">
                              <div className="flex items-center gap-3">
                                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs uppercase border border-blue-100">
@@ -7876,7 +8607,14 @@ function AdminPage() {
                           <td className="py-4 text-sm text-gray-600 capitalize">{student.gender}</td>
                           <td className="py-4 font-mono text-gray-500 text-xs">{student.contactNumber}</td>
                           <td className="py-4 text-xs text-gray-400">{new Date(student.createdAt).toLocaleDateString()}</td>
-                          <td className="py-4 text-right">
+                          <td className="py-4 text-right flex justify-end gap-3">
+                             <button 
+                               onClick={() => setViewingIdCardFor(student)}
+                               className="text-blue-400 hover:text-blue-600 transition-colors inline-flex items-center"
+                               title="View ID Card"
+                             >
+                               <FaIdBadge size={14} />
+                             </button>
                              <button 
                                onClick={async () => {
                                  if(window.confirm(`Remove ${student.studentName} from student directory?`)) {
@@ -7900,7 +8638,7 @@ function AdminPage() {
                              </button>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>
@@ -7927,6 +8665,14 @@ function AdminPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {viewingIdCardFor && (
+            <IDCardViewer 
+              student={viewingIdCardFor} 
+              schoolProfile={schoolProfile} 
+              onClose={() => setViewingIdCardFor(null)} 
+            />
           )}
 
           {activeTab === 'inquiries' && (() => {
@@ -8442,6 +9188,66 @@ function AdminPage() {
             );
           })()}
 
+          {activeTab === 'staffAccessRequests' && (() => {
+            return (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Staff Access Requests</h3>
+              </div>
+
+              {pendingStaff.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaIdCard className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No new staff account requests found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2">Type</th>
+                        <th className="pb-3">Candidate</th>
+                        <th className="pb-3">Contact</th>
+                        <th className="pb-3">Date</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {pendingStaff.map(req => (
+                        <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-4 px-2">
+                            <span className="bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded text-[10px] uppercase">
+                              Staff Request
+                            </span>
+                          </td>
+                          <td className="py-4">
+                            <div className="font-bold text-sm text-gray-800">{req.name}</div>
+                            <div className="text-xs text-gray-500">{req.email}</div>
+                          </td>
+                          <td className="py-4">
+                            <div className="text-sm font-medium text-gray-700">{req.phone}</div>
+                          </td>
+                          <td className="py-4">
+                            <div className="text-sm font-medium text-gray-700">{new Date(req.created_at).toLocaleDateString()}</div>
+                          </td>
+                          <td className="py-4 text-right">
+                            <button
+                              onClick={() => handleApproveStaff(req.id)}
+                              className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg text-xs transition-colors shadow-sm"
+                            >
+                              Approve
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            );
+          })()}
+
           {activeTab === 'jobApplications' && (
             <div className="bg-white/80 backdrop-blur-xl p-4 sm:p-6 md:p-8 rounded-2xl md:rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
@@ -8710,6 +9516,9 @@ function AdminPage() {
                         { label: 'Experience Cert', key: 'expCertificate', icon: <FaBriefcase /> },
                         { label: 'Caste Cert', key: 'casteCertificate', icon: <FaIdCard /> },
                         { label: 'Applicant Photo', key: 'photo', icon: <FaImage /> },
+                        { label: 'Aadhaar Document', key: 'aadhar_doc', icon: <FaIdCard className="text-red-500" /> },
+                        { label: 'Employment Exchange Cert', key: 'employment_exchange_cert', icon: <FaClipboardList className="text-amber-500" /> },
+                        { label: 'Other Document', key: 'other_doc', icon: <FaFileAlt className="text-gray-500" /> },
                       ].map(doc => (
                         selectedJobApp[doc.key] ? (
                           <button 
@@ -8725,6 +9534,134 @@ function AdminPage() {
                           </button>
                         ) : null
                       ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* --- Tracking & Selection Console --- */}
+                <div className="mt-8 pt-8 border-t border-gray-100">
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <FaInfoCircle className="text-primary" /> Application Tracking & Letter Settings
+                  </h4>
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Physical Interview Date</label>
+                      <input 
+                        type="datetime-local" 
+                        value={trackingForm.interviewDate}
+                        onChange={(e) => setTrackingForm({...trackingForm, interviewDate: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Interview Status</label>
+                      <select 
+                        value={trackingForm.interviewStatus}
+                        onChange={(e) => setTrackingForm({...trackingForm, interviewStatus: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                      >
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="no_show">No Show</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Interview Result Release Date</label>
+                      <input 
+                        type="date" 
+                        value={trackingForm.interviewResultDate}
+                        onChange={(e) => setTrackingForm({...trackingForm, interviewResultDate: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div className="col-span-full space-y-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Authority Notes / Message</label>
+                      <textarea 
+                        value={trackingForm.adminMessage}
+                        onChange={(e) => setTrackingForm({...trackingForm, adminMessage: e.target.value})}
+                        rows="2"
+                        className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                        placeholder="Add custom notes against the Reference ID (Candidate can view this in tracking console)..."
+                      />
+                    </div>
+
+                    {/* Preliminary Letter checkbox */}
+                    <div className="col-span-full flex items-center justify-between border-t pt-4 mt-2">
+                      <div className="flex items-center text-left">
+                        <div className="mr-3 text-primary">
+                          <FaFileAlt size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-sm">Generate Preliminary Appointment Letter</h4>
+                          <p className="text-xs text-gray-500">Provide terms for selection. The candidate can download the letter PDF.</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={trackingForm.hasLetter} 
+                          onChange={(e) => setTrackingForm({...trackingForm, hasLetter: e.target.checked})} 
+                          className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    {trackingForm.hasLetter && (
+                      <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 animate-fadeIn">
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Recruitment Type</label>
+                          <select 
+                            value={trackingForm.recruitmentType}
+                            onChange={(e) => setTrackingForm({...trackingForm, recruitmentType: e.target.value})}
+                            className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                          >
+                            <option value="TEMPORARY">TEMPORARY</option>
+                            <option value="PERMANENT">PERMANENT</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Offered Salary Details</label>
+                          <input 
+                            type="text" 
+                            value={trackingForm.salary}
+                            onChange={(e) => setTrackingForm({...trackingForm, salary: e.target.value})}
+                            className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                            placeholder="e.g. INR 25,000 / month"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Notice Period</label>
+                          <input 
+                            type="text" 
+                            value={trackingForm.noticePeriod}
+                            onChange={(e) => setTrackingForm({...trackingForm, noticePeriod: e.target.value})}
+                            className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                            placeholder="e.g. 30 days"
+                          />
+                        </div>
+                        <div className="col-span-full space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Additional Letter Notes / Terms</label>
+                          <textarea 
+                            value={trackingForm.letterNotes}
+                            onChange={(e) => setTrackingForm({...trackingForm, letterNotes: e.target.value})}
+                            rows="2"
+                            className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                            placeholder="e.g. Subject to medical fitness and document verification..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="col-span-full flex justify-end pt-4 mt-2 border-t">
+                      <button 
+                        type="button" 
+                        onClick={handleSaveTracking}
+                        className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-all"
+                      >
+                        Save Tracking & Letter Details
+                      </button>
                     </div>
                   </div>
                 </div>

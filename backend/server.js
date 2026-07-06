@@ -20,6 +20,10 @@ const tenderApplicationRoutes = require('./routes/tenderApplications');
 const appointmentRoutes = require('./routes/appointments');
 const fileRoutes = require('./routes/files');
 const uploadRoutes = require('./routes/upload');
+const settingsRoutes = require('./routes/settings');
+const bulkUploadRoutes = require('./routes/bulk-upload');
+const holidayRoutes = require('./routes/holidays');
+const staffRoutes = require('./routes/staff');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -107,6 +111,7 @@ app.use('/api/content', apiLimiter, contentRoutes);
 app.use('/api/admissions', apiLimiter, admissionsRoutes);
 app.use('/api/students', apiLimiter, studentsRoutes);
 app.use('/api/inquiries', submissionLimiter, inquiriesRoutes);
+app.use('/api/staff', apiLimiter, staffRoutes);
 app.use('/api/jobs', apiLimiter, jobRoutes);
 app.use('/api/job-applications', apiLimiter, jobApplicationRoutes);
 app.use('/api/share', require('./routes/share'));
@@ -115,6 +120,9 @@ app.use('/api/tender-applications', apiLimiter, tenderApplicationRoutes);
 app.use('/api/appointments', submissionLimiter, appointmentRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/upload', apiLimiter, uploadRoutes);
+app.use('/api/settings', apiLimiter, settingsRoutes);
+app.use('/api/bulk-upload', apiLimiter, bulkUploadRoutes);
+app.use('/api/holidays', apiLimiter, holidayRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

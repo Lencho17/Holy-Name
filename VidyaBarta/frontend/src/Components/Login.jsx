@@ -41,7 +41,7 @@ function Login() {
       localStorage.setItem('adminData', JSON.stringify(userInfo));
       localStorage.setItem('loginTimestamp', Date.now().toString());
       setToken('hardcoded-superadmin-token');
-      navigate('/superadmin');
+      navigate('/superadmin', { replace: true });
       setLoading(false);
       return;
     }
@@ -66,7 +66,7 @@ function Login() {
               localStorage.setItem('staffToken', res.data.token);
               localStorage.setItem('staffData', userDataStr);
               setToken(res.data.token);
-              navigate('/staff');
+              navigate('/staff', { replace: true });
             } else {
               localStorage.setItem('adminToken', res.data.token);
               localStorage.setItem('adminData', userDataStr);
@@ -74,9 +74,9 @@ function Login() {
               setToken(res.data.token);
               
               if (res.data.role === 'superadmin' || res.data.role === 'developer') {
-                navigate('/superadmin');
+                navigate('/superadmin', { replace: true });
               } else {
-                navigate('/admin');
+                navigate('/admin', { replace: true });
               }
             }
           } else {
@@ -88,7 +88,7 @@ function Login() {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.response?.data?.message || 'Login failed. Please try again.');
+        setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
         setLoading(false);
       });
   };
@@ -99,12 +99,12 @@ function Login() {
     if (existingToken && !existingStaffToken) {
       const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
       if (adminData.role === 'superadmin' || adminData.role === 'developer') {
-        navigate('/superadmin');
+        navigate('/superadmin', { replace: true });
       } else {
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       }
     } else if (existingStaffToken) {
-      navigate('/staff');
+      navigate('/staff', { replace: true });
     }
   }, [token, navigate]);
 
@@ -156,83 +156,85 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center font-sans relative overflow-hidden">
-      {/* Full-screen Background Image */}
-      <div className="absolute inset-0">
+    <div className="min-h-screen flex font-sans bg-white">
+      {/* Left Image Panel */}
+      <div className="hidden lg:flex lg:w-5/12 relative">
+        <div className="absolute inset-0 bg-primary/20 mix-blend-multiply z-10"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent z-10"></div>
         <img 
-          src="/Pictures/picturesoftheweb/school building.JPG" 
-          alt="" 
-          className="w-full h-full object-cover"
+          src="/modern_classroom.png" 
+          alt="Modern Classroom" 
+          className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* Dark gradient overlay for readability */}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.88) 0%, rgba(30,41,59,0.82) 50%, rgba(15,23,42,0.90) 100%)' }} />
-        {/* Subtle pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
-      </div>
-      
-      <div className="relative z-10 w-full max-w-md px-6">
         
-        {/* Logo/Header Area */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl shadow-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20 overflow-hidden bg-white" style={{ background: schoolProfile?.logo ? '#fff' : 'linear-gradient(135deg, rgba(59,130,246,0.9) 0%, rgba(37,99,235,0.95) 100%)' }}>
-            {schoolProfile?.logo ? (
-              <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-2" />
-            ) : (
-              <FaUserCircle className="text-4xl text-white" />
-            )}
+        {/* Text Overlay */}
+        <div className="relative z-20 flex flex-col justify-end h-full w-full p-12 xl:p-16">
+          <div className="mt-auto">
+            <h1 className="text-4xl xl:text-5xl font-bold text-white mb-6 leading-tight font-headline">
+              Centralized management for modern institutions.
+            </h1>
+            <p className="text-slate-200 text-lg leading-relaxed max-w-md">
+              Streamline your workflow, manage schools, and oversee your entire educational ecosystem from one secure portal.
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>Portal Login</h1>
-          <p className="text-blue-200/80 font-medium text-sm tracking-wide">{schoolProfile?.name || "VidyaBarta"}</p>
+        </div>
+      </div>
+
+      {/* Right Login Panel */}
+      <div className="w-full lg:w-7/12 flex items-center justify-center p-8 sm:p-12 lg:p-24 bg-white relative">
+        
+        {/* Top Right Logo */}
+        <div className="absolute top-8 right-8 xl:top-12 xl:right-12">
+          {schoolProfile?.logo ? (
+             <img src={schoolProfile.logo} alt={schoolProfile.name} className="h-auto w-32 md:w-40 xl:w-48 object-contain" />
+          ) : (
+             <img src="/logo.png" alt="VidyaBarta" className="h-auto w-40 md:w-48 xl:w-56 object-contain" />
+          )}
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 md:p-10 border border-white/30">
+        <div className="w-full max-w-md mt-10 lg:mt-0">
           
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight font-headline">{schoolProfile?.name ? "Portal Login" : "System Portal"}</h2>
+            <p className="text-slate-500 text-base">Enter your credentials to access the dashboard.</p>
+          </div>
+
           {error && (
-            <div className="p-3.5 mb-5 bg-red-50 border border-red-200 text-red-600 rounded-xl flex items-start text-sm font-medium">
-              <FaExclamationCircle className="mt-0.5 mr-2 flex-shrink-0" />
+            <div className="p-4 mb-8 bg-red-50 border border-red-100 text-red-600 rounded-lg flex items-start text-sm font-medium">
+              <FaExclamationCircle className="mt-0.5 mr-3 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {view === 'login' && (
             <>
-              <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Sign In</h2>
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="relative">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="username">
-                    Username or Email
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2" htmlFor="username">
+                    Email address
                   </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaEnvelope className="text-gray-300 group-focus-within:text-blue-500 transition-colors" />
-                    </div>
-                    <input
-                      className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
-                      id="username"
-                      type="text"
-                      value={username}
-                      onChange={(event) => setUsername(event.target.value)}
-                      placeholder="admin@holynameschool.edu"
-                    />
-                  </div>
+                  <input
+                    className="w-full px-4 py-3.5 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-900 placeholder-slate-400"
+                    id="username"
+                    type="email"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="admin@vidyabarta.com"
+                  />
                 </div>
 
-                <div className="relative">
-                  <div className="flex justify-between items-center mb-2 ml-1">
-                    <label className="block text-sm font-semibold text-gray-700" htmlFor="password">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-semibold text-slate-700" htmlFor="password">
                       Password
                     </label>
-                    <button type="button" onClick={() => { setView('forgot'); setError(null); }} className="text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors">
+                    <button type="button" onClick={() => { setView('forgot'); setError(null); }} className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
                       Forgot Password?
                     </button>
                   </div>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaLock className="text-gray-300 group-focus-within:text-blue-500 transition-colors" />
-                    </div>
+                  <div className="relative">
                     <input
-                      className="w-full pl-11 pr-11 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
+                      className="w-full pl-4 pr-12 py-3.5 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-900 placeholder-slate-400"
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
@@ -242,9 +244,8 @@ function Login() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                       tabIndex={-1}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <FaEyeSlash /> : <FaEye />}
                     </button>
@@ -252,34 +253,23 @@ function Login() {
                 </div>
 
                 <button
-                  className="w-full text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center transform hover:-translate-y-0.5 relative overflow-hidden"
-                  style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' }}
+                  className="w-full text-white font-bold py-3.5 rounded-lg bg-primary hover:bg-primary/90 transition-colors mt-4"
                   type="submit"
                   disabled={loading}
                 >
-                  {loading ? (
-                    <span className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Authenticating...
-                    </span>
-                  ) : (
-                    "Sign In"
-                  )}
+                  {loading ? "Authenticating..." : "Sign in"}
                 </button>
               </form>
 
-              <div className="mt-6 text-center pt-5 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-                <p className="text-gray-500 text-xs">
-                  <Link to="/staff-signup" className="text-blue-600 font-bold hover:text-blue-800 transition-colors">
+              <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                <p className="text-slate-500 text-xs">
+                  <Link to="/staff-signup" className="text-primary font-bold hover:text-primary/80 transition-colors">
                     Request Staff Access
                   </Link>
                 </p>
-                <div className="hidden sm:block w-px h-4 bg-gray-300"></div>
-                <p className="text-gray-500 text-xs">
-                  <Link to="/admin-signup" className="text-blue-600 font-bold hover:text-blue-800 transition-colors">
+                <div className="hidden sm:block w-px h-4 bg-slate-300"></div>
+                <p className="text-slate-500 text-xs">
+                  <Link to="/admin-signup" className="text-primary font-bold hover:text-primary/80 transition-colors">
                     Request Admin Access
                   </Link>
                 </p>
@@ -289,37 +279,27 @@ function Login() {
 
           {view === 'forgot' && (
             <>
-              <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Reset Password</h2>
-              <p className="text-sm text-gray-600 mb-6 text-center">
-                Enter your registered email address and we'll send you an OTP to reset your password.
-              </p>
-              <form onSubmit={handleForgotPassword} className="space-y-5">
-                <div className="relative">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="forgot-username">
+              <form onSubmit={handleForgotPassword} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2" htmlFor="forgot-username">
                     Email Address
                   </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaEnvelope className="text-gray-300 group-focus-within:text-blue-500 transition-colors" />
-                    </div>
-                    <input
-                      className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
-                      id="forgot-username"
-                      type="text"
-                      value={username}
-                      onChange={(event) => setUsername(event.target.value)}
-                      placeholder="admin@holynameschool.edu"
-                    />
-                  </div>
+                  <input
+                    className="w-full px-4 py-3.5 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-900 placeholder-slate-400"
+                    id="forgot-username"
+                    type="email"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="admin@vidyabarta.com"
+                  />
                 </div>
 
                 <div className="flex gap-4 pt-2">
-                  <button type="button" onClick={() => setView('login')} className="w-1/3 py-4 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                  <button type="button" onClick={() => setView('login')} className="w-1/3 py-3.5 font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
                     Back
                   </button>
                   <button
-                    className="w-2/3 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' }}
+                    className="w-2/3 text-white font-bold py-3.5 rounded-lg bg-primary hover:bg-primary/90 transition-colors"
                     type="submit"
                     disabled={loading}
                   >
@@ -332,25 +312,24 @@ function Login() {
 
           {view === 'reset' && (
             <>
-              <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Verify & Reset</h2>
-              <form onSubmit={handleResetPassword} className="space-y-5">
-                <div className="relative">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+              <form onSubmit={handleResetPassword} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Email Address
                   </label>
                   <input
-                    className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed"
-                    type="text"
+                    className="w-full px-4 py-3.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-500 cursor-not-allowed"
+                    type="email"
                     value={username}
                     readOnly
                   />
                 </div>
-                <div className="relative">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="reset-otp">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2" htmlFor="reset-otp">
                     6-Digit OTP from Email
                   </label>
                   <input
-                    className="w-full px-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800 font-mono tracking-widest"
+                    className="w-full px-4 py-3.5 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-900 placeholder-slate-400 font-mono tracking-widest"
                     id="reset-otp"
                     type="text"
                     value={resetOtp}
@@ -359,13 +338,13 @@ function Login() {
                     maxLength={6}
                   />
                 </div>
-                <div className="relative">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1" htmlFor="new-password">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2" htmlFor="new-password">
                     New Password
                   </label>
-                  <div className="relative group">
+                  <div className="relative">
                     <input
-                      className="w-full px-4 pr-11 py-3.5 rounded-xl border border-gray-200 bg-gray-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-gray-800"
+                      className="w-full pl-4 pr-12 py-3.5 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-900 placeholder-slate-400"
                       id="new-password"
                       type={showNewPassword ? "text" : "password"}
                       value={newPassword}
@@ -375,9 +354,8 @@ function Login() {
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                       tabIndex={-1}
-                      aria-label={showNewPassword ? "Hide password" : "Show password"}
                     >
                       {showNewPassword ? <FaEyeSlash /> : <FaEye />}
                     </button>
@@ -385,12 +363,11 @@ function Login() {
                 </div>
 
                 <div className="flex gap-4 pt-2">
-                  <button type="button" onClick={() => setView('login')} className="w-1/3 py-4 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                  <button type="button" onClick={() => setView('login')} className="w-1/3 py-3.5 font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
                     Cancel
                   </button>
                   <button
-                    className="w-2/3 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
+                    className="w-2/3 text-white font-bold py-3.5 rounded-lg bg-green-600 hover:bg-green-700 transition-colors"
                     type="submit"
                     disabled={loading}
                   >
@@ -401,12 +378,11 @@ function Login() {
             </>
           )}
 
+          {/* Footer */}
+          <p className="text-center text-slate-500 text-sm mt-16">
+            &copy; {new Date().getFullYear()} {schoolProfile?.name || "VidyaBarta Systems"}. All rights reserved.
+          </p>
         </div>
-        
-        {/* Footer info */}
-        <p className="text-center text-white/40 text-xs mt-8">
-          &copy; {new Date().getFullYear()} {schoolProfile?.name || "School"}. All rights reserved.
-        </p>
       </div>
     </div>
   );

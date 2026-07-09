@@ -71,7 +71,13 @@ function AdminLogin() {
               localStorage.setItem('adminData', userDataStr);
               localStorage.setItem('loginTimestamp', Date.now().toString());
               setToken(res.data.token);
-              navigate('/superadmin');
+              
+              // Only navigate to superadmin if they are actually a superadmin, otherwise /admin
+              if (res.data.role === 'superadmin' || res.data.role === 'developer') {
+                navigate('/superadmin');
+              } else {
+                navigate('/admin');
+              }
             }
           } else {
             throw new Error('Server returned invalid user data object');
@@ -91,7 +97,12 @@ function AdminLogin() {
     const existingToken = localStorage.getItem('adminToken');
     const existingStaffToken = localStorage.getItem('staffToken');
     if (existingToken && !existingStaffToken) {
-      navigate('/superadmin');
+      const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+      if (adminData.role === 'superadmin' || adminData.role === 'developer') {
+        navigate('/superadmin');
+      } else {
+        navigate('/admin');
+      }
     } else if (existingStaffToken && loginType === 'staff') {
       navigate('/staff');
     }

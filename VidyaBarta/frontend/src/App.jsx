@@ -131,6 +131,18 @@ function App() {
         <Route path="superadmin-login" element={<Suspense fallback={<SuspenseFallback />}><SuperAdminLogin /></Suspense>} />
         <Route path="admin-signup" element={<Suspense fallback={<SuspenseFallback />}><AdminSignUp /></Suspense>} />
         
+        {/* School Admin & Staff Central Login & Dashboards */}
+        <Route path="adminLogin" element={<Suspense fallback={<SuspenseFallback />}><AdminLogin /></Suspense>} />
+        <Route path="staff-signup" element={<Suspense fallback={<SuspenseFallback />}><StaffSignUp /></Suspense>} />
+        
+        <Route path="admin/*" element={<ProtectedRoute role="admin" />}>
+          <Route path="*" element={<Suspense fallback={<SuspenseFallback />}><AdminPage /></Suspense>} />
+        </Route>
+        
+        <Route path="staff/*" element={<ProtectedRoute role="staff" />}>
+          <Route path="*" element={<Suspense fallback={<SuspenseFallback />}><StaffPage /></Suspense>} />
+        </Route>
+        
         {/* Super Admin routes */}
         <Route path="superadmin" element={<ProtectedRoute role="admin" />}>
           <Route element={<SuperAdminLayout />}>
@@ -198,16 +210,11 @@ function App() {
           <Route path="appointment" element={<Suspense fallback={<SuspenseFallback />}><Appointment /></Suspense>} />
         </Route>
         
-        <Route path="adminLogin" element={<Suspense fallback={<SuspenseFallback />}><AdminLogin /></Suspense>} />
-        <Route path="staff-signup" element={<Suspense fallback={<SuspenseFallback />}><StaffSignUp /></Suspense>} />
+        <Route path="adminLogin" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/adminLogin"</script>'}} />} />
+        <Route path="staff-signup" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/staff-signup"</script>'}} />} />
         
-        <Route path="admin/*" element={<ProtectedRoute role="admin" />}>
-          <Route path="*" element={<Suspense fallback={<SuspenseFallback />}><AdminPage /></Suspense>} />
-        </Route>
-        
-        <Route path="staff/*" element={<ProtectedRoute role="staff" />}>
-          <Route path="*" element={<Suspense fallback={<SuspenseFallback />}><StaffPage /></Suspense>} />
-        </Route>
+        <Route path="admin/*" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/adminLogin"</script>'}} />} />
+        <Route path="staff/*" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/adminLogin"</script>'}} />} />
       </Route>
     )
   );

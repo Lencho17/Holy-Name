@@ -277,7 +277,9 @@ export const SiteDataProvider = ({ children }) => {
             ? localStorage.getItem('test_domain') 
             : window.location.hostname;
           
-        const token = localStorage.getItem('adminToken');
+        const adminToken = localStorage.getItem('adminToken');
+        const staffToken = localStorage.getItem('staffToken');
+        const token = adminToken || staffToken;
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const { data } = await axios.get(`${API_URL}/content?domain=${targetDomain}`, { headers });
         const legacyData = mapSupabaseToLegacy(data);

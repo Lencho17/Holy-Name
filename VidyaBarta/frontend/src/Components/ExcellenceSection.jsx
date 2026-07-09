@@ -105,7 +105,7 @@ const ExcellenceSection = () => {
               <div className="relative flex-1">
                 <FaQuoteLeft className="text-slate-100 text-3xl absolute -top-1 -left-1 z-0" />
                 <p className="relative z-10 text-slate-500 text-sm leading-relaxed italic line-clamp-3 pl-4 border-l-2 border-blue-500/20">
-                  "{alumni.message || "I am proud to be an alumnus of ${schoolProfile?.name || "Our School"}."}"
+                  "{alumni.message || `I am proud to be an alumnus of ${schoolProfile?.name || "Our School"}.`}"
                 </p>
               </div>
             </motion.div>

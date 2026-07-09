@@ -24,21 +24,21 @@ function StaffPage() {
     const data = localStorage.getItem('staffData');
     
     if (!token || !data) {
-      navigate('/adminLogin'); // Redirect to login
+      navigate('/login'); // Redirect to login
       return;
     }
     
     try {
       setStaffData(JSON.parse(data));
     } catch (e) {
-      navigate('/adminLogin');
+      navigate('/login');
     }
   }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('staffToken');
     localStorage.removeItem('staffData');
-    navigate('/adminLogin');
+    navigate('/login');
   };
 
   if (!staffData) return <div className="p-8 text-center">Loading...</div>;

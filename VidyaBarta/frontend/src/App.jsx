@@ -39,7 +39,7 @@ const CenterOfExcellence = React.lazy(() => import("./Components/CenterOfExcelle
 const BelowSocialbtn = React.lazy(() => import("./Components/BelowSocialbtn"));
 const Appointment = React.lazy(() => import("./Components/Appointment"));
 
-const AdminLogin = React.lazy(() => import("./Components/AdminLogin"));
+const Login = React.lazy(() => import("./Components/Login"));
 const StaffSignUp = React.lazy(() => import("./Components/StaffSignUp"));
 const AdminPage = React.lazy(() => import("./Components/AdminPage"));
 const StaffPage = React.lazy(() => import("./Components/StaffPage"));
@@ -128,11 +128,10 @@ function App() {
         </Route>
         
         {/* Auth routes */}
-        <Route path="superadmin-login" element={<Suspense fallback={<SuspenseFallback />}><SuperAdminLogin /></Suspense>} />
         <Route path="admin-signup" element={<Suspense fallback={<SuspenseFallback />}><AdminSignUp /></Suspense>} />
         
-        {/* School Admin & Staff Central Login & Dashboards */}
-        <Route path="adminLogin" element={<Suspense fallback={<SuspenseFallback />}><AdminLogin /></Suspense>} />
+        {/* Universal Central Login */}
+        <Route path="login" element={<Suspense fallback={<SuspenseFallback />}><Login /></Suspense>} />
         <Route path="staff-signup" element={<Suspense fallback={<SuspenseFallback />}><StaffSignUp /></Suspense>} />
         
         <Route path="admin/*" element={<ProtectedRoute role="admin" />}>

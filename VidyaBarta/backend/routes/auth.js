@@ -153,52 +153,84 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // 2. Regular Login
-    const { data: admin, error } = await supabase
+    // 2. Regular Login (Unified: checks Admins then Staff)
+    const { data: admin, error: adminError } = await supabase
       .from('admins')
       .select('*')
       .eq('email', lowerEmail)
       .single();
 
-    if (error || !admin) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    if (!admin.is_approved && admin.role !== 'superadmin' && admin.role !== 'developer') {
-      return res.status(403).json({ message: 'Admin account pending approval by superadmin' });
-    }
-
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (isMatch) {
-      // Log login activity
-      try {
-        const chPlatformVer = req.headers['sec-ch-ua-platform-version'] || '';
-        const uaWithHints = chPlatformVer 
-          ? `${req.headers['user-agent']} [CH:PV=${chPlatformVer.replace(/"/g, '')}]`
-          : req.headers['user-agent'];
-        await supabase.from('admin_activity').insert({
-          admin_id: admin.id,
-          email: admin.email,
-          action: 'login',
-          ip_address: req.ip || req.headers['x-forwarded-for'],
-          user_agent: uaWithHints
-        });
-      } catch (logError) {
-        console.error('[ACTIVITY LOG ERROR]:', logError);
+    if (!adminError && admin) {
+      if (!admin.is_approved && admin.role !== 'superadmin' && admin.role !== 'developer') {
+        return res.status(403).json({ message: 'Admin account pending approval by superadmin' });
       }
 
-      res.json({
-        id: admin.id,
-        _id: admin.id, // Frontend compatibility
-        name: admin.name,
-        email: admin.email,
-        role: admin.role,
-        school_id: admin.school_id,
-        token: generateToken(admin.id),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      const isMatch = await bcrypt.compare(password, admin.password);
+      if (isMatch) {
+        // Log login activity
+        try {
+          const chPlatformVer = req.headers['sec-ch-ua-platform-version'] || '';
+          const uaWithHints = chPlatformVer 
+            ? `${req.headers['user-agent']} [CH:PV=${chPlatformVer.replace(/"/g, '')}]`
+            : req.headers['user-agent'];
+          await supabase.from('admin_activity').insert({
+            admin_id: admin.id,
+            email: admin.email,
+            action: 'login',
+            ip_address: req.ip || req.headers['x-forwarded-for'],
+            user_agent: uaWithHints
+          });
+        } catch (logError) {
+          console.error('[ACTIVITY LOG ERROR]:', logError);
+        }
+
+        return res.json({
+          id: admin.id,
+          _id: admin.id, // Frontend compatibility
+          name: admin.name,
+          email: admin.email,
+          role: admin.role,
+          type: 'admin',
+          school_id: admin.school_id,
+          token: generateToken(admin.id),
+        });
+      }
     }
+
+    // 3. Fallback to Staff Login
+    const { data: staff, error: staffError } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('email', lowerEmail)
+      .single();
+
+    if (!staffError && staff) {
+      let isMatch = false;
+      if (!staff.password_hash) {
+        // If no password set yet, default is their phone number or "Staff@123"
+        if (password === staff.phone || password === 'Staff@123') {
+          isMatch = true;
+        }
+      } else {
+        isMatch = await bcrypt.compare(password, staff.password_hash);
+      }
+
+      if (isMatch) {
+        return res.json({
+          id: staff.id,
+          _id: staff.id, // Frontend compatibility
+          name: staff.name,
+          email: staff.email,
+          role: staff.role || 'staff',
+          type: 'staff',
+          school_id: staff.school_id,
+          token: generateToken(staff.id),
+        });
+      }
+    }
+
+    // If neither matched
+    return res.status(401).json({ message: 'Invalid email or password' });
   } catch (error) {
     console.error('[LOGIN ERROR]:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

@@ -174,7 +174,7 @@ const SuperAdminLayout = () => {
               onClick={() => {
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminData');
-                window.location.href = '/superadmin-login';
+                window.location.href = '/login';
               }}
               className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100 shadow-sm"
             >

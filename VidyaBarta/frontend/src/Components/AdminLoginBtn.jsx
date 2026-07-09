@@ -26,7 +26,7 @@ function AdminLoginBtn({ onClick }) {
   };
 
   const handleLogin = () => {
-    window.location.href = 'https://www.vidyabarta.com/adminLogin';
+    window.location.href = 'https://www.vidyabarta.com/login';
   };
 
   return (

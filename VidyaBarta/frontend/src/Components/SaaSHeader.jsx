@@ -32,7 +32,7 @@ const Header = () => {
 
         {/* CTA Buttons */}
         <div className="hidden md:flex items-center gap-4">
-          <Link to="/superadmin-login" target="_blank" rel="noopener noreferrer" className="text-body-md font-bold text-neutral hover:text-primary transition-colors">
+          <Link to="/login" target="_blank" rel="noopener noreferrer" className="text-body-md font-bold text-neutral hover:text-primary transition-colors">
             Login
           </Link>
           <Link to="/superadmin" target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 bg-primary text-white rounded-lg font-bold text-body-md hover:bg-primary/90 transition-all shadow-md shadow-primary/20 flex items-center gap-2">
@@ -58,7 +58,7 @@ const Header = () => {
           <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">Pricing</a>
           <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">Contact</a>
           <div className="flex flex-col gap-3 pt-4">
-            <Link to="/superadmin-login" target="_blank" rel="noopener noreferrer" onClick={() => setMobileMenuOpen(false)} className="text-center py-3 rounded-lg font-bold text-neutral border border-outline hover:bg-surface-variant">Login</Link>
+            <Link to="/login" target="_blank" rel="noopener noreferrer" onClick={() => setMobileMenuOpen(false)} className="text-center py-3 rounded-lg font-bold text-neutral border border-outline hover:bg-surface-variant">Login</Link>
             <Link to="/superadmin" target="_blank" rel="noopener noreferrer" onClick={() => setMobileMenuOpen(false)} className="text-center py-3 bg-primary text-white rounded-lg font-bold">Go to Dashboard</Link>
           </div>
         </div>

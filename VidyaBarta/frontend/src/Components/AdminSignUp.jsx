@@ -66,7 +66,7 @@ function AdminSignUp() {
       });
       
       alert("OTP verified successfully. A temporary password has been sent to your email. The superadmin will review your request before you can log in.");
-      window.location.href = "/adminLogin";
+      window.location.href = "/login";
     } catch (err) {
       setError(err.response?.data?.message || "Invalid or expired OTP. Please try again.");
     } finally {
@@ -250,7 +250,7 @@ function AdminSignUp() {
           <div className="mt-8 text-center pt-6 border-t border-gray-100">
             <p className="text-gray-500 text-sm">
               Already have an account?{" "}
-              <Link to="/adminLogin" className="text-primary font-bold hover:text-amber-600 transition-colors">
+              <Link to="/login" className="text-primary font-bold hover:text-amber-600 transition-colors">
                 Sign In Instead
               </Link>
             </p>

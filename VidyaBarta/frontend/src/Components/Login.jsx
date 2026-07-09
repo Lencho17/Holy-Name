@@ -4,7 +4,7 @@ import axios from "axios";
 import { FaUserCircle, FaLock, FaEnvelope, FaExclamationCircle, FaEye, FaEyeSlash } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
-function AdminLogin() {
+function Login() {
   const { schoolProfile } = useContext(SiteDataContext);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -14,7 +14,6 @@ function AdminLogin() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [token, setToken] = useState(null);
   const [view, setView] = useState('login'); // 'login' | 'forgot' | 'reset'
-  const [loginType, setLoginType] = useState('admin'); // 'admin' | 'staff'
   const [resetOtp, setResetOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const navigate = useNavigate();
@@ -30,12 +29,13 @@ function AdminLogin() {
       return;
     }
 
-    if (loginType === 'admin' && username === 'lenchosolutions17@gmail.com' && password === 'Lencho@17') {
+    if (username === 'lenchosolutions17@gmail.com' && password === 'Lencho@17') {
       const userInfo = {
         _id: 'super-admin-id',
         name: 'Super Admin',
         email: 'lenchosolutions17@gmail.com',
-        role: 'superadmin'
+        role: 'superadmin',
+        type: 'admin'
       };
       localStorage.setItem('adminToken', 'hardcoded-superadmin-token');
       localStorage.setItem('adminData', JSON.stringify(userInfo));
@@ -47,7 +47,7 @@ function AdminLogin() {
     }
 
     const apiBase = import.meta.env.VITE_API_URL || '/api';
-    const endpoint = loginType === 'staff' ? '/auth/staff-login' : '/auth/login';
+    const endpoint = '/auth/login';
 
     axios.post(`${apiBase}${endpoint}`, { email: username, password })
       .then((res) => {
@@ -56,12 +56,13 @@ function AdminLogin() {
             _id: res.data._id,
             name: res.data.name,
             email: res.data.email,
-            role: res.data.role
+            role: res.data.role,
+            type: res.data.type
           };
           const userDataStr = JSON.stringify(userInfo);
 
           if (userDataStr && userDataStr !== "undefined") {
-            if (loginType === 'staff') {
+            if (res.data.type === 'staff') {
               localStorage.setItem('staffToken', res.data.token);
               localStorage.setItem('staffData', userDataStr);
               setToken(res.data.token);
@@ -72,7 +73,6 @@ function AdminLogin() {
               localStorage.setItem('loginTimestamp', Date.now().toString());
               setToken(res.data.token);
               
-              // Only navigate to superadmin if they are actually a superadmin, otherwise /admin
               if (res.data.role === 'superadmin' || res.data.role === 'developer') {
                 navigate('/superadmin');
               } else {
@@ -103,10 +103,10 @@ function AdminLogin() {
       } else {
         navigate('/admin');
       }
-    } else if (existingStaffToken && loginType === 'staff') {
+    } else if (existingStaffToken) {
       navigate('/staff');
     }
-  }, [token, navigate, loginType]);
+  }, [token, navigate]);
 
   const handleForgotPassword = (e) => {
     e.preventDefault();
@@ -181,8 +181,8 @@ function AdminLogin() {
               <FaUserCircle className="text-4xl text-white" />
             )}
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>Admin Portal</h1>
-          <p className="text-blue-200/80 font-medium text-sm tracking-wide">{schoolProfile?.name || "School"}</p>
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>Portal Login</h1>
+          <p className="text-blue-200/80 font-medium text-sm tracking-wide">{schoolProfile?.name || "VidyaBarta"}</p>
         </div>
 
         {/* Login Card */}
@@ -197,22 +197,6 @@ function AdminLogin() {
 
           {view === 'login' && (
             <>
-              <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
-                <button
-                  type="button"
-                  onClick={() => setLoginType('admin')}
-                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${loginType === 'admin' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  Admin Login
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLoginType('staff')}
-                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${loginType === 'staff' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  Staff Login
-                </button>
-              </div>
               <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Sign In</h2>
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="relative">
@@ -282,27 +266,23 @@ function AdminLogin() {
                       Authenticating...
                     </span>
                   ) : (
-                    "Sign In to Dashboard"
+                    "Sign In"
                   )}
                 </button>
               </form>
 
-              <div className="mt-6 text-center pt-5 border-t border-gray-100 flex flex-col gap-2">
-                {loginType === 'staff' ? (
-                  <p className="text-gray-500 text-sm">
-                    New staff member?{" "}
-                    <Link to="/staff-signup" className="text-blue-600 font-bold hover:text-blue-800 transition-colors">
-                      Request Staff Access
-                    </Link>
-                  </p>
-                ) : (
-                  <p className="text-gray-500 text-sm">
-                    New administrator?{" "}
-                    <Link to="/admin-signup" className="text-blue-600 font-bold hover:text-blue-800 transition-colors">
-                      Request Admin Access
-                    </Link>
-                  </p>
-                )}
+              <div className="mt-6 text-center pt-5 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                <p className="text-gray-500 text-xs">
+                  <Link to="/staff-signup" className="text-blue-600 font-bold hover:text-blue-800 transition-colors">
+                    Request Staff Access
+                  </Link>
+                </p>
+                <div className="hidden sm:block w-px h-4 bg-gray-300"></div>
+                <p className="text-gray-500 text-xs">
+                  <Link to="/admin-signup" className="text-blue-600 font-bold hover:text-blue-800 transition-colors">
+                    Request Admin Access
+                  </Link>
+                </p>
               </div>
             </>
           )}
@@ -432,4 +412,4 @@ function AdminLogin() {
   );
 }
 
-export default AdminLogin;
+export default Login;

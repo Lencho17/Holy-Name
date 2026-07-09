@@ -23,15 +23,15 @@ const ProtectedRoute = ({ role }) => {
         if (role === 'admin') {
           localStorage.removeItem('adminToken');
           localStorage.removeItem('adminData');
-          navigate('/superadmin-login', { replace: true });
+          navigate('/login', { replace: true });
         } else if (role === 'staff') {
           localStorage.removeItem('staffToken');
           localStorage.removeItem('staffData');
-          navigate('/adminLogin', { replace: true });
+          navigate('/login', { replace: true });
         } else {
           localStorage.removeItem('adminToken');
           localStorage.removeItem('staffToken');
-          navigate('/adminLogin', { replace: true });
+          navigate('/login', { replace: true });
         }
       }
     };
@@ -45,18 +45,18 @@ const ProtectedRoute = ({ role }) => {
   if (role === 'admin') {
     const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
-      return <Navigate to="/superadmin-login" replace />;
+      return <Navigate to="/login" replace />;
     }
   } else if (role === 'staff') {
     const staffToken = localStorage.getItem('staffToken');
     if (!staffToken) {
-      return <Navigate to="/adminLogin" replace />;
+      return <Navigate to="/login" replace />;
     }
   } else {
     // If no specific role is required, check if any token exists
     const token = localStorage.getItem('adminToken') || localStorage.getItem('staffToken');
     if (!token) {
-      return <Navigate to="/adminLogin" replace />;
+      return <Navigate to="/login" replace />;
     }
   }
 

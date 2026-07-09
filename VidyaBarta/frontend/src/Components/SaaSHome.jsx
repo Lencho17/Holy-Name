@@ -144,7 +144,7 @@ const Home = () => {
               
               <div className="flex flex-col sm:flex-row items-center gap-4 animate-slideUp" style={{ animationDelay: '300ms' }}>
                 <Link 
-                  to="/adminLogin"
+                  to="/login"
                   className="w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-xl font-bold text-body-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
                 > 
                   Register Your School
@@ -374,7 +374,7 @@ const Home = () => {
           <h2 className="text-headline-lg font-bold font-headline mb-6">Ready to transform your school?</h2>
           <p className="text-title-md text-white/80 max-w-2xl mx-auto mb-12">Join hundreds of institutions already using VidyaBarta to streamline their operations.</p>
           <Link 
-            to="/adminLogin"
+            to="/login"
             className="inline-flex px-8 py-4 bg-white text-primary rounded-xl font-bold text-body-lg hover:bg-white/90 transition-all shadow-xl hover:-translate-y-1"
           >
             Get Started Today

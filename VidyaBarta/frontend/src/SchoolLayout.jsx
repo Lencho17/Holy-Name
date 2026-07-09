@@ -158,7 +158,7 @@ function Layout() {
           {/* Admin Login Button */}
           <div className="mt-8 flex justify-center">
             <button
-              onClick={() => window.location.href = 'https://www.vidyabarta.com/adminLogin'}
+              onClick={() => window.location.href = 'https://www.vidyabarta.com/login'}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/60 hover:bg-white border border-gray-200 hover:border-gray-300 text-gray-400 hover:text-gray-600 text-xs font-semibold uppercase tracking-widest transition-all duration-300 shadow-sm hover:shadow-md backdrop-blur-sm cursor-pointer"
             >
               <FaLock size={10} />

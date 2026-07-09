@@ -75,30 +75,46 @@ function StaffSignUp() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] font-sans relative overflow-hidden py-12">
-      {/* Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-[50vh] bg-primary">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-primary"></div>
-      </div>
-      
-      <div className="relative z-10 w-full max-w-xl px-6">
-        
-        {/* Header Area */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl shadow-lg flex items-center justify-center mx-auto mb-6 transform -rotate-3 hover:rotate-0 transition-transform duration-300 overflow-hidden bg-white" style={{ background: schoolProfile?.logo ? '#fff' : '#f59e0b' }}>
-            {schoolProfile?.logo ? (
-              <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-2" />
-            ) : (
-              <FaUserPlus className="text-4xl text-primary" />
-            )}
-          </div>
-          <h1 className="text-3xl font-serif font-bold text-white mb-2">Create Staff Account</h1>
-          <p className="text-white/80 font-medium">{schoolProfile?.name || "School"} Portal</p>
-        </div>
+    <div className="min-h-screen flex font-sans bg-white">
+      {/* Left Image Panel */}
+      <div className="hidden lg:flex lg:w-5/12 relative">
+        <div className="absolute inset-0 bg-primary/20 mix-blend-multiply z-10"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent z-10"></div>
+        <img
+          src="/modern_classroom.png"
+          alt="Modern Classroom"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
 
-        {/* Signup Card */}
-        <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10 border border-gray-100">
+        {/* Text Overlay */}
+        <div className="relative z-20 flex flex-col justify-end h-full w-full p-12 xl:p-16">
+          <div className="mt-auto">
+            <h1 className="text-4xl xl:text-5xl font-bold text-white mb-6 leading-tight font-headline">
+              Welcome to {schoolProfile?.name || "School"}
+            </h1>
+            <p className="text-slate-200 text-lg leading-relaxed max-w-md">
+              Join our educational ecosystem. Fill in your details to get started.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Login Panel */}
+      <div className="w-full lg:w-7/12 flex items-center justify-center p-8 sm:p-12 lg:p-24 bg-white relative">
+        {/* Top Right Logo */}
+        <div className="absolute top-8 right-8 xl:top-12 xl:right-12">
+          {schoolProfile?.logo ? (
+             <img src={schoolProfile.logo} alt={schoolProfile.name} className="h-auto w-32 md:w-40 xl:w-48 object-contain" />
+          ) : (
+             <img src="/logo.png" alt="VidyaBarta" className="h-auto w-40 md:w-48 xl:w-56 object-contain" />
+          )}
+        </div>
+        
+        <div className="w-full max-w-md mt-10 lg:mt-0">
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight font-headline">Staff Sign Up</h2>
+            <p className="text-slate-500 text-base">Create an account to access the staff portal.</p>
+          </div>
           
           <form onSubmit={step === 1 ? handleRequestOtp : handleVerifyOtp} className="space-y-5">
             
@@ -260,5 +276,4 @@ function StaffSignUp() {
     </div>
   );
 }
-
 export default StaffSignUp;

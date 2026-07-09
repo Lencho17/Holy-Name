@@ -118,7 +118,7 @@ function App() {
   // Determine if we should show the SaaS Landing Page
   // We show SaaS if domain is vidyabarta.in OR www.vidyabarta.in OR (localhost without test_domain)
   // OR if we are explicitly trying to access a superadmin route
-  const isSaaS = hostname === 'vidyabarta.in' || hostname === 'www.vidyabarta.in' || (isLocalhost && !hasTestDomain) || isSuperAdminPath;
+  const isSaaS = hostname === 'vidyabarta.in' || hostname === 'www.vidyabarta.in' || (hostname.includes('vidyabarta') && hostname.includes('vercel.app')) || (isLocalhost && !hasTestDomain) || isSuperAdminPath;
 
   const saasRouter = createBrowserRouter(
     createRoutesFromElements(

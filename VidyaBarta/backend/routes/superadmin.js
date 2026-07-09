@@ -76,7 +76,7 @@ router.post('/schools', protect, async (req, res) => {
       .from('schools')
       .insert({
         name, logo_url, email, phone, tagline, address,
-        subdomain, custom_domain, package, status: status || 'Active'
+        subdomain, custom_domain: custom_domain || null, package, status: status || 'Active'
       })
       .select()
       .single();

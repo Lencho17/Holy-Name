@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
+import { FiChevronDown, FiMenu, FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, FiDollarSign, FiUsers, FiSettings, FiMonitor } from 'react-icons/fi';
 import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt, FaLeaf } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -17,6 +18,56 @@ import AdminStaffAssignments from './AdminStaffAssignments';
 import AdminPayroll from './AdminPayroll';
 import AdminAnnouncements from './AdminAnnouncements';
 import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn } from 'react-icons/fa';
+
+
+const SidebarItem = ({ active, onClick, icon: Icon, label, children }) => {
+  const [isOpen, ReactSetIsOpen] = React.useState(false);
+  const isActive = active;
+  React.useEffect(() => {
+    if (active) ReactSetIsOpen(true);
+  }, [active]);
+
+  if (children) {
+    return (
+      <div className="mb-1">
+        <button
+          onClick={() => ReactSetIsOpen(!isOpen)}
+          className={"w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 " + (isActive || isOpen ? 'bg-primary/5 text-primary font-medium' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface')}
+        >
+          <div className="flex items-center gap-3">
+            {Icon && <Icon className={"text-lg " + (isActive || isOpen ? 'text-primary' : 'text-on-surface-variant')} />}
+            <span className="text-body-sm">{label}</span>
+          </div>
+          <FiChevronDown className={"transition-transform duration-200 " + (isOpen ? 'rotate-180' : '')} />
+        </button>
+        <div className={"overflow-hidden transition-all duration-300 " + (isOpen ? 'max-h-[1000px] opacity-100 mt-1' : 'max-h-0 opacity-0')}>
+          <div className="pl-11 pr-2 py-2 space-y-1 border-l-2 border-outline-variant ml-6">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      className={"w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-xl transition-all duration-200 " + (isActive ? 'bg-primary text-white shadow-md shadow-primary/20 font-medium' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface')}
+    >
+      {Icon && <Icon className="text-lg" />}
+      <span className="text-body-sm">{label}</span>
+    </button>
+  );
+};
+
+const SubItem = ({ active, onClick, label }) => (
+  <button
+    onClick={onClick}
+    className={"w-full text-left block py-2 px-3 text-body-sm rounded-lg transition-colors " + (active ? 'text-primary font-semibold bg-primary/5' : 'text-on-surface-variant hover:text-primary hover:bg-surface-variant/50')}
+  >
+    {label}
+  </button>
+);
 
 function AdminPage() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('adminActiveTab') || 'dashboard');
@@ -8180,323 +8231,127 @@ function AdminPage() {
     );
   };
 
+  const getInitials = (name) => {
+    if (!name) return 'SA';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const isContentActive = ['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].includes(activeTab);
+  const isDataActive = ['admission', 'students', 'inquiries', 'jobApplications', 'staffLeaves', 'staffRequests', 'staffAssignments', 'staffPayroll', 'staffAnnouncements', 'tenders', 'appointments'].includes(activeTab);
+  const isSystemActive = ['pendingAdmins', 'status', 'bulk', 'holidays', 'idCardViewer'].includes(activeTab);
+
   return (
-    <div className="min-h-screen flex flex-col font-sans relative overflow-x-hidden" style={{ backgroundColor: '#F1F5F9' }}>
-      {/* Top Navbar */}
-      <nav className="bg-white/70 backdrop-blur-xl text-blue-950 shadow-[0_4px_30px_rgba(0,0,0,0.03)] border-b border-white/50 z-50 sticky top-0 w-full">
-        <div className="flex items-center justify-between px-4 lg:px-8 py-3 relative">
-          {/* Logo / Brand */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center border border-primary/20 overflow-hidden bg-white">
+    <div className="min-h-screen bg-background flex font-sans overflow-hidden">
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-secondary/20 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={"fixed lg:sticky top-0 h-screen w-72 bg-surface border-r border-outline-variant flex flex-col z-50 transition-transform duration-300 " + (isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')}>
+        <div className="p-6 flex items-center justify-center border-b border-outline-variant gap-3">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center border border-primary/20 overflow-hidden bg-white shrink-0">
               {schoolProfile?.logo ? (
                 <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-1" />
               ) : (
                 <FaGraduationCap className="text-primary text-lg" />
               )}
             </div>
-            <div className="flex flex-col justify-center items-start">
-              <h2 className="text-sm font-bold text-blue-950 leading-none tracking-wide mb-0.5">
+            <div className="flex flex-col justify-center items-start overflow-hidden">
+              <h2 className="text-sm font-bold text-neutral leading-none tracking-wide mb-0.5 truncate w-full">
                 {schoolProfile?.name || "School"}
               </h2>
-              <span className="text-[10px] text-blue-600/80 font-bold uppercase tracking-[0.2em] leading-none">Admin Console</span>
+              <span className="text-[10px] text-primary/80 font-bold uppercase tracking-[0.2em] leading-none">Admin Console</span>
             </div>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center justify-center gap-4 absolute left-1/2 -translate-x-1/2">
-            {adminUser?.role === 'developer' && (
-              <button 
-                onClick={() => { setActiveTab('activity'); setOpenDropdown(null); }}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${activeTab === 'activity' ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
-              >
-                <FaChartLine className={activeTab === 'activity' ? 'text-blue-600' : 'text-blue-400'} />
-                Activity Logs
-              </button>
-            )}
-            <button 
-              onClick={() => { setActiveTab('dashboard'); setOpenDropdown(null); }}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${activeTab === 'dashboard' ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
-            >
-              <FaChartLine /> Dashboard
-            </button>
-
-            {/* Content Management Dropdown */}
-            <div className="relative nav-dropdown-container">
-              <button 
-                onClick={() => setOpenDropdown(openDropdown === 'content' ? null : 'content')}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
-              >
-                <FaImage /> Content <FaAngleDown className={`transition-transform ${openDropdown === 'content' ? 'rotate-180' : ''}`} />
-              </button>
-              {openDropdown === 'content' && (
-                <div className="absolute top-full left-0 mt-2 w-[480px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-4 grid grid-cols-2 gap-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
-                  {[
-                    { id: 'about', label: 'About Page', icon: <FaInfoCircle className="text-indigo-400"/> },
-                    { id: 'amenities', label: 'Amenities', icon: <FaLeaf className="text-emerald-500"/> },
-                    { id: 'emeritus', label: 'Alumestron', icon: <FaUserTie className="text-purple-600"/> },
-                    { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap className="text-blue-400"/> },
-                    { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase className="text-cyan-600"/> },
-                    { id: 'courses', label: 'Courses Page', icon: <FaBookOpen className="text-orange-400"/> },
-                    { id: 'events', label: 'Events', icon: <FaCalendarAlt className="text-emerald-500"/> },
-                    { id: 'excellence', label: 'Excellence', icon: <FaAward className="text-amber-600"/> },
-                    { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher className="text-indigo-500"/> },
-                    { id: 'faqs', label: 'FAQs', icon: <FaQuestionCircle className="text-red-400"/> },
-                    { id: 'gallery', label: 'Gallery', icon: <FaImage className="text-purple-500"/> },
-                    { id: 'highlights', label: 'Highlights', icon: <FaStar className="text-yellow-500"/> },
-                    { id: 'stats', label: 'Home Stats', icon: <FaChartLine className="text-green-600"/> },
-                    { id: 'notices', label: 'Notices', icon: <FaClipboardList className="text-orange-500"/> },
-                    { id: 'banner', label: 'Popup Banner', icon: <FaImage className="text-amber-500"/> },
-                    { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList className="text-slate-500"/> },
-                    { id: 'schoolProfile', label: 'School Profile', icon: <FaInfoCircle className="text-blue-500"/> },
-                    { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt className="text-blue-600"/> },
-                    { id: 'videos', label: 'Video Blog', icon: <FaVideo className="text-red-500"/> }
-                  ].map(item => (
-                    <button 
-                      key={item.id}
-                      onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
-                      className={`flex items-center gap-3 p-2 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-blue-50/80 text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-50/50 text-gray-600 font-medium'}`}
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-gray-100/50 flex items-center justify-center">
-                         {item.icon}
-                      </div>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* School Data Dropdown */}
-            <div className="relative nav-dropdown-container">
-              <button 
-                onClick={() => setOpenDropdown(openDropdown === 'data' ? null : 'data')}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['admission', 'students', 'inquiries', 'jobApplications', 'tenders'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
-              >
-                <FaUsers /> Data 
-                {(inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length > 0) && (
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-1" />
-                )}
-                <FaAngleDown className={`transition-transform ${openDropdown === 'data' ? 'rotate-180' : ''}`} />
-              </button>
-              {openDropdown === 'data' && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
-                  {[
-                    { id: 'admission', label: 'Admission', icon: <FaClipboardList className="text-blue-500"/> },
-                    { id: 'appointments', label: 'Appointments', icon: <FaCalendarCheck className="text-teal-500"/>, badge: appointments.filter(a => a.status === 'Pending').length },
-                    { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots className="text-purple-500"/>, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
-                    { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase className="text-amber-500"/> },
-                    { id: 'staffLeaves', label: 'Staff Leaves', icon: <FaCalendarAlt className="text-rose-500"/> },
-                    { id: 'staffRequests', label: 'Staff Requests', icon: <FaEnvelopeOpenText className="text-cyan-500"/> },
-                    { id: 'staffAssignments', label: 'Staff Assignments', icon: <FaCalendarCheck className="text-indigo-500"/> },
-                    { id: 'staffPayroll', label: 'Payroll', icon: <FaMoneyCheckAlt className="text-green-500"/> },
-                    { id: 'staffAnnouncements', label: 'Announcements', icon: <FaBullhorn className="text-yellow-500"/> },
-                    { id: 'students', label: 'Students', icon: <FaUsers className="text-green-500"/> },
-                    { id: 'tenders', label: 'Tenders', icon: <FaGavel className="text-slate-500"/> }
-                  ].map(item => (
-                    <button 
-                      key={item.id}
-                      onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
-                      className={`flex items-center gap-3 w-full p-3 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-blue-50/80 text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-50/50 text-gray-600 font-medium'}`}
-                    >
-                      {item.icon} {item.label}
-                      {item.badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* System Control Dropdown */}
-            {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
-              <div className="relative nav-dropdown-container">
-                <button 
-                  onClick={() => setOpenDropdown(openDropdown === 'system' ? null : 'system')}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['adminRequests', 'admins', 'settings'].includes(activeTab) ? 'bg-amber-500/10 text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-amber-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
-                >
-                  <FaCog /> System
-                  {(inquiries.filter(i => i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length > 0) && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-1" />
-                  )}
-                  <FaAngleDown className={`transition-transform ${openDropdown === 'system' ? 'rotate-180' : ''}`} />
-                </button>
-                {openDropdown === 'system' && (
-                  <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
-                    {[
-                      { id: 'adminRequests', label: 'Admin Access Requests', icon: <FaIdCard className="text-amber-500"/>, badge: admins.filter(a => !a.isApproved).length },
-                      { id: 'staffAccessRequests', label: 'Staff Access Requests', icon: <FaIdCard className="text-purple-500"/>, badge: pendingStaff.length },
-                      { id: 'admins', label: 'Manage Admins', icon: <FaUsers className="text-blue-500"/> },
-                      { id: 'settings', label: 'Settings', icon: <FaCog className="text-slate-500"/> }
-                    ].map(item => (
-                      <button 
-                        key={item.id}
-                        onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
-                        className={`flex items-center gap-3 w-full p-3 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-amber-50/80 text-amber-700 font-bold shadow-sm' : 'hover:bg-amber-50/50 text-gray-600 font-medium'}`}
-                      >
-                        {item.icon} {item.label}
-                        {item.badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Right Side Actions */}
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2">
-               <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${sessionRemaining <= 120 ? 'bg-red-100 text-red-600 border-red-200 animate-pulse' : 'bg-white/60 backdrop-blur-md text-blue-800 border-white/50 shadow-sm'}`}>
-                 <FaClock /> <span>{formatTimer(sessionRemaining)}</span>
-               </div>
-            </div>
-
-            <div className="hidden sm:block text-right mr-2">
-              <p className="text-sm font-semibold text-blue-950 leading-tight">{adminUser?.name || 'Admin User'}</p>
-              <p className="text-[10px] text-primary font-medium uppercase tracking-wider">
-                {adminUser?.role === 'developer' ? 'System Developer' : 
-                 adminUser?.role === 'superadmin' ? 'Super Administrator' : 
-                 'Administrator'}
-              </p>
-            </div>
-
-            <div className="relative group">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md cursor-pointer border border-blue-400/50">
-                {adminUser?.name?.charAt(0) || 'A'}
-              </div>
-              <div className="absolute top-full right-0 pt-2 w-48 hidden group-hover:block animate-in fade-in slide-in-from-top-2 z-50">
-                <div className="bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2">
-                   <NavLink to="/" className="flex items-center gap-3 w-full p-3 rounded-xl text-sm transition-colors text-gray-600 hover:bg-gray-50 hover:text-blue-600 font-medium">
-                     <FaLaptop /> View Website
-                   </NavLink>
-                   <div className="h-px bg-gray-100 my-1 w-full" />
-                   <button onClick={handleLogout} className="flex items-center gap-3 w-full p-3 rounded-xl text-sm transition-colors text-red-600 hover:bg-red-50 font-bold">
-                     <FaSignOutAlt /> Logout
-                   </button>
-                </div>
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2.5 hover:bg-blue-100/60 rounded-xl text-blue-800 transition-colors"
-            >
-              {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
-            </button>
-          </div>
         </div>
-      </nav>
+        
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          {adminUser?.role === 'developer' && (
+             <SidebarItem active={activeTab === 'activity'} onClick={() => { setActiveTab('activity'); setIsSidebarOpen(false); }} icon={FiMonitor} label="Activity Logs" />
+          )}
+          <SidebarItem active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} icon={FiHome} label="Dashboard" />
+          
+          <SidebarItem active={isContentActive} icon={FiLayers} label="Content">
+            <SubItem active={activeTab === 'schoolProfile'} onClick={() => { setActiveTab('schoolProfile'); setIsSidebarOpen(false); }} label="School Profile" />
+            <SubItem active={activeTab === 'gallery'} onClick={() => { setActiveTab('gallery'); setIsSidebarOpen(false); }} label="Gallery" />
+            <SubItem active={activeTab === 'videos'} onClick={() => { setActiveTab('videos'); setIsSidebarOpen(false); }} label="Videos" />
+            <SubItem active={activeTab === 'banner'} onClick={() => { setActiveTab('banner'); setIsSidebarOpen(false); }} label="Popup Banner" />
+            <SubItem active={activeTab === 'highlights'} onClick={() => { setActiveTab('highlights'); setIsSidebarOpen(false); }} label="Highlights" />
+            <SubItem active={activeTab === 'events'} onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }} label="Events" />
+            <SubItem active={activeTab === 'notices'} onClick={() => { setActiveTab('notices'); setIsSidebarOpen(false); }} label="Notices" />
+            <SubItem active={activeTab === 'faculty'} onClick={() => { setActiveTab('faculty'); setIsSidebarOpen(false); }} label="Faculty" />
+            <SubItem active={activeTab === 'principal'} onClick={() => { setActiveTab('principal'); setIsSidebarOpen(false); }} label="Principal" />
+            <SubItem active={activeTab === 'alumni'} onClick={() => { setActiveTab('alumni'); setIsSidebarOpen(false); }} label="Alumni" />
+            <SubItem active={activeTab === 'excellence'} onClick={() => { setActiveTab('excellence'); setIsSidebarOpen(false); }} label="Excellence" />
+            <SubItem active={activeTab === 'emeritus'} onClick={() => { setActiveTab('emeritus'); setIsSidebarOpen(false); }} label="Alumestron" />
+            <SubItem active={activeTab === 'careerAds'} onClick={() => { setActiveTab('careerAds'); setIsSidebarOpen(false); }} label="Career Ads" />
+            <SubItem active={activeTab === 'socialMedia'} onClick={() => { setActiveTab('socialMedia'); setIsSidebarOpen(false); }} label="Social Media" />
+            <SubItem active={activeTab === 'stats'} onClick={() => { setActiveTab('stats'); setIsSidebarOpen(false); }} label="Home Stats" />
+            <SubItem active={activeTab === 'about'} onClick={() => { setActiveTab('about'); setIsSidebarOpen(false); }} label="About Page" />
+            <SubItem active={activeTab === 'courses'} onClick={() => { setActiveTab('courses'); setIsSidebarOpen(false); }} label="Courses Page" />
+            <SubItem active={activeTab === 'faqs'} onClick={() => { setActiveTab('faqs'); setIsSidebarOpen(false); }} label="FAQs" />
+            <SubItem active={activeTab === 'amenities'} onClick={() => { setActiveTab('amenities'); setIsSidebarOpen(false); }} label="Amenities" />
+          </SidebarItem>
 
-      {/* Mobile Navigation Drawer */}
-      {isSidebarOpen && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] lg:hidden animate-in fade-in duration-300"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-          <div className="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white shadow-2xl z-[70] lg:hidden flex flex-col animate-in slide-in-from-left duration-300">
-            <div className="p-5 bg-gradient-to-br from-blue-600 to-blue-800 text-white flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 text-lg font-bold">
-                  {adminUser?.name?.charAt(0) || 'A'}
-                </div>
-                <div>
-                  <h2 className="font-bold text-lg leading-tight">Admin Menu</h2>
-                  <p className="text-blue-100 text-xs">{adminUser?.name || 'Administrator'}</p>
-                </div>
-              </div>
-              <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                <FaTimes size={20} />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-4 transition-all shadow-sm ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-500/30' : 'bg-gray-50 text-gray-700 hover:bg-blue-50'}`}>
-                <FaChartLine className={activeTab === 'dashboard' ? 'text-white' : 'text-blue-500'} size={18} /> 
-                Dashboard Overview
-              </button>
-              
-              <div>
-                <div className="flex items-center gap-2 px-2 mb-3">
-                  <div className="h-px bg-gray-200 flex-1"></div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Data Management</p>
-                  <div className="h-px bg-gray-200 flex-1"></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'admission', label: 'Admission' },
-                    { id: 'students', label: 'Students' },
-                    { id: 'inquiries', label: 'Inquiries' },
-                    { id: 'jobApplications', label: 'Job Apps' },
-                    { id: 'tenders', label: 'Tenders' },
-                    { id: 'appointments', label: 'Appointments' }
-                  ].map(item => (
-                    <button key={item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl text-xs font-semibold gap-1 border transition-all ${activeTab === item.id ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-inner' : 'bg-white border-gray-100 text-gray-600 hover:border-blue-100 hover:bg-gray-50'}`}>
-                      <span className="text-center leading-tight">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <SidebarItem active={isDataActive} icon={FiUsers} label="Data">
+             <SubItem active={activeTab === 'admission'} onClick={() => { setActiveTab('admission'); setIsSidebarOpen(false); }} label="Admission" />
+             <SubItem active={activeTab === 'appointments'} onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} label="Appointments" />
+             <SubItem active={activeTab === 'inquiries'} onClick={() => { setActiveTab('inquiries'); setIsSidebarOpen(false); }} label="Inquiries" />
+             <SubItem active={activeTab === 'jobApplications'} onClick={() => { setActiveTab('jobApplications'); setIsSidebarOpen(false); }} label="Recruitment" />
+             <SubItem active={activeTab === 'staffLeaves'} onClick={() => { setActiveTab('staffLeaves'); setIsSidebarOpen(false); }} label="Staff Leaves" />
+             <SubItem active={activeTab === 'staffRequests'} onClick={() => { setActiveTab('staffRequests'); setIsSidebarOpen(false); }} label="Staff Requests" />
+             <SubItem active={activeTab === 'staffAssignments'} onClick={() => { setActiveTab('staffAssignments'); setIsSidebarOpen(false); }} label="Staff Assignments" />
+             <SubItem active={activeTab === 'staffPayroll'} onClick={() => { setActiveTab('staffPayroll'); setIsSidebarOpen(false); }} label="Payroll" />
+             <SubItem active={activeTab === 'staffAnnouncements'} onClick={() => { setActiveTab('staffAnnouncements'); setIsSidebarOpen(false); }} label="Announcements" />
+             <SubItem active={activeTab === 'students'} onClick={() => { setActiveTab('students'); setIsSidebarOpen(false); }} label="Students" />
+             <SubItem active={activeTab === 'tenders'} onClick={() => { setActiveTab('tenders'); setIsSidebarOpen(false); }} label="Tenders" />
+          </SidebarItem>
 
-              <div>
-                <div className="flex items-center gap-2 px-2 mb-3">
-                  <div className="h-px bg-gray-200 flex-1"></div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Content Management</p>
-                  <div className="h-px bg-gray-200 flex-1"></div>
-                </div>
-                <div className="space-y-1">
-                  {['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].map(id => (
-                    <button key={id} onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
-                      <div className={`w-2 h-2 rounded-full ${activeTab === id ? 'bg-blue-500' : 'bg-gray-300'}`} />
-                      {id.charAt(0).toUpperCase() + id.slice(1).replace(/([A-Z])/g, ' $1').trim()}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <SidebarItem active={isSystemActive} icon={FiSettings} label="System">
+            <SubItem active={activeTab === 'pendingAdmins'} onClick={() => { setActiveTab('pendingAdmins'); setIsSidebarOpen(false); }} label="Access Requests" />
+            <SubItem active={activeTab === 'status'} onClick={() => { setActiveTab('status'); setIsSidebarOpen(false); }} label="Portal Status" />
+            <SubItem active={activeTab === 'bulk'} onClick={() => { setActiveTab('bulk'); setIsSidebarOpen(false); }} label="Bulk Upload" />
+            <SubItem active={activeTab === 'holidays'} onClick={() => { setActiveTab('holidays'); setIsSidebarOpen(false); }} label="Holiday Settings" />
+            <SubItem active={activeTab === 'idCardViewer'} onClick={() => { setActiveTab('idCardViewer'); setIsSidebarOpen(false); }} label="ID Cards" />
+          </SidebarItem>
+        </div>
+      </aside>
 
-              {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
-                <div>
-                  <div className="flex items-center gap-2 px-2 mb-3">
-                    <div className="h-px bg-gray-200 flex-1"></div>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">System</p>
-                    <div className="h-px bg-gray-200 flex-1"></div>
-                  </div>
-                  <div className="space-y-1">
-                    <button onClick={() => { setActiveTab('adminRequests'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'adminRequests' ? 'bg-amber-50 text-amber-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
-                      <div className={`w-2 h-2 rounded-full ${activeTab === 'adminRequests' ? 'bg-amber-500' : 'bg-gray-300'}`} />
-                      Admin Requests
-                    </button>
-                    <button onClick={() => { setActiveTab('admins'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'admins' ? 'bg-purple-50 text-purple-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
-                      <div className={`w-2 h-2 rounded-full ${activeTab === 'admins' ? 'bg-purple-500' : 'bg-gray-300'}`} />
-                      Manage Admins
-                    </button>
-                    {adminUser?.role === 'developer' && (
-                      <button onClick={() => { setActiveTab('activity'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'activity' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
-                        <div className={`w-2 h-2 rounded-full ${activeTab === 'activity' ? 'bg-indigo-500' : 'bg-gray-300'}`} />
-                        Login Activity
-                      </button>
-                    )}
-                    <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'settings' ? 'bg-slate-50 text-slate-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
-                      <div className={`w-2 h-2 rounded-full ${activeTab === 'settings' ? 'bg-slate-500' : 'bg-gray-300'}`} />
-                      System Settings
-                    </button>
-                  </div>
-                </div>
-              )}
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <header className="h-20 bg-surface border-b border-outline-variant flex items-center justify-between px-6 shrink-0 shadow-sm">
+          <button 
+            className="lg:hidden text-on-surface-variant p-2 rounded-lg hover:bg-surface-variant"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <FiMenu className="text-2xl" />
+          </button>
+          
+          <div className="flex-1" />
+          
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-body-sm font-semibold text-neutral">{adminUser?.name || 'Admin User'}</p>
+                <p className="text-label-sm text-on-surface-variant">{adminUser?.email || ''}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-primary-container text-primary flex items-center justify-center font-bold shadow-inner uppercase">
+                {getInitials(adminUser?.name)}
+              </div>
             </div>
-            
-            <div className="p-4 border-t border-gray-100 bg-gray-50 shrink-0 pb-8">
-               <button onClick={handleLogout} className="w-full py-3 px-4 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors border border-red-100">
-                 <FaSignOutAlt /> Sign Out
-               </button>
-            </div>
+            <button 
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100 shadow-sm"
+            >
+              Logout
+            </button>
           </div>
-        </>
-      )}
+        </header>
 
-      {/* Main Content */}
-      <div className="flex-1 w-full overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-slate-50">
 
-        <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-8" style={{ backgroundColor: '#F8FAFC' }}>
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'gallery' && renderGalleryTab()}
           {activeTab === 'tenders' && renderTendersTab()}
@@ -9409,7 +9264,6 @@ function AdminPage() {
               )}
             </div>
           )}
-        </main>
 
         {/* --- Application View Modal --- */}
         {/* --- Job Application View Modal --- */}
@@ -10103,7 +9957,8 @@ function AdminPage() {
         {renderStatusUpdateModal()}
         {renderTenderBidModal()}
       </div>
-    </div>
+    </main>
+  </div>
   );
 }
 

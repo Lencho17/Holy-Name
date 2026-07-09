@@ -5,8 +5,9 @@ const fs = require('fs');
 const supabase = require('../config/supabase');
 const { protect } = require('../middleware/auth');
 
+const os = require('os');
 const router = express.Router();
-const upload = multer({ dest: 'tmp/' }); // Temporary storage for CSV files
+const upload = multer({ dest: os.tmpdir() }); // Use absolute /tmp for serverless
 
 // POST /api/bulk-upload/students
 router.post('/students', protect, upload.single('file'), async (req, res) => {

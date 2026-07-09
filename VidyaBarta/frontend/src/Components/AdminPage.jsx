@@ -1,0 +1,10110 @@
+import React, { useState, useContext, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { NavLink } from 'react-router-dom';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt, FaLeaf } from 'react-icons/fa';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import { SiteDataContext } from '../context/SiteDataContext';
+import SchoolStatusSettings from './SchoolStatusSettings';
+import BulkUpload from './BulkUpload';
+import HolidaySettings from './HolidaySettings';
+import IDCardViewer from './IDCardViewer';
+import AdminStaffLeaves from './AdminStaffLeaves';
+import AdminStaffRequests from './AdminStaffRequests';
+import AdminStaffAssignments from './AdminStaffAssignments';
+import AdminPayroll from './AdminPayroll';
+import AdminAnnouncements from './AdminAnnouncements';
+import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn } from 'react-icons/fa';
+
+function AdminPage() {
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('adminActiveTab') || 'dashboard');
+
+  useEffect(() => {
+    localStorage.setItem('adminActiveTab', activeTab);
+  }, [activeTab]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null); // 'content', 'data', 'system', etc.
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.nav-dropdown-container')) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  const [expandedEventId, setExpandedEventId] = useState(null);
+  const [isAddingPhotos, setIsAddingPhotos] = useState(false);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, careerPage, setCareerPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  
+  // Defensive API_URL — ensure it points to the correct backend
+  const API_URL = raw_API_URL 
+    ? (raw_API_URL.startsWith('http') ? raw_API_URL : (raw_API_URL.startsWith('/') ? raw_API_URL : `/api`))
+    : '/api';
+
+  // --- Auth & Role ---
+  const [adminUser, setAdminUser] = useState(null);
+  const [admins, setAdmins] = useState([]);
+  const [pendingStaff, setPendingStaff] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [mapExtracted, setMapExtracted] = useState(false);
+  const [tenders, setTenders] = useState([]);
+  const [tenderApplications, setTenderApplications] = useState([]);
+  const [tenderSearch, setTenderSearch] = useState("");
+  const [newTender, setNewTender] = useState({
+    title: '',
+    tenderNumber: '',
+    category: 'Other',
+    description: '',
+    estimatedValue: '',
+    closingDate: '',
+    documentUrl: ''
+  });
+  const [isTenderUploading, setIsTenderUploading] = useState(false);
+  const [editingTenderId, setEditingTenderId] = useState(null);
+  const [tenderFile, setTenderFile] = useState(null);
+  const [tenderAppFilter, setTenderAppFilter] = useState('All');
+  const [tenderAppStatusFilter, setTenderAppStatusFilter] = useState('All');
+  const [selectedTenderApp, setSelectedTenderApp] = useState(null);
+
+  useEffect(() => {
+    const restoreSession = () => {
+      try {
+        const data = localStorage.getItem('adminData');
+        const token = localStorage.getItem('adminToken');
+
+        // Defensive check: Ensure both pieces of data exist and aren't literal error strings
+        if (data && token && data !== "undefined" && data !== "null" && token !== "undefined") {
+          const parsed = JSON.parse(data);
+          
+          // Verify it's a valid object
+          if (parsed && typeof parsed === 'object') {
+            setAdminUser(parsed);
+            
+            // Re-verify token validity with backend in the background
+            fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+              .then(res => {
+                if (!res.ok) {
+                  console.warn("Session expired on server");
+                  handleLogout();
+                }
+              })
+              .catch(err => console.warn('Auth check skipped (offline/server down):', err.message));
+          } else {
+            throw new Error("Invalid session data structure");
+          }
+        }
+      } catch (err) {
+        console.error("Critical session restoration failure:", err.message);
+        handleLogout();
+      }
+    };
+
+    restoreSession();
+  }, [API_URL]);
+
+
+  const handleLogout = () => {
+    // Fire-and-forget: log the logout event to backend
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
+    }
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminData');
+    localStorage.removeItem('loginTimestamp');
+    setAdminUser(null);
+    window.location.href = '/';
+  };
+
+  const [sessionRemaining, setSessionRemaining] = useState(7200);
+
+  // --- Strict 2 Hour Session Timer ---
+  useEffect(() => {
+    let startTimestamp = parseInt(localStorage.getItem('loginTimestamp'), 10);
+    if (!startTimestamp || isNaN(startTimestamp)) {
+      startTimestamp = Date.now();
+      localStorage.setItem('loginTimestamp', startTimestamp.toString());
+    }
+
+    const maxDuration = 2 * 60 * 60; // 2 hours in seconds
+    
+    const intervalId = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+      const remaining = maxDuration - elapsed;
+
+      if (remaining <= 0) {
+        clearInterval(intervalId);
+        alert('Your session has expired (2 hour limit). Please log in again.');
+        handleLogout();
+      } else {
+        setSessionRemaining(remaining);
+        
+        // Notify at 1 hour 58 mins and 1 hour 59 mins
+        if (remaining === 120) {
+          alert('Warning: Your session will expire in 2 minutes.');
+        } else if (remaining === 60) {
+          alert('Warning: Your session will expire in 1 minute. Please save your work!');
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // --- Heartbeat: ping backend every 2 minutes to track online status ---
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    const heartbeat = async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/heartbeat`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.forceLogout) {
+            alert('Your session has expired. Please log in again.');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminData');
+            localStorage.removeItem('loginTimestamp');
+            setAdminUser(null);
+            window.location.href = '/';
+          }
+        }
+      } catch (e) { /* silent */ }
+    };
+
+    // Send initial heartbeat on mount
+    heartbeat();
+    const hbInterval = setInterval(heartbeat, 15 * 1000); // every 15 seconds for fast force-logout
+
+    return () => clearInterval(hbInterval);
+  }, [API_URL]);
+
+  useEffect(() => {
+    if (activeTab === 'activity') fetchActivities();
+  }, [activeTab]);
+
+  const formatTimer = (secs) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    if (h > 0) {
+      return `${h}:${m}:${s}`;
+    }
+    return `${m}:${s}`;
+  };
+  
+  // Helper to map Supabase snake_case to legacy camelCase and provide _id fallback
+  const mapSupabaseToLegacy = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(mapSupabaseToLegacy);
+    
+    const mapped = {};
+    Object.keys(obj).forEach(key => {
+      // Convert snake_case to camelCase
+      const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
+      mapped[camelKey] = mapSupabaseToLegacy(obj[key]);
+    });
+    
+    // Fallback for MongoDB style IDs often used in legacy slice/map logic
+    if (obj.id && !mapped._id) mapped._id = String(obj.id);
+    
+    return mapped;
+  };
+
+  // --- Fetch real admission applications && Inquiries ---
+  const [applications, setApplications] = useState([]);
+  const [prospectusLeads, setProspectusLeads] = useState([]);
+  const [fetchingProspectus, setFetchingProspectus] = useState(false);
+  const [appPage, setAppPage] = useState(1);
+  const [appTotalPages, setAppTotalPages] = useState(1);
+  const [appStats, setAppStats] = useState({ total: 0, accepted: 0, pending: 0 });
+  const [inquiries, setInquiries] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [inquirySearch, setInquirySearch] = useState('');
+  const [inquiryTypeFilter, setInquiryTypeFilter] = useState('All');
+  const [inquiryStatusFilter, setInquiryStatusFilter] = useState('All');
+  const [isExportingInquiries, setIsExportingInquiries] = useState(false);
+  const [inquiryReplyModal, setInquiryReplyModal] = useState({ open: false, inquiry: null, reply: '', status: '' });
+  const [selectedApp, setSelectedApp] = useState(null); // For "View" modal
+  const [jobs, setJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [editingJobId, setEditingJobId] = useState(null);
+  const [isAddingJob, setIsAddingJob] = useState(false);
+  const [currentJob, setCurrentJob] = useState({
+    title: '',
+    department: 'Science',
+    type: 'Full-Time',
+    experience: '',
+    qualifications: '',
+    deadline: 'Open until filled'
+  });
+  const [jobApplications, setJobApplications] = useState([]);
+  const [jobApplicationsLoading, setJobApplicationsLoading] = useState(false);
+  const [selectedJobApp, setSelectedJobApp] = useState(null);
+  const [selectedAppIds, setSelectedAppIds] = useState([]);
+  const [selectedJobAppIds, setSelectedJobAppIds] = useState([]);
+  const [classFilter, setClassFilter] = useState('All');
+
+  const [careerSubTab, setCareerSubTab] = useState('openings');
+  const [localCareerPage, setLocalCareerPage] = useState({ eligibility: [], qualification: [], documents: [], offline_process: [], online_process: [] });
+  const localCareerPageInitRef = useRef(false);
+
+  useEffect(() => {
+    if (!localCareerPageInitRef.current && !loading && careerPage) {
+      setLocalCareerPage(careerPage);
+      localCareerPageInitRef.current = true;
+    }
+  }, [careerPage, loading]);
+
+  const handleCareerPageSave = async () => {
+    try {
+      await updateSiteContent({ careerPage: localCareerPage });
+      alert("Career Page Guidelines saved successfully!");
+    } catch (err) {
+      alert("Failed to save Career Guidelines: " + err.message);
+    }
+  };
+
+  const [trackingForm, setTrackingForm] = useState({
+    interviewDate: "",
+    interviewStatus: "scheduled",
+    interviewResultDate: "",
+    adminMessage: "",
+    hasLetter: false,
+    recruitmentType: "TEMPORARY",
+    salary: "",
+    noticePeriod: "",
+    letterNotes: ""
+  });
+
+  useEffect(() => {
+    if (selectedJobApp) {
+      const letter = selectedJobApp.preliminaryAppointmentLetter || {};
+      setTrackingForm({
+        interviewDate: selectedJobApp.interviewDate || "",
+        interviewStatus: selectedJobApp.interviewStatus || "scheduled",
+        interviewResultDate: selectedJobApp.interviewResultDate || "",
+        adminMessage: selectedJobApp.adminMessage || "",
+        hasLetter: !!selectedJobApp.preliminaryAppointmentLetter,
+        recruitmentType: letter.recruitmentType || "TEMPORARY",
+        salary: letter.salary || "",
+        noticePeriod: letter.noticePeriod || "",
+        letterNotes: letter.additionalNotes || ""
+      });
+    }
+  }, [selectedJobApp]);
+
+  const handleSaveTracking = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const payload = {
+        status: selectedJobApp.status,
+        interview_date: trackingForm.interviewDate,
+        interview_status: trackingForm.interviewStatus,
+        interview_result_date: trackingForm.interviewResultDate,
+        admin_message: trackingForm.adminMessage,
+        preliminary_appointment_letter: trackingForm.hasLetter ? {
+          recruitmentType: trackingForm.recruitmentType,
+          salary: trackingForm.salary,
+          noticePeriod: trackingForm.noticePeriod,
+          additionalNotes: trackingForm.letterNotes
+        } : null
+      };
+
+      const res = await axios.patch(`${API_URL}/job-applications/${selectedJobApp._id}/tracking`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Update local state
+      setJobApplications(jobApplications.map(a => a._id === selectedJobApp._id ? { ...a, ...res.data } : a));
+      setSelectedJobApp({ ...selectedJobApp, ...res.data });
+      alert("Recruitment Tracking details saved successfully!");
+    } catch (err) {
+      alert("Failed to save tracking: " + (err.response?.data?.message || err.message));
+    }
+  };
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [jobStatusFilter, setJobStatusFilter] = useState('All');
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusModalData, setStatusModalData] = useState({ id: null, currentStatus: '', newStatus: '', remark: '', date: '' });
+  const [admissionSubTab, setAdmissionSubTab] = useState('applications');
+
+  // --- Appointments ---
+  const [appointments, setAppointments] = useState([]);
+  const [appointmentCategoryFilter, setAppointmentCategoryFilter] = useState('All');
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState('All');
+  const [appointmentSearch, setAppointmentSearch] = useState('');
+  const [isExportingAppointments, setIsExportingAppointments] = useState(false);
+  const [appointmentModal, setAppointmentModal] = useState({ open: false, apt: null, status: '', remark: '' });
+  
+  // --- School Profile States (Moved to Top Level for Shared Access) ---
+  const [localProfile, setLocalProfile] = useState(schoolProfile);
+  const localProfileInitRef = useRef(false);
+
+  // Sync from context → local ONLY on initial load
+  useEffect(() => {
+    if (!localProfileInitRef.current && !loading && schoolProfile) {
+      setLocalProfile(schoolProfile);
+      localProfileInitRef.current = true;
+    }
+  }, [schoolProfile, loading]);
+
+  const handleProfileChange = (field, value) => {
+    let finalValue = value;
+    if (field === 'name') finalValue = value.toUpperCase();
+    setLocalProfile(prev => ({ ...prev, [field]: finalValue }));
+  };
+
+  const handleProfileSave = async () => {
+    await updateSiteContent({ schoolProfile: localProfile });
+    alert('Settings updated successfully!');
+  };
+
+  const [pageHeroUploading, setPageHeroUploading] = useState({});
+  
+  const [editingExcellenceId, setEditingExcellenceId] = useState(null);
+  const [excellenceForm, setExcellenceForm] = useState({ _id: null, title: '', name: '', passedYear: '', designation: '', company: '', location: '', message: '', photo: '' });
+  const [alumniForm, setAlumniForm] = useState({ _id: null, name: '', passedYear: '', rank: '', percentage: '', level: 'HSLC', stream: 'Arts', subjects: [], photo: '', description: '' });
+  const [isEditingExcellence, setIsEditingExcellence] = useState(false);
+  const [excellenceFile, setExcellenceFile] = useState(null);
+  const [isExcellenceUploading, setIsExcellenceUploading] = useState(false);
+  
+  const resetExcellenceForm = () => {
+    setExcellenceForm({ _id: null, title: '', name: '', passedYear: '', designation: '', company: '', location: '', message: '', photo: '' });
+    setIsEditingExcellence(false);
+    setExcellenceFile(null);
+  };
+
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const [isDownloadingFiles, setIsDownloadingFiles] = useState(false);
+  const [isExportingStudents, setIsExportingStudents] = useState(false);
+  const [isExportingAdmissions, setIsExportingAdmissions] = useState(false);
+  const [isExportingJobs, setIsExportingJobs] = useState(false);
+  const [isExportingTenders, setIsExportingTenders] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [expandedLogId, setExpandedLogId] = useState(null);
+  const [selectedLogs, setSelectedLogs] = useState(new Set());
+
+  const handleExportData = async (endpoint, fileNamePrefix, setLoading) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      // Use direct window location for download to ensure browser uses server headers for filename
+      window.location.href = `${API_URL}/${endpoint}/export?token=${token}`;
+      
+      // Delay resetting loading so user sees something is happening
+      setTimeout(() => setLoading(false), 2000);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert(`An error occurred during ${fileNamePrefix} export.`);
+      setLoading(false);
+    }
+  };
+
+  const handleExportStudents = () => handleExportData('students', 'students', setIsExportingStudents);
+  const handleExportAdmissions = () => {
+    setIsExportingAdmissions(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams({ token });
+      if (classFilter && classFilter !== 'All') params.set('class', classFilter);
+      if (statusFilter && statusFilter !== 'All') params.set('status', statusFilter);
+      window.location.href = `${API_URL}/admissions/export?${params.toString()}`;
+      setTimeout(() => setIsExportingAdmissions(false), 2000);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert('An error occurred during admissions export.');
+      setIsExportingAdmissions(false);
+    }
+  };
+  const handleExportJobs = () => handleExportData('job-applications', 'job_apps', setIsExportingJobs);
+  const handleExportTenders = () => handleExportData('tender-applications', 'tender_apps', setIsExportingTenders);
+
+  const fetchProspectusLeads = async () => {
+    try {
+      setFetchingProspectus(true);
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/admissions/prospectus/leads`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProspectusLeads(res.data);
+    } catch (err) {
+      console.error('Error fetching prospectus leads:', err);
+    } finally {
+      setFetchingProspectus(false);
+    }
+  };
+
+  const fetchApps = async (page = appPage, search = searchQuery) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const url = `${API_URL}/admissions?page=${page}&limit=50${search ? `&search=${encodeURIComponent(search)}` : ''}`;
+      const res = await fetch(url, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const data = await res.json();
+        const rawApps = data.data || data || [];
+        setApplications(mapSupabaseToLegacy(rawApps));
+        if (data.pagination) setAppTotalPages(data.pagination.pages);
+        if (data.stats) setAppStats(data.stats);
+      }
+    } catch (e) { 
+      console.warn('Could not fetch applications'); 
+    }
+  };
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (activeTab === 'dashboard' || activeTab === 'applications') {
+        fetchApps(appPage, searchQuery);
+      }
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery, appPage]);
+
+  const fetchJobApplications = async () => {
+    try {
+      setJobApplicationsLoading(true);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/job-applications`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const data = await res.json();
+        setJobApplications(mapSupabaseToLegacy(data));
+      }
+    } catch (e) { 
+      console.warn('Could not fetch job applications'); 
+    } finally {
+      setJobApplicationsLoading(false);
+    }
+  };
+
+  const handleDownloadPDF = async (app) => {
+    setIsDownloadingPDF(true);
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const primaryColor = [37, 99, 235]; // Midblue (Blue 600) theme
+
+      // Helper to load image as Base64 for jsPDF
+      const loadImage = (url) => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = url;
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+        });
+      };
+
+      // --- Header ---
+      doc.setFillColor(...primaryColor);
+      doc.rect(0, 0, 210, 35, 'F');
+      
+      // Fetch images in parallel
+      const [logoImg, photoImg] = await Promise.all([
+        schoolProfile.logo ? loadImage(schoolProfile.logo) : Promise.resolve(null),
+        app.studentPhoto ? loadImage(app.studentPhoto) : Promise.resolve(null)
+      ]);
+
+      // Add School Logo
+      if (logoImg) {
+        doc.addImage(logoImg, 'PNG', 15, 8, 32, 32);
+      }
+
+      // Add Student Photo (Top Right)
+      if (photoImg) {
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(1);
+        doc.rect(pageWidth - 45, 8, 32, 32, 'D');
+        doc.addImage(photoImg, 'JPEG', pageWidth - 45, 8, 32, 32);
+      }
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text(schoolProfile?.name?.toUpperCase() || "Our School", 105, 14, { align: "center" });
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "italic");
+      doc.text(schoolProfile.punchLine || "", 105, 19, { align: "center" });
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("ADMISSION APPLICATION FORM", 105, 26, { align: "center" });
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`REFERENCE NO: ${app.referenceNumber || "N/A"}`, 105, 31, { align: "center" });
+
+      let yPos = 42;
+
+      // --- Sections ---
+      const addSection = (title, data) => {
+        autoTable(doc, {
+          startY: yPos,
+          head: [[title, '']],
+          body: data,
+          theme: 'striped',
+          headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 8.5, cellPadding: 1.5 },
+          columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
+          margin: { left: 15, right: 15 },
+        });
+        yPos = doc.lastAutoTable.finalY + 6;
+      };
+
+      // 1. Personal Info
+      addSection("Personal Information", [
+        ["Student Name", app.studentName],
+        ["Date of Birth", app.dateOfBirth],
+        ["Place of Birth", app.placeOfBirth || "N/A"],
+        ["Gender", app.gender],
+        ["Blood Group", app.bloodGroup || "N/A"],
+        ["Religion", app.religion || "N/A"],
+        ["Caste", app.caste || "N/A"],
+        ["Grade Applied", app.gradeApplied],
+        ["NCC Interest", app.nccInterest ? "YES (11th Assam Battalion)" : "NO"]
+      ]);
+
+      // Check if we need a new page
+      if (yPos > 265) { doc.addPage(); yPos = 20; }
+
+      // 2. Parent Info
+      addSection("Parent / Guardian Details", [
+        ["Father's Name", app.fatherName || "N/A"],
+        ["Father's Occupation", app.fatherOccupation || "N/A"],
+        ["Mother's Name", app.motherName || "N/A"],
+        ["Mother's Occupation", app.motherOccupation || "N/A"],
+        ["Guardian Name", app.guardianName || "N/A"],
+        ["Relationship", app.relationship || "N/A"]
+      ]);
+
+      if (yPos > 265) { doc.addPage(); yPos = 20; }
+
+      // 3. Contact & Address
+      addSection("Contact & Address Details", [
+        ["Phone Number", app.contactNumber],
+        ["Email Address", app.email],
+        ["Current Address", app.address],
+        ["Post Office", app.po || "N/A"],
+        ["Police Station", app.ps || "N/A"],
+        ["Pincode", app.pincode || "N/A"]
+      ]);
+
+      if (yPos > 265) { doc.addPage(); yPos = 20; }
+
+      // 4. Academic Background
+      addSection("Academic Background", [
+        ["Previous School", app.previousSchool || "N/A"],
+        ["Stream", app.stream || "N/A"],
+        ["Elective", app.elective || "N/A"],
+        ["MIL", app.mil || "N/A"],
+        ["Selected Subjects", app.selectedSubjects?.join(", ") || "None"]
+      ]);
+
+      if (yPos > 265) { doc.addPage(); yPos = 20; }
+
+      // 5. Identity
+      addSection("Identity Details", [
+        ["Aadhar Number", app.aadharNumber || "N/A"],
+        ["PEN Number", app.penNumber || "N/A"]
+      ]);
+
+      // --- Document Attachments (New Pages) ---
+      const attachments = [
+        { label: "Birth Certificate", url: app.birthCertificate },
+        { label: "Transfer Certificate", url: app.transferCertificate },
+        { label: "Marksheet", url: app.marksheet },
+        { label: "Student Photo (Original)", url: app.studentPhoto },
+        { label: "Aadhar VID/Receipt", url: app.aadharVidOrReceipt },
+        { label: "Caste Certificate", url: app.casteCertificate }
+      ];
+
+      for (const docItem of attachments) {
+        if (!docItem.url) continue;
+
+        // Skip PDFs for embedding (only handle images)
+        if (docItem.url.toLowerCase().endsWith('.pdf')) {
+          doc.setFontSize(11);
+          doc.setTextColor(...primaryColor);
+          doc.setFont("helvetica", "bold");
+          doc.text(`ATTACHMENT: ${docItem.label.toUpperCase()} (LINK ONLY)`, 15, yPos);
+          yPos += 7;
+          doc.setFontSize(9);
+          doc.setTextColor(0, 50, 150);
+          doc.text(`• Click here to view: ${docItem.label}`, 20, yPos);
+          doc.link(20, yPos - 3, 60, 5, { url: docItem.url });
+          yPos += 10;
+          continue;
+        }
+
+        // Load and embed image
+        const img = await loadImage(docItem.url);
+        if (img) {
+          doc.addPage();
+          const margin = 15;
+          const maxWidth = doc.internal.pageSize.getWidth() - (margin * 2);
+          const maxHeight = doc.internal.pageSize.getHeight() - (margin * 3); // 3x margin for header
+          
+          let imgWidth = img.width;
+          let imgHeight = img.height;
+          const ratio = imgWidth / imgHeight;
+
+          // Scale to fit page
+          if (imgWidth > maxWidth) {
+            imgWidth = maxWidth;
+            imgHeight = imgWidth / ratio;
+          }
+          if (imgHeight > maxHeight) {
+            imgHeight = maxHeight;
+            imgWidth = imgHeight * ratio;
+          }
+
+          // Add Header on attachment page
+          doc.setFillColor(...primaryColor);
+          doc.rect(0, 0, 210, 20, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.text(`DOCUMENT: ${docItem.label.toUpperCase()}`, 105, 13, { align: "center" });
+
+          // Add the image centered
+          const xPos = (doc.internal.pageSize.getWidth() - imgWidth) / 2;
+          doc.addImage(img, 'JPEG', xPos, 25, imgWidth, imgHeight);
+
+          // Reset text color for status/timestamp
+          doc.setTextColor(150);
+        }
+      }
+
+      // Final Status & Timestamp (centered at bottom of last page)
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Document generated on: ${new Date().toLocaleString()} | Application Status: ${app.status.toUpperCase()}`, 105, 285, { align: "center" });
+
+      doc.save(`Application_${app.studentName.replace(/\s+/g, '_')}_${app.referenceNumber}.pdf`);
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      alert("Failed to generate PDF. Check console for details.");
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
+  const getProxyUrl = (url) => {
+    if (!url) return url;
+    const isExternal = url.includes('cloudinary.com') || url.includes('supabase.co');
+    if (!isExternal) return url;
+    return `${API_URL}/files/proxy?url=${encodeURIComponent(url)}`;
+  };
+
+  const handleDownloadFile = async (url, filename) => {
+    if (!url) return;
+    const proxyUrl = `${getProxyUrl(url)}&filename=${encodeURIComponent(filename)}`;
+    window.open(proxyUrl, '_blank');
+  };
+
+  const handleDownloadAllDocuments = async (app) => {
+    setIsDownloadingFiles(true);
+    try {
+      const zip = new JSZip();
+      const folderName = `Documents_${app.studentName.replace(/\s+/g, '_')}_${app.referenceNumber || app._id.slice(-6)}`;
+      const folder = zip.folder(folderName);
+
+      const attachments = [
+        { label: "Student_Photo", url: app.studentPhoto },
+        { label: "Birth_Certificate", url: app.birthCertificate },
+        { label: "Transfer_Certificate", url: app.transferCertificate },
+        { label: "Marksheet", url: app.marksheet },
+        { label: "Aadhar_VID_Receipt", url: app.aadharVidOrReceipt },
+        { label: "Caste_Certificate", url: app.casteCertificate },
+        { label: "Payment_Receipt", url: app.paymentReceipt }
+      ].filter(item => item.url);
+
+      if (attachments.length === 0) {
+        alert("No documents available to download.");
+        return;
+      }
+
+      const downloadPromises = attachments.map(async (item) => {
+        try {
+          const response = await axios.get(item.url, { responseType: 'blob' });
+          const extension = item.url.split('.').pop().split('?')[0] || 'jpg';
+          folder.file(`${item.label}.${extension}`, response.data);
+        } catch (e) {
+          console.error(`Failed to download ${item.label}:`, e);
+        }
+      });
+
+      await Promise.all(downloadPromises);
+      
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `${folderName}.zip`);
+    } catch (err) {
+      console.error("ZIP generation error:", err);
+      alert("Failed to generate combined document package.");
+    } finally {
+      setIsDownloadingFiles(false);
+    }
+  };
+
+  const handleDownloadJobPDF = async (app) => {
+    setIsDownloadingPDF(true);
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const primaryColor = [37, 99, 235]; // Blue 600
+
+      const loadImage = (url) => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = url;
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+        });
+      };
+
+      // --- Header ---
+      doc.setFillColor(...primaryColor);
+      doc.rect(0, 0, 210, 35, 'F');
+      
+      const [logoImg, photoImg] = await Promise.all([
+        schoolProfile.logo ? loadImage(schoolProfile.logo) : Promise.resolve(null),
+        app.photo ? loadImage(app.photo) : Promise.resolve(null)
+      ]);
+
+      if (logoImg) doc.addImage(logoImg, 'PNG', 15, 8, 32, 32);
+      if (photoImg) {
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(1);
+        doc.rect(pageWidth - 45, 8, 32, 32, 'D');
+        doc.addImage(photoImg, 'JPEG', pageWidth - 45, 8, 32, 32);
+      }
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.text(schoolProfile?.name?.toUpperCase() || "Our School", 105, 14, { align: "center" });
+      
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("JOB APPLICATION DOSSIER", 105, 24, { align: "center" });
+      
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`CANDIDATE: ${app.fullName.toUpperCase()} | REF: ${app.referenceNumber}`, 105, 30, { align: "center" });
+
+      let yPos = 45;
+
+      const addSection = (title, data) => {
+        autoTable(doc, {
+          startY: yPos,
+          head: [[title, '']],
+          body: data,
+          theme: 'striped',
+          headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 8.5, cellPadding: 1.5 },
+          columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
+          margin: { left: 15, right: 15 },
+        });
+        yPos = doc.lastAutoTable.finalY + 8;
+      };
+
+      addSection("Personal Information", [
+        ["Full Name", app.fullName],
+        ["Email Address", app.email],
+        ["Phone Number", app.phone],
+        ["Date of Birth / Age", `${app.dob} (${app.age} Years)`],
+        ["Gender", app.gender],
+        ["Caste / Religion", `${app.caste} / ${app.religion}`]
+      ]);
+
+      if (yPos > 250) { doc.addPage(); yPos = 20; }
+
+      addSection("Qualifications & Occupational Status", [
+        ["Highest Qualification", app.qualification],
+        ["Experience Status", app.isExperienced ? "Experienced Professional" : "Fresher / Entry Level"],
+        ["Total Experience", app.totalExperience || "N/A"],
+        ["Last/Current School", app.schoolName || "N/A"],
+        ["UDISE Code", app.udiseCode || "N/A"]
+      ]);
+
+      if (yPos > 250) { doc.addPage(); yPos = 20; }
+
+      addSection("Identity & Contact Details", [
+        ["Aadhar Number", app.aadhar || "N/A"],
+        ["PAN Number", app.pan || "N/A"],
+        ["Full Address", `${app.address}, ${app.postOffice}, ${app.policeStation}, ${app.pincode}`]
+      ]);
+
+      const attachments = [
+        { label: "Candidate Photo", url: app.photo },
+        { label: "Digital Signature", url: app.signature },
+        { label: "Resume / CV", url: app.resume },
+        { label: "Class 10 Marksheet", url: app.marksheet10 },
+        { label: "Class 10 Certificate", url: app.cert10 },
+        { label: "Class 12 Marksheet", url: app.marksheet12 },
+        { label: "Class 12 Certificate", url: app.cert12 },
+        { label: "UG Marksheet", url: app.marksheetUG },
+        { label: "UG Certificate", url: app.certUG },
+        { label: "PG Marksheet", url: app.marksheetPG },
+        { label: "PG Certificate", url: app.certPG },
+        { label: "B.Ed Marksheet", url: app.marksheetBEd },
+        { label: "B.Ed Certificate", url: app.certBEd },
+        { label: "D.Led Marksheet", url: app.marksheetDLed },
+        { label: "D.Led Certificate", url: app.certDLed },
+        { label: "Experience Certificate", url: app.expCertificate },
+        { label: "Caste Certificate", url: app.casteCertificate }
+      ];
+
+      for (const docItem of attachments) {
+        if (!docItem.url) continue;
+
+        if (docItem.url.toLowerCase().endsWith('.pdf')) {
+          if (yPos > 270) { doc.addPage(); yPos = 20; }
+          doc.setFontSize(10);
+          doc.setTextColor(...primaryColor);
+          doc.setFont("helvetica", "bold");
+          doc.text(`ATTACHMENT: ${docItem.label.toUpperCase()} (LINK)`, 15, yPos);
+          yPos += 7;
+          doc.setFontSize(8);
+          doc.setTextColor(0, 50, 150);
+          doc.text(`• Click to view: ${docItem.url}`, 20, yPos);
+          doc.link(20, yPos - 3, 150, 5, { url: docItem.url });
+          yPos += 12;
+          continue;
+        }
+
+        const img = await loadImage(docItem.url);
+        if (img) {
+          doc.addPage();
+          doc.setFillColor(...primaryColor);
+          doc.rect(0, 0, 210, 20, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.text(`DOCUMENT: ${docItem.label.toUpperCase()}`, 105, 13, { align: "center" });
+
+          const margin = 15;
+          const maxWidth = 180;
+          const maxHeight = 240;
+          let w = img.width;
+          let h = img.height;
+          const r = w / h;
+          if (w > maxWidth) { w = maxWidth; h = w / r; }
+          if (h > maxHeight) { h = maxHeight; w = h * r; }
+          doc.addImage(img, 'JPEG', (210 - w) / 2, 30, w, h);
+        }
+      }
+
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Generated on: ${new Date().toLocaleString()} | Candidate: ${app.fullName}`, 105, 288, { align: "center" });
+      doc.save(`JobApp_${app.fullName.replace(/\s+/g, '_')}_${app.referenceNumber}.pdf`);
+    } catch (err) {
+      console.error("Job PDF generation error:", err);
+      alert("Failed to generate PDF dossier.");
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
+  const fetchAdmins = async () => {
+    if (adminUser?.role !== 'superadmin' && adminUser?.role !== 'developer') return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/auth/admins`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const data = await res.json();
+        setAdmins(mapSupabaseToLegacy(data));
+      }
+    } catch (e) { console.warn('Could not fetch admins'); }
+  };
+
+  const fetchPendingStaff = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/staff/admin/pending-staff`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingStaff(data);
+      }
+    } catch (e) { console.warn('Could not fetch pending staff'); }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/students`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const result = await res.json();
+        const rawStudents = result.data || result || [];
+        setStudents(mapSupabaseToLegacy(rawStudents));
+      }
+    } catch (e) { console.warn('Could not fetch students'); }
+  };
+
+  const fetchActivities = async () => {
+    if (adminUser?.role !== 'developer') return;
+    try {
+      setActivitiesLoading(true);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/auth/activity`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const data = await res.json();
+        setActivities(data);
+      }
+    } catch (e) { 
+      console.warn('Could not fetch activities'); 
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
+
+  const renderActivitiesTab = () => {
+    if (adminUser?.role !== 'developer') return null;
+    
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-headline font-bold text-gray-800">System Activity Logs</h2>
+            <p className="text-gray-500 mt-2">Monitoring login activities and administrative actions across the portal.</p>
+          </div>
+          <button 
+            onClick={fetchActivities}
+            className="p-3 bg-white text-primary border border-primary/20 rounded-xl hover:bg-primary/5 transition-all shadow-sm"
+            title="Refresh Logs"
+          >
+            <FaSpinner className={activitiesLoading ? 'animate-spin' : ''} />
+          </button>
+        </header>
+
+        <section className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                  <th className="py-4 px-6">Admin User</th>
+                  <th className="py-4 px-6">Action</th>
+                  <th className="py-4 px-6">IP Address</th>
+                  <th className="py-4 px-6">Device / Browser</th>
+                  <th className="py-4 px-6">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {activitiesLoading && activities.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-20 text-center">
+                      <FaSpinner className="animate-spin text-4xl text-primary/30 mx-auto" />
+                    </td>
+                  </tr>
+                ) : activities.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-20 text-center text-gray-400 italic">
+                      No activity records found.
+                    </td>
+                  </tr>
+                ) : activities.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="py-4 px-6">
+                      <div className="font-bold text-gray-800">{log.admin_name}</div>
+                      <div className="text-[10px] text-gray-400 font-medium">{log.admin_email}</div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${
+                        log.action === 'LOGIN' ? 'bg-green-100 text-green-700' : 
+                        log.action === 'LOGOUT' ? 'bg-amber-100 text-amber-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 font-mono text-[10px] text-gray-500">
+                      {log.ip_address || 'N/A'}
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="text-[10px] text-gray-600 truncate max-w-[200px]" title={log.user_agent}>
+                        {log.user_agent || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-[11px] font-medium text-gray-500">
+                      {new Date(log.created_at).toLocaleString('en-GB', { 
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const fetchInquiries = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/inquiries`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Fetched Inquiries (Raw):', data);
+        const mappedData = mapSupabaseToLegacy(data);
+        console.log('Fetched Inquiries (Mapped):', mappedData);
+        setInquiries(mappedData);
+      }
+    } catch (e) { console.warn('Could not fetch inquiries'); }
+  };
+
+  const fetchJobs = async () => {
+    setJobsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/jobs`);
+      if (res.ok) {
+        const data = await res.json();
+        setJobs(mapSupabaseToLegacy(data));
+      }
+    } catch (e) { console.warn('Could not fetch jobs'); }
+    setJobsLoading(false);
+  };
+
+  const fetchTenders = async () => {
+    try {
+      const res = await fetch(`${API_URL}/tenders`);
+      if (res.ok) {
+        const data = await res.json();
+        setTenders(mapSupabaseToLegacy(data));
+      }
+    } catch (e) { console.warn('Could not fetch tenders'); }
+  };
+
+  const fetchTenderApplications = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/tender-applications`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const data = await res.json();
+        setTenderApplications(mapSupabaseToLegacy(data));
+      }
+    } catch (e) { console.warn('Could not fetch tender applications'); }
+  };
+
+  const handleTenderSubmit = async (e) => {
+    e.preventDefault();
+    if (!newTender.title || !newTender.tenderNumber) {
+      alert("Title and Tender Number are required.");
+      return;
+    }
+    
+    setIsTenderUploading(true);
+    try {
+      let docUrl = newTender.documentUrl;
+      if (tenderFile) {
+        // Upload PDF to GitHub (not Cloudinary — Cloudinary doesn't handle PDFs)
+        const token = localStorage.getItem('adminToken');
+        const formData = new FormData();
+        formData.append('pdf', tenderFile);
+        const uploadRes = await fetch(`${API_URL}/content/upload-pdf`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
+        });
+        if (!uploadRes.ok) {
+          let errorMessage = 'Server error';
+          try {
+            const errData = await uploadRes.json();
+            errorMessage = errData.error ? `${errData.message} - ${errData.error}` : (errData.message || errorMessage);
+          } catch (_) {
+            errorMessage = `HTTP Error ${uploadRes.status}`;
+          }
+          throw new Error(`PDF upload failed: ${errorMessage}`);
+        }
+        const uploadData = await uploadRes.json();
+        docUrl = uploadData.url;
+      }
+
+      const token = localStorage.getItem('adminToken');
+      const method = editingTenderId ? 'PUT' : 'POST';
+      const url = editingTenderId ? `${API_URL}/tenders/${editingTenderId}` : `${API_URL}/tenders`;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...newTender, documentUrl: docUrl })
+      });
+
+      if (res.ok) {
+        alert(editingTenderId ? "Tender updated!" : "Tender created!");
+        setNewTender({ title: '', tenderNumber: '', category: 'Other', description: '', estimatedValue: '', closingDate: '', documentUrl: '' });
+        setEditingTenderId(null);
+        setTenderFile(null);
+        fetchTenders();
+      } else {
+        const error = await res.json();
+        alert("Failed to save tender: " + error.message);
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsTenderUploading(false);
+    }
+  };
+
+  const handleDeleteTender = async (id) => {
+    if (window.confirm('Delete this tender?')) {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch(`${API_URL}/tenders/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setTenders(tenders.filter(t => t._id !== id));
+        }
+      } catch (err) {
+        alert("Delete failed: " + err.message);
+      }
+    }
+  };
+
+  const handleTenderAppStatus = async (id, status) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/tender-applications/${id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        setTenderApplications(tenderApplications.map(app => app._id === id ? { ...app, status } : app));
+        alert(`Bid status updated to ${status}`);
+      } else {
+        const error = await res.json().catch(() => ({}));
+        alert("Update failed: " + (error.message || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Update failed: " + err.message);
+    }
+  };
+
+  const handleJobSubmit = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('adminToken');
+    const method = editingJobId ? 'PUT' : 'POST';
+    const url = editingJobId ? `${API_URL}/jobs/${editingJobId}` : `${API_URL}/jobs`;
+
+    const payload = {
+      ...currentJob,
+      qualifications: typeof currentJob.qualifications === 'string' 
+        ? currentJob.qualifications.split(',').map(q => q.trim()).filter(q => q) 
+        : currentJob.qualifications
+    };
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert(editingJobId ? 'Job updated successfully!' : 'Job posted successfully!');
+        setIsAddingJob(false);
+        setEditingJobId(null);
+        setCurrentJob({ title: '', department: 'Science', type: 'Full-Time', experience: '', qualifications: '', deadline: 'Open until filled' });
+        fetchJobs();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Error processing job');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
+
+  const handleDeleteJob = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this job opening?')) return;
+    const token = localStorage.getItem('adminToken');
+    try {
+      const res = await fetch(`${API_URL}/jobs/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setJobs(prev => prev.filter(j => j._id !== id));
+        alert('Job deleted');
+      } else {
+        alert('Failed to delete job');
+      }
+    } catch (err) {
+      alert('Error deleting job');
+    }
+  };
+
+  const handleOpenInquiry = (inquiry) => {
+    setInquiryReplyModal({ 
+      open: true, 
+      inquiry, 
+      reply: inquiry.adminReply || '', 
+      status: inquiry.status || 'Submitted' 
+    });
+
+    if (!inquiry.isRead) {
+      handleInquiryReadToggle(inquiry._id, false);
+    }
+  };
+
+  const handleInquiryReadToggle = async (inquiryId, currentStatus) => {
+    // Optimistic Update
+    const prevInquiries = [...inquiries];
+    setInquiries(inquiries.map(i => i._id === inquiryId ? { ...i, isRead: !currentStatus } : i));
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.patch(`${API_URL}/inquiries/${inquiryId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update with final state from server
+      if (res.data.inquiry) {
+        const mappedInquiry = mapSupabaseToLegacy(res.data.inquiry);
+        setInquiries(prev => prev.map(i => i._id === inquiryId ? { ...i, isRead: mappedInquiry.isRead } : i));
+      }
+    } catch (err) {
+      console.error("Failed to toggle read status:", err.message);
+      // Revert on failure
+      setInquiries(prevInquiries);
+      alert("Failed to update status. Please try again.");
+    }
+  };
+
+  const handleExportInquiries = () => {
+    setIsExportingInquiries(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams({ token });
+      if (inquiryTypeFilter && inquiryTypeFilter !== 'All') params.set('type', inquiryTypeFilter);
+      if (inquiryStatusFilter && inquiryStatusFilter !== 'All') params.set('status', inquiryStatusFilter);
+      window.location.href = `${API_URL}/inquiries/export?${params.toString()}`;
+      setTimeout(() => setIsExportingInquiries(false), 2000);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert('An error occurred during inquiries export.');
+      setIsExportingInquiries(false);
+    }
+  };
+
+  const handleInquiryStatusUpdate = async (inquiryId, status, adminReply) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.patch(`${API_URL}/inquiries/${inquiryId}/status`, 
+        { status, adminReply },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.inquiry) {
+        const mappedInquiry = mapSupabaseToLegacy(res.data.inquiry);
+        setInquiries(prev => prev.map(i => i._id === inquiryId ? { ...i, ...mappedInquiry } : i));
+      }
+      setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' });
+    } catch (err) {
+      console.error("Failed to update inquiry:", err.message);
+      alert("Failed to update inquiry. Please try again.");
+    }
+  };
+
+  // --- Appointment Handlers ---
+  const fetchAppointments = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/appointments`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setAppointments(mapSupabaseToLegacy(data));
+      }
+    } catch (e) { console.warn('Could not fetch appointments'); }
+  };
+
+  const handleExportAppointments = () => {
+    setIsExportingAppointments(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams({ token });
+      if (appointmentCategoryFilter !== 'All') params.set('category', appointmentCategoryFilter);
+      if (appointmentStatusFilter !== 'All') params.set('status', appointmentStatusFilter);
+      window.location.href = `${API_URL}/appointments/export?${params.toString()}`;
+      setTimeout(() => setIsExportingAppointments(false), 2000);
+    } catch (e) { setIsExportingAppointments(false); }
+  };
+
+  const handleAppointmentStatusUpdate = async (id, status, adminRemark) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.patch(`${API_URL}/appointments/${id}/status`, { status, adminRemark }, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.appointment) setAppointments(appointments.map(a => a._id === id ? { ...a, ...res.data.appointment } : a));
+      setAppointmentModal({ open: false, apt: null, status: '', remark: '' });
+    } catch (err) { alert('Failed to update appointment.'); }
+  };
+
+  useEffect(() => {
+    // Initial fetch and fetch on tab change
+    if (activeTab === 'dashboard') {
+      fetchApps();
+      fetchProspectusLeads();
+      fetchStudents();
+      fetchInquiries();
+      fetchJobApplications();
+    } else if (activeTab === 'admission' || activeTab === 'applications') {
+      fetchApps();
+      fetchProspectusLeads();
+    } else if (activeTab === 'inquiries') {
+      fetchInquiries();
+    } else if (activeTab === 'students') {
+      fetchStudents();
+    } else if (activeTab === 'admins') {
+      fetchAdmins();
+    } else if (activeTab === 'staffAccessRequests') {
+      fetchPendingStaff();
+    } else if (activeTab === 'careerAds') {
+      fetchJobs();
+    } else if (activeTab === 'jobApplications') {
+      fetchJobApplications();
+    } else if (activeTab === 'tenders') {
+      fetchTenders();
+      fetchTenderApplications();
+    } else if (activeTab === 'appointments') {
+      fetchAppointments();
+    }
+
+    if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') {
+      fetchAdmins();
+      fetchPendingStaff();
+    }
+
+    // Live changes: poll for new data every 60 seconds (reduced frequency to save resources)
+    const interval = setInterval(() => {
+      // Only poll summary data if on dashboard or relevant list
+      if (activeTab === 'dashboard' || activeTab === 'admission' || activeTab === 'applications') fetchApps();
+      if (activeTab === 'dashboard' || activeTab === 'admission') fetchProspectusLeads();
+      if (activeTab === 'dashboard' || activeTab === 'students') fetchStudents();
+      if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
+      if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
+      if (activeTab === 'activity') fetchActivities();
+      if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') {
+        fetchAdmins();
+        fetchPendingStaff();
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [API_URL, adminUser?.role, activeTab]);
+
+  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', phone: '', role: 'admin' });
+  const [isAdminFormLoading, setIsAdminFormLoading] = useState(false);
+  
+  // OTP and Admin Edit State
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otpString, setOtpString] = useState('');
+  const [newAdminOtpString, setNewAdminOtpString] = useState('');
+  const [pendingAdminAction, setPendingAdminAction] = useState(null);
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [editingAdminId, setEditingAdminId] = useState(null);
+  const [editAdminData, setEditAdminData] = useState({});
+  const [viewingIdCardFor, setViewingIdCardFor] = useState(null);
+  
+  const [selectedStudents, setSelectedStudents] = useState([]);
+
+  const toggleStudentSelection = (studentId) => {
+    setSelectedStudents(prev => 
+      prev.includes(studentId) 
+      ? prev.filter(id => id !== studentId)
+      : [...prev, studentId]
+    );
+  };
+
+  const toggleAllStudents = () => {
+    if (selectedStudents.length === students.length && students.length > 0) {
+      setSelectedStudents([]);
+    } else {
+      setSelectedStudents(students.map(s => s._id || s.id));
+    }
+  };
+
+  const requestOtp = async (actionType, adminData) => {
+    // DEVELOPER BYPASS: Execute action directly without OTP modal
+    if (adminUser?.role === 'developer') {
+      try {
+        setIsAdminFormLoading(true);
+        const token = localStorage.getItem('adminToken');
+        let endpoint, method, payload;
+        
+        if (actionType === 'create') {
+          endpoint = `${API_URL}/auth/register`;
+          method = 'POST';
+          payload = adminData;
+        } else if (actionType === 'edit') {
+          endpoint = `${API_URL}/auth/admins/${adminData._id}`;
+          method = 'PUT';
+          payload = adminData;
+        } else if (actionType === 'delete') {
+          endpoint = `${API_URL}/auth/admins/${adminData._id}`;
+          method = 'DELETE';
+          payload = {};
+        } else if (actionType === 'approve') {
+          endpoint = `${API_URL}/auth/approve-admin`;
+          method = 'POST';
+          payload = { adminId: adminData };
+        }
+
+        const res = await fetch(endpoint, {
+          method,
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          fetchAdmins();
+          alert(`Action successful!`);
+          if (actionType === 'create') setNewAdmin({ name: '', email: '', phone: '', role: 'admin' });
+          if (actionType === 'edit') setEditingAdminId(null);
+        } else {
+          const err = await res.json();
+          alert(err.message || 'Action failed');
+        }
+      } catch (e) {
+        alert('Error executing developer action');
+      } finally {
+        setIsAdminFormLoading(false);
+      }
+      return;
+    }
+
+    setIsAdminFormLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      const body = { actionType };
+      if (actionType === 'approve') {
+        body.targetId = adminData;
+      } else if (adminData?.email) {
+        body.targetEmail = adminData.email;
+      }
+      
+      const res = await fetch(`${API_URL}/auth/request-otp`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        setPendingAdminAction({ type: actionType, data: adminData });
+        setOtpModalVisible(true);
+      } else {
+        const error = await res.json();
+        alert(error.message || 'Failed to request OTP');
+      }
+    } catch (e) {
+      alert('Error requesting OTP');
+    }
+    setIsAdminFormLoading(false);
+  };
+
+  const verifyOtpAndComplete = async (e) => {
+    e?.preventDefault();
+    if (!otpString || !newAdminOtpString) return;
+    setIsOtpLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const endpoint = pendingAdminAction.type === 'create' 
+        ? `${API_URL}/auth/register` 
+        : pendingAdminAction.type === 'approve'
+          ? `${API_URL}/auth/approve-admin`
+          : `${API_URL}/auth/admins/${pendingAdminAction.data._id || pendingAdminAction.data}`;
+      
+      let method = 'POST';
+      if (pendingAdminAction.type === 'edit') method = 'PUT';
+      if (pendingAdminAction.type === 'delete') method = 'DELETE';
+      if (pendingAdminAction.type === 'approve') method = 'POST';
+
+      const payload = pendingAdminAction.type === 'approve'
+        ? { adminId: pendingAdminAction.data, otp: otpString, newAdminOtp: newAdminOtpString }
+        : { ...pendingAdminAction.data, otp: otpString, newAdminOtp: newAdminOtpString };
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setOtpModalVisible(false);
+        setOtpString('');
+        setNewAdminOtpString('');
+        setPendingAdminAction(null);
+        setNewAdmin({ name: '', email: '', phone: '', role: 'admin' });
+        setEditingAdminId(null);
+        setEditingAdminId(null);
+        fetchAdmins();
+        let actionWord = 'created';
+        if (pendingAdminAction.type === 'edit') actionWord = 'updated';
+        if (pendingAdminAction.type === 'delete') actionWord = 'deleted';
+        if (pendingAdminAction.type === 'approve') actionWord = 'approved';
+        alert(`Admin successfully ${actionWord}!`);
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Verification failed');
+      }
+    } catch (error) {
+      alert('Error during verification');
+    }
+    setIsOtpLoading(false);
+  };
+
+  const handleDeleteAdmin = async (admin) => {
+    const confirmMsg = adminUser?.role === 'developer' 
+      ? 'Are you sure you want to delete this admin?' 
+      : 'Are you sure you want to delete this admin? Dual-OTP verification will be required.';
+    if (!window.confirm(confirmMsg)) return;
+    await requestOtp('delete', admin);
+  };
+  
+  const handleApproveAdmin = async (adminId) => {
+    const confirmMsg = adminUser?.role === 'developer'
+      ? "Are you sure you want to approve this administrator?"
+      : "Are you sure you want to approve this administrator? Dual-OTP verification will be required.";
+    if (!window.confirm(confirmMsg)) return;
+    await requestOtp('approve', adminId);
+  };
+
+  const handleApproveStaff = async (staffId) => {
+    if (!window.confirm("Approve this staff member?")) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/auth/approve-staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ staffId })
+      });
+      if (res.ok) {
+        alert("Staff approved and temporary password sent via email!");
+        fetchPendingStaff();
+      } else {
+        const d = await res.json();
+        alert(d.message || "Approval failed");
+      }
+    } catch (err) { alert("An error occurred during staff approval"); }
+  };
+
+  const handleRejectAdmin = async (adminId) => {
+    if (!window.confirm("Are you sure you want to reject this application? This will permanently delete the pending admin record.")) return;
+    setIsAdminFormLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      // Using existing delete endpoint but without OTP requirement since it's unapproved
+      await axios.delete(`${API_URL}/auth/admins/${adminId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert("Application rejected and deleted.");
+      fetchAdmins();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error rejecting application");
+    } finally {
+      setIsAdminFormLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (id, newStatus, remark = '', date = '') => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/admissions/${id}/status`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ 
+          status: newStatus,
+          statusRemark: remark,
+          statusDate: date
+        })
+      });
+      if (res.ok) {
+        setApplications(apps => apps.map(app => app._id === id ? { ...app, status: newStatus, statusRemark: remark, statusDate: date } : app));
+        // Update selectedApp if it's the one being modified
+        if (selectedApp?._id === id) {
+          setSelectedApp(prev => ({ ...prev, status: newStatus, statusRemark: remark, statusDate: date }));
+        }
+        // If accepted, refresh the student directory
+        if (newStatus === 'accepted') {
+          fetchStudents();
+        }
+        setShowStatusModal(false);
+      } else {
+        alert('Failed to update status');
+      }
+    } catch (error) {
+      console.warn('Could not update status', error);
+      alert('Error updating status');
+    }
+  };
+
+  const initiateStatusUpdate = (app, newStatus) => {
+    if (['entrance-exam', 'interview', 'rejected'].includes(newStatus)) {
+      setStatusModalData({ 
+        id: app._id, 
+        currentStatus: app.status, 
+        newStatus, 
+        remark: '', 
+        date: '' 
+      });
+      setShowStatusModal(true);
+    } else {
+      if (window.confirm(`Are you sure you want to change status to ${newStatus.toUpperCase()}?`)) {
+        handleStatusUpdate(app._id, newStatus);
+      }
+    }
+  };
+
+  const handleDeleteApplication = async (id) => {
+    if (!window.confirm('Are you sure you want to permanently delete this application? This action cannot be undone.')) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/admissions/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setApplications(apps => apps.filter(app => app._id !== id));
+        if (selectedApp?._id === id) setSelectedApp(null);
+        alert('Application deleted successfully');
+      } else {
+        alert('Failed to delete application');
+      }
+    } catch (error) {
+      alert('Error deleting application');
+    }
+  };
+
+  const filteredApps = applications.filter(app => {
+    const matchesSearch = !searchQuery || 
+      (app.studentName && app.studentName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (app.referenceNumber && app.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesClass = classFilter === 'All' || app.gradeApplied === classFilter;
+    const matchesStatus = statusFilter === 'All' || app.status === statusFilter;
+    return matchesSearch && matchesClass && matchesStatus;
+  });
+
+  const filteredJobApps = jobApplications.filter(app => {
+    const matchesStatus = jobStatusFilter === 'All' || app.status === jobStatusFilter;
+    return matchesStatus;
+  });
+
+  const handleBulkDeleteAdmissions = async () => {
+    if (selectedAppIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedAppIds.length} selected applications?`)) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.delete(`${API_URL}/admissions/bulk`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { ids: selectedAppIds }
+      });
+      setApplications(prev => prev.filter(app => !selectedAppIds.includes(app._id)));
+      setSelectedAppIds([]);
+      alert(`${selectedAppIds.length} applications deleted successfully.`);
+    } catch (err) {
+      alert("Failed to delete selected applications: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleBulkDeleteJobs = async () => {
+    if (selectedJobAppIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ${selectedJobAppIds.length} selected applications?`)) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.delete(`${API_URL}/job-applications/bulk`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { ids: selectedJobAppIds }
+      });
+      setJobApplications(prev => prev.filter(app => !selectedJobAppIds.includes(app._id)));
+      setSelectedJobAppIds([]);
+      alert(`${selectedJobAppIds.length} applications deleted successfully.`);
+    } catch (err) {
+      alert("Failed to delete selected applications: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const totalApps = appStats?.total || 0;
+  const approvedApps = appStats?.accepted || 0;
+  const pendingApps = appStats?.pending || 0;
+  const studentCount = students?.length || 0;
+
+  const dashboardStats = [
+    { label: 'Total Applications', value: totalApps.toString(), icon: <FaClipboardList className="text-primary" />, bg: 'bg-primary/10' },
+    { label: 'Approved', value: approvedApps.toString(), icon: <FaCheckCircle className="text-green-500" />, bg: 'bg-green-50' },
+    { label: 'Pending Review', value: pendingApps.toString(), icon: <FaChartLine className="text-tertiary" />, bg: 'bg-tertiary/10' },
+    { label: 'Total Students', value: studentCount.toString(), icon: <FaUsers className="text-purple-500" />, bg: 'bg-purple-50' }
+  ];
+
+  const recentApps = [...filteredApps]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 4)
+    .map(app => ({
+      id: app.referenceNumber || app._id.slice(-6).toUpperCase(),
+      name: app.studentName,
+      grade: app.gradeApplied,
+      date: new Date(app.createdAt).toLocaleDateString(),
+      status: app.status === 'accepted' ? 'Approved' : app.status === 'rejected' ? 'Rejected' : 'Pending',
+      originalApp: app
+    }));
+
+  // Helper for image upload/URL processing
+  const handleImageUrlInput = async (e, setter, fieldName) => {
+    const value = e.target.value;
+    if (!value) return;
+    
+    // If it's a Google Drive link, convert it
+    const finalUrl = value;
+    setter(prev => ({ ...prev, [fieldName]: finalUrl }));
+  };
+
+  const handleImageUpload = async (e, setter, fieldName) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // We still have the option for local file upload (base64) 
+    // but the plan favors Google Drive URLs.
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setter(prev => ({ ...prev, [fieldName]: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDownloadImage = async (url, filename = 'image.jpg') => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'download.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download failed:', err);
+      // Fallback: open in new tab
+      window.open(url, '_blank');
+    }
+  };
+
+  // --- Gallery Tab ---
+  const [newGalleryItem, setNewGalleryItem] = useState({ title: '', category: 'Campus Life', src: '', description: '' });
+  const [galleryFiles, setGalleryFiles] = useState([]);
+  const [isGalleryUploading, setIsGalleryUploading] = useState(false);
+  const [editingAlbumId, setEditingAlbumId] = useState(null);
+  const [albumEditForm, setAlbumEditForm] = useState({ title: '', category: '', description: '' });
+  
+  // --- Admission Fields Tab ---
+  const [editingFieldId, setEditingFieldId] = useState(null);
+  const [fieldEditForm, setFieldEditForm] = useState(null);
+  const [isAddingField, setIsAddingField] = useState(false);
+  const [newFieldForm, setNewFieldForm] = useState({
+    name: '',
+    label: '',
+    type: 'text',
+    section: 'Student Information',
+    required: false,
+    options: [],
+    placeholder: '',
+    isActive: true,
+    isSystemField: false
+  });
+
+  const handleAddGallery = async () => {
+    if (!newGalleryItem.title || (!galleryFiles.length && !newGalleryItem.src)) {
+      alert("Please provide a title and at least one image.");
+      return;
+    }
+    
+    // 1. Enforce batch upload limit (at most 10 photos)
+    if (galleryFiles.length > 10) {
+      alert("You can upload a maximum of 10 photos in each event section.");
+      return;
+    }
+
+    // 2. Enforce total albums limit (at most 20 albums)
+    const existingAlbumsCount = Object.keys(
+      gallery.reduce((acc, item) => {
+        const isLinkedToEvent = item.eventId && events.find(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId));
+        if (isLinkedToEvent) return acc;
+        const effectiveAlbumId = item.albumId || `${item.title}-${item.category}`;
+        acc[effectiveAlbumId] = true;
+        return acc;
+      }, {})
+    ).length;
+
+    if (existingAlbumsCount >= 20) {
+      alert("Maximum limit of 20 photo event sections (albums) reached. Please delete an existing album before adding a new one.");
+      return;
+    }
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+
+    setIsGalleryUploading(true);
+    try {
+      const filesToUpload = galleryFiles.slice(0, 10);
+      const newItems = [];
+      const albumId = `album-${Date.now()}`; // Always generate albumId
+
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        const url = await uploadImage(file);
+        newItems.push({
+          ...newGalleryItem,
+          id: Date.now() + Math.random(),
+          src: url,
+          albumId: albumId,
+          isAlbumCover: albumId ? (i === 0) : false,
+          _id: `temp-${Date.now()}-${Math.random()}`
+        });
+      }
+
+      // Use atomic update to prevent race conditions with polling
+      updateSiteContent({
+        gallery: [...newItems, ...gallery]
+      });
+
+      alert(`Successfully added ${newItems.length} items to gallery.`);
+
+      // Reset form
+      setNewGalleryItem({ title: '', category: 'Campus Life', src: '', description: '' });
+      setGalleryFiles([]);
+    } catch (err) {
+      alert("Failed to upload images: " + err.message);
+    }
+    setIsGalleryUploading(false);
+  };
+
+  const handleDeleteGallery = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this image?")) return;
+    
+    const updatedGallery = gallery.filter(item => (item._id || item.id) !== id);
+    const deletedItem = gallery.find(item => (item._id || item.id) === id);
+    let updatedEvents = events;
+
+    // Also remove from local events galleryImages if it was linked
+    if (deletedItem && deletedItem.eventId) {
+      updatedEvents = events.map(ev => 
+        (String(ev._id) === String(deletedItem.eventId) || String(ev.id) === String(deletedItem.eventId))
+          ? { ...ev, galleryImages: (ev.galleryImages || []).filter(img => img !== deletedItem.src) }
+          : ev
+      );
+    }
+
+    // Use atomic update to prevent race conditions
+    updateSiteContent({
+      gallery: updatedGallery,
+      events: updatedEvents
+    });
+    
+    alert("Gallery item deleted successfully.");
+  };
+
+  const handleUpdateAlbum = async () => {
+    if (!editingAlbumId) return;
+    
+    const newAlbumId = editingAlbumId.startsWith('album-') ? editingAlbumId : `album-${Date.now()}`;
+    
+    const updatedGallery = gallery.map(item => {
+      const itemEffectiveId = item.albumId || `${item.title}-${item.category}`;
+      if (itemEffectiveId === editingAlbumId) {
+        return { ...item, ...albumEditForm, albumId: newAlbumId };
+      }
+      return item;
+    });
+
+    updateSiteContent({ gallery: updatedGallery });
+    alert("Album updated successfully.");
+    setEditingAlbumId(null);
+  };
+
+  const handleDeleteAlbum = async (albumId) => {
+    if (!window.confirm("Are you sure you want to delete this entire album?")) return;
+    
+    const updatedGallery = gallery.filter(item => {
+      const itemEffectiveId = item.albumId || `${item.title}-${item.category}`;
+      return itemEffectiveId !== albumId;
+    });
+    updateSiteContent({ gallery: updatedGallery });
+    alert("Album deleted successfully.");
+  };
+
+  const renderGalleryTab = () => {
+    // Group gallery items by albumId
+    const groups = gallery.reduce((acc, item) => {
+      // Exclude items linked to active events (handled in Events tab)
+      const isLinkedToEvent = item.eventId && events.find(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId));
+      if (isLinkedToEvent) return acc;
+
+      const effectiveAlbumId = item.albumId || `${item.title}-${item.category}`;
+
+      if (!acc.albums[effectiveAlbumId]) {
+        acc.albums[effectiveAlbumId] = {
+          id: effectiveAlbumId,
+          title: item.title,
+          category: item.category,
+          description: item.description,
+          cover: item.src,
+          items: [],
+          isLegacy: !item.albumId
+        };
+      }
+      acc.albums[effectiveAlbumId].items.push(item);
+      if (item.isAlbumCover) acc.albums[effectiveAlbumId].cover = item.src;
+      
+      return acc;
+    }, { albums: {} });
+
+    // Ensure all albums have a cover if none marked
+    Object.values(groups.albums).forEach(album => {
+      if (!album.cover && album.items.length > 0) album.cover = album.items[0].src;
+    });
+
+    return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Gallery</h3>
+      <div className="flex flex-col gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input type="text" value={newGalleryItem.title} onChange={e => setNewGalleryItem({...newGalleryItem, title: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="e.g. Science Fair 2025" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <select value={newGalleryItem.category} onChange={e => setNewGalleryItem({...newGalleryItem, category: e.target.value})} className="w-full p-2 border rounded-lg">
+              <option>Campus Life</option><option>Academic Events</option><option>Sports</option><option>Cultural Programs</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Upload Photos</label>
+            <input 
+              type="file" 
+              multiple 
+              onChange={e => {
+                const files = Array.from(e.target.files);
+                setGalleryFiles(files);
+              }}
+              className="w-full p-2 border rounded-lg text-sm bg-white" 
+              accept="image/*"
+            />
+            {galleryFiles.length > 0 && <p className="text-xs text-gray-500 mt-1">{galleryFiles.length} files selected</p>}
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <input type="text" value={newGalleryItem.description} onChange={e => setNewGalleryItem({...newGalleryItem, description: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="Short description..." />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end mt-2">
+          <button 
+            onClick={handleAddGallery} 
+            disabled={isGalleryUploading}
+            className="bg-tertiary text-white px-8 py-2 rounded-lg font-bold hover:opacity-90 flex items-center shadow-lg disabled:opacity-50"
+          >
+            {isGalleryUploading ? 'Uploading...' : <><FaPlus className="mr-2"/> Add to Gallery</>}
+          </button>
+        </div>
+      </div>
+      {/* Albums Section (Everything is an album now) */}
+      <div className="mb-10">
+        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <FaImage className="text-primary" /> Gallery Albums ({Object.values(groups.albums).length})
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Object.values(groups.albums).sort((a,b) => {
+            // Sort by most recent photo in album
+            const latestA = Math.max(...a.items.map(i => new Date(i.createdAt || 0)));
+            const latestB = Math.max(...b.items.map(i => new Date(i.createdAt || 0)));
+            return latestB - latestA;
+          }).map(album => (
+            <div key={album.id} className="group relative bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
+              <div className="relative aspect-video overflow-hidden">
+                <img src={album.cover} alt={album.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        setEditingAlbumId(album.id);
+                        setAlbumEditForm({ title: album.title, category: album.category, description: album.description });
+                      }}
+                      className="bg-white text-gray-800 px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-primary hover:text-white transition-all shadow-lg"
+                    >
+                      <FaEdit /> Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteAlbum(album.id)}
+                      className="bg-red-500 text-white p-2 rounded-xl hover:bg-red-600 transition-all shadow-lg"
+                      title="Delete Entire Album"
+                    >
+                      <FaTrash size={14} />
+                    </button>
+                  </div>
+                </div>
+                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg shadow-sm">
+                  <span className="text-[10px] font-black text-primary uppercase">{album.items.length} {album.items.length === 1 ? 'Photo' : 'Photos'}</span>
+                </div>
+              </div>
+              <div className="p-4">
+                <h5 className="font-bold text-gray-800 truncate">{album.title}</h5>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{album.category}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Edit Album Modal */}
+      {editingAlbumId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in duration-300">
+            <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="text-xl font-bold text-gray-800">Edit Album</h3>
+              <button onClick={() => setEditingAlbumId(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><FaTimes /></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Album Title</label>
+                  <input type="text" value={albumEditForm.title} onChange={e => setAlbumEditForm({...albumEditForm, title: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 focus:bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Category</label>
+                  <select value={albumEditForm.category} onChange={e => setAlbumEditForm({...albumEditForm, category: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 focus:bg-white">
+                    <option>Campus Life</option><option>Academic Events</option><option>Sports</option><option>Cultural Programs</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
+                  <input type="text" value={albumEditForm.description} onChange={e => setAlbumEditForm({...albumEditForm, description: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 focus:bg-white" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                {gallery.filter(item => (item.albumId || `${item.title}-${item.category}`) === editingAlbumId).map(item => (
+                  <div key={item.id || item._id} className="flex flex-col border rounded-xl overflow-hidden bg-gray-50 p-2">
+                    <div className="relative aspect-square rounded-lg overflow-hidden group">
+                      <img src={item.src} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => handleDownloadImage(item.src, `${item.title || 'gallery'}.jpg`)} 
+                          className="bg-white text-primary p-2 rounded-lg shadow-lg hover:bg-gray-100 transition-all"
+                          title="Download Photo"
+                        >
+                          <FaDownload size={12} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteGallery(item.id || item._id)} 
+                          className="bg-red-500 text-white p-2 rounded-lg shadow-lg hover:bg-red-600 transition-all"
+                          title="Delete Photo"
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </div>
+                      {item.isAlbumCover && <div className="absolute top-1 left-1 bg-yellow-400 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Cover</div>}
+                    </div>
+                    {/* One line description input */}
+                    <input 
+                      type="text" 
+                      placeholder="One line description..." 
+                      value={item.description || ''} 
+                      onChange={e => {
+                        const updatedGallery = gallery.map(gItem => 
+                          (gItem._id === item._id || gItem.id === item.id) 
+                            ? { ...gItem, description: e.target.value } 
+                            : gItem
+                        );
+                        setGallery(updatedGallery);
+                      }}
+                      className="mt-2 text-xs p-1.5 border rounded-lg bg-white w-full"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 bg-gray-50 border-t flex justify-between gap-4">
+              <button onClick={() => handleDeleteAlbum(editingAlbumId)} className="bg-red-100 text-red-600 px-6 py-2 rounded-xl font-bold hover:bg-red-200 transition-all flex items-center gap-2">
+                <FaTrash /> Delete Entire Album
+              </button>
+              <div className="flex gap-4">
+                <button onClick={() => setEditingAlbumId(null)} className="bg-white text-gray-600 px-6 py-2 rounded-xl font-bold border hover:bg-gray-50 transition-all">Cancel</button>
+                <button onClick={handleUpdateAlbum} className="bg-primary text-white px-8 py-2 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">Save Album Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+    );
+  };
+
+  // --- Shared Utility: Transfer to Gallery ---
+  const handleTransferToGallery = (item, type) => {
+    if (!window.confirm(`Transfer photos from this ${type === 'Events' ? 'event' : 'highlight'} to the Gallery?`)) return;
+
+    let photos = [];
+    if (item.image) photos.push(item.image);
+    if (item.galleryImages && Array.isArray(item.galleryImages)) photos.push(...item.galleryImages);
+    
+    // Deduplicate URLs
+    photos = [...new Set(photos)];
+    
+    // Filter out photos already in the gallery
+    const existingUrls = gallery.map(g => g.src);
+    const newPhotos = photos.filter(url => !existingUrls.includes(url));
+    
+    if (newPhotos.length === 0) {
+      alert("All photos from this item are already in the Gallery.");
+      return;
+    }
+
+    const newGalleryItems = newPhotos.map(url => ({
+      id: Date.now() + Math.random(),
+      title: item.title || `${type === 'Events' ? 'Event' : 'Highlight'} Photo`,
+      category: type,
+      src: url,
+      eventId: type === 'Events' ? (item.id || item._id) : undefined,
+      _id: `temp-g-${Date.now()}-${Math.random()}`
+    }));
+
+    updateSiteContent({ gallery: [...newGalleryItems, ...gallery] });
+    alert(`${newPhotos.length} photo(s) successfully added to the Gallery!`);
+  };
+
+  // --- Highlights Tab ---
+  const [newHighlight, setNewHighlight] = useState({ title: '', date: '', category: 'Academic', image: '', description: '', galleryImages: [] });
+  const [highlightFiles, setHighlightFiles] = useState([]);
+  const [isHighlightUploading, setIsHighlightUploading] = useState(false);
+  const [editingHighlightId, setEditingHighlightId] = useState(null);
+
+  const handleAddHighlight = async () => {
+    if (!newHighlight.title || (highlightFiles.length === 0 && !newHighlight.image)) return;
+    
+    setIsHighlightUploading(true);
+    try {
+      const filesToUpload = highlightFiles.slice(0, 10);
+      const coverFile = filesToUpload.length > 0 ? filesToUpload[0] : null;
+      const galleryFilesToUpload = filesToUpload.length > 1 ? filesToUpload.slice(1) : [];
+      
+      // Upload photos
+      let coverUrl = newHighlight.image;
+      let galleryPhotoUrls = [...(newHighlight.galleryImages || [])];
+
+      if (filesToUpload.length > 0) {
+        const response = await uploadEventPhotos(coverFile, galleryFilesToUpload, newHighlight.title);
+        if (response) {
+          if (response.cover?.url) coverUrl = response.cover.url;
+          if (response.gallery) {
+            response.gallery.forEach(img => galleryPhotoUrls.push(img.url));
+          }
+          if (response.cover?.url) {
+            galleryPhotoUrls.unshift(response.cover.url);
+          }
+        }
+      }
+      
+      if (editingHighlightId) {
+        // UPDATE MODE
+        const updatedHighlights = highlights.map(h => 
+          (h._id === editingHighlightId || h.id === editingHighlightId)
+            ? { ...h, ...newHighlight, image: coverUrl, galleryImages: galleryPhotoUrls }
+            : h
+        );
+        updateSiteContent({ highlights: updatedHighlights });
+        alert(`Highlight "${newHighlight.title}" updated successfully!`);
+        setEditingHighlightId(null);
+      } else {
+        // CREATE MODE
+        const itemToAdd = { 
+          ...newHighlight, 
+          image: coverUrl,
+          galleryImages: galleryPhotoUrls,
+          id: Date.now(),
+          _id: `temp-${Date.now()}` 
+        };
+        updateSiteContent({ highlights: [itemToAdd, ...highlights] });
+        alert(`Highlight "${newHighlight.title}" created successfully!`);
+      }
+      
+      setNewHighlight({ title: '', date: '', category: 'Academic', image: '', description: '', galleryImages: [] });
+      setHighlightFiles([]);
+    } catch (err) {
+      alert("Failed to process highlight: " + err.message);
+    }
+    setIsHighlightUploading(false);
+  };
+  const handleDeleteHighlight = (id) => {
+    setHighlights(highlights.filter(item => (item.id || item._id) !== id));
+  };
+  const renderHighlightsTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Highlights</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+        <input type="text" placeholder="Title" value={newHighlight.title} onChange={e => setNewHighlight({...newHighlight, title: e.target.value})} className="p-2 border rounded-lg" />
+        <input type="text" placeholder="Date (e.g. March 15, 2026)" value={newHighlight.date} onChange={e => setNewHighlight({...newHighlight, date: e.target.value})} className="p-2 border rounded-lg" />
+        <div className="p-2 border rounded-lg bg-white flex flex-col md:col-span-2">
+          <label className="text-gray-400 text-sm mb-1">Highlight Images (Max 10, First is Cover):</label>
+          <input 
+            type="file" 
+            multiple
+            accept="image/*"
+            onChange={e => {
+              const files = Array.from(e.target.files);
+              if (files.length > 10) {
+                alert("Maximum 10 photos allowed. Only the first 10 will be selected.");
+                setHighlightFiles(files.slice(0, 10));
+              } else {
+                setHighlightFiles(files);
+              }
+            }} 
+            className="w-full text-sm p-1 border rounded cursor-pointer" 
+          />
+          {highlightFiles.length > 0 && (
+            <p className="text-blue-600 text-xs mt-1 font-medium">{highlightFiles.length} file(s) selected. The first image will be used as the cover.</p>
+          )}
+          {isHighlightUploading && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
+        </div>
+        <select value={newHighlight.category} onChange={e => setNewHighlight({...newHighlight, category: e.target.value})} className="p-2 border rounded-lg">
+          <option>Academic</option><option>Sports</option><option>Cultural</option>
+        </select>
+        <textarea placeholder="Description" value={newHighlight.description} onChange={e => setNewHighlight({...newHighlight, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="2"></textarea>
+        {editingHighlightId && newHighlight.galleryImages?.length > 0 && (
+          <div className="md:col-span-2 p-4 bg-white border rounded-xl shadow-sm">
+            <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center"><FaImage className="mr-2 text-primary"/> Existing Photos Preview</h4>
+            <p className="text-xs text-gray-500 mb-3">Click the × icon to remove a photo before saving the update.</p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-3">
+              {newHighlight.galleryImages.map((url, idx) => (
+                <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200">
+                  <img src={url} className="w-full h-full object-cover" alt="" />
+                  <button 
+                    onClick={() => {
+                      const newGallery = newHighlight.galleryImages.filter(u => u !== url);
+                      let newCover = newHighlight.image;
+                      if (newCover === url) newCover = newGallery.length > 0 ? newGallery[0] : '';
+                      setNewHighlight({...newHighlight, galleryImages: newGallery, image: newCover});
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                    title="Remove Photo"
+                  >
+                    <FaTimes size={10} />
+                  </button>
+                  {newHighlight.image === url && (
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm font-bold">COVER</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2 md:col-span-2">
+          <button 
+            onClick={handleAddHighlight} 
+            disabled={isHighlightUploading}
+            className={`flex-1 ${editingHighlightId ? 'bg-blue-600' : 'bg-tertiary'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400 flex items-center justify-center`}
+          >
+            {isHighlightUploading ? <FaSpinner className="animate-spin mr-2" /> : (editingHighlightId ? <FaEdit className="mr-2" /> : <FaPlus className="mr-2" />)}
+            {editingHighlightId ? 'Update Highlight' : 'Add Highlight'}
+          </button>
+          {editingHighlightId && (
+            <button 
+              onClick={() => {
+                setEditingHighlightId(null);
+                setNewHighlight({ title: '', date: '', category: 'Academic', image: '', description: '', galleryImages: [] });
+                setHighlightFiles([]);
+              }}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="space-y-4">
+        {highlights.map(item => (
+          <div key={item.id || item._id} className="flex justify-between items-center p-4 border rounded-xl">
+            <div className="flex gap-4 items-center">
+              <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-gray-200" alt="" />
+              <div>
+                <p className="font-bold">{item.title}</p>
+                <p className="text-sm text-gray-500">{item.date} • {item.category} • {(item.galleryImages?.length || 1)} photo(s)</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleDownloadImage(item.image, `${item.title || 'highlight'}.jpg`)} 
+                className="text-emerald-500 hover:text-emerald-700 p-2"
+                title="Download Cover Image"
+              >
+                <FaDownload />
+              </button>
+              <button 
+                onClick={() => handleTransferToGallery(item, 'Highlights')}
+                className="text-amber-500 hover:text-amber-700 p-2"
+                title="Transfer Photos to Gallery"
+              >
+                <FaImage />
+              </button>
+              <button 
+                onClick={() => {
+                  setEditingHighlightId(item._id || item.id);
+                  setNewHighlight({
+                    title: item.title || '',
+                    date: item.date || '',
+                    category: item.category || 'Academic',
+                    description: item.description || '',
+                    image: item.image || '',
+                    galleryImages: item.galleryImages || []
+                  });
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="text-blue-500 hover:text-blue-700 p-2"
+                title="Edit Highlight"
+              >
+                <FaEdit />
+              </button>
+              <button onClick={() => handleDeleteHighlight(item.id || item._id)} className="text-red-500 hover:text-red-700 p-2" title="Delete"><FaTrash /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // --- Events Tab ---
+  const [newEvent, setNewEvent] = useState({ title: '', date: '', image: '', description: '', galleryImages: [] });
+  const [eventGalleryFiles, setEventGalleryFiles] = useState([]);
+  const [isEventUploading, setIsEventUploading] = useState(false);
+  const [editingEventId, setEditingEventId] = useState(null);
+  const handleAddEvent = async () => {
+    if (!newEvent.title || !newEvent.date || !newEvent.description) {
+      alert("Please fill in title, date, and description.");
+      return;
+    }
+    
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      alert("Error: You are not authenticated.");
+      handleLogout();
+      return;
+    }
+
+    setIsEventUploading(true);
+    try {
+      let coverUrl = newEvent.image;
+      let galleryPhotoUrls = [...(newEvent.galleryImages || [])];
+      let eventIdForLinking = newEvent.id;
+
+      const filesToUpload = eventGalleryFiles.slice(0, 10);
+      
+      if (filesToUpload.length > 0) {
+        const coverFile = filesToUpload[0];
+        const galleryFilesToUpload = filesToUpload.length > 1 ? filesToUpload.slice(1) : [];
+        
+        // 1. Upload photos first
+        const response = await uploadEventPhotos(coverFile, galleryFilesToUpload, newEvent.title);
+        
+        if (response) {
+          coverUrl = response.cover?.url || coverUrl;
+          const newGalleryUrls = response.gallery ? response.gallery.map(img => img.url) : [];
+          galleryPhotoUrls = [...galleryPhotoUrls, ...newGalleryUrls];
+          
+          // If we uploaded a new cover, and it's not in gallery already, add it
+          if (response.cover?.url) {
+            galleryPhotoUrls.unshift(response.cover.url);
+          }
+        }
+      }
+
+      if (editingEventId) {
+        // UPDATE MODE
+        const updatedEvents = events.map(ev => 
+          (ev._id === editingEventId || ev.id === editingEventId)
+            ? { ...ev, ...newEvent, image: coverUrl, galleryImages: galleryPhotoUrls }
+            : ev
+        );
+
+        updateSiteContent({ events: updatedEvents });
+        alert(`Event "${newEvent.title}" updated successfully!`);
+        setEditingEventId(null);
+      } else {
+        // CREATE MODE
+        eventIdForLinking = Date.now();
+        const createdEvent = {
+          ...newEvent,
+          id: eventIdForLinking,
+          _id: `temp-ev-${Date.now()}`,
+          image: coverUrl,
+          galleryImages: galleryPhotoUrls
+        };
+        
+        const newGalleryItems = galleryPhotoUrls.map(url => ({
+          id: Date.now() + Math.random(),
+          title: newEvent.title,
+          category: "Events",
+          src: url,
+          eventId: eventIdForLinking,
+          _id: `temp-g-${Date.now()}-${Math.random()}`
+        }));
+
+        updateSiteContent({
+          events: [createdEvent, ...events],
+          gallery: [...newGalleryItems, ...gallery]
+        });
+
+        alert(`Event "${createdEvent.title}" created successfully!`);
+      }
+      
+      // Reset form
+      setNewEvent({ title: '', date: '', image: '', description: '', galleryImages: [] });
+      setEventGalleryFiles([]);
+    } catch (err) {
+      alert("Failed to process event: " + err.message);
+    }
+    setIsEventUploading(false);
+  };
+  
+  const handleUpdateEventPhotos = async (eventId, files) => {
+    if (!files || files.length === 0) return;
+    
+    setIsAddingPhotos(true);
+    try {
+      // Use the uploadEventPhotos helper to get URLs
+      // The helper currently calls content/upload-event which only uploads files and returns URLs
+      const response = await uploadEventPhotos(null, Array.from(files), "Event Update");
+      
+      if (response && response.gallery) {
+        const newPhotoUrls = response.gallery.map(img => img.url);
+        
+        // Add individual items to the global gallery state for management
+        const newGalleryItems = newPhotoUrls.map(url => ({
+          id: Date.now() + Math.random(),
+          title: "Event Photo",
+          category: "Events",
+          src: url,
+          eventId: eventId,
+          _id: `temp-g-${Date.now()}-${Math.random()}`
+        }));
+
+        // 1. Update the events and gallery state ATOMICALLY
+        updateSiteContent({
+          events: events.map(ev => 
+            (ev._id || ev.id) === eventId 
+              ? { ...ev, galleryImages: [...(ev.galleryImages || []), ...newPhotoUrls] }
+              : ev
+          ),
+          gallery: [...newGalleryItems, ...gallery]
+        });
+
+        alert("Photos added to event and gallery successfully!");
+      }
+    } catch (err) {
+      alert("Photo upload failed: " + err.message);
+    }
+    setIsAddingPhotos(false);
+  };
+
+  const handleDeleteEvent = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this event and all its photos?")) return;
+    
+    const eventToDelete = events.find(item => (item._id || item.id) === id);
+    const eventIdNum = eventToDelete ? eventToDelete.id : null;
+
+    // Logic: Filter out the event and its linked gallery items
+    const updatedEvents = events.filter(item => (item.id || item._id) !== id);
+    const updatedGallery = gallery.filter(item => {
+      const gEventId = item.eventId || item.event_id;
+      if (!gEventId) return true;
+      return String(gEventId) !== String(id);
+    });
+
+    // Update ATOMICALLY
+    updateSiteContent({
+      events: updatedEvents,
+      gallery: updatedGallery
+    });
+    
+    alert("Event deleted successfully.");
+  };
+
+  const renderEventsTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Manage School Events</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+        <input type="text" placeholder="Event Title" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} className="p-2 border rounded-lg" />
+        <input type="text" placeholder="Date (e.g. Sept 5, 2025)" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} className="p-2 border rounded-lg" />        <div className="p-2 border rounded-lg bg-white flex flex-col md:col-span-2">
+          <label className="text-gray-400 text-sm mb-1">Event Images (Max 10, First is Cover):</label>
+          <input 
+            type="file" 
+            multiple
+            accept="image/*"
+            onChange={e => {
+              const files = Array.from(e.target.files);
+              if (files.length > 10) {
+                alert("Maximum 10 photos allowed per event. Only the first 10 will be selected.");
+                setEventGalleryFiles(files.slice(0, 10));
+              } else {
+                setEventGalleryFiles(files);
+              }
+            }}
+            className="w-full text-sm p-1 border rounded cursor-pointer" 
+          />
+          {eventGalleryFiles.length > 0 && (
+            <p className="text-blue-600 text-xs mt-1 font-medium">{eventGalleryFiles.length} file(s) selected. The first image will be used as the cover.</p>
+          )}
+          {eventGalleryFiles.length > 10 && (
+            <p className="text-red-500 text-xs mt-1">Warning: Only the first 10 photos will be uploaded.</p>
+          )}
+        </div>
+        <textarea placeholder="Event Description" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="3"></textarea>
+        {editingEventId && newEvent.galleryImages?.length > 0 && (
+          <div className="md:col-span-2 p-4 bg-white border rounded-xl shadow-sm">
+            <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center"><FaImage className="mr-2 text-primary"/> Existing Photos Preview</h4>
+            <p className="text-xs text-gray-500 mb-3">Click the × icon to remove a photo before saving the update.</p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-3">
+              {newEvent.galleryImages.map((url, idx) => (
+                <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200">
+                  <img src={url} className="w-full h-full object-cover" alt="" />
+                  <button 
+                    onClick={() => {
+                      const newGallery = newEvent.galleryImages.filter(u => u !== url);
+                      let newCover = newEvent.image;
+                      if (newCover === url) newCover = newGallery.length > 0 ? newGallery[0] : '';
+                      setNewEvent({...newEvent, galleryImages: newGallery, image: newCover});
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                    title="Remove Photo"
+                  >
+                    <FaTimes size={10} />
+                  </button>
+                  {newEvent.image === url && (
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm font-bold">COVER</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2 md:col-span-2">
+          <button 
+            onClick={handleAddEvent} 
+            disabled={isEventUploading}
+            className={`flex-1 ${editingEventId ? 'bg-blue-600' : 'bg-tertiary'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400 flex items-center justify-center`}
+          >
+            {isEventUploading ? <FaSpinner className="animate-spin mr-2" /> : (editingEventId ? <FaEdit className="mr-2" /> : <FaPlus className="mr-2" />)}
+            {editingEventId ? 'Update Event' : 'Add Event'}
+          </button>
+          {editingEventId && (
+            <button 
+              onClick={() => {
+                setEditingEventId(null);
+                setNewEvent({ title: '', date: '', image: '', description: '', galleryImages: [] });
+                setEventGalleryFiles([]);
+              }}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="space-y-4">
+        {events.map(item => (
+          <div key={item.id || item._id} className="border rounded-xl">
+            <div className="flex justify-between items-center p-4">
+              <div className="flex gap-4 items-center">
+                <img src={item.image} className="w-16 h-16 object-cover rounded-lg bg-gray-200" alt="" />
+                <div>
+                  <p className="font-bold">{item.title}</p>
+                  <p className="text-sm text-gray-500">{item.date}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 items-center">
+                <button 
+                  onClick={() => handleDownloadImage(item.image, `${item.title || 'event'}.jpg`)}
+                  className="text-emerald-500 hover:text-emerald-700 p-2"
+                  title="Download Cover Image"
+                >
+                  <FaDownload />
+                </button>
+                <button 
+                  onClick={() => handleTransferToGallery(item, 'Events')}
+                  className="text-amber-500 hover:text-amber-700 p-2"
+                  title="Transfer Photos to Gallery"
+                >
+                  <FaImage />
+                </button>
+                <button 
+                  onClick={() => {
+                    setEditingEventId(item.id || item._id);
+                    setNewEvent({
+                      title: item.title,
+                      date: item.date,
+                      description: item.description,
+                      image: item.image,
+                      galleryImages: item.galleryImages,
+                      id: item.id
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="text-blue-500 hover:text-blue-700 p-2"
+                  title="Edit Event Details"
+                >
+                  <FaEdit />
+                </button>
+                <button 
+                  onClick={() => setExpandedEventId(expandedEventId === (item.id || item._id) ? null : (item.id || item._id))}
+                  className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-sm font-bold hover:bg-blue-100"
+                >
+                  <FaImage className="inline mr-1" /> {expandedEventId === (item.id || item._id) ? 'Hide Photos' : 'Manage Photos'}
+                </button>
+                <button onClick={() => handleDeleteEvent(item.id || item._id)} className="text-red-500 hover:text-red-700 p-2" title="Delete Event"><FaTrash /></button>
+              </div>
+            </div>
+            
+            {expandedEventId === (item.id || item._id) && (
+              <div className="p-4 bg-gray-50 border-t rounded-b-xl">
+                <h4 className="text-sm font-bold text-gray-700 mb-3 underline">Event Gallery Photos:</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                  {gallery.filter(g => (g.eventId || g.event_id) === (item.id || item._id)).map(photo => (
+                    <div key={photo.id || photo._id} className="relative group aspect-square rounded-lg overflow-hidden border bg-white">
+                      <img src={photo.src} className="w-full h-full object-cover" alt="" />
+                      <button 
+                        onClick={() => handleDeleteGallery(photo._id)}
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <FaTimes size={10} />
+                      </button>
+                    </div>
+                  ))}
+                  {gallery.filter(g => (g.eventId || g.event_id) === (item.id || item._id)).length === 0 && (
+                    <p className="text-xs text-gray-400 col-span-full italic">No additional photos in gallery for this event.</p>
+                  )}
+                </div>
+                <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                    <p className="text-[10px] text-gray-400">Manage individual photos. Deleting here will also remove them from the event gallery.</p>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="file" 
+                        multiple 
+                        id={`event-upload-${item.id || item._id}`}
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => handleUpdateEventPhotos(item.id || item._id, e.target.files)}
+                      />
+                      <button 
+                        onClick={() => document.getElementById(`event-upload-${item.id || item._id}`).click()}
+                        disabled={isAddingPhotos}
+                        className="text-xs bg-tertiary text-white px-3 py-1 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400"
+                      >
+                        {isAddingPhotos ? 'Uploading...' : '⊕ Add More Photos'}
+                      </button>
+                    </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // --- Videos Tab ---
+  const [newVideo, setNewVideo] = useState({ title: '', src: '', description: '' });
+  const handleAddVideo = async () => {
+    if (!newVideo.title || !newVideo.src) return;
+    
+    if (videos.length >= 4) {
+      alert("Maximum limit of 4 video sections reached. Please delete a video before adding a new one.");
+      return;
+    }
+
+    const updatedVideos = [{ ...newVideo, _id: `temp-${Date.now()}` }, ...videos];
+    await updateSiteContent({ videos: updatedVideos });
+    setNewVideo({ title: '', src: '', description: '' });
+  };
+
+  const handleDeleteVideo = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this video section?")) return;
+    const updatedVideos = videos.filter(vid => vid._id !== id);
+    await updateSiteContent({ videos: updatedVideos });
+  };
+
+  const renderVideosTab = () => {
+    const descWordCount = newVideo.description.trim().split(/\s+/).filter(Boolean).length;
+    const isWordCountOptimal = descWordCount >= 30 && descWordCount <= 40;
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Manage Video Gallery</h3>
+        <p className="text-sm text-gray-500 mb-6">Create up to 4 video event sections featuring embedded YouTube videos. Descriptions should be between 30 and 40 words.</p>
+
+        <div className="flex flex-col gap-4 mb-8 bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Video Title</label>
+              <input 
+                type="text" 
+                placeholder="Video Title" 
+                value={newVideo.title} 
+                onChange={e => setNewVideo({...newVideo, title: e.target.value})} 
+                className="p-2 border rounded-lg bg-white" 
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">YouTube Video Link</label>
+              <input 
+                type="text" 
+                placeholder="e.g. https://www.youtube.com/watch?v=xxxx" 
+                value={newVideo.src} 
+                onChange={e => setNewVideo({...newVideo, src: e.target.value})} 
+                className="p-2 border rounded-lg bg-white" 
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-xs font-bold text-gray-500 mb-1 flex justify-between">
+              <span>Video Description</span>
+              <span className={`text-[11px] font-bold ${isWordCountOptimal ? 'text-green-600' : 'text-amber-600'}`}>
+                {descWordCount} words (Target: 30-40)
+              </span>
+            </label>
+            <textarea 
+              placeholder="Provide a short description of the video event..." 
+              value={newVideo.description} 
+              onChange={e => setNewVideo({...newVideo, description: e.target.value})} 
+              className="p-2.5 border rounded-lg bg-white h-24"
+              rows={3}
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <button 
+              onClick={handleAddVideo} 
+              disabled={videos.length >= 4}
+              className="bg-tertiary text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <FaPlus /> Add Video Section
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {videos.map((vid, idx) => (
+            <div key={vid._id || idx} className="border border-gray-100 shadow-sm rounded-2xl p-5 flex flex-col bg-white">
+              <div className="w-full aspect-video bg-gray-100 rounded-xl mb-4 flex items-center justify-center border border-gray-200">
+                <span className="material-symbols-outlined text-gray-400 text-4xl">video_library</span>
+              </div>
+              <h4 className="font-bold text-gray-800 text-lg text-left truncate">{vid.title}</h4>
+              <p className="text-xs text-gray-400 font-mono truncate text-left mt-1 mb-2">{vid.src}</p>
+              {vid.description && (
+                <p className="text-xs text-gray-600 leading-relaxed text-left flex-1 line-clamp-3 mt-1 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                  {vid.description}
+                </p>
+              )}
+              <div className="flex justify-end mt-4 pt-3 border-t border-gray-50">
+                <button onClick={() => handleDeleteVideo(vid._id)} className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-1">
+                  <FaTrash size={12} /> Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // --- Notices Tab ---
+  const [newNotice, setNewNotice] = useState({ title: '', date: '', size: '', pdfLink: '' });
+  const [isPdfUploading, setIsPdfUploading] = useState(false);
+  const handleAddNotice = () => {
+    if (!newNotice.title || !newNotice.pdfLink) return;
+    setNotices([{ ...newNotice, _id: `temp-${Date.now()}` }, ...notices]);
+    setNewNotice({ title: '', date: '', size: '', pdfLink: '' });
+  };
+  const handleDeleteNotice = (id) => {
+    setNotices(notices.filter(n => (n._id || n.id) !== id));
+  };
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsPdfUploading(true);
+    const token = localStorage.getItem('adminToken');
+    const formData = new FormData();
+    formData.append('pdf', file);
+    try {
+      const res = await fetch(`${API_URL}/content/upload-pdf`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+      
+      if (!res.ok) {
+        let errorMessage = 'Server error';
+        try {
+          const errData = await res.json();
+          // Include backend exception details if provided for better visibility
+          errorMessage = errData.error 
+            ? `${errData.message} - ${errData.error}` 
+            : (errData.message || errorMessage);
+        } catch (error) {
+          // Response wasn't JSON
+          errorMessage = `HTTP Error ${res.status}`;
+        }
+        console.error('PDF upload failed:', errorMessage);
+        alert(`Failed to upload PDF: ${errorMessage}`);
+        return;
+      }
+      
+      const data = await res.json();
+      setNewNotice({
+        ...newNotice,
+        pdfLink: data.url, // raw GitHub URL
+        size: `${(file.size / 1024).toFixed(0)} KB`,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      });
+      alert('PDF uploaded successfully! Click Publish Notice to save.');
+    } catch (err) {
+      console.error('PDF upload failed:', err);
+      alert(`Network error or upload failed: ${err.message}`);
+    } finally {
+      setIsPdfUploading(false);
+    }
+  };
+
+  const renderNoticesTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Manage PDF Notices</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 items-end">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Notice Title</label>
+          <input type="text" placeholder="e.g. Summer Vacation 2026" value={newNotice.title} onChange={e => setNewNotice({...newNotice, title: e.target.value})} className="w-full p-2 border rounded-lg" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Upload PDF</label>
+          <input type="file" accept=".pdf" onChange={handlePdfUpload} disabled={isPdfUploading} className="w-full p-[5px] border bg-white rounded-lg text-sm disabled:bg-gray-100" />
+          {isPdfUploading && <p className="text-xs text-blue-500 mt-1 flex items-center"><FaSpinner className="animate-spin mr-1"/> Uploading PDF, please wait...</p>}
+          {!isPdfUploading && newNotice.pdfLink && <p className="text-xs text-green-600 mt-1">✅ PDF Uploaded & Ready!</p>}
+        </div>
+        <button 
+          onClick={handleAddNotice} 
+          disabled={isPdfUploading || !newNotice.title || !newNotice.pdfLink}
+          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 h-[42px] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-300"
+        >
+          {isPdfUploading ? (
+            <><FaSpinner className="mr-2 animate-spin"/> Uploading...</>
+          ) : (
+            <><FaPlus className="mr-2"/> Publish Notice</>
+          )}
+        </button>
+      </div>
+      <div className="space-y-3">
+        {notices.map(item => (
+          <div key={item._id || item.id} className="flex justify-between items-center p-4 border rounded-xl hover:bg-gray-50:bg-[#0F172A]:bg-[#0F172A] transition-colors">
+            <div className="flex gap-4 items-center">
+              <div className="w-10 h-10 bg-red-100 text-red-600 rounded-lg flex items-center justify-center font-bold text-xs uppercase">PDF</div>
+              <div>
+                <p className="font-bold text-sm text-gray-800">{item.title}</p>
+                <p className="text-xs text-gray-500">{item.date} • {item.size}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <a href={item.pdfLink} target="_blank" rel="noreferrer" className="text-primary hover:underline text-xs font-bold">View</a>
+              <button onClick={() => handleDeleteNotice(item._id || item.id)} className="text-red-400 hover:text-red-600 p-2"><FaTrash size={14} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // --- Faculty Tab ---
+  const [newFaculty, setNewFaculty] = useState({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: 'Science', section: 'Graduate', teachingExperience: '', jobTitle: '' });
+  const [facultyFile, setFacultyFile] = useState(null);
+  const [isFacultyUploading, setIsFacultyUploading] = useState(false);
+  const [editingFaculty, setEditingFaculty] = useState(null); // { dept, index }
+
+  const handleAddFaculty = async () => {
+    if (!newFaculty.name) return;
+    
+    setIsFacultyUploading(true);
+    try {
+      let photoUrl = newFaculty.photo;
+      if (facultyFile) { photoUrl = await uploadImage(facultyFile); }
+      
+      const dept = newFaculty.department || 'Others';
+      const payloadMember = {
+        ...newFaculty,
+        photo: photoUrl,
+        title: newFaculty.teachingExperience || newFaculty.title || '',
+        classes: newFaculty.jobTitle || newFaculty.classes || '',
+        Subject: newFaculty.Subject || ''
+      };
+      
+      let updatedFaculty = { ...faculty };
+      
+      if (editingFaculty) {
+        // Update existing member
+        const { dept: oldDept, index } = editingFaculty;
+        const updatedDeptList = [...(faculty[oldDept] || [])];
+        
+        if (oldDept === dept) {
+          // Same department, just update
+          updatedDeptList[index] = payloadMember;
+          updatedFaculty[dept] = updatedDeptList;
+        } else {
+          // Changed department: remove from old, add to new
+          const filteredOldDept = updatedDeptList.filter((_, i) => i !== index);
+          updatedFaculty[oldDept] = filteredOldDept;
+          updatedFaculty[dept] = [payloadMember, ...(faculty[dept] || [])];
+        }
+        setEditingFaculty(null);
+      } else {
+        // Add new member
+        updatedFaculty[dept] = [{ ...payloadMember, _id: `temp-${Date.now()}` }, ...(faculty[dept] || [])];
+      }
+      
+      await updateSiteContent({ faculty: updatedFaculty });
+      
+      setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: dept, section: newFaculty.section || 'Graduate', teachingExperience: '', jobTitle: '' });
+      setFacultyFile(null);
+    } catch (err) {
+      alert("Faculty update failed: " + err.message);
+    }
+    setIsFacultyUploading(false);
+  };
+
+  const handleStartEdit = (dept, index, member) => {
+    setNewFaculty({ 
+      ...member, 
+      department: dept,
+      section: member.section || 'Graduate',
+      teachingExperience: member.teachingExperience || member.title || '',
+      jobTitle: member.jobTitle || member.classes || ''
+    });
+    setEditingFaculty({ dept, index });
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingFaculty(null);
+    setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: 'Science', section: 'Graduate', teachingExperience: '', jobTitle: '' });
+    setFacultyFile(null);
+  };
+
+  const handleDeleteFaculty = async (dept, idToRemove, indexToRemove) => {
+    if (!window.confirm("Are you sure you want to delete this faculty member?")) return;
+    const updatedDeptList = (faculty[dept] || []).filter((f, i) => (f._id || f.id) ? (f._id || f.id) !== idToRemove : i !== indexToRemove);
+    const updatedFaculty = {
+      ...faculty,
+      [dept]: updatedDeptList
+    };
+    await updateSiteContent({ faculty: updatedFaculty });
+  };
+
+  const renderFacultyTab = () => {
+    const vis = schoolProfile?.facultyVisibility || { graduate: true, higher_secondary: true, upper_primary: true, primary: true, play_school: true, administration: true, support_staff: true };
+
+    const toggleVisibility = async (key) => {
+      const updatedVis = { ...vis, [key]: !vis[key] };
+      await updateSiteContent({
+        schoolProfile: {
+          ...schoolProfile,
+          facultyVisibility: updatedVis
+        }
+      });
+    };
+
+    return (
+      <div className="space-y-8">
+        {/* Section Visibility Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <FaEye className="text-indigo-500" />
+            Faculty Page Section Visibility
+          </h3>
+          <p className="text-sm text-gray-500 mb-6">Choose which academic sections should be visible on the public school website.</p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { key: 'graduate', label: 'Graduate Section' },
+              { key: 'higher_secondary', label: 'Higher Secondary Section' },
+              { key: 'upper_primary', label: 'Upper Primary Section' },
+              { key: 'primary', label: 'Primary Section' },
+              { key: 'play_school', label: 'Play School Section' },
+              { key: 'administration', label: 'Administration' },
+              { key: 'support_staff', label: 'Support Staff' }
+            ].map(sec => (
+              <label key={sec.key} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100/50 cursor-pointer transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={vis[sec.key] !== false} 
+                  onChange={() => toggleVisibility(sec.key)}
+                  className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" 
+                />
+                <span className="text-sm font-semibold text-gray-700">{sec.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Add/Edit Faculty Form */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">{editingFaculty ? 'Edit Faculty Member' : 'Add Faculty Member'}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+            
+            {/* Academic Section */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Academic Section</label>
+              <select 
+                value={newFaculty.section || 'Graduate'} 
+                onChange={e => {
+                  const sec = e.target.value;
+                  let defaultDept = 'Others';
+                  if (sec === 'Graduate') defaultDept = 'Science';
+                  else if (sec === 'Higher Secondary') defaultDept = 'Science';
+                  else if (sec === 'Upper Primary') defaultDept = 'Science';
+                  else if (sec === 'Primary') defaultDept = 'Primary';
+                  else if (sec === 'Play School') defaultDept = 'Play School';
+                  else if (sec === 'Administration') defaultDept = 'Administration';
+                  else if (sec === 'Support Staff') defaultDept = 'Support Staff';
+
+                  setNewFaculty({
+                    ...newFaculty,
+                    section: sec,
+                    department: defaultDept
+                  });
+                }} 
+                className="p-2 border rounded-lg bg-white"
+              >
+                <option value="Graduate">Graduate Section</option>
+                <option value="Higher Secondary">Higher Secondary Section</option>
+                <option value="Upper Primary">Upper Primary Section</option>
+                <option value="Primary">Primary Section</option>
+                <option value="Play School">Play School Section</option>
+                <option value="Administration">Administration</option>
+                <option value="Support Staff">Support Staff</option>
+                <option value="Others">Others</option>
+              </select>
+            </div>
+
+            {/* Department / Stream (conditional display) */}
+            {['Graduate', 'Higher Secondary', 'Upper Primary'].includes(newFaculty.section || 'Graduate') ? (
+              <div className="flex flex-col">
+                <label className="text-xs font-bold text-gray-500 mb-1">
+                  {newFaculty.section === 'Graduate' ? 'Department (e.g. Physics, English)' : 'Stream'}
+                </label>
+                {newFaculty.section === 'Graduate' ? (
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Physics, Chemistry" 
+                    value={newFaculty.department || ''} 
+                    onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} 
+                    className="p-2 border rounded-lg bg-white" 
+                  />
+                ) : (
+                  <select 
+                    value={newFaculty.department || 'Science'} 
+                    onChange={e => setNewFaculty({...newFaculty, department: e.target.value})} 
+                    className="p-2 border rounded-lg bg-white"
+                  >
+                    <option value="Science">Science</option>
+                    <option value="Commerce">Commerce</option>
+                    <option value="Arts">Arts</option>
+                    <option value="Others">Others</option>
+                  </select>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col opacity-50 cursor-not-allowed">
+                <label className="text-xs font-bold text-gray-500 mb-1">Department / Stream</label>
+                <input type="text" value={newFaculty.department || ''} disabled className="p-2 border rounded-lg bg-gray-100 cursor-not-allowed" />
+              </div>
+            )}
+
+            {/* Name */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Name</label>
+              <input type="text" placeholder="Name" value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Qualifications */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Qualifications</label>
+              <input type="text" placeholder="e.g. MSc, B.Ed, PhD" value={newFaculty.EduQua} onChange={e => setNewFaculty({...newFaculty, EduQua: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Teaching Experience */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Teaching Experience</label>
+              <input type="text" placeholder="e.g. 5+ years" value={newFaculty.teachingExperience || newFaculty.title || ''} onChange={e => setNewFaculty({...newFaculty, teachingExperience: e.target.value, title: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Job Title */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Job Title</label>
+              <input type="text" placeholder="e.g. Asst Prof, HOD, Class Teacher" value={newFaculty.jobTitle || newFaculty.classes || ''} onChange={e => setNewFaculty({...newFaculty, jobTitle: e.target.value, classes: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Subjects Taught */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Subject / Subjects Taught</label>
+              <input type="text" placeholder="e.g. Physics, English" value={newFaculty.Subject} onChange={e => setNewFaculty({...newFaculty, Subject: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Facebook Link */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Facebook Link (optional)</label>
+              <input type="url" placeholder="Facebook Profile Link" value={newFaculty.facebook || ''} onChange={e => setNewFaculty({...newFaculty, facebook: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Instagram Link */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">Instagram Link (optional)</label>
+              <input type="url" placeholder="Instagram Profile Link" value={newFaculty.instagram || ''} onChange={e => setNewFaculty({...newFaculty, instagram: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* WhatsApp Link */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 mb-1">WhatsApp Link (optional)</label>
+              <input type="url" placeholder="WhatsApp Link" value={newFaculty.whatsapp || ''} onChange={e => setNewFaculty({...newFaculty, whatsapp: e.target.value})} className="p-2 border rounded-lg" />
+            </div>
+
+            {/* Teacher Photo */}
+            <div className="p-2 border rounded-lg bg-white flex flex-col">
+              <label className="text-gray-400 text-sm mb-1 font-semibold">Teacher Photo:</label>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={e => setFacultyFile(e.target.files[0])} 
+                className="w-full text-sm p-1 border rounded" 
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 md:col-span-3 mt-4">
+              <button 
+                onClick={handleAddFaculty} 
+                disabled={isFacultyUploading}
+                className={`flex-1 ${editingFaculty ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400`}
+              >
+                {editingFaculty ? <><FaSave className="inline mr-2"/> {isFacultyUploading ? 'Updating...' : 'Update Faculty Member'}</> : <><FaPlus className="inline mr-2"/> {isFacultyUploading ? 'Adding...' : 'Add Faculty Member'}</>}
+              </button>
+              {editingFaculty && (
+                <button 
+                  onClick={handleCancelEdit}
+                  className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Faculty Directory grouped by departments */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Faculty Directory</h3>
+          {Object.keys(faculty).filter(dept => dept !== 'Guest').map(dept => (
+            <div key={dept} className="mb-8 border-b pb-6 last:border-b-0 last:pb-0">
+              <h4 className="font-bold text-lg mb-3 text-indigo-900 border-l-4 border-indigo-500 pl-3">{dept}</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {faculty[dept].map((f, idx) => (
+                  <div key={f._id || f.id || idx} className="flex gap-4 p-3 border rounded-xl items-center bg-gray-50 hover:bg-gray-100/50 transition-colors">
+                    <img src={f.photo || "https://images.unsplash.com/photo-1544717302-de2939b7ef71?w=150&h=150&fit=crop"} className="w-12 h-12 rounded-full object-cover bg-gray-200 shrink-0" alt="" />
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="font-bold text-sm text-gray-800 truncate">{f.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{f.Subject || 'No Subject'}</p>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-medium">{f.section || 'Others'}</span>
+                        {f.EduQua && <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-medium">{f.EduQua}</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => handleStartEdit(dept, idx, f)} className="text-blue-500 hover:text-blue-700 p-2"><FaEdit size={14}/></button>
+                      <button onClick={() => handleDeleteFaculty(dept, f._id || f.id, idx)} className="text-red-500 hover:text-red-700 p-2"><FaTrash size={14}/></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // --- Principal Tab ---
+  const [isEditingPrincipal, setIsEditingPrincipal] = useState(false);
+  const [editPrincipal, setEditPrincipal] = useState({});
+
+  const [isPrincipalUploading, setIsPrincipalUploading] = useState(false);
+
+  const startEditingPrincipal = () => {
+    setEditPrincipal(principal);
+    setIsEditingPrincipal(true);
+  };
+
+  const handlePrincipalChange = (field, value) => {
+    setEditPrincipal({ ...editPrincipal, [field]: value });
+  };
+  
+  const handlePrincipalImageUpload = async (e, fieldName) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsPrincipalUploading(true);
+    try {
+      const url = await uploadImage(file);
+      setEditPrincipal(prev => ({ ...prev, [fieldName]: url }));
+    } catch (err) {
+      alert("Upload failed: " + err.message);
+    }
+    setIsPrincipalUploading(false);
+  };
+
+  const savePrincipal = () => {
+    setPrincipal(editPrincipal);
+    setIsEditingPrincipal(false);
+  };
+
+  const cancelPrincipal = () => {
+    setIsEditingPrincipal(false);
+  };
+
+  const getPrincipalWordCount = () => {
+    const text = isEditingPrincipal ? editPrincipal.message : principal.message;
+    if (!text) return 0;
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
+
+  const renderPrincipalTab = () => {
+    const wordCount = getPrincipalWordCount();
+    const isOverLimit = wordCount > 400;
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex justify-between flex-wrap items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-800">Manage Principal's Desk</h3>
+          {!isEditingPrincipal ? (
+            <button onClick={startEditingPrincipal} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Info</button>
+          ) : (
+            <div className="flex gap-2 mt-2 sm:mt-0">
+              <button onClick={cancelPrincipal} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
+              <button 
+                onClick={savePrincipal} 
+                disabled={isOverLimit}
+                className={`px-4 py-2 rounded-lg font-bold transition-colors ${isOverLimit ? 'bg-red-400 cursor-not-allowed text-white' : 'bg-green-600 text-white hover:bg-green-700'}`}
+              >
+                Save Changes
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.name : principal.name} onChange={e => handlePrincipalChange('name', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.title : principal.title} onChange={e => handlePrincipalChange('title', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Introductory Quote</label>
+            <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.introQuote : principal.introQuote} onChange={e => handlePrincipalChange('introQuote', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400" />
+          </div>
+          <div className="md:col-span-2">
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-gray-700">Main Message (Use Enter for new paragraphs)</label>
+              <span className={`text-xs font-bold ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
+                {wordCount} / 400 words {isOverLimit && '(Limit exceeded)'}
+              </span>
+            </div>
+            <textarea disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.message : principal.message} onChange={e => handlePrincipalChange('message', e.target.value)} className={`w-full p-2 border rounded-lg font-sans text-sm disabled:bg-gray-200 disabled:text-gray-500:text-gray-400 ${isOverLimit ? 'border-red-500 focus:ring-red-200' : ''}`} rows="10"></textarea>
+          </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Closing Quote (Optional)</label>
+          <input type="text" disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.closingQuote : principal.closingQuote} onChange={e => handlePrincipalChange('closingQuote', e.target.value)} className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400:text-gray-400" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Principal Photo</label>
+          <div className="flex flex-col gap-2 flex-1">
+            <img src={isEditingPrincipal ? editPrincipal.photo : principal.photo} alt="Current" className="w-16 h-16 object-cover rounded-lg shadow-sm border border-gray-200" />
+            {isEditingPrincipal && (
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={e => handlePrincipalImageUpload(e, 'photo')} 
+                className="w-full p-2 border bg-white rounded-lg text-sm" 
+              />
+            )}
+            {isPrincipalUploading && <span className="text-xs text-blue-500">Uploading...</span>}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Signature Image</label>
+          <div className="flex items-center gap-4">
+            <img src={isEditingPrincipal ? editPrincipal.signature : principal.signature} alt="Signature" className="w-16 h-16 p-1 object-contain bg-white rounded-lg shadow-sm border border-gray-200" />
+            {isEditingPrincipal && (
+              <input type="file" accept="image/*" onChange={e => handlePrincipalImageUpload(e, 'signature')} className="w-full p-[5px] border bg-white rounded-lg text-sm" />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+  };
+
+  // --- Banner Tab ---
+  const [isEditingBanner, setIsEditingBanner] = useState(false);
+  const [editBanner, setEditBanner] = useState({ isActive: false, image: null, link: '' });
+
+  const [isBannerUploading, setIsBannerUploading] = useState(false);
+
+  const startEditingBanner = () => {
+    setEditBanner(banner || { isActive: false, image: null, link: '' });
+    setIsEditingBanner(true);
+  };
+
+  const handleBannerImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsBannerUploading(true);
+    try {
+      const url = await uploadImage(file);
+      setEditBanner(prev => ({ ...prev, image: url }));
+    } catch (err) {
+      alert("Banner upload failed: " + err.message);
+    }
+    setIsBannerUploading(false);
+  };
+
+  const handleBannerChange = (field, value) => {
+    setEditBanner(prev => ({ ...prev, [field]: value }));
+  };
+
+  const saveBanner = () => {
+    setBanner(editBanner);
+    setIsEditingBanner(false);
+  };
+
+  const cancelBanner = () => {
+    setIsEditingBanner(false);
+  };
+
+  const renderBannerTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex justify-between flex-wrap items-center mb-6">
+        <h3 className="text-xl font-bold text-gray-800">Manage Popup Banner</h3>
+        {!isEditingBanner ? (
+          <button onClick={startEditingBanner} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Banner</button>
+        ) : (
+          <div className="flex gap-2 mt-2 sm:mt-0">
+            <button onClick={cancelBanner} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
+            <button onClick={saveBanner} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors">Save Changes</button>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
+        <div className="flex items-center gap-2 md:col-span-2">
+          <input 
+            type="checkbox" 
+            id="bannerActive" 
+            disabled={!isEditingBanner} 
+            checked={isEditingBanner ? editBanner.isActive : (banner?.isActive || false)} 
+            onChange={e => handleBannerChange('isActive', e.target.checked)} 
+            className="w-5 h-5 text-tertiary" 
+          />
+          <label htmlFor="bannerActive" className="text-sm font-bold text-gray-700">Enable Popup Banner</label>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Banner Image (Required)</label>
+          <div className="flex flex-col gap-4">
+            {(isEditingBanner ? editBanner.image : banner?.image) ? (
+              <img src={isEditingBanner ? editBanner.image : banner?.image} alt="Banner" className="w-full max-w-sm rounded-lg shadow-sm border border-gray-200 object-contain bg-white" />
+            ) : (
+              <div className="w-full max-w-sm h-32 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 text-sm">No Image Uploaded</div>
+            )}
+            {isEditingBanner && (
+              <div className="flex flex-col gap-2">
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleBannerImageUpload} 
+                  className="w-full max-w-sm p-2 border bg-white rounded-lg text-sm" 
+                />
+                {isBannerUploading && <span className="text-xs text-blue-500">Uploading...</span>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Target Link URL (Optional)</label>
+          <input 
+            type="url" 
+            placeholder="https://example.com/admission"
+            disabled={!isEditingBanner} 
+            value={isEditingBanner ? (editBanner.link || '') : (banner?.link || '')} 
+            onChange={e => handleBannerChange('link', e.target.value)} 
+            className="w-full max-w-sm p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400:text-gray-400" 
+          />
+          <p className="text-xs text-gray-500 mt-2">If provided, clicking the banner will open this link.</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // --- Alumni Tab ---
+  const [isEditingAlumni, setIsEditingAlumni] = useState(false);
+  const [subjectInput, setSubjectInput] = useState('');
+
+  const resetAlumniForm = () => {
+    setAlumniForm({ _id: null, name: '', passedYear: '', rank: '', percentage: '', level: 'HSLC', stream: 'Arts', subjects: [], photo: '', description: '' });
+    setIsEditingAlumni(false);
+    setSubjectInput('');
+  };
+
+  // --- Legacy Wall Tab ---
+  const [emeritusForm, setEmeritusForm] = useState({ _id: null, name: '', role: '', tenure: '', message: '', photo: '', category: 'Staff', status: 'Retired', causeOfDeath: '' });
+  const [isEditingEmeritus, setIsEditingEmeritus] = useState(false);
+  const [emeritusFile, setEmeritusFile] = useState(null);
+  const [isEmeritusUploading, setIsEmeritusUploading] = useState(false);
+
+  const resetEmeritusForm = () => {
+    setEmeritusForm({ _id: null, name: '', role: '', tenure: '', message: '', photo: '', category: 'Staff', status: 'Retired', causeOfDeath: '' });
+    setIsEditingEmeritus(false);
+    setEmeritusFile(null);
+  };
+
+  const [alumniFile, setAlumniFile] = useState(null);
+  const [isAlumniUploading, setIsAlumniUploading] = useState(false);
+
+  const handleAlumniSubmit = async (e) => {
+    e.preventDefault();
+    if (!alumniForm.name || !alumniForm.passedYear || (!alumniFile && !alumniForm.photo)) {
+      alert("Name, Passed Year, and Photo are required.");
+      return;
+    }
+    
+    setIsAlumniUploading(true);
+    try {
+      let photoUrl = alumniForm.photo;
+      if (alumniFile) {
+        photoUrl = await uploadImage(alumniFile);
+      }
+
+      let finalSubjects = [...alumniForm.subjects];
+      if (subjectInput.trim()) {
+        finalSubjects = subjectInput.split(',').map(s => s.trim()).filter(s => s);
+      } else {
+          finalSubjects = [];
+      }
+
+      if (isEditingAlumni) {
+        setAlumni(alumni.map(a => (a._id || a.id) === (alumniForm._id || alumniForm.id) ? { ...alumniForm, photo: photoUrl, subjects: finalSubjects } : a));
+      } else {
+        setAlumni([...(alumni || []), { ...alumniForm, _id: `temp-${Date.now()}`, photo: photoUrl, subjects: finalSubjects }]);
+      }
+      resetAlumniForm();
+      setAlumniFile(null);
+    } catch (err) {
+      alert("Alumni upload failed: " + err.message);
+    }
+    setIsAlumniUploading(false);
+  };
+
+  const handleEditAlumni = (alumnus) => {
+    setAlumniForm(alumnus);
+    setSubjectInput(alumnus.subjects?.join(', ') || '');
+    setIsEditingAlumni(true);
+  };
+
+  const handleDeleteAlumni = async (id) => {
+    if(window.confirm('Delete this alumni record?')) {
+      try {
+        localStorage.getItem('adminToken');
+        // Since alumni are synced via SiteContent PUT for now (legacy), 
+        // we update local state and let the effect sync it, 
+        // OR if it's a separate model, we call the API.
+        // Based on previous edits, SiteDataContext handles syncing SiteContent.
+        setAlumni(alumni.filter(a => (a._id || a.id) !== id));
+      } catch (err) {
+        alert("Delete failed: " + err.message);
+      }
+    }
+  };
+
+  const renderAlumniTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8 max-w-5xl">
+      <h3 className="text-xl font-bold text-gray-800 mb-6">{isEditingAlumni ? 'Edit Alumni Record' : 'Add New Alumni'}</h3>
+      <form onSubmit={handleAlumniSubmit} className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+          <input required type="text" value={alumniForm.name} onChange={e => setAlumniForm({...alumniForm, name: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Passed Year *</label>
+          <input required type="text" value={alumniForm.passedYear} onChange={e => setAlumniForm({...alumniForm, passedYear: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. 2023" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Rank / Position</label>
+          <input type="text" value={alumniForm.rank} onChange={e => setAlumniForm({...alumniForm, rank: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. 1st State Rank" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Percentage / CGPA</label>
+          <input type="text" value={alumniForm.percentage} onChange={e => setAlumniForm({...alumniForm, percentage: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. 98.5%" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Level *</label>
+          <select value={alumniForm.level} onChange={e => setAlumniForm({...alumniForm, level: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white">
+            <option value="HSLC">HSLC (10th)</option>
+            <option value="HS">HS (12th)</option>
+          </select>
+        </div>
+        
+        {alumniForm.level === 'HS' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Stream</label>
+              <select value={alumniForm.stream} onChange={e => setAlumniForm({...alumniForm, stream: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white">
+                <option value="Arts">Arts</option>
+                <option value="Science">Science</option>
+                <option value="Commerce">Commerce</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subjects (Comma separated)</label>
+              <input type="text" value={subjectInput} onChange={e => setSubjectInput(e.target.value)} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="Physics, Chemistry, Maths..." />
+            </div>
+          </>
+        )}
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description / Achievement Details</label>
+          <textarea 
+            value={alumniForm.description} 
+            onChange={e => setAlumniForm({...alumniForm, description: e.target.value})} 
+            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+            placeholder="e.g. Secured highest marks in Mathematics across the state..."
+            rows={3}
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Alumni Photo *</label>
+          <div className="flex flex-col gap-2">
+            {alumniForm.photo && <img src={alumniForm.photo} alt="Preview" className="w-16 h-16 object-cover rounded shadow border" />}
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={e => setAlumniFile(e.target.files[0])} 
+              className="w-full p-2 border bg-white rounded-lg text-sm" 
+            />
+            {isAlumniUploading && <span className="text-xs text-blue-500">Uploading...</span>}
+          </div>
+        </div>
+
+        <div className="md:col-span-2 flex gap-2 pt-4">
+          <button 
+            type="submit" 
+            disabled={isAlumniUploading}
+            className="bg-primary text-white px-6 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors disabled:bg-gray-400"
+          >
+            {isAlumniUploading ? 'Processing...' : (isEditingAlumni ? 'Update Record' : 'Add Alumni')}
+          </button>
+          {isEditingAlumni && <button type="button" onClick={resetAlumniForm} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>}
+        </div>
+      </form>
+
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Existing Alumni Records</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
+              <th className="p-3">Photo</th>
+              <th className="p-3">Name</th>
+              <th className="p-3">Year / Level</th>
+              <th className="p-3">Rank / %</th>
+              <th className="p-3">Stream</th>
+              <th className="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {alumni?.map(a => (
+              <tr key={a._id || a.id} className="hover:bg-gray-50/50 transition-colors">
+                <td className="p-3"><img src={a.photo} alt={a.name} className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-200 bg-white" /></td>
+                <td className="p-3 font-medium text-gray-800">{a.name}</td>
+                <td className="p-3 text-sm text-gray-600 font-bold">{a.passedYear} <span className="font-normal text-xs text-gray-500">({a.level})</span></td>
+                <td className="p-3 text-sm text-gray-600">{a.rank || '-'} <span className="text-gray-300">|</span> {a.percentage || '-'}</td>
+                <td className="p-3 text-sm text-gray-600">{a.level === 'HS' ? a.stream : '-'}</td>
+                <td className="p-3 text-right">
+                  <button onClick={() => handleEditAlumni(a)} className="text-blue-600 hover:text-blue-800 font-bold text-xs uppercase mr-4 transition-colors">Edit</button>
+                  <button onClick={() => handleDeleteAlumni(a._id || a.id)} className="text-red-500 hover:text-red-700 p-1 flex items-center justify-end font-bold text-xs uppercase transition-colors max-w-min ml-auto"><FaTrash /></button>
+                </td>
+              </tr>
+            ))}
+            {(!alumni || alumni.length === 0) && (
+              <tr><td colSpan="6" className="p-6 text-center text-gray-500">No alumni records found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // --- Center of Excellence Tab ---
+  const handleExcellenceSubmit = async (e) => {
+    e.preventDefault();
+    if (!excellenceForm.name || (!excellenceFile && !excellenceForm.photo)) {
+      alert("Name and Photo are required.");
+      return;
+    }
+    
+    setIsExcellenceUploading(true);
+    try {
+      let photoUrl = excellenceForm.photo;
+      if (excellenceFile) {
+        photoUrl = await uploadImage(excellenceFile);
+      }
+
+      if (isEditingExcellence) {
+        setCenterOfExcellence(centerOfExcellence.map(item => (item._id || item.id) === (excellenceForm._id || excellenceForm.id) ? { ...excellenceForm, photo: photoUrl } : item));
+      } else {
+        setCenterOfExcellence([...(centerOfExcellence || []), { ...excellenceForm, _id: `temp-${Date.now()}`, id: Date.now(), photo: photoUrl }]);
+      }
+      resetExcellenceForm();
+    } catch (err) {
+      alert("Excellence record update failed: " + err.message);
+    }
+    setIsExcellenceUploading(false);
+  };
+
+  const handleEditExcellence = (item) => {
+    setExcellenceForm(item);
+    setIsEditingExcellence(true);
+  };
+
+  const handleDeleteExcellence = async (id) => {
+    if(window.confirm('Delete this excellence record?')) {
+      setCenterOfExcellence(centerOfExcellence.filter(item => (item._id || item.id) !== id));
+    }
+  };
+
+  const renderExcellenceTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8 max-w-5xl">
+      <h3 className="text-xl font-bold text-gray-800 mb-6">{isEditingExcellence ? 'Edit Excellence Record' : 'Add Notable Alumni'}</h3>
+      <form onSubmit={handleExcellenceSubmit} className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input type="text" placeholder="e.g. Mr. / Dr." value={excellenceForm.title} onChange={e => setExcellenceForm({...excellenceForm, title: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" />
+          </div>
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+            <input required type="text" value={excellenceForm.name} onChange={e => setExcellenceForm({...excellenceForm, name: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Passed Year</label>
+          <input type="text" value={excellenceForm.passedYear} onChange={e => setExcellenceForm({...excellenceForm, passedYear: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. 2010" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Designation / Role</label>
+          <input type="text" value={excellenceForm.designation} onChange={e => setExcellenceForm({...excellenceForm, designation: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. Software Engineer" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company / Organization</label>
+          <input type="text" value={excellenceForm.company} onChange={e => setExcellenceForm({...excellenceForm, company: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. Google" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+          <input type="text" value={excellenceForm.location} onChange={e => setExcellenceForm({...excellenceForm, location: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" placeholder="e.g. California, USA" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Short Message / Achievement</label>
+          <textarea value={excellenceForm.message} onChange={e => setExcellenceForm({...excellenceForm, message: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" rows="2" placeholder="Describe their journey or achievement..."></textarea>
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Photo *</label>
+          <div className="flex flex-col gap-2">
+            {excellenceForm.photo && <img src={excellenceForm.photo} alt="Preview" className="w-16 h-16 object-cover rounded shadow border" />}
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={e => setExcellenceFile(e.target.files[0])} 
+              className="w-full p-2 border bg-white rounded-lg text-sm" 
+            />
+            {isExcellenceUploading && <span className="text-xs text-blue-500">Uploading...</span>}
+          </div>
+        </div>
+
+        <div className="md:col-span-2 flex gap-2 pt-4">
+          <button 
+            type="submit" 
+            disabled={isExcellenceUploading}
+            className="bg-primary text-white px-6 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors disabled:bg-gray-400"
+          >
+            {isExcellenceUploading ? 'Processing...' : (isEditingExcellence ? 'Update Record' : 'Add Notable Alumni')}
+          </button>
+          {isEditingExcellence && <button type="button" onClick={resetExcellenceForm} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>}
+        </div>
+      </form>
+
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Notable Alumni Directory</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
+              <th className="p-3">Photo</th>
+              <th className="p-3">Name</th>
+              <th className="p-3">Designation / Company</th>
+              <th className="p-3">Location</th>
+              <th className="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {centerOfExcellence?.map(item => (
+              <tr key={item._id || item.id} className="hover:bg-gray-50/50 transition-colors">
+                <td className="p-3"><img src={item.photo} alt={item.name} className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-200 bg-white" /></td>
+                <td className="p-3 font-medium text-gray-800">{item.name} <span className="text-xs text-gray-400">({item.passedYear})</span></td>
+                <td className="p-3 text-sm text-gray-600 font-bold">{item.designation} <span className="font-normal text-xs text-gray-500">at {item.company}</span></td>
+                <td className="p-3 text-sm text-gray-600">{item.location || '-'}</td>
+                <td className="p-3 text-right">
+                  <button onClick={() => handleEditExcellence(item)} className="text-blue-600 hover:text-blue-800 font-bold text-xs uppercase mr-4 transition-colors">Edit</button>
+                  <button onClick={() => handleDeleteExcellence(item._id || item.id)} className="text-red-500 hover:text-red-700 p-1 flex items-center justify-end font-bold text-xs uppercase transition-colors max-w-min ml-auto"><FaTrash /></button>
+                </td>
+              </tr>
+            ))}
+            {(!centerOfExcellence || centerOfExcellence.length === 0) && (
+              <tr><td colSpan="5" className="p-6 text-center text-gray-500">No notable alumni found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // --- Social Media Tab ---
+  const [isEditingSocial, setIsEditingSocial] = useState(false);
+  const [editSocial, setEditSocial] = useState({ facebook: '', instagram: '', twitter: '', youtube: '', linkedin: '', whatsapp: '', whatsappChannel: '' });
+
+  const startEditingSocial = () => {
+    setEditSocial(socialLinks || { facebook: '', instagram: '', twitter: '', youtube: '', linkedin: '', whatsapp: '', whatsappChannel: '' });
+    setIsEditingSocial(true);
+  };
+
+  const handleSocialChange = (field, value) => {
+    setEditSocial(prev => ({ ...prev, [field]: value }));
+  };
+
+  const saveSocial = () => {
+    setSocialLinks(editSocial);
+    setIsEditingSocial(false);
+  };
+
+  const cancelSocial = () => {
+    setIsEditingSocial(false);
+  };
+
+  const renderSocialMediaTab = () => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex justify-between flex-wrap items-center mb-6">
+        <h3 className="text-xl font-bold text-gray-800">Manage Social Media Links</h3>
+        {!isEditingSocial ? (
+          <button onClick={startEditingSocial} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Links</button>
+        ) : (
+          <div className="flex gap-2 mt-2 sm:mt-0">
+            <button onClick={cancelSocial} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
+            <button onClick={saveSocial} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors">Save Changes</button>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
+        {[
+          { id: 'facebook', label: 'Facebook' },
+          { id: 'instagram', label: 'Instagram' },
+          { id: 'twitter', label: 'Twitter' },
+          { id: 'youtube', label: 'YouTube' },
+          { id: 'linkedin', label: 'LinkedIn' },
+          { id: 'whatsapp', label: 'WhatsApp' },
+          { id: 'whatsappChannel', label: 'WhatsApp Channel' }
+        ].map(platform => (
+          <div key={platform.id}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{platform.label} URL</label>
+            <input 
+              type="url" 
+              placeholder={`https://${platform.id}.com/yourpage`}
+              disabled={!isEditingSocial} 
+              value={isEditingSocial ? (editSocial[platform.id] || '') : (socialLinks?.[platform.id] || '')} 
+              onChange={e => handleSocialChange(platform.id, e.target.value)} 
+              className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-500:text-gray-400:text-gray-400" 
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // --- Admins Tab (Super Admin Only) ---
+  const onAddAdmin = async (e) => {
+    e.preventDefault();
+    await requestOtp('create', newAdmin);
+  };
+
+  const startEditAdmin = (admin) => {
+    setEditingAdminId(admin._id);
+    setEditAdminData({ _id: admin._id, name: admin.name || '', email: admin.email, role: admin.role });
+  };
+
+  const saveEditAdmin = async () => {
+    await requestOtp('edit', editAdminData);
+  };
+
+  const renderAdminsTab = () => (
+    <div className="bg-white/80 backdrop-blur-xl p-10 rounded-[3rem] shadow-[0_30px_70px_rgba(0,0,0,0.06)] border border-white/50 relative overflow-hidden">
+      <div className="relative z-10 mb-10">
+        <h3 className="text-3xl font-black text-gray-900 tracking-tighter">Identity Management</h3>
+        <p className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Manage privileged access and system administrators</p>
+      </div>
+      
+      {/* Pending Approvals Section */}
+      {admins.filter(a => !a.isApproved).length > 0 && (
+        <div className="mb-12 bg-amber-50/50 p-8 rounded-[2rem] border-2 border-dashed border-amber-200/50 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="font-black text-amber-800 flex items-center text-[10px] uppercase tracking-[0.2em]">
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping mr-3" />
+              Pending Access Authorizations ({admins.filter(a => !a.isApproved).length})
+            </h4>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {admins.filter(a => !a.isApproved).map(pending => (
+              <div key={pending._id} className="bg-white p-5 rounded-2xl shadow-xl shadow-amber-900/5 border border-amber-100 flex items-center justify-between group hover:scale-[1.02] transition-all duration-500">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 text-amber-600 flex items-center justify-center font-black text-xl shadow-inner border border-amber-200/30">
+                    {pending.name?.charAt(0) || pending.email?.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-black text-gray-900 text-sm tracking-tight">{pending.name}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{pending.email}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleApproveAdmin(pending._id)}
+                    disabled={isAdminFormLoading}
+                    className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-3 py-2 rounded-lg transition-colors shadow-sm"
+                  >
+                    Approve
+                  </button>
+                  <button 
+                    onClick={() => handleRejectAdmin(pending._id)}
+                    disabled={isAdminFormLoading}
+                    className="bg-white hover:bg-red-50 text-red-500 border border-red-100 text-[10px] font-black uppercase px-3 py-2 rounded-lg transition-colors"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Create New Admin Form */}
+      <div className="bg-gray-50/50 p-8 rounded-[2rem] border border-gray-100 mb-12 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-8 text-primary/5 group-hover:scale-110 transition-transform duration-700">
+           <FaPlus size={60} />
+        </div>
+        <h4 className="font-black text-gray-900 mb-6 flex items-center text-sm uppercase tracking-wider relative z-10">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center mr-3">
+             <FaPlus size={12} />
+          </div>
+          Register New Administrator {adminUser?.role !== 'developer' && <span className="ml-2 text-[10px] text-gray-400 font-bold lowercase tracking-normal">(Dual OTP Auth)</span>}
+        </h4>
+        <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end relative z-10">
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+            <input 
+              required
+              type="text" 
+              value={newAdmin.name} 
+              onChange={e => setNewAdmin({...newAdmin, name: e.target.value})} 
+              className="w-full px-5 py-3.5 border-2 border-white bg-white rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-sm font-medium placeholder:text-gray-300" 
+              placeholder="e.g. John Doe"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email / Username</label>
+            <input 
+              required
+              type="email" 
+              value={newAdmin.email} 
+              onChange={e => setNewAdmin({...newAdmin, email: e.target.value})} 
+              className="w-full px-5 py-3.5 border-2 border-white bg-white rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-sm font-medium placeholder:text-gray-300" 
+              placeholder="admin@school.com"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone Number</label>
+            <input 
+              required
+              type="text" 
+              value={newAdmin.phone} 
+              onChange={e => setNewAdmin({...newAdmin, phone: e.target.value})} 
+              className="w-full px-5 py-3.5 border-2 border-white bg-white rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-sm font-medium placeholder:text-gray-300" 
+              placeholder="e.g. 9876543210"
+            />
+          </div>
+          <div className="pb-0.5">
+              <button 
+                type="submit" 
+                disabled={isAdminFormLoading}
+                className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50 active:scale-95"
+              >
+                {isAdminFormLoading ? <FaSpinner className="animate-spin mx-auto" /> : 'Confirm Registration'}
+              </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Admin List */}
+      <div className="overflow-x-auto">
+        <div className="flex justify-between items-center mb-4">
+            <h4 className="font-bold text-gray-600 text-xs uppercase tracking-widest">Active Administrators</h4>
+            <div className="flex gap-2">
+                <span className="flex items-center text-[10px] text-gray-400">
+                    <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Approved
+                </span>
+            </div>
+        </div>
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-xs text-gray-400 uppercase tracking-widest border-b border-gray-100">
+              <th className="py-4 font-black">Name</th>
+              <th className="py-4 font-black">Email</th>
+              <th className="py-4 font-black">Role</th>
+              <th className="py-4 font-black text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {admins.filter(a => a.isApproved).map(admin => (
+              <React.Fragment key={admin._id}>
+                {editingAdminId === admin._id ? (
+                  <tr className="bg-blue-50/50">
+                    <td colSpan="4" className="py-4 px-6 border-b border-blue-100">
+                      <div className="flex flex-col md:flex-row gap-4 items-end">
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Name</label>
+                          <input type="text" value={editAdminData.name} onChange={e => setEditAdminData({...editAdminData, name: e.target.value})} className="w-full p-2 border rounded bg-white text-sm focus:ring-1 focus:ring-primary" placeholder="Full Name" />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
+                          <input type="email" value={editAdminData.email} onChange={e => setEditAdminData({...editAdminData, email: e.target.value})} className="w-full p-2 border rounded bg-white text-sm focus:ring-1 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Role</label>
+                          <select value={editAdminData.role} onChange={e => setEditAdminData({...editAdminData, role: e.target.value})} className="w-full p-2 border rounded bg-white text-sm">
+                            <option value="admin">Admin</option>
+                            <option value="superadmin">Super Admin</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={saveEditAdmin} disabled={isAdminFormLoading} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm shadow hover:bg-green-700 disabled:opacity-50">Save</button>
+                          <button onClick={() => setEditingAdminId(null)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded font-bold text-sm hover:bg-gray-300">Cancel</button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr className="hover:bg-gray-50/50 transition-colors">
+                    <td className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase relative">
+                          {admin.name ? admin.name.charAt(0) : admin.email?.charAt(0) || 'A'}
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
+                        </div>
+                        <span className="font-bold text-gray-700">{admin.name || 'Unnamed Admin'}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 text-gray-500 text-sm">{admin.email}</td>
+                    <td className="py-4">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                        admin.role === 'developer' ? 'bg-indigo-100 text-indigo-700' :
+                        admin.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : 
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {admin.role}
+                      </span>
+                    </td>
+                    <td className="py-4">
+                      <div className="flex justify-end gap-2 pr-6">
+                        <button 
+                          onClick={() => {
+                            if (admin.role === 'developer' && adminUser?.role !== 'developer') {
+                              alert("You do not have permission to edit a developer account.");
+                              return;
+                            }
+                            startEditAdmin(admin);
+                          }} 
+                          className={`text-blue-500 hover:text-blue-700 text-xs font-bold uppercase transition-colors mr-2 flex items-center ${
+                            (admin.role === 'developer' && adminUser?.role !== 'developer') ? 'opacity-30 cursor-not-allowed' : ''
+                          }`}
+                          title={admin.role === 'developer' && adminUser?.role !== 'developer' ? "Developer protected" : "Edit Admin"}
+                        >
+                          Edit
+                        </button>
+                        {admin._id !== adminUser?._id && (
+                          <button 
+                            onClick={() => {
+                              if (admin.role === 'developer' && adminUser?.role !== 'developer') {
+                                alert("You do not have permission to delete a developer account.");
+                                return;
+                              }
+                              handleDeleteAdmin(admin);
+                            }} 
+                            className={`text-red-400 hover:text-red-600 text-[10px] font-bold uppercase tracking-wider p-1 transition-colors flex items-center ${
+                              (admin.role === 'developer' && adminUser?.role !== 'developer') ? 'opacity-30 cursor-not-allowed' : ''
+                            }`}
+                            title={admin.role === 'developer' && adminUser?.role !== 'developer' ? "Developer protected" : "Delete Admin"}
+                          >
+                            <FaTrash className="mr-1" size={10} /> Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // --- Settings Tab ---
+  const [tempEmail, setTempEmail] = useState(notificationEmail);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (notificationEmail) {
+      setTempEmail(notificationEmail);
+    }
+  }, [notificationEmail]);
+
+  const renderActivityTab = () => {
+    const getDeviceIcon = (device) => {
+      if (device === 'Mobile') return <FaMobileAlt size={11} />;
+      if (device === 'Tablet') return <FaTabletAlt size={11} />;
+      return <FaDesktop size={11} />;
+    };
+
+    const formatDuration = (seconds) => {
+      if (!seconds && seconds !== 0) return null;
+      if (seconds < 60) return `${seconds}s`;
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}m`;
+    };
+
+    const formatTimeAgo = (dateStr) => {
+      if (!dateStr) return 'Unknown';
+      const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return `${Math.floor(diff / 86400)}d ago`;
+    };
+
+    return (
+    <div className="bg-white/80 backdrop-blur-xl p-4 sm:p-6 md:p-10 rounded-2xl md:rounded-[3rem] shadow-[0_30px_70px_rgba(0,0,0,0.06)] border border-white/50 relative overflow-hidden">
+      <div className="relative z-10 mb-6 md:mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div>
+          <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tighter">System Audit Log</h3>
+          <p className="text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-[0.2em] sm:tracking-[0.3em] mt-1 sm:mt-2">Global activity monitor for all administrative access</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {selectedLogs.size > 0 && (
+            <button
+              onClick={() => {
+                if (window.confirm(`Delete ${selectedLogs.size} selected log(s)? This cannot be undone.`)) {
+                  const token = localStorage.getItem('adminToken');
+                  fetch(`${API_URL}/auth/activity`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [...selectedLogs] })
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                    alert(data.message || 'Deleted');
+                    setSelectedLogs(new Set());
+                    fetchActivities();
+                  })
+                  .catch(() => alert('Failed to delete'));
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all shadow-xl text-xs font-black uppercase tracking-wider"
+            >
+              <FaTrash size={11} /> Delete ({selectedLogs.size})
+            </button>
+          )}
+          <button 
+            onClick={() => { setSelectedLogs(new Set()); fetchActivities(); }}
+            disabled={activitiesLoading}
+            className="bg-gray-900 text-white p-4 rounded-2xl hover:bg-black transition-all shadow-xl disabled:opacity-50"
+            title="Refresh Log"
+          >
+            <FaSpinner className={`${activitiesLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto relative z-10">
+        <table className="w-full text-left border-separate border-spacing-y-3">
+          <thead>
+            <tr className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] px-6">
+              <th className="pb-2 pl-4 w-10">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 cursor-pointer accent-indigo-600"
+                  checked={activities.length > 0 && selectedLogs.size === activities.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedLogs(new Set(activities.map(a => a.id)));
+                    } else {
+                      setSelectedLogs(new Set());
+                    }
+                  }}
+                />
+              </th>
+              <th className="pb-2 pl-4">Admin / Identity</th>
+              <th className="pb-2">Action Type</th>
+              <th className="pb-2">Origin (IP)</th>
+              <th className="pb-2">Location</th>
+              <th className="pb-2">Timestamp</th>
+              <th className="pb-2 pr-8 text-right">Environment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activities.length === 0 && !activitiesLoading ? (
+              <tr>
+                <td colSpan="7" className="py-20 text-center">
+                  <div className="flex flex-col items-center gap-4 text-gray-300">
+                    <FaClipboardList size={48} className="opacity-20" />
+                    <p className="font-black text-sm uppercase tracking-widest">No activity logs found</p>
+                    <p className="text-xs font-medium">Activity will be logged from subsequent logins.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              activities.map((log) => {
+                const isExpanded = expandedLogId === log.id;
+                const env = log.environment || {};
+                const loc = log.location || {};
+
+                return (
+                <React.Fragment key={log.id}>
+                  <tr 
+                    className="group cursor-pointer hover:scale-[1.01] transition-all duration-300"
+                    onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                  >
+                    <td className={`bg-white/50 py-5 pl-4 w-10 ${isExpanded ? 'rounded-tl-[1.5rem]' : 'rounded-l-[1.5rem]'} border-y border-l border-gray-100 group-hover:bg-white transition-all`}>
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 cursor-pointer accent-indigo-600"
+                        checked={selectedLogs.has(log.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          const next = new Set(selectedLogs);
+                          if (e.target.checked) next.add(log.id);
+                          else next.delete(log.id);
+                          setSelectedLogs(next);
+                        }}
+                      />
+                    </td>
+                    <td className={`bg-white/50 py-5 pl-4 border-y border-gray-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-gray-200/50 transition-all`}>
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-100">
+                            {log.email?.charAt(0).toUpperCase()}
+                          </div>
+                          {log.onlineStatus?.isOnline && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse" title="Online now" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-black text-gray-900 text-sm tracking-tight">{log.email}</p>
+                            {log.onlineStatus?.isOnline ? (
+                              <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase bg-green-100 text-green-600 tracking-wider">Online</span>
+                            ) : log.onlineStatus?.lastActive && (
+                              <span className="text-[8px] font-bold text-gray-400">{formatTimeAgo(log.onlineStatus.lastActive)}</span>
+                            )}
+                          </div>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                            ID: {log.admin_id?.slice(0, 8)}...
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-block w-fit ${
+                          log.action === 'login' ? 'bg-green-100 text-green-700' : 
+                          log.action === 'stealth_login' ? 'bg-purple-100 text-purple-700' :
+                          log.action === 'logout' ? 'bg-amber-100 text-amber-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {log.action}
+                        </span>
+                        {log.sessionDuration != null && (
+                          <span className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
+                            <FaClock size={8} /> {formatDuration(log.sessionDuration)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                      <code className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                        {log.ip_address || 'Unknown'}
+                      </code>
+                    </td>
+                    <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                      <div className="flex items-center gap-2">
+                        <FaMapMarkerAlt size={10} className="text-red-400 shrink-0" />
+                        <div className="leading-tight">
+                          <p className="text-xs font-bold text-gray-700">{loc.city || 'Unknown'}</p>
+                          {loc.country && loc.country !== 'Local Machine' && (
+                            <p className="text-[9px] text-gray-400 font-medium">{loc.region ? `${loc.region}, ` : ''}{loc.country}</p>
+                          )}
+                          {loc.country === 'Local Machine' && (
+                            <p className="text-[9px] text-amber-500 font-bold">Development</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-700">
+                          {new Date(log.created_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-medium">
+                          {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={`bg-white/50 py-5 pr-8 ${isExpanded ? 'rounded-tr-[1.5rem]' : 'rounded-r-[1.5rem]'} border-y border-r border-gray-100 group-hover:bg-white transition-all`}>
+                      <div className="flex items-center justify-end gap-3">
+                        <div className="text-right leading-tight">
+                          <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                            {getDeviceIcon(env.device)}
+                            <span className="text-[10px] font-bold text-gray-700">{env.browser || 'Unknown'}</span>
+                          </div>
+                          <p className="text-[9px] text-gray-400 font-medium">{env.os || 'Unknown'} · {env.device || 'Unknown'}</p>
+                        </div>
+                        <div className="text-gray-300 group-hover:text-gray-500 transition-colors ml-1">
+                          {isExpanded ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Expanded Detail Panel */}
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan="7" className="px-0 pb-2">
+                        <div className="bg-gray-50 mx-2 rounded-b-[1.5rem] border border-t-0 border-gray-100 p-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                              <FaEye size={14} />
+                            </div>
+                            <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Session Forensics</h4>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Environment Block */}
+                            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <FaDesktop size={10} className="text-blue-400" /> Environment
+                              </h5>
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Operating System</span>
+                                  <span className="text-xs font-bold text-gray-800">{env.os || 'Unknown'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Browser</span>
+                                  <span className="text-xs font-bold text-gray-800">{env.browser || 'Unknown'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Device Type</span>
+                                  <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                    {getDeviceIcon(env.device)} {env.device || 'Unknown'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Location Block */}
+                            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <FaMapMarkerAlt size={10} className="text-red-400" /> Location
+                              </h5>
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">City</span>
+                                  <span className="text-xs font-bold text-gray-800">{loc.city || 'Unknown'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Region</span>
+                                  <span className="text-xs font-bold text-gray-800">{loc.region || '—'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Country</span>
+                                  <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                    <FaGlobe size={10} className="text-emerald-400" /> {loc.country || 'Unknown'}
+                                  </span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Coordinates</span>
+                                  {loc.lat && loc.lon ? (
+                                    <a
+                                      href={`https://www.google.com/maps?q=${loc.lat},${loc.lon}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors"
+                                    >
+                                      {loc.lat.toFixed(4)}°, {loc.lon.toFixed(4)}° ↗
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400">N/A</span>
+                                  )}
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">ISP</span>
+                                  <span className="text-[10px] font-bold text-gray-600">{loc.isp || '—'}</span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">IP Address</span>
+                                  <code className="text-[10px] font-bold text-gray-600 bg-gray-50 px-2 py-0.5 rounded">{log.ip_address || 'N/A'}</code>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Session Block */}
+                            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <FaClock size={10} className="text-amber-400" /> Session Details
+                              </h5>
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Status</span>
+                                  {log.onlineStatus?.isOnline ? (
+                                    <span className="flex items-center gap-1.5 text-xs font-bold text-green-600">
+                                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Online Now
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                                      <span className="w-2 h-2 rounded-full bg-gray-300" /> {log.onlineStatus?.lastActive ? `Last seen ${formatTimeAgo(log.onlineStatus.lastActive)}` : 'Offline'}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Action</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                                    log.action === 'login' ? 'bg-green-100 text-green-700' :
+                                    log.action === 'stealth_login' ? 'bg-purple-100 text-purple-700' :
+                                    log.action === 'logout' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>{log.action}</span>
+                                </div>
+                                {log.sessionDuration != null && (
+                                  <>
+                                    <div className="w-full h-px bg-gray-50" />
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase">Session Duration</span>
+                                      <span className="text-xs font-bold text-indigo-600">{formatDuration(log.sessionDuration)}</span>
+                                    </div>
+                                  </>
+                                )}
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Date</span>
+                                  <span className="text-xs font-bold text-gray-800">
+                                    {new Date(log.created_at).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                                  </span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Time</span>
+                                  <span className="text-xs font-bold text-gray-800">
+                                    {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                                  </span>
+                                </div>
+                                <div className="w-full h-px bg-gray-50" />
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Admin ID</span>
+                                  <code className="text-[9px] font-bold text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">{log.admin_id || 'N/A'}</code>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Raw User Agent */}
+                          <div className="mt-6 bg-white p-4 rounded-xl border border-gray-100">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2">Raw User Agent</p>
+                            <code className="text-[10px] text-gray-500 font-medium break-all leading-relaxed block">
+                              {(log.user_agent || 'Not available').replace(/\s*\[CH:[^\]]*\]/g, '')}
+                            </code>
+                          </div>
+
+                          {/* Developer Controls */}
+                          <div className="mt-6 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                            <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                              <FaShieldAlt size={10} className="text-indigo-400" /> Developer Controls
+                            </h5>
+                            <div className="flex flex-wrap gap-3">
+                              {/* Force Logout */}
+                              {log.onlineStatus?.isOnline && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Force logout ${log.email}? Their session will be terminated.`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/force-logout`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ targetEmail: log.email })
+                                      })
+                                      .then(r => r.json())
+                                      .then(() => fetchActivities())
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaPowerOff size={10} /> Force Logout
+                                </button>
+                              )}
+
+                              {/* Block IP */}
+                              {!log.isIpBlocked ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Block IP ${log.ip_address}?\n\nThis will:\n• Prevent all logins from this IP\n• Force logout any active session\n\nThe user will see "Access denied from this device."`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/block-ip`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ip: log.ip_address, targetEmail: log.email })
+                                      })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        alert(data.message || 'IP blocked');
+                                        fetchActivities();
+                                      })
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaBan size={10} /> Block IP
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Unblock IP ${log.ip_address}?`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/unblock-ip`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ip: log.ip_address })
+                                      })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        alert(data.message || 'IP unblocked');
+                                        fetchActivities();
+                                      })
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaUnlock size={10} /> Unblock IP
+                                </button>
+                              )}
+
+                              {/* Blocked badge */}
+                              {log.isIpBlocked && (
+                                <span className="flex items-center gap-1.5 px-3 py-2.5 bg-red-100 text-red-700 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                                  <FaBan size={9} /> IP Blocked
+                                </span>
+                              )}
+
+                              {/* Block / Unblock User */}
+                              {!log.isUserBlocked ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Block user ${log.email}?\n\nThis will:\n• Suspend their account\n• Force logout their session\n• They will see "This account has been suspended."`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/block-user`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ targetEmail: log.email })
+                                      })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        alert(data.message || 'User blocked');
+                                        fetchActivities();
+                                      })
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaUserTie size={10} /> Block User
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Unblock user ${log.email}?`)) {
+                                      const token = localStorage.getItem('adminToken');
+                                      fetch(`${API_URL}/auth/unblock-user`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ targetEmail: log.email })
+                                      })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        alert(data.message || 'User unblocked');
+                                        fetchActivities();
+                                      })
+                                      .catch(() => alert('Failed'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
+                                >
+                                  <FaUnlock size={10} /> Unblock User
+                                </button>
+                              )}
+
+                              {/* User blocked badge */}
+                              {log.isUserBlocked && (
+                                <span className="flex items-center gap-1.5 px-3 py-2.5 bg-rose-100 text-rose-700 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                                  <FaUserTie size={9} /> User Suspended
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    );
+  };
+
+  const renderAdmissionTab = () => {
+    return (
+      <div className="space-y-6">
+        <header className="mb-4">
+          <h2 className="text-2xl sm:text-3xl font-headline font-bold text-gray-800">Admission Management</h2>
+          <p className="text-gray-500 mt-1 sm:mt-2 text-sm">Manage student applications, customize the admission form, and set instructions.</p>
+        </header>
+
+        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 mb-8 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'page_content', label: 'Page Content', icon: <FaGlobe /> },
+            { id: 'applications', label: 'Applications', icon: <FaClipboardList /> },
+            { id: 'prospectus_leads', label: 'Prospectus Leads', icon: <FaUsers /> },
+            { id: 'config', label: 'Form Configuration', icon: <FaEdit /> },
+            { id: 'instructions', label: 'Instructions & Fees', icon: <FaInfoCircle /> }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setAdmissionSubTab(tab.id)}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${admissionSubTab === tab.id ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {admissionSubTab === 'page_content' && renderAdmissionPageContentSubTab()}
+        {admissionSubTab === 'prospectus_leads' && renderProspectusLeadsSubTab()}
+        {admissionSubTab === 'applications' && renderApplicationsSubTab()}
+        {admissionSubTab === 'config' && renderAdmissionFieldsSubTab()}
+        {admissionSubTab === 'instructions' && renderAdmissionInstructionsSubTab()}
+      </div>
+    );
+  };
+
+  const renderAdmissionPageContentSubTab = () => {
+    return (
+      <div className="space-y-6 animate-fade-in-up">
+        {/* Advertisements */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaImage className="text-primary mr-2" /> Advertisements</h3>
+          <p className="text-sm text-gray-500 mb-4">Upload 2-3 advertisement banners for the admissions page.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            {(admissionPage?.advertisements || []).map((imgUrl, i) => (
+              <div key={i} className="relative group rounded-xl overflow-hidden shadow-sm border border-gray-200 aspect-video">
+                <img src={imgUrl} className="w-full h-full object-cover" alt={`Ad ${i}`} />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                  <button onClick={() => {
+                    const newAds = [...admissionPage.advertisements];
+                    newAds.splice(i, 1);
+                    setAdmissionPage({ ...admissionPage, advertisements: newAds });
+                  }} className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600"><FaTrash /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4">
+            <label className="flex items-center gap-2 cursor-pointer bg-primary/10 text-primary px-4 py-2 rounded-lg hover:bg-primary/20 w-max font-bold text-sm">
+              <FaPlus /> Add Image
+              <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                if (e.target.files[0]) {
+                  try {
+                    const url = await uploadImage(e.target.files[0]);
+                    setAdmissionPage({ ...admissionPage, advertisements: [...(admissionPage?.advertisements || []), url] });
+                  } catch (err) {
+                    alert("Upload failed: " + err.message);
+                  }
+                }
+              }} />
+            </label>
+          </div>
+        </section>
+
+        {/* Procedures & Rules */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="col-span-1 md:col-span-2">
+            <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaGavel className="text-primary mr-2" /> Rules & Regulations</h3>
+            <textarea
+              value={admissionPage?.rules || ''}
+              onChange={(e) => setAdmissionPage({ ...admissionPage, rules: e.target.value })}
+              className="w-full p-3 border border-gray-200 rounded-xl min-h-[150px] focus:ring-2 focus:ring-primary outline-none"
+              placeholder="Enter 500-600 words describing the school rules..."
+            />
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaBuilding className="text-blue-500 mr-2" /> Offline Procedure</h3>
+            <textarea
+              value={admissionPage?.offlineProcedure || ''}
+              onChange={(e) => setAdmissionPage({ ...admissionPage, offlineProcedure: e.target.value })}
+              className="w-full p-3 border border-gray-200 rounded-xl min-h-[120px] focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaLaptop className="text-amber-500 mr-2" /> Online Procedure</h3>
+            <textarea
+              value={admissionPage?.onlineProcedure || ''}
+              onChange={(e) => setAdmissionPage({ ...admissionPage, onlineProcedure: e.target.value })}
+              className="w-full p-3 border border-gray-200 rounded-xl min-h-[120px] focus:ring-2 focus:ring-amber-500 outline-none"
+            />
+          </div>
+        </section>
+
+        {/* Vacant Seats */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Vacant Seats by Class</h3>
+            <button
+              onClick={() => setAdmissionPage({...admissionPage, vacantSeats: [...(admissionPage?.vacantSeats || []), { className: 'New Class', vacant: '0' }]})}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Class
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(admissionPage?.vacantSeats || []).map((seat, i) => (
+              <div key={i} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
+                <input
+                  type="text"
+                  value={seat.className}
+                  onChange={(e) => {
+                    const newSeats = [...admissionPage.vacantSeats];
+                    newSeats[i].className = e.target.value;
+                    setAdmissionPage({...admissionPage, vacantSeats: newSeats});
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold"
+                  placeholder="Class Name"
+                />
+                <input
+                  type="number"
+                  value={seat.vacant}
+                  onChange={(e) => {
+                    const newSeats = [...admissionPage.vacantSeats];
+                    newSeats[i].vacant = e.target.value;
+                    setAdmissionPage({...admissionPage, vacantSeats: newSeats});
+                  }}
+                  className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center font-bold text-primary"
+                  placeholder="Seats"
+                />
+                <button
+                  onClick={() => {
+                    const newSeats = admissionPage.vacantSeats.filter((_, idx) => idx !== i);
+                    setAdmissionPage({...admissionPage, vacantSeats: newSeats});
+                  }}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+
+        {/* Admission Kits */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800 flex items-center"><FaBriefcase className="text-primary mr-2" /> Admission Kits</h3>
+              <p className="text-sm text-gray-500 mt-1">Configure compulsory and optional items for each class.</p>
+            </div>
+            <button 
+              onClick={() => {
+                const newKits = [...(admissionPage?.admissionKits || [])];
+                newKits.push({ 
+                  className: 'Class ' + (newKits.length + 1), 
+                  compulsoryItems: [
+                    { name: 'School Notebooks (10)', price: 0 },
+                    { name: 'Tie', price: 0 },
+                    { name: 'Belt', price: 0 },
+                    { name: 'ID Card', price: 0 }
+                  ], 
+                  optionalItems: [
+                    { name: 'Books', price: 0 }
+                  ] 
+                });
+                setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+              }}
+              className="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"
+            >
+              <FaPlus /> Add Class Kit
+            </button>
+          </div>
+          
+          <div className="space-y-6">
+            {(admissionPage?.admissionKits || []).map((kit, kIdx) => (
+              <div key={kIdx} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="flex justify-between items-center mb-4">
+                  <select
+                    value={kit.className || ''}
+                    onChange={(e) => {
+                      const newKits = [...admissionPage.admissionKits];
+                      newKits[kIdx].className = e.target.value;
+                      setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                    }}
+                    className="font-bold text-lg bg-white border border-gray-300 rounded px-3 py-1 outline-none uppercase cursor-pointer"
+                  >
+                    <option value="">SELECT CLASS</option>
+                    <option value="PRE-NURSERY">PRE-NURSERY</option>
+                    <option value="KG I (LKG)">KG I (LKG)</option>
+                    <option value="KG II (UKG)">KG II (UKG)</option>
+                    <option value="CLASS I">CLASS I</option>
+                    <option value="CLASS II">CLASS II</option>
+                    <option value="CLASS III">CLASS III</option>
+                    <option value="CLASS IV">CLASS IV</option>
+                    <option value="CLASS V">CLASS V</option>
+                    <option value="CLASS VI">CLASS VI</option>
+                    <option value="CLASS VII">CLASS VII</option>
+                    <option value="CLASS VIII">CLASS VIII</option>
+                    <option value="CLASS IX">CLASS IX</option>
+                    <option value="CLASS X">CLASS X</option>
+                    <option value="CLASS XI">CLASS XI</option>
+                    <option value="CLASS XII">CLASS XII</option>
+                  </select>
+                  <button 
+                    onClick={() => {
+                      const newKits = admissionPage.admissionKits.filter((_, idx) => idx !== kIdx);
+                      setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                    }}
+                    className="text-red-500 hover:bg-red-100 p-2 rounded"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Compulsory */}
+                  <div className="bg-white p-4 rounded-lg border">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-bold text-sm text-gray-700">Compulsory Items</h4>
+                      <button onClick={() => {
+                        const newKits = [...admissionPage.admissionKits];
+                        if (!newKits[kIdx].compulsoryItems) newKits[kIdx].compulsoryItems = [];
+                        newKits[kIdx].compulsoryItems.push({ name: '', price: 0 });
+                        setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                      }} className="text-primary text-xs flex items-center gap-1"><FaPlus /> Add Item</button>
+                    </div>
+                    {kit.compulsoryItems?.map((cItem, cIdx) => (
+                      <div key={cIdx} className="flex gap-2 mb-2">
+                        <input type="text" value={cItem.name} onChange={(e) => {
+                          const newKits = [...admissionPage.admissionKits];
+                          newKits[kIdx].compulsoryItems[cIdx].name = e.target.value;
+                          setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                        }} placeholder="Item Name" className="flex-1 p-1 text-sm border rounded" />
+                        <input type="number" value={cItem.price} onChange={(e) => {
+                          const newKits = [...admissionPage.admissionKits];
+                          newKits[kIdx].compulsoryItems[cIdx].price = e.target.value;
+                          setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                        }} placeholder="Price" className="w-20 p-1 text-sm border rounded" />
+                        <button onClick={() => {
+                          const newKits = [...admissionPage.admissionKits];
+                          newKits[kIdx].compulsoryItems.splice(cIdx, 1);
+                          setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                        }} className="text-red-500"><FaTimes /></button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Optional */}
+                  <div className="bg-white p-4 rounded-lg border">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-bold text-sm text-gray-700">Optional Items</h4>
+                      <button onClick={() => {
+                        const newKits = [...admissionPage.admissionKits];
+                        if (!newKits[kIdx].optionalItems) newKits[kIdx].optionalItems = [];
+                        newKits[kIdx].optionalItems.push({ name: '', price: 0 });
+                        setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                      }} className="text-primary text-xs flex items-center gap-1"><FaPlus /> Add Item</button>
+                    </div>
+                    {kit.optionalItems?.map((oItem, oIdx) => (
+                      <div key={oIdx} className="flex flex-col gap-2 mb-2 p-2 bg-gray-50 border rounded-lg">
+                        <div className="flex gap-2">
+                          <input type="text" value={oItem.name} onChange={(e) => {
+                            const newKits = [...admissionPage.admissionKits];
+                            newKits[kIdx].optionalItems[oIdx].name = e.target.value;
+                            setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                          }} placeholder="Item Name" className="flex-1 p-1 text-sm border rounded" />
+                          <input type="number" value={oItem.price} onChange={(e) => {
+                            const newKits = [...admissionPage.admissionKits];
+                            newKits[kIdx].optionalItems[oIdx].price = e.target.value;
+                            setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                          }} placeholder="Price" className="w-20 p-1 text-sm border rounded" />
+                          <button onClick={() => {
+                            const newKits = [...admissionPage.admissionKits];
+                            newKits[kIdx].optionalItems.splice(oIdx, 1);
+                            setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                          }} className="text-red-500 hover:text-red-600"><FaTimes /></button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {oItem.image && <img src={oItem.image} alt={oItem.name} className="h-8 w-8 object-cover rounded" />}
+                          <label className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 flex items-center gap-1 font-bold">
+                            <FaImage /> {oItem.image ? 'Change Image' : 'Upload Image'}
+                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                              if (e.target.files[0]) {
+                                try {
+                                  const url = await uploadImage(e.target.files[0]);
+                                  const newKits = [...admissionPage.admissionKits];
+                                  newKits[kIdx].optionalItems[oIdx].image = url;
+                                  setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                                } catch (err) {
+                                  alert("Upload failed: " + err.message);
+                                }
+                              }
+                            }} />
+                          </label>
+                          {oItem.image && (
+                            <button onClick={() => {
+                              const newKits = [...admissionPage.admissionKits];
+                              newKits[kIdx].optionalItems[oIdx].image = '';
+                              setAdmissionPage({ ...admissionPage, admissionKits: newKits });
+                            }} className="text-red-500 hover:text-red-600 text-xs p-1" title="Remove image"><FaTrash /></button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Prospectus PDF Upload */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4 flex items-center"><FaFileAlt className="text-primary mr-2" /> Custom Prospectus PDF</h3>
+          <p className="text-sm text-gray-500 mb-4">Upload a custom PDF for the prospectus. If no PDF is uploaded, a default generated one will be used.</p>
+          
+          <div className="flex items-center gap-4">
+            {admissionPage?.prospectusPdfLink && (
+              <a href={admissionPage.prospectusPdfLink} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline font-bold text-sm flex items-center gap-2">
+                <FaEye /> View Current PDF
+              </a>
+            )}
+            <label className="flex items-center gap-2 cursor-pointer bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 font-bold text-sm">
+              <FaFileUpload /> {admissionPage?.prospectusPdfLink ? 'Replace PDF' : 'Upload PDF'}
+              <input type="file" className="hidden" accept="application/pdf" onChange={async (e) => {
+                if (e.target.files[0]) {
+                  try {
+                    const url = await uploadImage(e.target.files[0]); // uploadImage proxy supports PDFs
+                    setAdmissionPage({ ...admissionPage, prospectusPdfLink: url });
+                  } catch (err) {
+                    alert("Upload failed: " + err.message);
+                  }
+                }
+              }} />
+            </label>
+            {admissionPage?.prospectusPdfLink && (
+              <button 
+                onClick={() => setAdmissionPage({ ...admissionPage, prospectusPdfLink: null })}
+                className="text-red-500 hover:text-red-600 p-2"
+                title="Remove Custom PDF"
+              >
+                <FaTrash />
+              </button>
+            )}
+          </div>
+        </section>
+
+        <button onClick={async () => {
+          const success = await updateSiteContent({ admissionPage });
+          if (success) alert("Admissions Content saved successfully!");
+        }} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/30">
+          <FaSave /> Save Admissions Content
+        </button>
+      </div>
+    );
+  };
+
+  const renderProspectusLeadsSubTab = () => {
+    return (
+      <div className="space-y-6 animate-fade-in-up">
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800 flex items-center"><FaUsers className="text-primary mr-2" /> Prospectus Leads</h3>
+            <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">{prospectusLeads.length} Leads</span>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200 text-sm text-gray-600">
+                  <th className="p-4 font-bold rounded-tl-xl">Ref No.</th>
+                  <th className="p-4 font-bold">Student Name</th>
+                  <th className="p-4 font-bold">Email</th>
+                  <th className="p-4 font-bold">Phone</th>
+                  <th className="p-4 font-bold">Date</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {fetchingProspectus ? (
+                  <tr>
+                    <td colSpan="5" className="p-8 text-center text-gray-500">
+                      <FaSpinner className="animate-spin inline mr-2" /> Loading leads...
+                    </td>
+                  </tr>
+                ) : prospectusLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="p-8 text-center text-gray-500 font-medium">No prospectus leads found.</td>
+                  </tr>
+                ) : (
+                  prospectusLeads.map((lead) => (
+                    <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                      <td className="p-4 font-mono font-bold text-gray-800">{lead.reference_number}</td>
+                      <td className="p-4 font-bold text-primary">{lead.student_name}</td>
+                      <td className="p-4 text-gray-600"><a href={`mailto:${lead.email}`} className="hover:text-blue-500">{lead.email}</a></td>
+                      <td className="p-4 text-gray-600"><a href={`tel:${lead.phone}`} className="hover:text-blue-500">{lead.phone}</a></td>
+                      <td className="p-4 text-gray-500">{new Date(lead.created_at).toLocaleString()}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderAdmissionFieldsSubTab = () => {
+    const sections = [...new Set(admissionFields.map(f => f.section))];
+    
+    const handleToggleActive = (field) => {
+      const updated = admissionFields.map(f => f.name === field.name ? { ...f, isActive: !f.isActive } : f);
+      setAdmissionFields(updated);
+    };
+
+    const handleEditField = (field) => {
+      setEditingFieldId(field.name);
+      setFieldEditForm({ ...field });
+    };
+
+    const handleSaveField = () => {
+      const updated = admissionFields.map(f => f.name === editingFieldId ? fieldEditForm : f);
+      setAdmissionFields(updated);
+      setEditingFieldId(null);
+      setFieldEditForm(null);
+      alert("Field configuration updated.");
+    };
+
+    const handleMoveField = (index, direction) => {
+      const newFields = [...admissionFields];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= newFields.length) return;
+      
+      const temp = newFields[index];
+      newFields[index] = newFields[targetIndex];
+      newFields[targetIndex] = temp;
+      
+      // Update order property
+      const orderedFields = newFields.map((f, idx) => ({ ...f, order: idx + 1 }));
+      setAdmissionFields(orderedFields);
+    };
+
+    const handleAddField = () => {
+      if (!newFieldForm.label || !newFieldForm.name) {
+        alert("Label and Name are required.");
+        return;
+      }
+      
+      // Check for duplicate name
+      if (admissionFields.find(f => f.name === newFieldForm.name)) {
+        alert("A field with this identifier already exists.");
+        return;
+      }
+
+      const newField = {
+        ...newFieldForm,
+        order: admissionFields.length + 1
+      };
+
+      setAdmissionFields([...admissionFields, newField]);
+      setIsAddingField(false);
+      setNewFieldForm({
+        name: '',
+        label: '',
+        type: 'text',
+        section: 'Student Information',
+        required: false,
+        options: [],
+        placeholder: '',
+        isActive: true,
+        isSystemField: false
+      });
+      alert("New field added successfully.");
+    };
+
+    const handleDeleteField = (fieldName) => {
+      if (!window.confirm("Are you sure you want to delete this custom field? This will remove it from the admission form.")) return;
+      const updated = admissionFields.filter(f => f.name !== fieldName);
+      setAdmissionFields(updated);
+    };
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-fadeIn">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <FaClipboardList className="text-emerald-500" /> Admission Form Configuration
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">Customize the fields students see in the admission application.</p>
+          </div>
+          <button 
+            onClick={() => setIsAddingField(true)}
+            className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all shadow-sm"
+          >
+            <FaPlus /> Add New Field
+          </button>
+        </div>
+
+        {isAddingField && (
+          <div className="mb-8 p-6 bg-emerald-50 rounded-2xl border border-emerald-100 animate-in fade-in slide-in-from-top-4 duration-300">
+            <h4 className="text-emerald-800 font-bold mb-4 flex items-center gap-2">
+              <FaPlus size={14} /> Add New Custom Field
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Field Label (e.g. "Previous School")</label>
+                <input 
+                  type="text" 
+                  value={newFieldForm.label} 
+                  onChange={e => {
+                    const label = e.target.value;
+                    const name = label.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    setNewFieldForm({ ...newFieldForm, label, name });
+                  }}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  placeholder="Enter label"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">System Name (unique identifier)</label>
+                <input 
+                  type="text" 
+                  value={newFieldForm.name} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, name: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none font-mono"
+                  placeholder="e.g. previousschool"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Field Type</label>
+                <select 
+                  value={newFieldForm.type} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, type: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                >
+                  <option value="text">Single Line Text</option>
+                  <option value="textarea">Multi-line Text</option>
+                  <option value="number">Number</option>
+                  <option value="date">Date</option>
+                  <option value="select">Dropdown Menu</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Section</label>
+                <select 
+                  value={newFieldForm.section} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, section: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                >
+                  <option value="Student Information">Student Information</option>
+                  <option value="Parent Information">Parent Information</option>
+                  <option value="Address Information">Address Information</option>
+                  <option value="Academic History">Academic History</option>
+                  <option value="Documents">Documents (Upload)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Placeholder</label>
+                <input 
+                  type="text" 
+                  value={newFieldForm.placeholder} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, placeholder: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  placeholder="e.g. Enter school name"
+                />
+              </div>
+              <div className="flex items-end pb-1.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={newFieldForm.required} 
+                    onChange={e => setNewFieldForm({ ...newFieldForm, required: e.target.checked })}
+                    className="w-5 h-5 text-emerald-500 rounded-lg border-emerald-200 focus:ring-emerald-500/20"
+                  />
+                  <span className="text-sm font-bold text-emerald-700">Required Field</span>
+                </label>
+              </div>
+            </div>
+            
+            {newFieldForm.type === 'select' && (
+              <div className="mb-4">
+                <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Options (comma separated)</label>
+                <input 
+                  type="text" 
+                  value={newFieldForm.options.join(', ')} 
+                  onChange={e => setNewFieldForm({ ...newFieldForm, options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                  className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  placeholder="Option 1, Option 2, Option 3"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 border-t border-emerald-100 pt-4">
+              <button onClick={() => setIsAddingField(false)} className="px-4 py-2 text-sm font-bold text-emerald-400 hover:text-emerald-600">Cancel</button>
+              <button onClick={handleAddField} className="bg-emerald-500 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 shadow-sm shadow-emerald-200 transition-all">Create Field</button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-10">
+          {sections.map(section => (
+            <div key={section} className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
+              <h4 className="text-sm font-black text-primary uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                <span className="w-8 h-px bg-primary/20"></span>
+                {section}
+                <span className="flex-1 h-px bg-primary/20"></span>
+              </h4>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {admissionFields
+                  .filter(f => f.section === section)
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map((field, idx) => {
+                    const globalIdx = admissionFields.findIndex(f => f.name === field.name);
+                    const isEditing = editingFieldId === field.name;
+
+                    return (
+                      <div key={field.name} className={`bg-white p-4 rounded-xl border-2 transition-all ${field.isActive ? 'border-transparent shadow-sm' : 'border-dashed border-gray-200 opacity-60'}`}>
+                        {isEditing ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Field Label</label>
+                                <input 
+                                  type="text" 
+                                  value={fieldEditForm.label} 
+                                  onChange={e => setFieldEditForm({ ...fieldEditForm, label: e.target.value })}
+                                  className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Placeholder</label>
+                                <input 
+                                  type="text" 
+                                  value={fieldEditForm.placeholder || ''} 
+                                  onChange={e => setFieldEditForm({ ...fieldEditForm, placeholder: e.target.value })}
+                                  className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={fieldEditForm.required} 
+                                  onChange={e => setFieldEditForm({ ...fieldEditForm, required: e.target.checked })}
+                                  className="w-4 h-4 text-primary rounded border-gray-300"
+                                />
+                                <span className="text-xs font-bold text-gray-600">Required Field</span>
+                              </label>
+                              <div className="flex-1" />
+                              <button onClick={() => setEditingFieldId(null)} className="text-xs font-bold text-gray-400 hover:text-gray-600">Cancel</button>
+                              <button onClick={handleSaveField} className="bg-primary text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90">Save Changes</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-4">
+                            <div className="flex flex-col gap-1">
+                              <button onClick={() => handleMoveField(globalIdx, -1)} className="text-gray-300 hover:text-primary transition-colors"><FaAngleDown className="rotate-180" size={12} /></button>
+                              <button onClick={() => handleMoveField(globalIdx, 1)} className="text-gray-300 hover:text-primary transition-colors"><FaAngleDown size={12} /></button>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-800 text-sm">{field.label}</span>
+                                {field.required && <span className="text-red-500 font-bold text-xs">*</span>}
+                                {field.isSystemField && <span className="bg-blue-50 text-blue-600 text-[8px] px-1.5 py-0.5 rounded uppercase font-black tracking-widest border border-blue-100">System</span>}
+                              </div>
+                              <div className="flex items-center gap-3 mt-0.5">
+                                <span className="text-[10px] text-gray-400 font-mono uppercase">{field.name}</span>
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{field.type}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              {!field.isSystemField && (
+                                <button 
+                                  onClick={() => handleDeleteField(field.name)}
+                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                  title="Delete Field"
+                                >
+                                  <FaTrash size={14} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleEditField(field)}
+                                className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                                title="Edit Field"
+                              >
+                                <FaEdit size={14} />
+                              </button>
+                              <button 
+                                onClick={() => handleToggleActive(field)}
+                                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${field.isActive ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
+                              >
+                                {field.isActive ? 'Visible' : 'Hidden'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAdmissionInstructionsSubTab = () => {
+    return (
+      <div className="space-y-8 animate-fadeIn">
+          {/* (Admission Fee Settings Removed) */}
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Admission Instructions</h3>
+            <button
+              onClick={handleProfileSave}
+              className="px-6 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              Save Instructions
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Online Instructions */}
+            <div>
+              <label className="block text-sm font-bold text-blue-700 mb-2 flex items-center gap-2">
+                <FaLaptop className="text-blue-500" /> Online Admission Instructions
+              </label>
+              <div className="space-y-2">
+                {(localProfile.onlineAdmissionInstructions || []).map((inst, index) => (
+                  <div key={index} className="flex gap-2 group animate-fadeIn">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={inst}
+                        onChange={(e) => {
+                          const newInst = [...(localProfile.onlineAdmissionInstructions || [])];
+                          newInst[index] = e.target.value;
+                          handleProfileChange('onlineAdmissionInstructions', newInst);
+                        }}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm h-10"
+                        placeholder="e.g. Fill up the form"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newInst = localProfile.onlineAdmissionInstructions.filter((_, i) => i !== index);
+                        handleProfileChange('onlineAdmissionInstructions', newInst);
+                      }}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    >
+                      <FaTrash size={12} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newInst = [...(localProfile.onlineAdmissionInstructions || []), ""];
+                    handleProfileChange('onlineAdmissionInstructions', newInst);
+                  }}
+                  className="mt-1 flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-wider hover:text-blue-700 transition-colors bg-blue-50 px-3 py-2 rounded-lg border border-blue-100 border-dashed"
+                >
+                  <FaPlus size={8} /> Add Step
+                </button>
+              </div>
+            </div>
+
+            {/* Offline Instructions */}
+            <div>
+              <label className="block text-sm font-bold text-amber-700 mb-2 flex items-center gap-2">
+                <FaBuilding className="text-amber-500" /> Offline Admission Instructions
+              </label>
+              <div className="space-y-2">
+                {(localProfile.offlineAdmissionInstructions || []).map((inst, index) => (
+                  <div key={index} className="flex gap-2 group animate-fadeIn">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={inst}
+                        onChange={(e) => {
+                          const newInst = [...(localProfile.offlineAdmissionInstructions || [])];
+                          newInst[index] = e.target.value;
+                          handleProfileChange('offlineAdmissionInstructions', newInst);
+                        }}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm h-10"
+                        placeholder="e.g. Visit the school office"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newInst = localProfile.offlineAdmissionInstructions.filter((_, i) => i !== index);
+                        handleProfileChange('offlineAdmissionInstructions', newInst);
+                      }}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    >
+                      <FaTrash size={12} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newInst = [...(localProfile.offlineAdmissionInstructions || []), ""];
+                    handleProfileChange('offlineAdmissionInstructions', newInst);
+                  }}
+                  className="mt-1 flex items-center gap-2 text-amber-600 font-bold text-[10px] uppercase tracking-wider hover:text-amber-700 transition-colors bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 border-dashed"
+                >
+                  <FaPlus size={8} /> Add Step
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderApplicationsSubTab = () => {
+    return (
+      <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden animate-fadeIn">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+          <div>
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Admission Applications</h3>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Manage student enrollments and status updates</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <div className="relative group">
+              <select 
+                value={classFilter} 
+                onChange={(e) => setClassFilter(e.target.value)}
+                className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-10 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer hover:border-gray-200"
+              >
+                <option value="All">All Classes</option>
+                <option value="PRE-NURSERY">Pre-Nursery</option>
+                <option value="NURSERY">Nursery</option>
+                <option value="KG1">KG1</option>
+                <option value="KG2">KG2</option>
+                {[...Array(12)].map((_, i) => (
+                  <option key={i} value={`CLASS${i+1}`}>Class {i+1}</option>
+                ))}
+              </select>
+              <FaAngleDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-primary transition-colors" size={10} />
+            </div>
+
+            <div className="relative group">
+              <select 
+                value={statusFilter} 
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-10 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer hover:border-gray-200"
+              >
+                <option value="All">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="entrance-exam">Entrance Exam</option>
+                <option value="interview">Interview</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <FaAngleDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-primary transition-colors" size={10} />
+            </div>
+
+            <div className="relative w-full sm:flex-1 lg:w-72 lg:flex-none">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+              <input 
+                type="text" 
+                placeholder="Search by name or reference..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 border-2 border-gray-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-sm font-medium placeholder:text-gray-300 shadow-sm"
+              />
+            </div>
+
+            {selectedAppIds.length > 0 && (
+              <button 
+                onClick={handleBulkDeleteAdmissions}
+                className="flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-200 animate-in fade-in zoom-in"
+              >
+                <FaTrash size={12} /> Delete ({selectedAppIds.length})
+              </button>
+            )}
+
+            <button 
+              onClick={handleExportAdmissions}
+              disabled={isExportingAdmissions || filteredApps.length === 0}
+              className="flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:shadow-none shadow-lg shadow-emerald-100 whitespace-nowrap group"
+            >
+              {isExportingAdmissions ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
+              {isExportingAdmissions ? 'Exporting...' : (classFilter !== 'All' || statusFilter !== 'All') ? 'Export Filtered' : 'Export All'}
+            </button>
+          </div>
+        </div>
+        
+        {filteredApps.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">No applications found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">
+                  <th className="pb-4">
+                    <input 
+                      type="checkbox" 
+                      className="rounded-md border-gray-200 text-primary focus:ring-primary transition-all w-4 h-4 cursor-pointer"
+                      checked={filteredApps.length > 0 && filteredApps.every(app => selectedAppIds.includes(app._id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedAppIds(prev => [...new Set([...prev, ...filteredApps.map(app => app._id)])]);
+                        } else {
+                          setSelectedAppIds(prev => prev.filter(id => !filteredApps.some(app => app._id === id)));
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="pb-4">S.N.</th>
+                  <th className="pb-4">Ref No.</th>
+                  <th className="pb-4">Student Details</th>
+                  <th className="pb-4">Class</th>
+                  <th className="pb-4">Applied Date</th>
+                  <th className="pb-4">Status</th>
+                  <th className="pb-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredApps.map((app, index) => (
+                  <tr key={app._id} className={`border-b border-gray-50/50 hover:bg-blue-50/20 transition-all group ${selectedAppIds.includes(app._id) ? 'bg-blue-50/50' : ''}`}>
+                    <td className="py-5">
+                      <input 
+                        type="checkbox" 
+                        className="rounded-md border-gray-200 text-primary focus:ring-primary transition-all w-4 h-4 cursor-pointer"
+                        checked={selectedAppIds.includes(app._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedAppIds(prev => [...prev, app._id]);
+                          } else {
+                            setSelectedAppIds(prev => prev.filter(id => id !== app._id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="py-5 text-[11px] text-gray-400 font-bold tracking-wider">
+                      {String((appPage - 1) * 50 + index + 1).padStart(2, '0')}
+                    </td>
+                    <td className="py-5">
+                       <span className="font-mono text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                         {app.referenceNumber || app._id.slice(-6).toUpperCase()}
+                       </span>
+                    </td>
+                    <td className="py-5">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-gray-900 text-sm group-hover:text-primary transition-colors">{app.studentName}</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{app.contactNumber}</span>
+                      </div>
+                    </td>
+                    <td className="py-5">
+                      <span className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1 rounded-full">{app.gradeApplied}</span>
+                    </td>
+                    <td className="py-5">
+                      <div className="flex items-center gap-2 text-gray-500">
+                         <FaClock size={10} className="text-gray-300" />
+                         <span className="text-xs font-medium">{new Date(app.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </td>
+                    <td className="py-5">
+                      <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border-2 shadow-sm ${
+                        app.status === 'accepted' ? 'bg-green-50 text-green-700 border-green-100' :
+                        app.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' :
+                        app.status === 'entrance-exam' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                        app.status === 'interview' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                        'bg-amber-50 text-amber-700 border-amber-100'
+                      }`}>{app.status?.replace('-', ' ')}</span>
+                    </td>
+                    <td className="py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => setSelectedApp(app)} className="text-primary hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="View Details">
+                          <FaSearch size={14} />
+                        </button>
+                        
+                        {app.status !== 'accepted' && (
+                          <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
+                            <select 
+                              className="text-[10px] font-bold border-none bg-transparent focus:ring-0 cursor-pointer"
+                              value={app.nextStatus || app.status}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setApplications(prev => prev.map(a => a._id === app._id ? { ...a, nextStatus: val } : a));
+                              }}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="entrance-exam">Exam</option>
+                              <option value="interview">Interview</option>
+                              <option value="accepted">Accept</option>
+                              <option value="rejected">Reject</option>
+                            </select>
+                            <button 
+                              onClick={() => initiateStatusUpdate(app, app.nextStatus || app.status)}
+                              className="bg-primary text-white p-1.5 rounded-md hover:bg-blue-700 transition-all shadow-sm"
+                              title="Save Status Update"
+                            >
+                              <FaCheckCircle size={10} />
+                            </button>
+                          </div>
+                        )}
+
+                        <button 
+                          onClick={() => handleDeleteApplication(app._id)} 
+                          className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Delete Application"
+                        >
+                          <FaTrash size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {appTotalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+            <button 
+              onClick={() => setAppPage(p => Math.max(1, p - 1))}
+              disabled={appPage === 1}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-sm font-medium text-gray-500">
+              Page <span className="text-gray-900">{appPage}</span> of <span className="text-gray-900">{appTotalPages}</span>
+            </span>
+            <button 
+              onClick={() => setAppPage(p => Math.min(appTotalPages, p + 1))}
+              disabled={appPage === appTotalPages}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSettingsTab = () => {
+    const handleSaveEmail = async () => {
+      setIsSaving(true);
+      await setNotificationEmail(tempEmail);
+      setIsSaving(false);
+      alert('Notification email updated successfully!');
+    };
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 max-w-2xl">
+        <h3 className="text-xl font-bold text-gray-800 mb-6 font-serif flex items-center gap-2">
+          <FaCog className="text-primary" /> System Settings
+        </h3>
+        
+        <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+              <FaEnvelope />
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-800">Admission Notifications</h4>
+              <p className="text-xs text-gray-500">This email will receive all new admission alerts.</p>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Receiver Email Address</label>
+              <div className="flex gap-2">
+                <input 
+                  type="email" 
+                  value={tempEmail} 
+                  onChange={e => setTempEmail(e.target.value)} 
+                  className="flex-1 p-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-primary/20 outline-none" 
+                  placeholder="office@school.com"
+                />
+                <button 
+                  onClick={handleSaveEmail}
+                  disabled={isSaving || tempEmail === notificationEmail}
+                  className="bg-primary text-white px-6 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:bg-gray-300"
+                >
+                  {isSaving ? 'Saving...' : 'Update'}
+                </button>
+              </div>
+              <p className="text-[10px] text-amber-600 mt-2 font-medium">
+                * Ensure this email is valid to avoid missing important student applications.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-8 bg-amber-50 p-6 rounded-xl border border-amber-100">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 ${isMaintenanceMode ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'} rounded-full flex items-center justify-center`}>
+                {isMaintenanceMode ? <FaPowerOff size={20} /> : <FaTools size={20} />}
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-800">Maintenance Mode</h4>
+                <p className="text-xs text-gray-500">When active, the public site will show a maintenance message.</p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => {
+                const confirmed = window.confirm(`Are you sure you want to ${isMaintenanceMode ? 'DISABLE' : 'ENABLE'} maintenance mode?`);
+                if (confirmed) {
+                  updateSiteContent({ isMaintenanceMode: !isMaintenanceMode });
+                }
+              }}
+              className={`px-6 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 ${
+                isMaintenanceMode 
+                ? 'bg-green-500 text-white hover:bg-green-600 shadow-green-100' 
+                : 'bg-red-500 text-white hover:bg-red-600 shadow-red-100'
+              }`}
+            >
+              {isMaintenanceMode ? <FaPowerOff /> : <FaTools />}
+              {isMaintenanceMode ? 'Turn Off Maintenance' : 'Go Under Maintenance'}
+            </button>
+          </div>
+          
+          {isMaintenanceMode && (
+            <div className="mt-4 flex items-center gap-2 text-red-600 text-[10px] font-bold uppercase animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-red-600" />
+              Site is currently inaccessible to the public
+            </div>
+          )}
+        </div>
+
+        <SchoolStatusSettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />
+        <HolidaySettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />
+
+
+        <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+          <h4 className="text-blue-800 font-bold text-sm mb-1">System Information</h4>
+          <p className="text-blue-600 text-xs">
+            Role: <span className="font-bold uppercase">{adminUser?.role}</span><br />
+            API Endpoint: <span className="font-mono text-[10px]">{API_URL}</span>
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDashboard = () => (
+    <>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        {dashboardStats.map((stat, idx) => {
+          const gradients = [
+            'from-indigo-500 to-blue-600',
+            'from-emerald-400 to-teal-600', 
+            'from-orange-400 to-pink-500',
+            'from-fuchsia-500 to-purple-600'
+          ];
+          const shadowColors = [
+            'shadow-indigo-100',
+            'shadow-emerald-100',
+            'shadow-orange-100',
+            'shadow-fuchsia-100'
+          ];
+          const icons = [
+            <FaUsers size={20} />,
+            <FaClipboardList size={20} />,
+            <FaCheckCircle size={20} />,
+            <FaClock size={20} />
+          ];
+          return (
+            <div 
+              key={idx} 
+              className="group relative bg-white rounded-[2rem] p-7 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-2 cursor-default overflow-hidden flex flex-col justify-between"
+            >
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${gradients[idx]} opacity-[0.03] rounded-bl-[5rem] group-hover:scale-125 transition-transform duration-700`} />
+              
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${gradients[idx]} flex items-center justify-center text-white shadow-xl ${shadowColors[idx]} group-hover:rotate-6 transition-all duration-500`}>
+                  {stat.icon && React.cloneElement(stat.icon, { size: 24, className: 'text-white drop-shadow-md' })}
+                </div>
+                <div className="flex flex-col items-end">
+                   <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">Live Status</span>
+                   <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[9px] font-bold text-emerald-600 uppercase">Active</span>
+                   </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-4xl font-black text-gray-900 tracking-tight">{stat.value}</h3>
+                  <span className="text-[10px] font-bold text-emerald-500">+12%</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Recent Applications Table */}
+      <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white/50 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative">
+        <div className="p-4 sm:p-6 md:p-8 border-b border-gray-100/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
+          <div>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">Recent Activity</h3>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Latest student admission requests</p>
+          </div>
+          <div className="relative w-full sm:w-80">
+            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
+            <input 
+              type="text" 
+              placeholder="Search activity..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-medium focus:outline-none focus:bg-white focus:border-primary/20 transition-all placeholder:text-gray-400"
+            />
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[600px]">
+            <thead>
+              <tr className="bg-gray-50/80">
+                <th className="px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">App ID</th>
+                <th className="px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Student Name</th>
+                <th className="px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Grade</th>
+                <th className="px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {recentApps.map((app, idx) => (
+                <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                  <td className="px-6 py-4 font-mono text-xs font-semibold text-blue-600">{app.id}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center text-blue-600 text-xs font-bold">
+                        {app.name?.charAt(0) || '?'}
+                      </div>
+                      <span className="text-sm font-medium text-gray-800">{app.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4"><span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg">{app.grade}</span></td>
+                  <td className="px-6 py-4 text-gray-400 text-xs">{app.date}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-lg text-[11px] font-semibold ${
+                      app.status === 'Approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                      app.status === 'Rejected' ? 'bg-red-50 text-red-600 border border-red-100' :
+                      'bg-amber-50 text-amber-600 border border-amber-100'
+                    }`}>
+                      {app.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => setSelectedApp(app.originalApp)} className="text-blue-500 hover:text-blue-700 font-medium text-xs mr-3 hover:underline transition-colors">View</button>
+                    {app.status === 'Pending' ? (
+                      <>
+                        <button onClick={() => handleStatusUpdate(app.originalApp._id, 'accepted')} className="text-emerald-500 hover:text-emerald-700 font-medium text-xs mr-3 transition-colors">Approve</button>
+                        <button onClick={() => handleStatusUpdate(app.originalApp._id, 'rejected')} className="text-red-400 hover:text-red-600 font-medium text-xs transition-colors">Reject</button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={() => handleDeleteApplication(app.originalApp._id)} 
+                        className="text-red-400 hover:text-red-600 font-medium text-xs transition-colors"
+                        title="Delete Application"
+                      >
+                        <FaTrash />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {recentApps.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">
+                    <FaClipboardList className="mx-auto text-2xl text-gray-200 mb-2" />
+                    No applications found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+
+  // --- Stats Tab ---
+  const [newStat, setNewStat] = useState({ label: '', value: '', totalCandidates: '', passedCandidates: '' });
+  const [editingStatId, setEditingStatId] = useState(null);
+
+  const renderStatsTab = () => {
+
+    const handleAddStat = async (e) => {
+      e.preventDefault();
+      try {
+        let finalValue = newStat.value;
+        if (newStat.label.trim().toLowerCase() === 'pass result') {
+          const total = parseInt(newStat.totalCandidates);
+          const passed = parseInt(newStat.passedCandidates);
+          if (total > 0 && passed >= 0) {
+            finalValue = Math.round((passed / total) * 100) + '%';
+          }
+        }
+        
+        const currentStats = stats || [];
+        const newStatItem = { 
+          id: editingStatId || Date.now().toString(), 
+          label: newStat.label, 
+          value: finalValue 
+        };
+        
+        let updatedStats;
+        if (editingStatId) {
+          updatedStats = currentStats.map(stat => (stat.id || stat._id) === editingStatId ? newStatItem : stat);
+        } else {
+          updatedStats = [...currentStats, newStatItem];
+        }
+        
+        await updateSiteContent({ stats: updatedStats });
+        setNewStat({ label: '', value: '', totalCandidates: '', passedCandidates: '' });
+        setEditingStatId(null);
+      } catch (error) {
+        console.error("Error saving stat:", error);
+      }
+    };
+
+    const handleDeleteStat = async (idToDelete) => {
+      try {
+        const updatedStats = (stats || []).filter(s => (s.id || s._id) !== idToDelete);
+        await updateSiteContent({ stats: updatedStats });
+      } catch (error) {
+        console.error("Error deleting stat:", error);
+      }
+    };
+
+    const isPassResult = newStat.label.trim().toLowerCase() === 'pass result';
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-fade-in">
+        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+          <div className="p-2 bg-primary/10 text-primary rounded-lg"><FaChartLine /></div>
+          Manage Home Stats
+        </h3>
+        
+        <form onSubmit={handleAddStat} className="bg-gray-50/50 p-6 rounded-xl border border-gray-100 mb-8 relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-1 h-full bg-tertiary/50 group-focus-within:bg-tertiary transition-colors" />
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-semibold text-gray-700 text-sm uppercase tracking-wider">{editingStatId ? 'Edit Stat' : 'Add New Stat'}</h4>
+            {editingStatId && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  setEditingStatId(null);
+                  setNewStat({ label: '', value: '', totalCandidates: '', passedCandidates: '' });
+                }}
+                className="text-xs text-gray-500 hover:text-red-500 transition-colors"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input 
+              type="text" 
+              placeholder="Stat Label (e.g., 'Awards Won', 'Pass Result')" 
+              value={newStat.label}
+              onChange={(e) => setNewStat({...newStat, label: e.target.value})}
+              className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tertiary focus:border-tertiary outline-none transition-shadow bg-white"
+              required
+            />
+            {isPassResult ? (
+              <div className="grid grid-cols-2 gap-2">
+                <input 
+                  type="number" 
+                  placeholder="Total Candidates" 
+                  value={newStat.totalCandidates}
+                  onChange={(e) => setNewStat({...newStat, totalCandidates: e.target.value})}
+                  className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tertiary outline-none bg-white"
+                  required
+                />
+                <input 
+                  type="number" 
+                  placeholder="Passed" 
+                  value={newStat.passedCandidates}
+                  onChange={(e) => setNewStat({...newStat, passedCandidates: e.target.value})}
+                  className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tertiary outline-none bg-white"
+                  required
+                />
+              </div>
+            ) : (
+              <input 
+                type="text" 
+                placeholder="Stat Value (e.g., '15+', '2.5k+')" 
+                value={newStat.value}
+                onChange={(e) => setNewStat({...newStat, value: e.target.value})}
+                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-tertiary outline-none bg-white"
+                required
+              />
+            )}
+            <button 
+              type="submit"
+              className="md:col-span-2 bg-gradient-to-r from-primary to-primary-fixed hover:-translate-y-0.5 transition-transform text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center shadow-md hover:shadow-lg:shadow-none:shadow-none"
+            >
+              <FaPlus className="mr-2" /> {editingStatId ? 'Update Stat' : (isPassResult ? 'Calculate & Add Stat' : 'Add Stat')}
+            </button>
+          </div>
+          {isPassResult && (
+            <p className="md:col-span-2 text-xs text-tertiary font-medium mt-3 bg-tertiary/10 p-2 rounded block">
+              💡 The Pass Result percentage will be automatically calculated based on these numbers.
+            </p>
+          )}
+        </form>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {(stats || []).map((stat, index) => (
+             <div key={stat.id || index} className="group bg-white border border-gray-100 p-6 rounded-2xl hover:shadow-xl:shadow-none:shadow-none transition-all hover:-translate-y-1 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-primary to-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
+               <div className="font-bold text-3xl text-gray-800 mb-1">{stat.value}</div>
+               <div className="text-gray-500 font-medium uppercase tracking-wider text-xs">{stat.label}</div>
+               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                 <button 
+                  onClick={() => {
+                    setEditingStatId(stat.id || stat._id);
+                    // Special handling to parse values if it's "Pass Result"
+                    let totalCands = '';
+                    let passedCands = '';
+                    if (stat.label.trim().toLowerCase() === 'pass result') {
+                       // We can't perfectly recover total/passed from a % string, 
+                       // but we set what we can, leaving them empty so admin re-enters or just edits the string 
+                       // Actually, we'll just populate the label and value. If they change it to non-Pass Result, value is used.
+                    }
+                    setNewStat({ 
+                      label: stat.label, 
+                      value: stat.value, 
+                      totalCandidates: totalCands, 
+                      passedCandidates: passedCands 
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors"
+                  title="Edit Stat"
+                 >
+                   <FaEdit size={14} />
+                 </button>
+                 <button 
+                  onClick={() => handleDeleteStat(stat.id || stat._id)}
+                  className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                  title="Delete Stat"
+                 >
+                   <FaTrash size={14} />
+                 </button>
+               </div>
+             </div>
+          ))}
+          {(!stats || stats.length === 0) && (
+            <div className="col-span-full py-12 text-center border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 font-medium flex flex-col items-center">
+              <FaChartLine className="text-4xl mb-3 text-gray-300" />
+              <p>No stats added yet.</p>
+              <p className="text-sm mt-1">Add your first stat to display on the home page.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // --- School Profile Tab ---
+  const [localVisionStatement, setLocalVisionStatement] = useState(visionStatement);
+  const [localAimsAndObjectives, setLocalAimsAndObjectives] = useState(aimsAndObjectives);
+  const [localAboutPage, setLocalAboutPage] = useState(aboutPage);
+  const localAboutInitRef = useRef(false);
+
+  useEffect(() => {
+    if (!localAboutInitRef.current && !loading) {
+      if (visionStatement !== undefined) setLocalVisionStatement(visionStatement);
+      if (aimsAndObjectives !== undefined) setLocalAimsAndObjectives(aimsAndObjectives);
+      if (aboutPage !== undefined) setLocalAboutPage(aboutPage);
+      localAboutInitRef.current = true;
+    }
+  }, [visionStatement, aimsAndObjectives, aboutPage, loading]);
+
+  const [localCoursesPage, setLocalCoursesPage] = useState(coursesPage);
+  const localCoursesInitRef = useRef(false);
+
+  useEffect(() => {
+    if (!localCoursesInitRef.current && !loading && coursesPage) {
+      setLocalCoursesPage(coursesPage);
+      localCoursesInitRef.current = true;
+    }
+  }, [coursesPage, loading]);
+
+  const renderSchoolProfileTab = () => {
+    const handleLogoUpload = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const url = await uploadImage(file);
+        setLocalProfile(prev => ({ ...prev, logo: url }));
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      }
+    };
+
+    const handleHeroImageUpload = async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+      try {
+        const urls = await Promise.all(files.map(file => uploadImage(file)));
+        setLocalProfile(prev => ({ ...prev, heroImages: [...(prev.heroImages || []), ...urls.filter(Boolean)] }));
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      }
+    };
+
+    const removeHeroImage = (index) => {
+      setLocalProfile(prev => {
+        const newImages = [...(prev.heroImages || [])];
+        newImages.splice(index, 1);
+        return { ...prev, heroImages: newImages };
+      });
+    };
+
+    const handlePageHeroUpload = async (pageId, e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      setPageHeroUploading(prev => ({ ...prev, [pageId]: true }));
+      try {
+        const url = await uploadImage(file);
+        setLocalProfile(prev => ({
+          ...prev,
+          pageHeroImages: {
+            ...(prev.pageHeroImages || {}),
+            [pageId]: url
+          }
+        }));
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      } finally {
+        setPageHeroUploading(prev => ({ ...prev, [pageId]: false }));
+      }
+    };
+
+    const removePageHeroImage = (pageId) => {
+      setLocalProfile(prev => ({
+        ...prev,
+        pageHeroImages: {
+          ...(prev.pageHeroImages || {}),
+          [pageId]: ""
+        }
+      }));
+    };
+
+    const PAGES_REQUIRING_HERO = [
+      { id: 'about', label: 'About Us' },
+      { id: 'admission', label: 'Admissions' },
+      { id: 'alumestron', label: 'Alumestron' },
+      { id: 'career', label: 'Career' },
+      { id: 'complaints', label: 'Complaints' },
+      { id: 'contact', label: 'Contact' },
+      { id: 'courses', label: 'Courses' },
+      { id: 'faculty', label: 'Faculty' },
+      { id: 'gallery', label: 'Gallery' },
+      { id: 'notice', label: 'Notice Board' },
+      { id: 'principal', label: "Principal's Desk" },
+      { id: 'studentPortal', label: 'Student Portal' },
+      { id: 'tenders', label: 'Tenders' },
+      { id: 'excellence', label: 'Center of Excellence' }
+    ];
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-4">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">School Profile</h2>
+          <p className="text-gray-500 mt-2">Manage the core school information, branding, and contact details.</p>
+        </header>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Basic Branding</h3>
+            <button
+              onClick={handleProfileSave}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors"
+            >
+              Save All Changes
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">School Name</label>
+              <input
+                type="text"
+                value={localProfile.name || ''}
+                onChange={(e) => handleProfileChange('name', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder={`e.g. ${schoolProfile?.name || "Our School"}`}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Punch Line / Tagline</label>
+              <input
+                type="text"
+                value={localProfile.punchLine || ''}
+                onChange={(e) => handleProfileChange('punchLine', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. Let Your Light Shine"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Year Established</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1800"
+                  max={new Date().getFullYear()}
+                  value={localProfile.establishedYear || ''}
+                  onChange={(e) => handleProfileChange('establishedYear', parseInt(e.target.value) || '')}
+                  className="w-32 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary text-center font-bold"
+                  placeholder="e.g. 1986"
+                />
+                {localProfile.establishedYear && (
+                  <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                    {new Date().getFullYear() - localProfile.establishedYear} years
+                  </span>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">School Logo</label>
+              <div className="flex items-center gap-4">
+                {localProfile.logo && (
+                  <img src={localProfile.logo} alt="Logo" className="w-16 h-16 rounded-lg object-contain border border-gray-200 bg-gray-50" />
+                )}
+                <div className="relative overflow-hidden">
+                  <button className="px-6 py-2 bg-primary/10 text-primary rounded-lg border border-primary/20 hover:bg-primary/20 font-medium transition-colors flex items-center gap-2">
+                    <FaImage /> Upload Logo
+                  </button>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onChange={handleLogoUpload}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Contact Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
+              <input
+                type="text"
+                value={localProfile.phone || ''}
+                onChange={(e) => handleProfileChange('phone', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. 6901055733"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+              <input
+                type="email"
+                value={localProfile.email || ''}
+                onChange={(e) => handleProfileChange('email', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. holynameschool@gmail.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Office Hours</label>
+              <input
+                type="text"
+                value={localProfile.officeHours || ''}
+                onChange={(e) => handleProfileChange('officeHours', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. 9am - 1:30pm (Mon - Sat)"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Office Address</label>
+              <textarea
+                value={localProfile.officeAddress || ''}
+                onChange={(e) => handleProfileChange('officeAddress', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary h-20"
+                placeholder="e.g. XMH8+GGW, Nazira Ali Rd, Hatimuria, Assam 785697"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Google Maps Embed Link (Src URL)</label>
+              <textarea
+                value={localProfile.mapLink || ''}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  let extracted = false;
+                  // If user pasted an entire iframe, extract the src attribute
+                  const srcMatch = val.match(/src=["'](.*?)["']/);
+                  if (srcMatch && srcMatch[1]) {
+                    val = srcMatch[1];
+                    extracted = true;
+                  }
+                  // Clean up accidental wrapper quotes or spaces
+                  val = val.replace(/^["']|["']$/g, '').trim();
+                  
+                  if (extracted) {
+                    setMapExtracted(true);
+                    setTimeout(() => setMapExtracted(false), 5000);
+                  }
+                  
+                  handleProfileChange('mapLink', val);
+                }}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary h-24 font-mono text-sm"
+                placeholder='<iframe src="https://www.google.com/maps/embed?pb=..." width="600" height="450"...></iframe>'
+              />
+              <div className="mt-1 flex items-center justify-between">
+                <p className="text-xs text-gray-500">Paste the URL or the entire `&lt;iframe&gt;` code. We will extract the exact link.</p>
+                {mapExtracted && (
+                  <span className="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded flex items-center gap-1">
+                    <FaCheckCircle size={10} /> Link Extracted Successfully!
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">School Affiliations (Website Footer)</label>
+              <div className="space-y-2">
+                {(localProfile.affiliation || []).map((aff, index) => (
+                  <div key={index} className="flex gap-2 group animate-fadeIn">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={aff}
+                        onChange={(e) => {
+                          const newAffs = [...(localProfile.affiliation || [])];
+                          newAffs[index] = e.target.value;
+                          handleProfileChange('affiliation', newAffs);
+                        }}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary text-sm h-10"
+                        placeholder="e.g. SEBA & ASHEC"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newAffs = localProfile.affiliation.filter((_, i) => i !== index);
+                        handleProfileChange('affiliation', newAffs);
+                      }}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      title="Remove Affiliation"
+                    >
+                      <FaTrash size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newAffs = [...(localProfile.affiliation || []), ""];
+                    handleProfileChange('affiliation', newAffs);
+                  }}
+                  className="mt-1 flex items-center gap-2 text-primary font-bold text-xs hover:text-primary/80 transition-colors bg-primary/5 px-3 py-2 rounded-lg border border-primary/10 border-dashed"
+                >
+                  <FaPlus size={10} /> Add Affiliation Row
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Hero Carousel Images</h3>
+            <div className="relative overflow-hidden">
+              <button className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-bold hover:bg-primary/20 transition-colors flex items-center gap-2">
+                <FaPlus /> Add Images
+              </button>
+              <input 
+                type="file" 
+                accept="image/*"
+                multiple
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                onChange={handleHeroImageUpload}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">These images will be displayed in the sliding hero section on the top of the Home page.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {(localProfile.heroImages || []).map((imgUrl, idx) => (
+              <div key={idx} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-video">
+                <img src={imgUrl} alt={`Hero ${idx}`} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => removeHeroImage(idx)}
+                    className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transform scale-0 group-hover:scale-100 transition-transform"
+                    title="Remove Image"
+                  >
+                    <FaTrash size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {(!localProfile.heroImages || localProfile.heroImages.length === 0) && (
+              <div className="col-span-full py-8 text-center border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
+                <FaImage className="text-3xl mx-auto mb-2 text-gray-300" />
+                <p>No hero images uploaded yet.</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Page-Specific Hero Images Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="border-b pb-4 mb-6">
+            <h3 className="text-xl font-bold text-gray-800">Page-Specific Hero Backgrounds</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Upload specifically tailored top-banner background images completely individually for each of your inner pages.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {PAGES_REQUIRING_HERO.map(page => {
+              const currentImageUrl = localProfile.pageHeroImages?.[page.id];
+
+              return (
+                <div key={page.id} className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 flex flex-col">
+                  <div className="p-3 bg-white border-b border-gray-100 flex justify-between items-center z-10">
+                    <h4 className="font-bold text-gray-800 text-sm truncate">{page.label}</h4>
+                  </div>
+                  <div className="relative aspect-video bg-gray-100 flex-1 flex flex-col items-center justify-center group overflow-hidden">
+                    {pageHeroUploading[page.id] ? (
+                      <div className="flex flex-col items-center justify-center p-4 h-full w-full bg-white/80">
+                        <FaSpinner className="animate-spin text-3xl text-primary mb-2" />
+                        <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Uploading...</span>
+                      </div>
+                    ) : currentImageUrl ? (
+                      <>
+                        <img 
+                          src={currentImageUrl} 
+                          alt={`${page.label} Hero`} 
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3">
+                          <button 
+                            onClick={() => removePageHeroImage(page.id)}
+                            className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-colors shadow-lg flex items-center gap-1"
+                          >
+                            <FaTrash /> Remove
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-4 text-center h-full w-full">
+                        <FaImage className="text-3xl text-gray-300 mb-2" />
+                        <span className="text-xs text-gray-400 font-medium mb-3">No custom image</span>
+                        <div className="relative">
+                          <button className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1 border border-blue-200">
+                            <FaPlus /> Upload
+                          </button>
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={(e) => handlePageHeroUpload(page.id, e)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-10 pt-6 border-t border-gray-100 flex justify-end">
+            <button
+              onClick={handleProfileSave}
+              className="px-10 py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-all shadow-xl hover:-translate-y-1 flex items-center gap-3"
+            >
+              <FaSave size={20} /> Save All Profile Changes
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderAboutTab = () => {
+    const handleAboutSave = async () => {
+      // Validate word limits before saving
+      const getWc = (txt) => (txt || '').trim().split(/\s+/).filter(w=>w).length;
+      if (getWc(localAboutPage?.shortDescription?.text) > 100) return alert("Short description exceeds 100 words.");
+      if (getWc(localAboutPage?.founder?.text) > 100) return alert("Founder details exceed 100 words.");
+      if (getWc(localAboutPage?.history?.text) > 200) return alert("History section exceeds 200 words.");
+      
+      let pErr = false;
+      (localAboutPage?.principals || []).forEach(p => {
+        if (getWc(p.text) > 200) pErr = true;
+      });
+      if (pErr) return alert("One or more principal details exceed 200 words.");
+
+      const hmText = localAboutPage?.leadership?.showHeadMistress ? (localAboutPage?.leadership?.headMistress?.text || '') : '';
+      const vpText = localAboutPage?.leadership?.showVicePrincipal ? (localAboutPage?.leadership?.vicePrincipal?.text || '') : '';
+      if (getWc(hmText) + getWc(vpText) > 200) return alert("Combined Head Mistress and Vice Principal speech exceeds 200 words.");
+
+      await updateSiteContent({
+        visionStatement: localVisionStatement,
+        aimsAndObjectives: localAimsAndObjectives,
+        aboutPage: localAboutPage
+      });
+      alert('About page updated successfully!');
+    };
+
+    const getWordCount = (text) => {
+      if (!text) return 0;
+      return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    };
+
+    const handleUpload = async (path, e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const url = await uploadImage(file);
+        // path is an array of keys to nested update localAboutPage
+        const newState = { ...localAboutPage };
+        let curr = newState;
+        for (let i = 0; i < path.length - 1; i++) {
+          curr = curr[path[i]];
+        }
+        curr[path[path.length - 1]] = url;
+        setLocalAboutPage(newState);
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      }
+    };
+
+    const TextSection = ({ title, objKey, maxWords, placeholder }) => {
+      const data = localAboutPage?.[objKey] || { text: '', image: '' };
+      const wc = getWordCount(data.text);
+      const isOver = wc > maxWords;
+      return (
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">{title}</h3>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="w-full md:w-1/3 shrink-0">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Image</label>
+              <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-gray-200 h-48 group bg-gray-50 flex items-center justify-center">
+                {data.image ? (
+                  <>
+                    <img src={data.image} alt="Preview" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded">Change Image</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center text-gray-400">
+                    <FaFileUpload className="text-3xl mb-2" />
+                    <span className="text-sm font-bold">Upload Image</span>
+                  </div>
+                )}
+                <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={(e) => handleUpload([objKey, 'image'], e)} />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex justify-between mb-2">
+                <label className="text-sm font-bold text-gray-700">Description text</label>
+                <span className={`text-xs font-bold ${isOver ? 'text-red-500' : 'text-gray-500'}`}>{wc} / {maxWords} words</span>
+              </div>
+              <textarea
+                value={data.text || ''}
+                onChange={(e) => setLocalAboutPage({ ...localAboutPage, [objKey]: { ...data, text: e.target.value } })}
+                className={`w-full p-4 border rounded-xl focus:ring-2 focus:ring-primary h-48 ${isOver ? 'border-red-500 focus:ring-red-200' : 'border-gray-200'}`}
+                placeholder={placeholder}
+              />
+            </div>
+          </div>
+        </section>
+      );
+    };
+
+    const leadership = localAboutPage?.leadership || { showHeadMistress: false, headMistress: {}, showVicePrincipal: false, vicePrincipal: {} };
+    const hmWC = getWordCount(leadership.headMistress?.text);
+    const vpWC = getWordCount(leadership.vicePrincipal?.text);
+    const totalLdrWC = (leadership.showHeadMistress ? hmWC : 0) + (leadership.showVicePrincipal ? vpWC : 0);
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-headline font-bold text-gray-800">About Page Management</h2>
+            <p className="text-gray-500 mt-2">Manage all sections and details on the public About page.</p>
+          </div>
+          <button onClick={handleAboutSave} className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 shadow-md">
+            <FaSave /> Save All Changes
+          </button>
+        </header>
+
+        {/* Vision Statement Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Vision Statement</h3>
+          <textarea
+            value={localVisionStatement}
+            onChange={(e) => setLocalVisionStatement(e.target.value)}
+            className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[120px]"
+            placeholder="Enter the school's vision statement..."
+          />
+        </section>
+
+        {/* Aims & Objectives Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Aims & Objectives</h3>
+            <button
+              onClick={() => setLocalAimsAndObjectives([...(localAimsAndObjectives || []), { title: 'New Aim', description: 'Description here' }])}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Aim
+            </button>
+          </div>
+          <div className="space-y-4">
+            {(localAimsAndObjectives || []).map((aim, index) => (
+              <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
+                <div className="flex-1 space-y-3">
+                  <input type="text" value={aim.title} onChange={(e) => { const n = [...localAimsAndObjectives]; n[index].title = e.target.value; setLocalAimsAndObjectives(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg font-bold focus:ring-2 focus:ring-primary" placeholder="Aim Title" />
+                  <textarea value={aim.description} onChange={(e) => { const n = [...localAimsAndObjectives]; n[index].description = e.target.value; setLocalAimsAndObjectives(n); }} className="w-full px-4 py-2 border border-gray-200 rounded-lg min-h-[80px] focus:ring-2 focus:ring-primary" placeholder="Aim Description" />
+                </div>
+                <button onClick={() => setLocalAimsAndObjectives(localAimsAndObjectives.filter((_, i) => i !== index))} className="p-3 text-red-500 hover:bg-red-50 rounded-lg mt-1" title="Remove Aim"><FaTrash /></button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <TextSection title="Short Description" objKey="shortDescription" maxWords={100} placeholder="A short description about the school..." />
+        <TextSection title="Founder Details" objKey="founder" maxWords={100} placeholder="Details about the founder of the school..." />
+        <TextSection title="History & Planning Stage" objKey="history" maxWords={200} placeholder="History and planning stage of the school..." />
+
+        {/* Principals List Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Past Principals</h3>
+            <button
+              onClick={() => setLocalAboutPage({ ...localAboutPage, principals: [...(localAboutPage?.principals || []), { name: '', years: '', text: '', image: '' }] })}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Principal
+            </button>
+          </div>
+          <div className="space-y-6">
+            {(localAboutPage?.principals || []).map((p, index) => {
+              const pwc = getWordCount(p.text);
+              const pOver = pwc > 200;
+              return (
+                <div key={index} className="flex flex-col md:flex-row gap-6 p-6 bg-gray-50 rounded-xl border border-gray-200 relative">
+                  <button onClick={() => { const newP = [...localAboutPage.principals]; newP.splice(index, 1); setLocalAboutPage({ ...localAboutPage, principals: newP }); }} className="absolute top-4 right-4 p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200" title="Remove"><FaTrash /></button>
+                  <div className="w-full md:w-48 shrink-0">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Image</label>
+                    <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-gray-200 h-48 flex items-center justify-center bg-white group">
+                      {p.image ? (
+                        <><img src={p.image} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center"><span className="text-white text-xs px-2 py-1 bg-black/50 rounded">Change</span></div></>
+                      ) : (
+                        <div className="text-center text-gray-400"><FaFileUpload className="text-2xl mx-auto mb-1"/><span className="text-xs">Upload</span></div>
+                      )}
+                      <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUpload(['principals', index, 'image'], e)} />
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Name</label>
+                        <input type="text" value={p.name} onChange={(e) => { const n = [...localAboutPage.principals]; n[index].name = e.target.value; setLocalAboutPage({...localAboutPage, principals: n}); }} className="w-full p-2 border border-gray-200 rounded-lg" placeholder="e.g. Rev. Fr. John Doe" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tenure (Years)</label>
+                        <input type="text" value={p.years} onChange={(e) => { const n = [...localAboutPage.principals]; n[index].years = e.target.value; setLocalAboutPage({...localAboutPage, principals: n}); }} className="w-full p-2 border border-gray-200 rounded-lg" placeholder="e.g. 1999-2005" />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Details</label>
+                        <span className={`text-xs font-bold ${pOver ? 'text-red-500' : 'text-gray-500'}`}>{pwc} / 200 words</span>
+                      </div>
+                      <textarea value={p.text} onChange={(e) => { const n = [...localAboutPage.principals]; n[index].text = e.target.value; setLocalAboutPage({...localAboutPage, principals: n}); }} className={`w-full p-3 border rounded-lg h-24 ${pOver ? 'border-red-500' : 'border-gray-200'}`} placeholder="Details about their tenure..." />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {(!localAboutPage?.principals || localAboutPage.principals.length === 0) && <p className="text-center text-gray-500 py-4 italic">No principals added yet.</p>}
+          </div>
+        </section>
+
+        {/* Leadership Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">Leadership Speeches</h3>
+              <p className="text-sm text-gray-500 mt-1">Head Mistress and/or Vice Principal speeches (Combined max 200 words).</p>
+            </div>
+            <span className={`px-4 py-2 rounded-full font-bold text-sm ${totalLdrWC > 200 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+              Total: {totalLdrWC} / 200 words
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* Head Mistress */}
+            <div className={`p-5 rounded-xl border-2 transition-all ${leadership.showHeadMistress ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-bold text-gray-800">Head Mistress</h4>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-sm font-bold text-gray-600">Show</span>
+                  <input type="checkbox" checked={leadership.showHeadMistress} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, showHeadMistress: e.target.checked}})} className="w-5 h-5 text-blue-600 rounded" />
+                </label>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-24 shrink-0">
+                  <div className="relative h-24 rounded-full border border-gray-300 overflow-hidden bg-white flex items-center justify-center group">
+                    {leadership.headMistress?.image ? <img src={leadership.headMistress.image} className="w-full h-full object-cover" /> : <FaFileUpload className="text-gray-300 text-xl" />}
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUpload(['leadership', 'headMistress', 'image'], e)} disabled={!leadership.showHeadMistress} />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <input type="text" value={leadership.headMistress?.name || ''} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, headMistress: {...leadership.headMistress, name: e.target.value}}})} className="w-full p-2 border border-gray-200 rounded-lg text-sm" placeholder="Name" disabled={!leadership.showHeadMistress} />
+                  <div>
+                    <div className="flex justify-between mb-1"><label className="text-xs font-bold text-gray-500">Speech</label><span className="text-xs text-gray-500">{hmWC} w</span></div>
+                    <textarea value={leadership.headMistress?.text || ''} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, headMistress: {...leadership.headMistress, text: e.target.value}}})} className="w-full p-2 border border-gray-200 rounded-lg text-sm h-24" placeholder="Speech text..." disabled={!leadership.showHeadMistress} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Vice Principal */}
+            <div className={`p-5 rounded-xl border-2 transition-all ${leadership.showVicePrincipal ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-bold text-gray-800">Vice Principal</h4>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-sm font-bold text-gray-600">Show</span>
+                  <input type="checkbox" checked={leadership.showVicePrincipal} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, showVicePrincipal: e.target.checked}})} className="w-5 h-5 text-blue-600 rounded" />
+                </label>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-24 shrink-0">
+                  <div className="relative h-24 rounded-full border border-gray-300 overflow-hidden bg-white flex items-center justify-center group">
+                    {leadership.vicePrincipal?.image ? <img src={leadership.vicePrincipal.image} className="w-full h-full object-cover" /> : <FaFileUpload className="text-gray-300 text-xl" />}
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleUpload(['leadership', 'vicePrincipal', 'image'], e)} disabled={!leadership.showVicePrincipal} />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <input type="text" value={leadership.vicePrincipal?.name || ''} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, vicePrincipal: {...leadership.vicePrincipal, name: e.target.value}}})} className="w-full p-2 border border-gray-200 rounded-lg text-sm" placeholder="Name" disabled={!leadership.showVicePrincipal} />
+                  <div>
+                    <div className="flex justify-between mb-1"><label className="text-xs font-bold text-gray-500">Speech</label><span className="text-xs text-gray-500">{vpWC} w</span></div>
+                    <textarea value={leadership.vicePrincipal?.text || ''} onChange={(e) => setLocalAboutPage({...localAboutPage, leadership: {...leadership, vicePrincipal: {...leadership.vicePrincipal, text: e.target.value}}})} className="w-full p-2 border border-gray-200 rounded-lg text-sm h-24" placeholder="Speech text..." disabled={!leadership.showVicePrincipal} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    );
+  };
+
+  const renderCoursesPageTab = () => {
+    const handleCoursesSave = async () => {
+      // Create a copy of localCoursesPage to process
+      const pageToSave = JSON.parse(JSON.stringify(localCoursesPage));
+      
+      // Convert text-based streams back to filtered arrays for the backend
+      if (pageToSave.streams) {
+        Object.keys(pageToSave.streams).forEach(stream => {
+          const val = pageToSave.streams[stream];
+          if (typeof val === 'string') {
+            pageToSave.streams[stream] = val.split('\n').map(s => s.trim()).filter(Boolean);
+          }
+        });
+      }
+
+      await updateSiteContent({ coursesPage: pageToSave });
+      alert('Courses page updated successfully!');
+    };
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-headline font-bold text-gray-800">Courses Page Management</h2>
+            <p className="text-gray-500 mt-2">Manage streams, wings, and rules on the Courses page.</p>
+          </div>
+          <button 
+            onClick={handleCoursesSave} 
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-md"
+          >
+            <FaSave /> Save All Changes
+          </button>
+        </header>
+
+        {/* --- 1. Higher Education --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Higher Education (Graduate/Diploma/PG)</h3>
+          <textarea
+            value={localCoursesPage?.higherEducation?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, higherEducation: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+            placeholder="Details about Graduate, Diploma, and PG courses..."
+          />
+        </section>
+
+        {/* --- 2. Higher Secondary --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Higher Secondary (XI & XII)</h3>
+          <textarea
+            value={localCoursesPage?.higherSecondary?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, higherSecondary: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px] mb-6"
+            placeholder="Introduction to Higher Secondary courses..."
+          />
+          
+          <h4 className="font-bold text-gray-700 mb-4">Streams</h4>
+          {['Science', 'Commerce', 'Arts'].map((stream) => (
+            <div key={stream} className="mb-6 last:mb-0">
+              <h5 className="font-bold text-primary mb-2">{stream} Subjects</h5>
+              <textarea
+                value={
+                  typeof (localCoursesPage?.streams?.[stream]) === 'string' 
+                    ? localCoursesPage.streams[stream] 
+                    : (localCoursesPage?.streams?.[stream] || []).join('\n')
+                }
+                onChange={(e) => {
+                  const newStreams = { ...(localCoursesPage?.streams || {}) };
+                  newStreams[stream] = e.target.value;
+                  setLocalCoursesPage({ ...localCoursesPage, streams: newStreams });
+                }}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px] font-mono text-sm"
+                placeholder="Enter subjects, one per line"
+              />
+            </div>
+          ))}
+        </section>
+
+        {/* --- 3. Upper Primary --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Upper Primary (IX & X)</h3>
+          <textarea
+            value={localCoursesPage?.upperPrimary?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, upperPrimary: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+            placeholder="Details about IX & X courses..."
+          />
+        </section>
+
+        {/* --- 4. Lower Primary --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Lower Primary (I to VIII)</h3>
+          <textarea
+            value={localCoursesPage?.lowerPrimary?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, lowerPrimary: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+            placeholder="Details about I to VIII courses..."
+          />
+        </section>
+
+        {/* --- 5. Play School & Nursery --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 border-b pb-4 mb-4">Play School & Nursery</h3>
+          <textarea
+            value={localCoursesPage?.prePrimary?.text || ''}
+            onChange={(e) => setLocalCoursesPage({ ...localCoursesPage, prePrimary: { text: e.target.value } })}
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary min-h-[100px]"
+            placeholder="Details about Play School & Nursery courses..."
+          />
+        </section>
+
+        {/* Rules Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Code of Conduct (Rules)</h3>
+            <button
+              onClick={() => setLocalCoursesPage({...localCoursesPage, rules: [...(localCoursesPage?.rules || []), { heading: "New Rule", description: "" }]})}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add Rule
+            </button>
+          </div>
+          <div className="space-y-4">
+            {(localCoursesPage?.rules || []).map((rule, index) => {
+              const ruleObj = typeof rule === 'string' ? { heading: '', description: rule } : rule;
+              return (
+                <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
+                  <span className="font-bold text-gray-400 w-6 mt-2 shrink-0">{index + 1}.</span>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="text"
+                      value={ruleObj.heading || ''}
+                      onChange={(e) => {
+                        const newRules = [...localCoursesPage.rules];
+                        newRules[index] = { ...ruleObj, heading: e.target.value };
+                        setLocalCoursesPage({...localCoursesPage, rules: newRules});
+                      }}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold"
+                      placeholder="Rule Heading (e.g. Attendance Policy)"
+                    />
+                    <textarea
+                      value={ruleObj.description || ''}
+                      onChange={(e) => {
+                        const newRules = [...localCoursesPage.rules];
+                        newRules[index] = { ...ruleObj, description: e.target.value };
+                        setLocalCoursesPage({...localCoursesPage, rules: newRules});
+                      }}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[60px]"
+                      placeholder="Rule Description"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newRules = localCoursesPage.rules.filter((_, i) => i !== index);
+                      setLocalCoursesPage({...localCoursesPage, rules: newRules});
+                    }}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderCareersTab = () => {
+    return (
+      <div className="space-y-8 animate-fade-in text-left">
+        <div className="flex border-b border-gray-200 mb-6">
+          <button 
+            onClick={() => setCareerSubTab('openings')}
+            className={`pb-4 px-6 font-bold text-sm border-b-2 transition-all ${careerSubTab === 'openings' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+          >
+            Job Openings
+          </button>
+          <button 
+            onClick={() => setCareerSubTab('guidelines')}
+            className={`pb-4 px-6 font-bold text-sm border-b-2 transition-all ${careerSubTab === 'guidelines' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+          >
+            Guidelines & Requirements
+          </button>
+        </div>
+
+        {careerSubTab === 'guidelines' ? (
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+            <h3 className="text-xl font-bold text-gray-800">Recruitment Guidelines</h3>
+            <p className="text-sm text-gray-500">Edit the text lines that appear under the guidelines sections of the Careers page. Enter each point on a new line.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700">Eligibility Criteria</label>
+                <textarea 
+                  value={(localCareerPage.eligibility || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, eligibility: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter eligibility rules, one per line"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700">Qualifications Required</label>
+                <textarea 
+                  value={(localCareerPage.qualification || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, qualification: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter qualifications required, one per line"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700">Required Documents</label>
+                <textarea 
+                  value={(localCareerPage.documents || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, documents: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter documents needed, one per line"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 font-bold">Online Application Process</label>
+                <textarea 
+                  value={(localCareerPage.online_process || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, online_process: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter online process steps, one per line"
+                />
+              </div>
+              <div className="col-span-full space-y-2">
+                <label className="block text-sm font-bold text-gray-700 font-bold">Offline Application Process</label>
+                <textarea 
+                  value={(localCareerPage.offline_process || []).join('\n')}
+                  onChange={(e) => setLocalCareerPage({...localCareerPage, offline_process: e.target.value.split('\n')})}
+                  rows="5"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                  placeholder="Enter offline process steps, one per line"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <button 
+                onClick={handleCareerPageSave}
+                className="px-8 py-3.5 bg-primary text-white rounded-xl font-bold hover:opacity-90 shadow-md transform hover:-translate-y-0.5 active:scale-95 transition-all text-xs"
+              >
+                Save Guidelines & Settings
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-primary">Career Openings</h2>
+              <p className="text-gray-500">Manage job postings listed on the Careers page.</p>
+            </div>
+            <button 
+              onClick={() => {
+                setIsAddingJob(true);
+                setEditingJobId(null);
+                setCurrentJob({ title: '', department: 'Science', type: 'Full-Time', experience: '', qualifications: '', deadline: 'Open until filled' });
+              }}
+              className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all shadow-md transform hover:-translate-y-1 text-xs"
+            >
+              <FaPlus /> Post Job Opening
+            </button>
+          </header>
+
+        {isAddingJob && (
+          <form onSubmit={handleJobSubmit} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">{editingJobId ? 'Edit Vacancy' : 'New Job Opening'}</h3>
+              <button type="button" onClick={() => setIsAddingJob(false)} className="text-gray-400 hover:text-red-500"><FaTimes size={24} /></button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Job Title</label>
+                <input 
+                  type="text" 
+                  value={currentJob.title}
+                  onChange={(e) => setCurrentJob({...currentJob, title: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary"
+                  placeholder="e.g. Senior Secondary Teacher (Physics)"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Department</label>
+                <select 
+                  value={currentJob.department}
+                  onChange={(e) => setCurrentJob({...currentJob, department: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary"
+                >
+                  <option>Science</option>
+                  <option>Arts & Humanities</option>
+                  <option>Commerce</option>
+                  <option>High School</option>
+                  <option>Nursery</option>
+                  <option>Physical Education</option>
+                  <option>Administration</option>
+                  <option>Support Staff</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Job Type</label>
+                <select 
+                  value={currentJob.type}
+                  onChange={(e) => setCurrentJob({...currentJob, type: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary"
+                >
+                  <option>Full-Time</option>
+                  <option>Part-Time</option>
+                  <option>Contract</option>
+                  <option>Temporary</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Minimum Experience</label>
+                <input 
+                  type="text" 
+                  value={currentJob.experience}
+                  onChange={(e) => setCurrentJob({...currentJob, experience: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary"
+                  placeholder="e.g. 3+ Years"
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Required Qualifications (Comma separated)</label>
+                <input 
+                  type="text" 
+                  value={currentJob.qualifications}
+                  onChange={(e) => setCurrentJob({...currentJob, qualifications: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary"
+                  placeholder="Master's in Physics, B.Ed. preferred..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Application Deadline</label>
+                <input 
+                  type="text" 
+                  value={currentJob.deadline}
+                  onChange={(e) => setCurrentJob({...currentJob, deadline: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary"
+                  placeholder="e.g. Oct 30, 2026 or Open until filled"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <button 
+                type="button" 
+                onClick={() => setIsAddingJob(false)}
+                className="px-6 py-3 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                className="px-8 py-3 bg-primary text-white rounded-xl font-bold hover:opacity-90 shadow-md"
+              >
+                {editingJobId ? 'Save Changes' : 'Post Vacancy'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {jobsLoading ? (
+             <div className="col-span-full flex justify-center py-20">
+               <FaSpinner className="animate-spin text-4xl text-primary opacity-50" />
+             </div>
+          ) : jobs.length === 0 ? (
+            <div className="col-span-full bg-white border-2 border-dashed border-gray-200 rounded-3xl p-12 text-center text-gray-400">
+              <FaBriefcase className="text-5xl mx-auto mb-4 opacity-20" />
+              <p className="text-lg font-medium">No job vacancies posted yet.</p>
+              <p className="text-sm">Active openings will show up on the public careers page.</p>
+            </div>
+          ) : jobs.map(job => (
+            <div key={job._id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex justify-between items-start gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] uppercase font-black">{job.department}</span>
+                  <span className="text-gray-400 text-xs">{job.type}</span>
+                </div>
+                <h4 className="text-xl font-bold text-gray-800 truncate">{job.title}</h4>
+                <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  <div className="flex items-center text-gray-500">
+                    <FaChalkboardTeacher className="mr-2 text-primary/50" /> {job.experience}
+                  </div>
+                  <div className="flex items-center text-gray-500">
+                    <FaCalendarAlt className="mr-2 text-amber-500/50" /> Until: {job.deadline}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {job.qualifications.map((q, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-gray-50 border border-gray-100 rounded text-[10px] text-gray-600">{q}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 shrink-0">
+                <button 
+                  onClick={() => {
+                    setEditingJobId(job._id);
+                    setIsAddingJob(true);
+                    setCurrentJob({
+                      title: job.title,
+                      department: job.department,
+                      type: job.type,
+                      experience: job.experience,
+                      qualifications: job.qualifications.join(', '),
+                      deadline: job.deadline
+                    });
+                  }}
+                  className="p-3 text-primary bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors" 
+                  title="Edit Opening"
+                >
+                  <FaEdit />
+                </button>
+                <button 
+                  onClick={() => handleDeleteJob(job._id)}
+                  className="p-3 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-colors" 
+                  title="Remove Posting"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
+        )}
+      </div>
+    );
+  };
+
+  const [localFaqs, setLocalFaqs] = useState(faqs || []);
+  const localFaqsInitRef = useRef(false);
+
+  useEffect(() => {
+    if (!localFaqsInitRef.current && !loading && faqs) {
+      setLocalFaqs(faqs);
+      localFaqsInitRef.current = true;
+    }
+  }, [faqs, loading]);
+
+  const [editingEmeritusIndex, setEditingEmeritusIndex] = useState(null);
+
+  const handleEmeritusSubmit = async (e) => {
+    e.preventDefault();
+    if (!emeritusForm.name || !emeritusForm.role || !emeritusForm.category || !emeritusForm.status) {
+      alert("Name, Role, Category and Status are required.");
+      return;
+    }
+    
+    if (emeritusForm.status === 'Deceased' && !emeritusForm.causeOfDeath) {
+      alert("Please provide the cause of death for deceased members.");
+      return;
+    }
+    
+    setIsEmeritusUploading(true);
+    try {
+      let photoUrl = emeritusForm.photo;
+      if (emeritusFile) {
+        photoUrl = await uploadImage(emeritusFile);
+      }
+
+      let newEmeritus;
+      if (isEditingEmeritus) {
+        newEmeritus = emeritus.map((item, idx) => 
+          idx === editingEmeritusIndex ? { ...emeritusForm, photo: photoUrl } : item
+        );
+      } else {
+        newEmeritus = [...(emeritus || []), { ...emeritusForm, photo: photoUrl }];
+      }
+
+      await updateSiteContent({ emeritus: newEmeritus });
+      resetEmeritusForm();
+      alert(isEditingEmeritus ? "Emeritus updated successfully!" : "Emeritus added successfully!");
+    } catch (err) {
+      alert("Emeritus save failed: " + err.message);
+    }
+    setIsEmeritusUploading(false);
+  };
+
+  const handleEditEmeritus = (member, index) => {
+    setEmeritusForm(member);
+    setEditingEmeritusIndex(index);
+    setIsEditingEmeritus(true);
+    // Scroll to form
+    const formElement = document.getElementById('emeritus-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleDeleteEmeritus = async (index) => {
+    if (window.confirm('Delete this emeritus member?')) {
+      const newEmeritus = emeritus.filter((_, i) => i !== index);
+      await updateSiteContent({ emeritus: newEmeritus });
+    }
+  };
+
+  const renderEmeritusTab = () => {
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">Alumestron Management</h2>
+          <p className="text-gray-500 mt-2">Manage the list of retired/deceased staff, teachers, and students.</p>
+        </header>
+
+        {/* Form Section */}
+        <section id="emeritus-form" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">{isEditingEmeritus ? 'Edit Alumestron Member' : 'Add New Alumestron Member'}</h3>
+          <form onSubmit={handleEmeritusSubmit} className="bg-gray-50 p-6 rounded-xl border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Name *</label>
+              <input 
+                required 
+                type="text" 
+                value={emeritusForm.name} 
+                onChange={e => setEmeritusForm({...emeritusForm, name: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+                placeholder="e.g. Fr. Alex Kapiarumala"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Role *</label>
+              <input 
+                required 
+                type="text" 
+                value={emeritusForm.role} 
+                onChange={e => setEmeritusForm({...emeritusForm, role: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+                placeholder="e.g. Former Principal / Senior Teacher"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Category *</label>
+              <select 
+                required 
+                value={emeritusForm.category} 
+                onChange={e => setEmeritusForm({...emeritusForm, category: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white"
+              >
+                <option value="Staff">Staff</option>
+                <option value="Teacher">Teacher</option>
+                <option value="Student">Student</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Status *</label>
+              <select 
+                required 
+                value={emeritusForm.status} 
+                onChange={e => setEmeritusForm({...emeritusForm, status: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white"
+              >
+                <option value="Retired">Retired</option>
+                <option value="Deceased">Deceased</option>
+              </select>
+            </div>
+            {emeritusForm.status === 'Deceased' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-gray-700 mb-1">Cause of Death *</label>
+                <input 
+                  required 
+                  type="text" 
+                  value={emeritusForm.causeOfDeath} 
+                  onChange={e => setEmeritusForm({...emeritusForm, causeOfDeath: e.target.value})} 
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+                  placeholder="e.g. Natural Causes / Accident"
+                />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Tenure</label>
+              <input 
+                type="text" 
+                value={emeritusForm.tenure} 
+                onChange={e => setEmeritusForm({...emeritusForm, tenure: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" 
+                placeholder="e.g. 1986 - 1992"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Message / Description</label>
+              <textarea 
+                value={emeritusForm.message} 
+                onChange={e => setEmeritusForm({...emeritusForm, message: e.target.value})} 
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white min-h-[100px]" 
+                placeholder="A short message or description about their contribution..."
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">Photo *</label>
+              <div className="flex flex-col gap-3">
+                {emeritusForm.photo && <img src={emeritusForm.photo} alt="Preview" className="w-24 h-24 object-cover rounded-xl shadow-sm border bg-white" />}
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => setEmeritusFile(e.target.files[0])} 
+                  className="w-full p-2 border bg-white rounded-lg text-sm" 
+                />
+                {isEmeritusUploading && <span className="text-xs text-blue-500 font-bold flex items-center gap-2"><FaSpinner className="animate-spin" /> Processing...</span>}
+              </div>
+            </div>
+            <div className="md:col-span-2 flex gap-3 pt-4 border-t mt-2">
+              <button 
+                type="submit" 
+                disabled={isEmeritusUploading}
+                className="bg-primary text-white px-8 py-3 rounded-xl font-bold hover:bg-primary/90 transition-all shadow-md flex items-center gap-2 disabled:bg-gray-400"
+              >
+                {isEmeritusUploading ? <FaSpinner className="animate-spin" /> : (isEditingEmeritus ? <FaSave /> : <FaPlus />)}
+                {isEditingEmeritus ? 'Update Member' : 'Add Member'}
+              </button>
+              {isEditingEmeritus && (
+                <button type="button" onClick={resetEmeritusForm} className="bg-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold hover:bg-gray-300 transition-all">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        {/* List Section */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Existing Alumestron Members</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {emeritus?.map((member, index) => (
+              <div key={index} className="group relative bg-gray-50 rounded-2xl p-5 border border-gray-100 hover:border-primary/30 hover:shadow-md transition-all">
+                <div className="flex items-center gap-4 mb-4">
+                  <img src={member.photo || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150"} alt={member.name} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-gray-800 truncate text-sm">{member.name}</h4>
+                    <p className="text-[10px] text-primary font-bold uppercase tracking-wider">{member.role} • {member.category}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">
+                      {member.status} {member.tenure ? `(${member.tenure})` : ''}
+                    </p>
+                    {member.status === 'Deceased' && (
+                      <p className="text-[9px] text-red-500 font-bold mt-0.5">Cause: {member.causeOfDeath}</p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-500 line-clamp-3 mb-4 italic bg-white/50 p-2 rounded-lg border border-gray-100">"{member.message || 'No message provided.'}"</p>
+                <div className="flex gap-2 justify-end pt-3 border-t border-gray-200/50">
+                  <button 
+                    onClick={() => handleEditEmeritus(member, index)}
+                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest"
+                    title="Edit"
+                  >
+                    <FaEdit /> Edit
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteEmeritus(index)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest"
+                    title="Delete"
+                  >
+                    <FaTrash /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+            {(!emeritus || emeritus.length === 0) && (
+              <div className="col-span-full py-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                <FaUserTie className="mx-auto text-5xl mb-4 text-gray-300" />
+                <p className="text-gray-500 font-medium">No legacy members found. Add one above!</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderTendersTab = () => {
+    // Filter logic
+    const filteredApps = tenderApplications.filter(app => {
+      const matchesTender = tenderAppFilter === 'All' || (app.tenderId?._id === tenderAppFilter || app.tenderId === tenderAppFilter);
+      const matchesStatus = tenderAppStatusFilter === 'All' || app.status === tenderAppStatusFilter;
+      return matchesTender && matchesStatus;
+    });
+
+    const stats = {
+      total: tenderApplications.length,
+      pending: tenderApplications.filter(a => a.status === 'Pending').length,
+      awarded: tenderApplications.filter(a => a.status === 'Awarded').length
+    };
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-4">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">Tender Management</h2>
+          <p className="text-gray-500 mt-2">Manage school tender notices and review vendor applications.</p>
+        </header>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaGavel /></div>
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Tenders</p>
+              <h4 className="text-2xl font-black text-gray-800">{tenders.length}</h4>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaClock /></div>
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Pending Bids</p>
+              <h4 className="text-2xl font-black text-gray-800">{stats.pending}</h4>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaCheckCircle /></div>
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Awarded Bids</p>
+              <h4 className="text-2xl font-black text-gray-800">{stats.awarded}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* LEFT: Post/Edit Tender Form */}
+          <div className="xl:col-span-1">
+            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 sticky top-8">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center"><FaPlus className="text-xs" /></div>
+                {editingTenderId ? 'Edit Tender Notice' : 'Post New Tender'}
+              </h3>
+              <form onSubmit={handleTenderSubmit} className="space-y-5">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tender Title *</label>
+                  <input required type="text" value={newTender.title} onChange={e => setNewTender({...newTender, title: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700" placeholder="e.g. Science Lab Supplies" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tender No. *</label>
+                    <input required type="text" value={newTender.tenderNumber} onChange={e => setNewTender({...newTender, tenderNumber: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700" placeholder="HNS/25/T-04" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Category</label>
+                    <select value={newTender.category} onChange={e => setNewTender({...newTender, category: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700">
+                      <option value="Construction">Construction</option>
+                      <option value="Supply">Supply</option>
+                      <option value="Services">Services</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="IT">IT & Computers</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Value (₹)</label>
+                    <input type="text" value={newTender.estimatedValue} onChange={e => setNewTender({...newTender, estimatedValue: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700" placeholder="5,00,000" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Closing Date *</label>
+                    <input required type="date" value={newTender.closingDate} onChange={e => setNewTender({...newTender, closingDate: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Description</label>
+                  <textarea value={newTender.description} onChange={e => setNewTender({...newTender, description: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold text-gray-700 min-h-[80px]" placeholder="Requirements details..." />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tender Document (PDF)</label>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 relative">
+                      <input type="file" accept=".pdf" onChange={e => setTenderFile(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                      <div className="w-full p-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-gray-400">
+                        <FaFileUpload /> {tenderFile ? tenderFile.name : 'Choose PDF'}
+                      </div>
+                    </div>
+                    {newTender.documentUrl && !tenderFile && <div className="p-3 bg-green-50 text-green-600 rounded-xl border border-green-100"><FaCheckCircle /></div>}
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="submit" disabled={isTenderUploading} className="flex-1 bg-primary text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">
+                    {isTenderUploading ? <FaSpinner className="animate-spin" /> : (editingTenderId ? 'Update Notice' : 'Post Notice')}
+                  </button>
+                  {editingTenderId && (
+                    <button type="button" onClick={() => { setEditingTenderId(null); setNewTender({ title: '', tenderNumber: '', category: 'Other', description: '', estimatedValue: '', closingDate: '', documentUrl: '' }); setTenderFile(null); }} className="bg-gray-100 text-gray-500 px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-200 transition-all">Cancel</button>
+                  )}
+                </div>
+              </form>
+            </section>
+          </div>
+
+          {/* RIGHT: Tenders List */}
+          <div className="xl:col-span-2 space-y-8">
+            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center"><FaGavel className="text-xs" /></div>
+                Active Tender Notices
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                      <th className="pb-4 px-2">Tender Info</th>
+                      <th className="pb-4">Category</th>
+                      <th className="pb-4">Deadline</th>
+                      <th className="pb-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {tenders.map(tender => {
+                      const appCount = tenderApplications.filter(a => (a.tenderId?._id === tender._id || a.tenderId === tender._id)).length;
+                      const isExpired = new Date(tender.closingDate) < new Date();
+                      return (
+                        <tr key={tender._id} className="group hover:bg-gray-50/50 transition-colors">
+                          <td className="py-5 px-2">
+                            <div className="text-xs font-black text-primary mb-0.5">{tender.tenderNumber}</div>
+                            <div className="font-bold text-gray-800 leading-tight">{tender.title}</div>
+                            <div className="text-[10px] font-bold text-gray-400 mt-1">{appCount} applications received</div>
+                          </td>
+                          <td className="py-5">
+                            <span className="text-[10px] font-black uppercase px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg">{tender.category}</span>
+                          </td>
+                          <td className="py-5">
+                            <div className={`text-sm font-bold ${isExpired ? 'text-red-500' : 'text-gray-700'}`}>
+                              {new Date(tender.closingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </div>
+                            {isExpired && <div className="text-[10px] font-black text-red-400 uppercase tracking-tighter">Deadline Passed</div>}
+                          </td>
+                          <td className="py-5 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => { setEditingTenderId(tender._id); setNewTender({ title: tender.title, tenderNumber: tender.tenderNumber, category: tender.category, description: tender.description || '', estimatedValue: tender.estimatedValue || '', closingDate: tender.closingDate ? new Date(tender.closingDate).toISOString().split('T')[0] : '', documentUrl: tender.documentUrl }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-all"><FaEdit className="text-xs" /></button>
+                              <button onClick={() => handleDeleteTender(tender._id)} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"><FaTrash className="text-xs" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Tender Bids List with Advanced Filtering */}
+            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center"><FaFileUpload className="text-xs" /></div>
+                    Vendor Submissions (Bids)
+                  </h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Showing {filteredApps.length} of {tenderApplications.length} total bids</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                  <select value={tenderAppFilter} onChange={e => setTenderAppFilter(e.target.value)} className="bg-gray-50 border-0 text-xs font-bold text-gray-600 px-4 py-2.5 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none">
+                    <option value="All">All Tenders</option>
+                    {tenders.map(t => <option key={t._id} value={t._id}>{t.tenderNumber} - {t.title}</option>)}
+                  </select>
+                  <select value={tenderAppStatusFilter} onChange={e => setTenderAppStatusFilter(e.target.value)} className="bg-gray-50 border-0 text-xs font-bold text-gray-600 px-4 py-2.5 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none">
+                    <option value="All">All Statuses</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Shortlisted">Shortlisted</option>
+                    <option value="Awarded">Awarded</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                  <button onClick={handleExportTenders} disabled={isExportingTenders || tenderApplications.length === 0} className="bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center gap-2">
+                    {isExportingTenders ? <FaSpinner className="animate-spin" /> : <FaDownload />} Export
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                      <th className="pb-4 px-2">Bid Reference</th>
+                      <th className="pb-4">Vendor Details</th>
+                      <th className="pb-4">Bid Amount</th>
+                      <th className="pb-4">Status</th>
+                      <th className="pb-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredApps.map(app => (
+                      <tr key={app._id} className="hover:bg-gray-50/30 transition-colors">
+                        <td className="py-5 px-2">
+                          <div className="text-xs font-black text-emerald-600 mb-0.5">{app.referenceNumber}</div>
+                          <div className="text-[10px] font-bold text-gray-400 leading-tight truncate max-w-[150px]">For: {app.tenderId?.title || 'Unknown'}</div>
+                          <div className="text-[10px] text-gray-300 mt-1">{new Date(app.createdAt).toLocaleDateString()}</div>
+                        </td>
+                        <td className="py-5">
+                          <div className="font-bold text-gray-800 leading-tight uppercase text-xs">{app.companyName}</div>
+                          <div className="text-[10px] font-bold text-gray-400 mt-1">{app.contactPerson}</div>
+                        </td>
+                        <td className="py-5">
+                          <div className="text-sm font-black text-primary">₹{Number(app.bidAmount).toLocaleString('en-IN')}</div>
+                          <div className="flex gap-1.5 mt-1.5">
+                            <a href={app.technicalProposalUrl} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase px-2 py-0.5 bg-blue-50 text-blue-500 rounded border border-blue-100 hover:bg-blue-500 hover:text-white transition-all">Tech</a>
+                            <a href={app.financialProposalUrl} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase px-2 py-0.5 bg-emerald-50 text-emerald-500 rounded border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all">Fin</a>
+                          </div>
+                        </td>
+                        <td className="py-5">
+                          <select 
+                            value={app.status} 
+                            onChange={(e) => handleTenderAppStatus(app._id, e.target.value)}
+                            className={`text-[10px] font-black uppercase px-2.5 py-1.5 rounded-lg border-0 bg-gray-50 focus:ring-2 outline-none transition-all ${
+                              app.status === 'Awarded' ? 'text-emerald-700 ring-emerald-500/20' :
+                              app.status === 'Rejected' ? 'text-red-700 ring-red-500/20' :
+                              'text-amber-700 ring-amber-500/20'
+                            }`}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Under Review">Under Review</option>
+                            <option value="Shortlisted">Shortlisted</option>
+                            <option value="Awarded">Awarded</option>
+                            <option value="Rejected">Rejected</option>
+                          </select>
+                        </td>
+                        <td className="py-5 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => setSelectedTenderApp(app)} className="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-500 rounded-lg hover:bg-primary hover:text-white transition-all"><FaFileAlt className="text-xs" /></button>
+                            <button onClick={() => { if(window.confirm('Delete this application?')) { const token = localStorage.getItem('adminToken'); fetch(`${API_URL}/tender-applications/${app._id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).then(res => { if(res.ok) setTenderApplications(tenderApplications.filter(a => a._id !== app._id)); }); } }} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"><FaTrash className="text-xs" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {filteredApps.length === 0 && <div className="py-20 text-center text-gray-400 italic bg-gray-50/50 rounded-3xl mt-4">No submissions found matching your filters.</div>}
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTenderBidModal = () => {
+    if (!selectedTenderApp) return null;
+    const app = selectedTenderApp;
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+        <div className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-slideUp">
+          <div className="bg-gray-50 px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+            <div>
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight">Bid Details</h3>
+              <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mt-1">Ref: {app.referenceNumber}</p>
+            </div>
+            <button onClick={() => setSelectedTenderApp(null)} className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-2xl shadow-sm hover:text-red-500 hover:rotate-90 transition-all"><FaTimes /></button>
+          </div>
+          
+          <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar text-left">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Company Name</label>
+                  <p className="text-lg font-black text-gray-800 leading-tight uppercase">{app.companyName}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Contact Person</label>
+                  <p className="font-bold text-gray-700">{app.contactPerson}</p>
+                  <p className="text-sm text-gray-500 mt-1">{app.phone} • {app.email}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Registration Number</label>
+                  <p className="font-mono text-sm font-bold bg-gray-100 px-3 py-1 rounded-lg inline-block text-gray-600">{app.registrationNumber}</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-primary/5 p-6 rounded-[2rem] border border-primary/10">
+                  <label className="text-[10px] font-black text-primary uppercase tracking-widest block mb-2">Total Bid Amount</label>
+                  <p className="text-3xl font-black text-primary">₹{Number(app.bidAmount).toLocaleString('en-IN')}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Documents</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <a href={app.technicalProposalUrl} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-600 hover:text-white transition-all group">
+                      <FaFileUpload className="text-xl mb-2" />
+                      <span className="text-[10px] font-black uppercase">Technical</span>
+                    </a>
+                    <a href={app.financialProposalUrl} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all group">
+                      <FaFileUpload className="text-xl mb-2" />
+                      <span className="text-[10px] font-black uppercase">Financial</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Office Address</label>
+                <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-2xl italic border border-gray-100">
+                  {app.address}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+             <div className="text-[10px] font-bold text-gray-400">SUBMITTED ON: {new Date(app.createdAt).toLocaleString()}</div>
+             <button onClick={() => setSelectedTenderApp(null)} className="px-8 py-3 bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Close</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+  const renderFaqsTab = () => {
+    const handleSaveFaqs = async () => {
+      await updateSiteContent({ faqs: localFaqs });
+      alert('FAQs updated successfully!');
+    };
+
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-headline font-bold text-gray-800">FAQs Management</h2>
+            <p className="text-gray-500 mt-2">Manage the Frequently Asked Questions displayed on the contact page.</p>
+          </div>
+          <button 
+            onClick={handleSaveFaqs} 
+            className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-all shadow-md"
+          >
+            <FaSave /> Save All Changes
+          </button>
+        </header>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center border-b pb-4 mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Frequently Asked Questions</h3>
+            <button
+              onClick={() => {
+                const newIndex = (localFaqs || []).length;
+                setLocalFaqs([...(localFaqs || []), { question: '', answer: '' }]);
+                setTimeout(() => {
+                  const el = document.getElementById(`faq-item-${newIndex}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+              }}
+              className="flex items-center px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" /> Add FAQ
+            </button>
+          </div>
+          <div className="space-y-4">
+            {(localFaqs || []).map((faq, index) => (
+              <div key={index} id={`faq-item-${index}`} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 items-start">
+                <div className="font-bold text-gray-400 w-6 pt-2">{index + 1}.</div>
+                <div className="flex-1 space-y-3">
+                  <input
+                    type="text"
+                    value={faq.question || ''}
+                    onChange={(e) => {
+                      const newFaqs = [...localFaqs];
+                      newFaqs[index].question = e.target.value;
+                      setLocalFaqs(newFaqs);
+                    }}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary font-bold"
+                    placeholder="Question (e.g. How to apply?)"
+                  />
+                  <textarea
+                    value={faq.answer || ''}
+                    onChange={(e) => {
+                      const newFaqs = [...localFaqs];
+                      newFaqs[index].answer = e.target.value;
+                      setLocalFaqs(newFaqs);
+                    }}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary min-h-[80px]"
+                    placeholder="Answer"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    const newFaqs = localFaqs.filter((_, i) => i !== index);
+                    setLocalFaqs(newFaqs);
+                  }}
+                  className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1"
+                  title="Remove FAQ"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            ))}
+            {(!localFaqs || localFaqs.length === 0) && (
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
+                <FaQuestionCircle className="mx-auto text-4xl mb-3 text-gray-300" />
+                <p>No FAQs added yet.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderStatusUpdateModal = () => {
+    if (!showStatusModal) return null;
+    
+    const { newStatus } = statusModalData;
+    const isScheduleRequired = ['entrance-exam', 'interview'].includes(newStatus);
+    const title = newStatus === 'rejected' ? 'Reject Application' : `Schedule ${newStatus === 'entrance-exam' ? 'Entrance Exam' : 'Interview'}`;
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 text-left">
+        <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-gray-100">
+          <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
+            <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+            <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full">
+              <FaTimes />
+            </button>
+          </div>
+          
+          <div className="p-6 space-y-4">
+            {isScheduleRequired && (
+              <div className="animate-in slide-in-from-top-2 duration-300">
+                <label className="block text-[10px] font-black text-primary uppercase mb-1 tracking-wider">Scheduled Date & Time</label>
+                <div className="relative">
+                  <FaCalendarAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="e.g. 15th May, 10:00 AM" 
+                    value={statusModalData.date}
+                    onChange={(e) => setStatusModalData(prev => ({ ...prev, date: e.target.value }))}
+                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-medium"
+                    autoFocus
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="animate-in slide-in-from-top-2 duration-400">
+              <label className="block text-[10px] font-black text-primary uppercase mb-1 tracking-wider">Remarks / Message to Parent</label>
+              <div className="relative">
+                <FaCommentDots className="absolute left-4 top-4 text-gray-400" />
+                <textarea 
+                  placeholder={newStatus === 'rejected' ? "Please provide a reason for rejection..." : "Any additional instructions or requirements..."}
+                  value={statusModalData.remark}
+                  onChange={(e) => setStatusModalData(prev => ({ ...prev, remark: e.target.value }))}
+                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all text-sm h-32 resize-none font-medium"
+                ></textarea>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 pt-2">
+              <button 
+                onClick={() => setShowStatusModal(false)}
+                className="flex-1 py-3 px-4 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleStatusUpdate(statusModalData.id, statusModalData.newStatus, statusModalData.remark, statusModalData.date)}
+                className={`flex-1 py-3 px-4 text-white rounded-xl font-bold transition-all shadow-lg text-sm ${
+                  newStatus === 'rejected' ? 'bg-red-500 hover:bg-red-600 shadow-red-200' : 'bg-primary hover:bg-blue-700 shadow-blue-200'
+                }`}
+              >
+                Confirm Update
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ========== AMENITIES TAB ==========
+  const [amenityUploadingIndex, setAmenityUploadingIndex] = useState(null);
+
+  const renderAmenitiesTab = () => {
+    const iconOptions = ['FaLeaf', 'FaBook', 'FaChalkboardTeacher', 'FaUserFriends', 'FaFaucet', 'FaTheaterMasks', 'FaParking', 'FaUtensils', 'FaBed', 'FaLaptop', 'FaFlask', 'FaDesktop', 'FaStar', 'FaBuilding', 'FaGraduationCap', 'FaAward', 'FaGlobe', 'FaTools'];
+
+    const handleAmenityChange = (index, field, value) => {
+      const updated = [...amenities];
+      updated[index] = { ...updated[index], [field]: value };
+      updateSiteContent({ amenities: updated });
+    };
+
+    const handleAmenityImageUpload = async (index, file) => {
+      setAmenityUploadingIndex(index);
+      try {
+        const url = await uploadImage(file);
+        handleAmenityChange(index, 'image', url);
+      } catch (err) {
+        alert('Image upload failed: ' + err.message);
+      } finally {
+        setAmenityUploadingIndex(null);
+      }
+    };
+
+    const handleAddAmenity = () => {
+      updateSiteContent({ amenities: [...amenities, { title: '', details: '', icon: 'FaLeaf', image: '' }] });
+    };
+
+    const handleRemoveAmenity = (index) => {
+      if (!window.confirm('Remove this amenity?')) return;
+      const updated = amenities.filter((_, i) => i !== index);
+      updateSiteContent({ amenities: updated });
+    };
+
+    return (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800">Campus Amenities</h3>
+            <p className="text-sm text-gray-500 mt-1">Manage amenities shown on the homepage. Upload images that appear on hover.</p>
+          </div>
+          <button onClick={handleAddAmenity} className="bg-tertiary text-white px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 shadow-lg transition-all">
+            <FaPlus /> Add Amenity
+          </button>
+        </div>
+
+        {amenities.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+            <FaLeaf className="mx-auto text-4xl text-gray-300 mb-3" />
+            <p className="text-gray-400 font-medium">No amenities added yet</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {amenities.map((item, index) => (
+              <div key={index} className="border border-gray-100 rounded-2xl p-4 bg-gray-50/50 hover:border-blue-200 transition-all group relative">
+                {/* Remove button */}
+                <button
+                  onClick={() => handleRemoveAmenity(index)}
+                  className="absolute top-3 right-3 w-7 h-7 bg-red-50 text-red-400 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600 z-10"
+                  title="Remove amenity"
+                >
+                  <FaTrash className="text-xs" />
+                </button>
+
+                {/* Image Upload Area */}
+                <div className="mb-3">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Hover Image</label>
+                  
+                  {/* Uploading overlay */}
+                  {amenityUploadingIndex === index ? (
+                    <div className="flex flex-col items-center justify-center h-32 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                      <FaSpinner className="animate-spin text-blue-500 text-2xl mb-2" />
+                      <span className="text-xs font-bold text-blue-600 tracking-wide">Uploading...</span>
+                    </div>
+                  ) : item.image ? (
+                    <div className="relative rounded-xl overflow-hidden h-32 group/img">
+                      <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <label className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-blue-50 transition-colors">
+                          Change
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && handleAmenityImageUpload(index, e.target.files[0])} />
+                        </label>
+                        <button onClick={() => handleAmenityChange(index, 'image', '')} className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 transition-colors">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+                      <FaFileUpload className="text-gray-300 text-xl mb-1" />
+                      <span className="text-xs text-gray-400 font-medium">Upload Image</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && handleAmenityImageUpload(index, e.target.files[0])} />
+                    </label>
+                  )}
+                </div>
+
+                {/* Title */}
+                <div className="mb-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={item.title || ''}
+                    onChange={(e) => handleAmenityChange(index, 'title', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all"
+                    placeholder="e.g. Science Labs"
+                  />
+                </div>
+
+                {/* Details */}
+                <div className="mb-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</label>
+                  <input
+                    type="text"
+                    value={item.details || ''}
+                    onChange={(e) => handleAmenityChange(index, 'details', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all"
+                    placeholder="e.g. Dedicated science labs"
+                  />
+                </div>
+
+                {/* Icon Selector */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Icon</label>
+                  <select
+                    value={item.icon || 'FaLeaf'}
+                    onChange={(e) => handleAmenityChange(index, 'icon', e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all bg-white"
+                  >
+                    {iconOptions.map(ic => (
+                      <option key={ic} value={ic}>{ic.replace('Fa', '')}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col font-sans relative overflow-x-hidden" style={{ backgroundColor: '#F1F5F9' }}>
+      {/* Top Navbar */}
+      <nav className="bg-white/70 backdrop-blur-xl text-blue-950 shadow-[0_4px_30px_rgba(0,0,0,0.03)] border-b border-white/50 z-50 sticky top-0 w-full">
+        <div className="flex items-center justify-between px-4 lg:px-8 py-3 relative">
+          {/* Logo / Brand */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center border border-primary/20 overflow-hidden bg-white">
+              {schoolProfile?.logo ? (
+                <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-1" />
+              ) : (
+                <FaGraduationCap className="text-primary text-lg" />
+              )}
+            </div>
+            <div className="flex flex-col justify-center items-start">
+              <h2 className="text-sm font-bold text-blue-950 leading-none tracking-wide mb-0.5">
+                {schoolProfile?.name || "School"}
+              </h2>
+              <span className="text-[10px] text-blue-600/80 font-bold uppercase tracking-[0.2em] leading-none">Admin Console</span>
+            </div>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center justify-center gap-4 absolute left-1/2 -translate-x-1/2">
+            {adminUser?.role === 'developer' && (
+              <button 
+                onClick={() => { setActiveTab('activity'); setOpenDropdown(null); }}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${activeTab === 'activity' ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+              >
+                <FaChartLine className={activeTab === 'activity' ? 'text-blue-600' : 'text-blue-400'} />
+                Activity Logs
+              </button>
+            )}
+            <button 
+              onClick={() => { setActiveTab('dashboard'); setOpenDropdown(null); }}
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${activeTab === 'dashboard' ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+            >
+              <FaChartLine /> Dashboard
+            </button>
+
+            {/* Content Management Dropdown */}
+            <div className="relative nav-dropdown-container">
+              <button 
+                onClick={() => setOpenDropdown(openDropdown === 'content' ? null : 'content')}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+              >
+                <FaImage /> Content <FaAngleDown className={`transition-transform ${openDropdown === 'content' ? 'rotate-180' : ''}`} />
+              </button>
+              {openDropdown === 'content' && (
+                <div className="absolute top-full left-0 mt-2 w-[480px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-4 grid grid-cols-2 gap-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
+                  {[
+                    { id: 'about', label: 'About Page', icon: <FaInfoCircle className="text-indigo-400"/> },
+                    { id: 'amenities', label: 'Amenities', icon: <FaLeaf className="text-emerald-500"/> },
+                    { id: 'emeritus', label: 'Alumestron', icon: <FaUserTie className="text-purple-600"/> },
+                    { id: 'alumni', label: 'Alumni', icon: <FaGraduationCap className="text-blue-400"/> },
+                    { id: 'careerAds', label: 'Career Ads', icon: <FaBriefcase className="text-cyan-600"/> },
+                    { id: 'courses', label: 'Courses Page', icon: <FaBookOpen className="text-orange-400"/> },
+                    { id: 'events', label: 'Events', icon: <FaCalendarAlt className="text-emerald-500"/> },
+                    { id: 'excellence', label: 'Excellence', icon: <FaAward className="text-amber-600"/> },
+                    { id: 'faculty', label: 'Faculty', icon: <FaChalkboardTeacher className="text-indigo-500"/> },
+                    { id: 'faqs', label: 'FAQs', icon: <FaQuestionCircle className="text-red-400"/> },
+                    { id: 'gallery', label: 'Gallery', icon: <FaImage className="text-purple-500"/> },
+                    { id: 'highlights', label: 'Highlights', icon: <FaStar className="text-yellow-500"/> },
+                    { id: 'stats', label: 'Home Stats', icon: <FaChartLine className="text-green-600"/> },
+                    { id: 'notices', label: 'Notices', icon: <FaClipboardList className="text-orange-500"/> },
+                    { id: 'banner', label: 'Popup Banner', icon: <FaImage className="text-amber-500"/> },
+                    { id: 'principal', label: 'Principal Desk', icon: <FaClipboardList className="text-slate-500"/> },
+                    { id: 'schoolProfile', label: 'School Profile', icon: <FaInfoCircle className="text-blue-500"/> },
+                    { id: 'socialMedia', label: 'Social Media', icon: <FaShareAlt className="text-blue-600"/> },
+                    { id: 'videos', label: 'Video Blog', icon: <FaVideo className="text-red-500"/> }
+                  ].map(item => (
+                    <button 
+                      key={item.id}
+                      onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
+                      className={`flex items-center gap-3 p-2 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-blue-50/80 text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-50/50 text-gray-600 font-medium'}`}
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-gray-100/50 flex items-center justify-center">
+                         {item.icon}
+                      </div>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* School Data Dropdown */}
+            <div className="relative nav-dropdown-container">
+              <button 
+                onClick={() => setOpenDropdown(openDropdown === 'data' ? null : 'data')}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['admission', 'students', 'inquiries', 'jobApplications', 'tenders'].includes(activeTab) ? 'bg-blue-500/10 text-blue-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-blue-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+              >
+                <FaUsers /> Data 
+                {(inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length > 0) && (
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-1" />
+                )}
+                <FaAngleDown className={`transition-transform ${openDropdown === 'data' ? 'rotate-180' : ''}`} />
+              </button>
+              {openDropdown === 'data' && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
+                  {[
+                    { id: 'admission', label: 'Admission', icon: <FaClipboardList className="text-blue-500"/> },
+                    { id: 'appointments', label: 'Appointments', icon: <FaCalendarCheck className="text-teal-500"/>, badge: appointments.filter(a => a.status === 'Pending').length },
+                    { id: 'inquiries', label: 'Inquiries', icon: <FaCommentDots className="text-purple-500"/>, badge: inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length },
+                    { id: 'jobApplications', label: 'Recruitment', icon: <FaBriefcase className="text-amber-500"/> },
+                    { id: 'staffLeaves', label: 'Staff Leaves', icon: <FaCalendarAlt className="text-rose-500"/> },
+                    { id: 'staffRequests', label: 'Staff Requests', icon: <FaEnvelopeOpenText className="text-cyan-500"/> },
+                    { id: 'staffAssignments', label: 'Staff Assignments', icon: <FaCalendarCheck className="text-indigo-500"/> },
+                    { id: 'staffPayroll', label: 'Payroll', icon: <FaMoneyCheckAlt className="text-green-500"/> },
+                    { id: 'staffAnnouncements', label: 'Announcements', icon: <FaBullhorn className="text-yellow-500"/> },
+                    { id: 'students', label: 'Students', icon: <FaUsers className="text-green-500"/> },
+                    { id: 'tenders', label: 'Tenders', icon: <FaGavel className="text-slate-500"/> }
+                  ].map(item => (
+                    <button 
+                      key={item.id}
+                      onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
+                      className={`flex items-center gap-3 w-full p-3 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-blue-50/80 text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-50/50 text-gray-600 font-medium'}`}
+                    >
+                      {item.icon} {item.label}
+                      {item.badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* System Control Dropdown */}
+            {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
+              <div className="relative nav-dropdown-container">
+                <button 
+                  onClick={() => setOpenDropdown(openDropdown === 'system' ? null : 'system')}
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 px-5 py-2.5 ${['adminRequests', 'admins', 'settings'].includes(activeTab) ? 'bg-amber-500/10 text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] border border-amber-200/50' : 'text-blue-800 hover:bg-white/60 hover:shadow-sm hover:text-blue-950 border border-transparent'}`}
+                >
+                  <FaCog /> System
+                  {(inquiries.filter(i => i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST') && !i.isRead).length > 0) && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-1" />
+                  )}
+                  <FaAngleDown className={`transition-transform ${openDropdown === 'system' ? 'rotate-180' : ''}`} />
+                </button>
+                {openDropdown === 'system' && (
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2 text-gray-800 animate-in fade-in slide-in-from-top-2">
+                    {[
+                      { id: 'adminRequests', label: 'Admin Access Requests', icon: <FaIdCard className="text-amber-500"/>, badge: admins.filter(a => !a.isApproved).length },
+                      { id: 'staffAccessRequests', label: 'Staff Access Requests', icon: <FaIdCard className="text-purple-500"/>, badge: pendingStaff.length },
+                      { id: 'admins', label: 'Manage Admins', icon: <FaUsers className="text-blue-500"/> },
+                      { id: 'settings', label: 'Settings', icon: <FaCog className="text-slate-500"/> }
+                    ].map(item => (
+                      <button 
+                        key={item.id}
+                        onClick={() => { setActiveTab(item.id); setOpenDropdown(null); }}
+                        className={`flex items-center gap-3 w-full p-3 rounded-2xl text-sm transition-all duration-200 text-left ${activeTab === item.id ? 'bg-amber-50/80 text-amber-700 font-bold shadow-sm' : 'hover:bg-amber-50/50 text-gray-600 font-medium'}`}
+                      >
+                        {item.icon} {item.label}
+                        {item.badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2">
+               <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${sessionRemaining <= 120 ? 'bg-red-100 text-red-600 border-red-200 animate-pulse' : 'bg-white/60 backdrop-blur-md text-blue-800 border-white/50 shadow-sm'}`}>
+                 <FaClock /> <span>{formatTimer(sessionRemaining)}</span>
+               </div>
+            </div>
+
+            <div className="hidden sm:block text-right mr-2">
+              <p className="text-sm font-semibold text-blue-950 leading-tight">{adminUser?.name || 'Admin User'}</p>
+              <p className="text-[10px] text-primary font-medium uppercase tracking-wider">
+                {adminUser?.role === 'developer' ? 'System Developer' : 
+                 adminUser?.role === 'superadmin' ? 'Super Administrator' : 
+                 'Administrator'}
+              </p>
+            </div>
+
+            <div className="relative group">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md cursor-pointer border border-blue-400/50">
+                {adminUser?.name?.charAt(0) || 'A'}
+              </div>
+              <div className="absolute top-full right-0 pt-2 w-48 hidden group-hover:block animate-in fade-in slide-in-from-top-2 z-50">
+                <div className="bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-white/60 p-2">
+                   <NavLink to="/" className="flex items-center gap-3 w-full p-3 rounded-xl text-sm transition-colors text-gray-600 hover:bg-gray-50 hover:text-blue-600 font-medium">
+                     <FaLaptop /> View Website
+                   </NavLink>
+                   <div className="h-px bg-gray-100 my-1 w-full" />
+                   <button onClick={handleLogout} className="flex items-center gap-3 w-full p-3 rounded-xl text-sm transition-colors text-red-600 hover:bg-red-50 font-bold">
+                     <FaSignOutAlt /> Logout
+                   </button>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="lg:hidden p-2.5 hover:bg-blue-100/60 rounded-xl text-blue-800 transition-colors"
+            >
+              {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile Navigation Drawer */}
+      {isSidebarOpen && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] lg:hidden animate-in fade-in duration-300"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white shadow-2xl z-[70] lg:hidden flex flex-col animate-in slide-in-from-left duration-300">
+            <div className="p-5 bg-gradient-to-br from-blue-600 to-blue-800 text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/30 text-lg font-bold">
+                  {adminUser?.name?.charAt(0) || 'A'}
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg leading-tight">Admin Menu</h2>
+                  <p className="text-blue-100 text-xs">{adminUser?.name || 'Administrator'}</p>
+                </div>
+              </div>
+              <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                <FaTimes size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-4 transition-all shadow-sm ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-500/30' : 'bg-gray-50 text-gray-700 hover:bg-blue-50'}`}>
+                <FaChartLine className={activeTab === 'dashboard' ? 'text-white' : 'text-blue-500'} size={18} /> 
+                Dashboard Overview
+              </button>
+              
+              <div>
+                <div className="flex items-center gap-2 px-2 mb-3">
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Data Management</p>
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'admission', label: 'Admission' },
+                    { id: 'students', label: 'Students' },
+                    { id: 'inquiries', label: 'Inquiries' },
+                    { id: 'jobApplications', label: 'Job Apps' },
+                    { id: 'tenders', label: 'Tenders' },
+                    { id: 'appointments', label: 'Appointments' }
+                  ].map(item => (
+                    <button key={item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl text-xs font-semibold gap-1 border transition-all ${activeTab === item.id ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-inner' : 'bg-white border-gray-100 text-gray-600 hover:border-blue-100 hover:bg-gray-50'}`}>
+                      <span className="text-center leading-tight">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 px-2 mb-3">
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Content Management</p>
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                </div>
+                <div className="space-y-1">
+                  {['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].map(id => (
+                    <button key={id} onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-2 h-2 rounded-full ${activeTab === id ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                      {id.charAt(0).toUpperCase() + id.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
+                <div>
+                  <div className="flex items-center gap-2 px-2 mb-3">
+                    <div className="h-px bg-gray-200 flex-1"></div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">System</p>
+                    <div className="h-px bg-gray-200 flex-1"></div>
+                  </div>
+                  <div className="space-y-1">
+                    <button onClick={() => { setActiveTab('adminRequests'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'adminRequests' ? 'bg-amber-50 text-amber-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-2 h-2 rounded-full ${activeTab === 'adminRequests' ? 'bg-amber-500' : 'bg-gray-300'}`} />
+                      Admin Requests
+                    </button>
+                    <button onClick={() => { setActiveTab('admins'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'admins' ? 'bg-purple-50 text-purple-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-2 h-2 rounded-full ${activeTab === 'admins' ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                      Manage Admins
+                    </button>
+                    {adminUser?.role === 'developer' && (
+                      <button onClick={() => { setActiveTab('activity'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'activity' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                        <div className={`w-2 h-2 rounded-full ${activeTab === 'activity' ? 'bg-indigo-500' : 'bg-gray-300'}`} />
+                        Login Activity
+                      </button>
+                    )}
+                    <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${activeTab === 'settings' ? 'bg-slate-50 text-slate-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <div className={`w-2 h-2 rounded-full ${activeTab === 'settings' ? 'bg-slate-500' : 'bg-gray-300'}`} />
+                      System Settings
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 bg-gray-50 shrink-0 pb-8">
+               <button onClick={handleLogout} className="w-full py-3 px-4 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors border border-red-100">
+                 <FaSignOutAlt /> Sign Out
+               </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 w-full overflow-y-auto">
+
+        <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-8" style={{ backgroundColor: '#F8FAFC' }}>
+          {activeTab === 'dashboard' && renderDashboard()}
+          {activeTab === 'gallery' && renderGalleryTab()}
+          {activeTab === 'tenders' && renderTendersTab()}
+          {activeTab === 'staffLeaves' && <AdminStaffLeaves />}
+          {activeTab === 'staffRequests' && <AdminStaffRequests />}
+          {activeTab === 'staffAssignments' && <AdminStaffAssignments />}
+          {activeTab === 'staffPayroll' && <AdminPayroll />}
+          {activeTab === 'staffAnnouncements' && <AdminAnnouncements />}
+          {activeTab === 'videos' && renderVideosTab()}
+          {activeTab === 'banner' && renderBannerTab()}
+          {activeTab === 'highlights' && renderHighlightsTab()}
+          {activeTab === 'events' && renderEventsTab()}
+          {activeTab === 'notices' && renderNoticesTab()}
+          {activeTab === 'faculty' && renderFacultyTab()}
+          { activeTab === 'principal' && renderPrincipalTab() }
+          { activeTab === 'alumni' && renderAlumniTab() }
+          { activeTab === 'excellence' && renderExcellenceTab() }
+          { activeTab === 'emeritus' && renderEmeritusTab() }
+          { activeTab === 'socialMedia' && renderSocialMediaTab() }
+          { activeTab === 'stats' && renderStatsTab() }
+          {activeTab === 'schoolProfile' && renderSchoolProfileTab()}
+          {activeTab === 'about' && renderAboutTab()}
+          {activeTab === 'courses' && renderCoursesPageTab()}
+          {activeTab === 'faqs' && renderFaqsTab()}
+          {activeTab === 'amenities' && renderAmenitiesTab()}
+          {activeTab === 'careerAds' && renderCareersTab()}
+          {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
+          {activeTab === 'activity' && adminUser?.role === 'developer' && renderActivityTab()}
+          {activeTab === 'admission' && renderAdmissionTab()}
+          {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}
+          {activeTab === 'students' && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Student Directory</h3>
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full whitespace-nowrap">
+                    Total Admitted: {students.length}
+                  </div>
+                  <button 
+                    onClick={handleExportStudents}
+                    disabled={isExportingStudents || students.length === 0}
+                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isExportingStudents ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                    {isExportingStudents ? 'Exporting...' : 'Export to Excel'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <BulkUpload 
+                  apiUrl={API_URL} 
+                  endpoint="students" 
+                  token={localStorage.getItem('adminToken')} 
+                  entityName="Students" 
+                  onUploadSuccess={fetchStudents} 
+                />
+              </div>
+
+              {students.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaUsers className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No admitted students found in the database.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2 w-10">
+                          <input 
+                            type="checkbox" 
+                            checked={students.length > 0 && selectedStudents.length === students.length}
+                            onChange={toggleAllStudents}
+                            className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary cursor-pointer"
+                          />
+                        </th>
+                        <th className="pb-3 px-2">Name</th>
+                        <th className="pb-3">Class</th>
+                        <th className="pb-3">Gender</th>
+                        <th className="pb-3">Contact</th>
+                        <th className="pb-3">Admission Date</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {students.map(student => {
+                        const sId = student._id || student.id;
+                        return (
+                        <tr key={sId} className={`hover:bg-gray-50/50 transition-colors ${selectedStudents.includes(sId) ? 'bg-primary/5' : ''}`}>
+                          <td className="py-4 px-2">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedStudents.includes(sId)}
+                              onChange={() => toggleStudentSelection(sId)}
+                              className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary cursor-pointer"
+                            />
+                          </td>
+                          <td className="py-4 px-2">
+                             <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs uppercase border border-blue-100">
+                                 {student.studentName?.charAt(0)}
+                               </div>
+                               <span className="font-bold text-gray-800">{student.studentName}</span>
+                             </div>
+                          </td>
+                          <td className="py-4"><span className="text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded uppercase tracking-tighter">{student.grade}</span></td>
+                          <td className="py-4 text-sm text-gray-600 capitalize">{student.gender}</td>
+                          <td className="py-4 font-mono text-gray-500 text-xs">{student.contactNumber}</td>
+                          <td className="py-4 text-xs text-gray-400">{new Date(student.createdAt).toLocaleDateString()}</td>
+                          <td className="py-4 text-right flex justify-end gap-3">
+                             <button 
+                               onClick={() => setViewingIdCardFor(student)}
+                               className="text-blue-400 hover:text-blue-600 transition-colors inline-flex items-center"
+                               title="View ID Card"
+                             >
+                               <FaIdBadge size={14} />
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 if(window.confirm(`Remove ${student.studentName} from student directory?`)) {
+                                   try {
+                                      const token = localStorage.getItem('adminToken');
+                                      const res = await axios.delete(`${API_URL}/students/${student._id}`, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      if(res.data.message) {
+                                        setStudents(students.filter(s => s._id !== student._id));
+                                        alert("Student removed successfully.");
+                                      }
+                                   } catch(err) {
+                                     alert("Failed to delete student: " + err.message);
+                                   }
+                                 }
+                               }} 
+                               className="text-red-400 hover:text-red-600 transition-colors inline-flex items-center"
+                             >
+                               <FaTrash size={12} />
+                             </button>
+                          </td>
+                        </tr>
+                      )})}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {appTotalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                  <button 
+                    onClick={() => setAppPage(p => Math.max(1, p - 1))}
+                    disabled={appPage === 1}
+                    className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm font-medium text-gray-500">
+                    Page <span className="text-gray-900">{appPage}</span> of <span className="text-gray-900">{appTotalPages}</span>
+                  </span>
+                  <button 
+                    onClick={() => setAppPage(p => Math.min(appTotalPages, p + 1))}
+                    disabled={appPage === appTotalPages}
+                    className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {viewingIdCardFor && (
+            <IDCardViewer 
+              student={viewingIdCardFor} 
+              schoolProfile={schoolProfile} 
+              onClose={() => setViewingIdCardFor(null)} 
+            />
+          )}
+
+          {activeTab === 'inquiries' && (() => {
+            const filteredInqs = inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST'))
+              .filter(i => inquiryTypeFilter === 'All' || i.type === inquiryTypeFilter)
+              .filter(i => inquiryStatusFilter === 'All' || (i.status || 'Submitted') === inquiryStatusFilter);
+            return (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Inquiries & Feedback</h3>
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                  <select value={inquiryTypeFilter} onChange={(e) => setInquiryTypeFilter(e.target.value)}
+                    className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-8 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer">
+                    <option value="All">All Types</option>
+                    <option value="Suggestion">Suggestion</option>
+                    <option value="Complain">Complaint</option>
+                    <option value="General Inquiry">General Inquiry</option>
+                  </select>
+                  <select value={inquiryStatusFilter} onChange={(e) => setInquiryStatusFilter(e.target.value)}
+                    className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-8 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer">
+                    <option value="All">All Status</option>
+                    <option value="Submitted">Submitted</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                  <div className="relative w-full sm:flex-1 lg:w-56 lg:flex-none">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                    <input type="text" placeholder="Search..." value={inquirySearch} onChange={(e) => setInquirySearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-xs focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all" />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="text-xs text-amber-700 bg-amber-50 font-bold uppercase px-3 py-1.5 rounded-full flex items-center gap-1">
+                      <FaEnvelopeOpenText /> Unread: {filteredInqs.filter(i => !i.isRead).length}
+                    </div>
+                  </div>
+                  <button onClick={handleExportInquiries} disabled={isExportingInquiries || filteredInqs.length === 0}
+                    className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100 whitespace-nowrap group">
+                    {isExportingInquiries ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
+                    {isExportingInquiries ? 'Exporting...' : (inquiryTypeFilter !== 'All' || inquiryStatusFilter !== 'All') ? 'Export Filtered' : 'Export All'}
+                  </button>
+                </div>
+              </div>
+
+              {filteredInqs.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaCommentDots className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No inquiries found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2">Type</th>
+                        <th className="pb-3">Tracking</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3">Sender</th>
+                        <th className="pb-3">Contact</th>
+                        <th className="pb-3">Date</th>
+                        <th className="pb-3">Subject / Message</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {filteredInqs
+                        .filter(i => {
+                          if (!inquirySearch) return true;
+                          const q = inquirySearch.toLowerCase();
+                          return (
+                            (i.trackingNumber && i.trackingNumber.toLowerCase().includes(q)) ||
+                            (i.name && i.name.toLowerCase().includes(q)) ||
+                            (i.subject && i.subject.toLowerCase().includes(q))
+                          );
+                        })
+                        .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(inquiry => (
+                        <tr key={inquiry._id} className={`hover:bg-gray-50/50 transition-colors ${!inquiry.isRead ? 'bg-blue-50/30' : ''}`}>
+                          <td className="py-4 px-2 align-top">
+                             <span className={`text-xs font-black px-2 py-1 rounded uppercase tracking-tighter ${
+                               inquiry.type === 'Complain' ? 'bg-red-100 text-red-700' :
+                               inquiry.type === 'Suggestion' ? 'bg-green-100 text-green-700' :
+                               'bg-blue-100 text-blue-700'
+                             }`}>
+                               {inquiry.type}
+                             </span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <span className="text-xs font-mono font-bold text-primary bg-primary/5 px-2 py-1 rounded">{inquiry.trackingNumber || '-'}</span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
+                              (inquiry.status || 'Submitted') === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
+                              (inquiry.status || 'Submitted') === 'Under Review' ? 'bg-blue-100 text-blue-700' :
+                              (inquiry.status || 'Submitted') === 'Resolved' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>{inquiry.status || 'Submitted'}</span>
+                          </td>
+                          <td className="py-4 font-medium text-gray-800 align-top">
+                            <div className="flex items-center">
+                              {inquiry.name}
+                              {!inquiry.isRead && <span className="w-2 h-2 rounded-full bg-blue-500 inline-block ml-2 animate-pulse"></span>}
+                            </div>
+                            {inquiry.userType && (
+                               <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-1 items-center">
+                                  <span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200 font-bold">{inquiry.userType}</span>
+                                  {inquiry.userType === 'Student' && inquiry.className && (
+                                    <span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                      Class {inquiry.className} {inquiry.section ? `(${inquiry.section})` : ''}
+                                    </span>
+                                  )}
+                               </div>
+                            )}
+                          </td>
+                          <td className="py-4 text-xs font-mono text-gray-500 align-top">
+                             <div>{inquiry.phone || '-'}</div>
+                             <div className="text-gray-400 break-all">{inquiry.email || '-'}</div>
+                          </td>
+                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(inquiry.createdAt).toLocaleDateString()}</td>
+                          <td className="py-4 text-sm text-gray-600 max-w-xs align-top">
+                             <div className="truncate font-bold text-gray-800 mb-1">{inquiry.subject || 'No Subject'}</div>
+                             <div className="text-xs text-gray-600 line-clamp-2 leading-relaxed whitespace-pre-wrap">{inquiry.message}</div>
+                             {inquiry.adminReply && (
+                               <div className="text-xs text-emerald-600 mt-1 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 line-clamp-1"><strong>Reply:</strong> {inquiry.adminReply}</div>
+                             )}
+                          </td>
+                          <td className="py-4 text-right align-top whitespace-nowrap flex items-center justify-end gap-2">
+                             <button 
+                               onClick={() => handleOpenInquiry(inquiry)}
+                               className="text-primary hover:bg-primary hover:text-white font-black text-[10px] uppercase tracking-widest transition-all bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/10 flex items-center gap-1.5"
+                             >
+                               Open
+                             </button>
+                             <button 
+                               onClick={() => handleInquiryReadToggle(inquiry._id, inquiry.isRead)} 
+                               className={`${inquiry.isRead ? 'text-gray-300' : 'text-primary' } hover:text-gray-600 transition-colors`}
+                               title={inquiry.isRead ? "Mark as Unread" : "Mark as Read"}
+                             >
+                               {inquiry.isRead ? <FaEnvelopeOpen /> : <FaEnvelope />}
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 if(window.confirm(`Delete inquiry from ${inquiry.name}?`)) {
+                                   try {
+                                      const token = localStorage.getItem('adminToken');
+                                      await axios.delete(`${API_URL}/inquiries/${inquiry._id}`, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      setInquiries(inquiries.filter(i => i._id !== inquiry._id));
+                                   } catch(err) {
+                                     alert("Failed to delete inquiry: " + err.message);
+                                   }
+                                 }
+                               }} 
+                               className="text-red-400 hover:text-red-600 transition-colors inline-flex items-center"
+                             >
+                               <FaTrash size={12} />
+                             </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            );
+          })()}
+
+          {/* Inquiry Detail/Reply Modal */}
+          {inquiryReplyModal.open && inquiryReplyModal.inquiry && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}>
+              <div className="bg-white rounded-2xl sm:rounded-[2.5rem] shadow-2xl max-w-2xl w-full overflow-hidden animate-slideUp" onClick={e => e.stopPropagation()}>
+                <div className="bg-gray-50 px-4 sm:px-8 py-4 sm:py-6 border-b border-gray-100 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-2xl font-black text-gray-800 tracking-tight">Inquiry Details</h3>
+                    <p className="text-xs font-bold text-primary uppercase tracking-widest mt-1">Tracking ID: {inquiryReplyModal.inquiry.trackingNumber}</p>
+                  </div>
+                  <button onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })} className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-2xl shadow-sm hover:text-red-500 hover:rotate-90 transition-all"><FaTimes /></button>
+                </div>
+
+                <div className="p-4 sm:p-8 max-h-[70vh] overflow-y-auto custom-scrollbar text-left">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Sender Name</label>
+                        <p className="text-lg font-black text-gray-800">{inquiryReplyModal.inquiry.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Contact Info</label>
+                        <p className="text-sm font-bold text-gray-700">{inquiryReplyModal.inquiry.phone || 'No phone'}</p>
+                        <p className="text-sm text-gray-500">{inquiryReplyModal.inquiry.email || 'No email'}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Inquiry Type</label>
+                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${
+                          inquiryReplyModal.inquiry.type === 'Complain' ? 'bg-red-100 text-red-700' :
+                          inquiryReplyModal.inquiry.type === 'Suggestion' ? 'bg-green-100 text-green-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {inquiryReplyModal.inquiry.type}
+                        </span>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Date Submitted</label>
+                        <p className="text-sm font-bold text-gray-700">{new Date(inquiryReplyModal.inquiry.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-8 p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Message Body</label>
+                    <h4 className="text-lg font-black text-gray-800 mb-2">{inquiryReplyModal.inquiry.subject}</h4>
+                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{inquiryReplyModal.inquiry.message}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Internal Status</label>
+                      <select value={inquiryReplyModal.status} onChange={e => setInquiryReplyModal(p => ({...p, status: e.target.value}))}
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 focus:ring-2 focus:ring-primary/10 outline-none text-sm font-bold appearance-none">
+                        <option value="Submitted">Submitted</option>
+                        <option value="Under Review">Under Review</option>
+                        <option value="Resolved">Resolved</option>
+                        <option value="Closed">Closed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Admin Response</label>
+                      <textarea value={inquiryReplyModal.reply} onChange={e => setInquiryReplyModal(p => ({...p, reply: e.target.value}))}
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 focus:ring-2 focus:ring-primary/10 outline-none text-sm resize-none"
+                        rows={3} placeholder="Type your response..." />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-4 sm:px-8 py-4 sm:py-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-3">
+                  <button onClick={() => setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' })}
+                    className="px-8 py-3 bg-white text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-gray-200 hover:bg-gray-100 transition-all">Discard</button>
+                  <button onClick={() => handleInquiryStatusUpdate(inquiryReplyModal.inquiry._id, inquiryReplyModal.status, inquiryReplyModal.reply)}
+                    className="px-8 py-3 bg-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20">Save & Close</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+          {/* Appointments Tab */}
+          {activeTab === 'appointments' && (() => {
+            const filtered = appointments
+              .filter(a => appointmentCategoryFilter === 'All' || a.category === appointmentCategoryFilter)
+              .filter(a => appointmentStatusFilter === 'All' || a.status === appointmentStatusFilter)
+              .filter(a => {
+                if (!appointmentSearch) return true;
+                const q = appointmentSearch.toLowerCase();
+                return (a.appointmentNumber?.toLowerCase().includes(q)) || (a.name?.toLowerCase().includes(q)) || (a.studentName?.toLowerCase().includes(q));
+              })
+              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            return (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Appointments</h3>
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                  <select value={appointmentCategoryFilter} onChange={e => setAppointmentCategoryFilter(e.target.value)}
+                    className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-8 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer">
+                    <option value="All">All Categories</option>
+                    <option value="Parent">Parent</option>
+                    <option value="Visitor">Visitor</option>
+                  </select>
+                  <select value={appointmentStatusFilter} onChange={e => setAppointmentStatusFilter(e.target.value)}
+                    className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-8 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer">
+                    <option value="All">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                  <div className="relative w-full sm:flex-1 lg:w-56 lg:flex-none">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                    <input type="text" placeholder="Search..." value={appointmentSearch} onChange={e => setAppointmentSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-xs focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all" />
+                  </div>
+                  <div className="text-xs text-amber-700 bg-amber-50 font-bold uppercase px-3 py-1.5 rounded-full flex items-center gap-1">
+                    Pending: {appointments.filter(a => a.status === 'Pending').length}
+                  </div>
+                  <button onClick={handleExportAppointments} disabled={isExportingAppointments || filtered.length === 0}
+                    className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100 whitespace-nowrap group">
+                    {isExportingAppointments ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
+                    Export
+                  </button>
+                </div>
+              </div>
+              {filtered.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaCalendarCheck className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No appointments found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2">Category</th>
+                        <th className="pb-3">Apt. No</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3">Name</th>
+                        <th className="pb-3">Details</th>
+                        <th className="pb-3">Purpose</th>
+                        <th className="pb-3">Date</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {filtered.map(apt => (
+                        <tr key={apt._id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-4 px-2 align-top">
+                            <span className={`text-xs font-black px-2 py-1 rounded uppercase ${apt.category === 'Parent' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{apt.category}</span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <span className="text-xs font-mono font-bold text-primary bg-primary/5 px-2 py-1 rounded">{apt.appointmentNumber}</span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${
+                              apt.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                              apt.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                              apt.status === 'Completed' ? 'bg-blue-100 text-blue-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>{apt.status}</span>
+                          </td>
+                          <td className="py-4 align-top">
+                            <div className="font-medium text-gray-800 text-sm">{apt.name}</div>
+                            <div className="text-xs text-gray-400 font-mono">{apt.phone}</div>
+                            {apt.email && <div className="text-xs text-gray-400 break-all">{apt.email}</div>}
+                          </td>
+                          <td className="py-4 align-top text-xs text-gray-600 max-w-[200px]">
+                            {apt.category === 'Parent' ? (
+                              <div>
+                                <div className="font-bold text-gray-800">Student: {apt.studentName}</div>
+                                <div>Class: {apt.studentClass}</div>
+                                {apt.schoolIdCard && <a href={apt.schoolIdCard} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1 mt-1"><FaEye size={10}/> View ID</a>}
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="font-mono font-bold">Aadhaar: {apt.aadhaarNumber}</div>
+                                {apt.aadhaarDocument && <a href={apt.aadhaarDocument} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1 mt-1"><FaEye size={10}/> View Doc</a>}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-4 align-top text-xs text-gray-600 max-w-[180px]">
+                            <div className="line-clamp-2">{apt.purpose}</div>
+                            {apt.adminRemark && <div className="text-emerald-600 mt-1 bg-emerald-50 px-2 py-0.5 rounded text-[10px] border border-emerald-100 line-clamp-1"><strong>Remark:</strong> {apt.adminRemark}</div>}
+                          </td>
+                          <td className="py-4 align-top text-xs text-gray-400">
+                            {new Date(apt.createdAt).toLocaleDateString()}
+                            {apt.appointmentDate && <div className="text-primary font-bold mt-0.5">For: {new Date(apt.appointmentDate).toLocaleDateString()}</div>}
+                          </td>
+                          <td className="py-4 text-right align-top whitespace-nowrap">
+                            <button onClick={() => setAppointmentModal({ open: true, apt, status: apt.status, remark: apt.adminRemark || '' })}
+                              className="text-emerald-500 hover:text-emerald-700 font-bold text-xs mr-2 transition-colors">Update</button>
+                            <button onClick={async () => {
+                              if (window.confirm(`Delete appointment ${apt.appointmentNumber}?`)) {
+                                try {
+                                  const token = localStorage.getItem('adminToken');
+                                  await axios.delete(`${API_URL}/appointments/${apt._id}`, { headers: { Authorization: `Bearer ${token}` } });
+                                  setAppointments(appointments.filter(a => a._id !== apt._id));
+                                } catch (err) { alert('Failed to delete.'); }
+                              }
+                            }} className="text-red-400 hover:text-red-600 transition-colors"><FaTrash size={12} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            );
+          })()}
+
+          {/* Appointment Status Modal */}
+          {appointmentModal.open && appointmentModal.apt && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setAppointmentModal({ open: false, apt: null, status: '', remark: '' })}>
+              <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Update Appointment</h3>
+                <p className="text-xs text-gray-400 font-mono mb-4">{appointmentModal.apt.appointmentNumber} — {appointmentModal.apt.name}</p>
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Status</label>
+                  <select value={appointmentModal.status} onChange={e => setAppointmentModal(p => ({...p, status: e.target.value}))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm font-bold">
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+                <div className="mb-5">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Admin Remark</label>
+                  <textarea value={appointmentModal.remark} onChange={e => setAppointmentModal(p => ({...p, remark: e.target.value}))}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm resize-none"
+                    rows={3} placeholder="Add a remark..." />
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button onClick={() => setAppointmentModal({ open: false, apt: null, status: '', remark: '' })}
+                    className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-all">Cancel</button>
+                  <button onClick={() => handleAppointmentStatusUpdate(appointmentModal.apt._id, appointmentModal.status, appointmentModal.remark)}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">Save</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'adminRequests' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (() => {
+            const adminReqs = admins.filter(a => !a.isApproved);
+            return (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Admin Access Requests</h3>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="relative w-full sm:w-64">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                    <input 
+                      type="text" 
+                      placeholder="Search Name/Email..." 
+                      value={inquirySearch}
+                      onChange={(e) => setInquirySearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                     <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full">
+                       Total: {adminReqs.length}
+                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {adminReqs.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaIdCard className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No new admin account requests found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2">Type</th>
+                        <th className="pb-3">Candidate</th>
+                        <th className="pb-3">Contact</th>
+                        <th className="pb-3">Date</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {adminReqs
+                        .filter(i => {
+                          if (!inquirySearch) return true;
+                          const q = inquirySearch.toLowerCase();
+                          return (
+                            (i.name && i.name.toLowerCase().includes(q)) ||
+                            (i.email && i.email.toLowerCase().includes(q))
+                          );
+                        })
+                        .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(req => (
+                        <tr key={req._id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-4 px-2 align-top">
+                             <span className="text-xs font-black px-2 py-1 rounded uppercase tracking-tighter bg-amber-100 text-amber-700">
+                               Pending Admin
+                             </span>
+                          </td>
+                          <td className="py-4 font-medium text-gray-800 align-top">
+                            {req.name}
+                          </td>
+                          <td className="py-4 text-xs font-mono text-gray-500 align-top">
+                             <div>{req.phone || '-'}</div>
+                             <div className="text-gray-400 break-all">{req.email || '-'}</div>
+                          </td>
+                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(req.createdAt).toLocaleDateString()}</td>
+                          <td className="py-4 text-right align-top whitespace-nowrap">
+                             <button 
+                               onClick={() => handleApproveAdmin(req._id)} 
+                               className="text-green-600 hover:text-green-800 font-bold text-xs mr-3 transition-colors uppercase tracking-wider"
+                             >
+                               Approve
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 if(window.confirm(`Are you sure you want to permanently delete the request for ${req.name}?`)) {
+                                   try {
+                                      const token = localStorage.getItem('adminToken');
+                                      await axios.delete(`${API_URL}/auth/admins/${req._id}`, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      fetchAdmins();
+                                   } catch(err) {
+                                     alert("Failed to delete request: " + (err.response?.data?.message || err.message));
+                                   }
+                                 }
+                               }} 
+                               className="text-red-400 hover:text-red-600 transition-colors inline-flex items-center text-xs font-bold uppercase tracking-wider"
+                             >
+                               <FaTrash size={12} className="mr-1" /> Delete
+                             </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            );
+          })()}
+
+          {activeTab === 'staffAccessRequests' && (() => {
+            return (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Staff Access Requests</h3>
+              </div>
+
+              {pendingStaff.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaIdCard className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No new staff account requests found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
+                        <th className="pb-3 px-2">Type</th>
+                        <th className="pb-3">Candidate</th>
+                        <th className="pb-3">Contact</th>
+                        <th className="pb-3">Date</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {pendingStaff.map(req => (
+                        <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-4 px-2">
+                            <span className="bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded text-[10px] uppercase">
+                              Staff Request
+                            </span>
+                          </td>
+                          <td className="py-4">
+                            <div className="font-bold text-sm text-gray-800">{req.name}</div>
+                            <div className="text-xs text-gray-500">{req.email}</div>
+                          </td>
+                          <td className="py-4">
+                            <div className="text-sm font-medium text-gray-700">{req.phone}</div>
+                          </td>
+                          <td className="py-4">
+                            <div className="text-sm font-medium text-gray-700">{new Date(req.created_at).toLocaleDateString()}</div>
+                          </td>
+                          <td className="py-4 text-right">
+                            <button
+                              onClick={() => handleApproveStaff(req.id)}
+                              className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg text-xs transition-colors shadow-sm"
+                            >
+                              Approve
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            );
+          })()}
+
+          {activeTab === 'jobApplications' && (
+            <div className="bg-white/80 backdrop-blur-xl p-4 sm:p-6 md:p-8 rounded-2xl md:rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight">Recruitment Console</h3>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">Review and process faculty job applications</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+                  <div className="relative group">
+                    <select 
+                      value={jobStatusFilter} 
+                      onChange={(e) => setJobStatusFilter(e.target.value)}
+                      className="appearance-none text-[11px] font-black uppercase tracking-wider border-2 border-gray-100 rounded-xl px-4 py-2.5 pr-10 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white transition-all cursor-pointer hover:border-gray-200"
+                    >
+                      <option value="All">All Status</option>
+                      <option value="pending">Pending</option>
+                      <option value="shortlisted">Shortlisted</option>
+                      <option value="interviewed">Interviewed</option>
+                      <option value="hired">Hired</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                    <FaAngleDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-primary transition-colors" size={10} />
+                  </div>
+
+                  {selectedJobAppIds.length > 0 && (
+                    <button 
+                      onClick={handleBulkDeleteJobs}
+                      className="flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-200 animate-in fade-in zoom-in"
+                    >
+                      <FaTrash size={12} /> Delete ({selectedJobAppIds.length})
+                    </button>
+                  )}
+
+                  <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
+                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Active:</span>
+                     <span className="text-xs font-black text-primary">{filteredJobApps.length}</span>
+                  </div>
+
+                  <button 
+                    onClick={handleExportJobs}
+                    disabled={isExportingJobs || jobApplications.length === 0}
+                    className="flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:shadow-xl hover:shadow-emerald-200 transition-all disabled:opacity-50 disabled:shadow-none shadow-lg shadow-emerald-100 whitespace-nowrap group"
+                  >
+                    {isExportingJobs ? <FaSpinner className="animate-spin" /> : <FaDownload className="group-hover:translate-y-0.5 transition-transform" />}
+                    {isExportingJobs ? 'Export to Excel' : 'Export to Excel'}
+                  </button>
+                </div>
+              </div>
+
+              {jobApplicationsLoading ? (
+                <div className="text-center py-20">
+                  <FaSpinner className="animate-spin text-primary text-4xl mx-auto mb-4" />
+                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading Applications...</p>
+                </div>
+              ) : jobApplications.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <FaBriefcase className="mx-auto text-gray-300 text-4xl mb-3" />
+                  <p className="text-gray-500">No applications received yet.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">
+                        <th className="pb-4">
+                          <input 
+                            type="checkbox" 
+                            className="rounded-md border-gray-200 text-primary focus:ring-primary transition-all w-4 h-4 cursor-pointer"
+                            checked={filteredJobApps.length > 0 && filteredJobApps.every(app => selectedJobAppIds.includes(app._id))}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedJobAppIds(prev => [...new Set([...prev, ...filteredJobApps.map(app => app._id)])]);
+                              } else {
+                                setSelectedJobAppIds(prev => prev.filter(id => !filteredJobApps.some(app => app._id === id)));
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="pb-4 font-semibold">S.N.</th>
+                        <th className="pb-4 px-2">Ref No.</th>
+                        <th className="pb-4">Candidate Information</th>
+                        <th className="pb-4">Expertise</th>
+                        <th className="pb-4">Experience</th>
+                        <th className="pb-4">Status</th>
+                        <th className="pb-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {filteredJobApps.map((app, index) => (
+                        <tr key={app._id} className={`border-b border-gray-50/50 hover:bg-blue-50/20 transition-all group ${selectedJobAppIds.includes(app._id) ? 'bg-blue-50/50' : ''}`}>
+                          <td className="py-5">
+                            <input 
+                              type="checkbox" 
+                              className="rounded-md border-gray-200 text-primary focus:ring-primary transition-all w-4 h-4 cursor-pointer"
+                              checked={selectedJobAppIds.includes(app._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedJobAppIds(prev => [...prev, app._id]);
+                                } else {
+                                  setSelectedJobAppIds(prev => prev.filter(id => id !== app._id));
+                                }
+                              }}
+                            />
+                          </td>
+                          <td className="py-5 text-[11px] text-gray-400 font-bold tracking-wider">{String(index + 1).padStart(2, '0')}</td>
+                          <td className="py-5 px-2">
+                             <span className="font-mono text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                               {app.referenceNumber}
+                             </span>
+                          </td>
+                          <td className="py-5">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-900 text-sm group-hover:text-primary transition-colors">{app.fullName}</span>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{app.email}</span>
+                            </div>
+                          </td>
+                          <td className="py-5">
+                            <span className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1 rounded-full">{app.qualification}</span>
+                          </td>
+                          <td className="py-5">
+                            <div className="flex items-center gap-2 text-gray-500">
+                               <FaBriefcase size={10} className="text-gray-300" />
+                               <span className="text-xs font-medium">{app.totalExperience}</span>
+                            </div>
+                          </td>
+                          <td className="py-5">
+                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border-2 shadow-sm ${
+                              app.status === 'shortlisted' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                              app.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' :
+                              'bg-amber-50 text-amber-700 border-amber-100'
+                            }`}>{app.status}</span>
+                          </td>
+                          <td className="py-4 text-right">
+                             <button onClick={() => setSelectedJobApp(app)} className="text-primary hover:underline font-bold text-sm mr-4">View Detail</button>
+                             <button 
+                               onClick={async () => {
+                                 if(window.confirm(`Delete application from ${app.fullName}?`)) {
+                                   try {
+                                      const token = localStorage.getItem('adminToken');
+                                      await axios.delete(`${API_URL}/job-applications/${app._id}`, {
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                      setJobApplications(jobApplications.filter(a => a._id !== app._id));
+                                   } catch(err) {
+                                     alert("Failed to delete: " + err.message);
+                                   }
+                                 }
+                               }} 
+                               className="text-red-400 hover:text-red-600 transition-colors"
+                             >
+                                <FaTrash size={12} />
+                             </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+
+        {/* --- Application View Modal --- */}
+        {/* --- Job Application View Modal --- */}
+        {selectedJobApp && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
+              <div className="p-4 sm:p-6 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Job Candidate Details</h2>
+                  <p className="text-sm text-gray-500">Ref: <span className="font-mono font-bold text-blue-600">{selectedJobApp.referenceNumber}</span></p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => handleDownloadJobPDF(selectedJobApp)}
+                    disabled={isDownloadingPDF}
+                    className="flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary hover:text-white px-4 py-2 rounded-xl font-bold transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Download Application PDF"
+                  >
+                    {isDownloadingPDF ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Generating...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <FaDownload />
+                        <span className="hidden sm:inline">Download PDF</span>
+                      </>
+                    )}
+                  </button>
+                  <button onClick={() => setSelectedJobApp(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500">
+                    <FaPlus className="rotate-45 text-2xl" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+                {/* Header Info */}
+                <div className="flex flex-col md:flex-row gap-4 sm:gap-8 mb-6 sm:mb-10 pb-6 sm:pb-8 border-b border-gray-100">
+                  {selectedJobApp.photo && (
+                    <img src={selectedJobApp.photo} alt="Candidate" className="w-32 h-32 rounded-2xl object-cover border-4 border-white shadow-xl" />
+                  )}
+                  <div className="flex-1">
+                    <h3 className="text-3xl font-bold text-gray-900 mb-2">{selectedJobApp.fullName}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                      <p><span className="text-gray-400 font-bold uppercase text-[10px] block">Email</span> <span className="font-medium">{selectedJobApp.email}</span></p>
+                      <p><span className="text-gray-400 font-bold uppercase text-[10px] block">Phone</span> <span className="font-medium">{selectedJobApp.phone}</span></p>
+                      <p><span className="text-gray-400 font-bold uppercase text-[10px] block">DOB / Age</span> <span className="font-medium">{selectedJobApp.dob} ({selectedJobApp.age} Years)</span></p>
+                      <p><span className="text-gray-400 font-bold uppercase text-[10px] block">Gender</span> <span className="font-medium capitalize">{selectedJobApp.gender}</span></p>
+                      <p><span className="text-gray-400 font-bold uppercase text-[10px] block">Caste / Religion</span> <span className="font-medium uppercase">{selectedJobApp.caste} / {selectedJobApp.religion}</span></p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  {/* Left Column: Details */}
+                  <div className="space-y-8">
+                    <section>
+                      <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-4">Qualifications & Experience</h4>
+                      <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
+                        <p><span className="text-xs text-gray-400 block font-bold">Highest Qualification</span> <span className="font-bold text-gray-800">{selectedJobApp.qualification}</span></p>
+                        <p><span className="text-xs text-gray-400 block font-bold">Status</span> <span className="font-bold text-gray-800">{selectedJobApp.isExperienced ? 'Experienced Professional' : 'Fresher / Entry Level'}</span></p>
+                        {selectedJobApp.isExperienced && (
+                          <>
+                            <p><span className="text-xs text-gray-400 block font-bold">Previous School</span> <span className="font-bold text-gray-800">{selectedJobApp.schoolName}</span></p>
+                            <p><span className="text-xs text-gray-400 block font-bold">Exp Years</span> <span className="font-bold text-gray-800">{selectedJobApp.totalExperience}</span></p>
+                            <p><span className="text-xs text-gray-400 block font-bold">UDISE Code</span> <span className="font-bold text-gray-800 font-mono">{selectedJobApp.udiseCode}</span></p>
+                          </>
+                        )}
+                      </div>
+                    </section>
+                    <section>
+                      <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-4">Identity & Address</h4>
+                      <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
+                        <p><span className="text-xs text-gray-400 block font-bold">Aadhar Number</span> <span className="font-mono font-medium">{selectedJobApp.aadhar}</span></p>
+                        <p><span className="text-xs text-gray-400 block font-bold">PAN Number</span> <span className="font-mono font-medium">{selectedJobApp.pan}</span></p>
+                        <p><span className="text-xs text-gray-400 block font-bold">Full Address</span> <span className="text-sm leading-relaxed">{selectedJobApp.address}, {selectedJobApp.postOffice}, {selectedJobApp.policeStation}, {selectedJobApp.pincode}</span></p>
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* Right Column: Files */}
+                  <div>
+                    <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-4">Submitted Documents</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      {[
+                        { label: 'Resume / CV', key: 'resume', icon: <FaClipboardList className="text-blue-500" /> },
+                        { label: 'Signature', key: 'signature', icon: <FaEdit className="text-gray-500" /> },
+                        { label: 'Class 10 Marksheet', key: 'marksheet10', icon: <FaClipboardList /> },
+                        { label: 'Class 10 Pass Cert', key: 'cert10', icon: <FaCheckCircle /> },
+                        { label: 'Class 12 Marksheet', key: 'marksheet12', icon: <FaClipboardList /> },
+                        { label: 'Class 12 Pass Cert', key: 'cert12', icon: <FaCheckCircle /> },
+                        { label: 'UG Marksheet', key: 'marksheetUG', icon: <FaClipboardList /> },
+                        { label: 'UG Pass Cert', key: 'certUG', icon: <FaCheckCircle /> },
+                        { label: 'PG Marksheet', key: 'marksheetPG', icon: <FaClipboardList /> },
+                        { label: 'PG Pass Cert', key: 'certPG', icon: <FaCheckCircle /> },
+                        { label: 'B.Ed Marksheet', key: 'marksheetBEd', icon: <FaClipboardList /> },
+                        { label: 'B.Ed Pass Cert', key: 'certBEd', icon: <FaCheckCircle /> },
+                        { label: 'D.Led Marksheet', key: 'marksheetDLed', icon: <FaClipboardList /> },
+                        { label: 'D.Led Pass Cert', key: 'certDLed', icon: <FaCheckCircle /> },
+                        { label: 'Experience Cert', key: 'expCertificate', icon: <FaBriefcase /> },
+                        { label: 'Caste Cert', key: 'casteCertificate', icon: <FaIdCard /> },
+                        { label: 'Applicant Photo', key: 'photo', icon: <FaImage /> },
+                        { label: 'Aadhaar Document', key: 'aadhar_doc', icon: <FaIdCard className="text-red-500" /> },
+                        { label: 'Employment Exchange Cert', key: 'employment_exchange_cert', icon: <FaClipboardList className="text-amber-500" /> },
+                        { label: 'Other Document', key: 'other_doc', icon: <FaFileAlt className="text-gray-500" /> },
+                      ].map(doc => (
+                        selectedJobApp[doc.key] ? (
+                          <button 
+                            key={doc.key} 
+                            onClick={() => handleDownloadFile(selectedJobApp[doc.key], `${selectedJobApp.fullName.replace(/\s+/g, '_')}_${doc.label.replace(/\s+/g, '_')}`)}
+                            className="flex items-center text-left gap-3 p-3 bg-white border border-gray-200 rounded-xl hover:border-primary hover:shadow-md transition-all group w-full"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                              {doc.icon}
+                            </div>
+                            <span className="text-xs font-bold text-gray-700">{doc.label}</span>
+                            <FaDownload className="ml-auto text-gray-300 group-hover:text-primary transition-colors" size={12} />
+                          </button>
+                        ) : null
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* --- Tracking & Selection Console --- */}
+                <div className="mt-8 pt-8 border-t border-gray-100">
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <FaInfoCircle className="text-primary" /> Application Tracking & Letter Settings
+                  </h4>
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Physical Interview Date</label>
+                      <input 
+                        type="datetime-local" 
+                        value={trackingForm.interviewDate}
+                        onChange={(e) => setTrackingForm({...trackingForm, interviewDate: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Interview Status</label>
+                      <select 
+                        value={trackingForm.interviewStatus}
+                        onChange={(e) => setTrackingForm({...trackingForm, interviewStatus: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                      >
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="no_show">No Show</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Interview Result Release Date</label>
+                      <input 
+                        type="date" 
+                        value={trackingForm.interviewResultDate}
+                        onChange={(e) => setTrackingForm({...trackingForm, interviewResultDate: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div className="col-span-full space-y-2">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Authority Notes / Message</label>
+                      <textarea 
+                        value={trackingForm.adminMessage}
+                        onChange={(e) => setTrackingForm({...trackingForm, adminMessage: e.target.value})}
+                        rows="2"
+                        className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                        placeholder="Add custom notes against the Reference ID (Candidate can view this in tracking console)..."
+                      />
+                    </div>
+
+                    {/* Preliminary Letter checkbox */}
+                    <div className="col-span-full flex items-center justify-between border-t pt-4 mt-2">
+                      <div className="flex items-center text-left">
+                        <div className="mr-3 text-primary">
+                          <FaFileAlt size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-sm">Generate Preliminary Appointment Letter</h4>
+                          <p className="text-xs text-gray-500">Provide terms for selection. The candidate can download the letter PDF.</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={trackingForm.hasLetter} 
+                          onChange={(e) => setTrackingForm({...trackingForm, hasLetter: e.target.checked})} 
+                          className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    {trackingForm.hasLetter && (
+                      <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 animate-fadeIn">
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Recruitment Type</label>
+                          <select 
+                            value={trackingForm.recruitmentType}
+                            onChange={(e) => setTrackingForm({...trackingForm, recruitmentType: e.target.value})}
+                            className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                          >
+                            <option value="TEMPORARY">TEMPORARY</option>
+                            <option value="PERMANENT">PERMANENT</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Offered Salary Details</label>
+                          <input 
+                            type="text" 
+                            value={trackingForm.salary}
+                            onChange={(e) => setTrackingForm({...trackingForm, salary: e.target.value})}
+                            className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                            placeholder="e.g. INR 25,000 / month"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Notice Period</label>
+                          <input 
+                            type="text" 
+                            value={trackingForm.noticePeriod}
+                            onChange={(e) => setTrackingForm({...trackingForm, noticePeriod: e.target.value})}
+                            className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                            placeholder="e.g. 30 days"
+                          />
+                        </div>
+                        <div className="col-span-full space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Additional Letter Notes / Terms</label>
+                          <textarea 
+                            value={trackingForm.letterNotes}
+                            onChange={(e) => setTrackingForm({...trackingForm, letterNotes: e.target.value})}
+                            rows="2"
+                            className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
+                            placeholder="e.g. Subject to medical fitness and document verification..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="col-span-full flex justify-end pt-4 mt-2 border-t">
+                      <button 
+                        type="button" 
+                        onClick={handleSaveTracking}
+                        className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-all"
+                      >
+                        Save Tracking & Letter Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-gray-50 border-t flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">Update Status:</span>
+                  <select 
+                    value={selectedJobApp.status}
+                    onChange={async (e) => {
+                      try {
+                         const newStatus = e.target.value;
+                         const token = localStorage.getItem('adminToken');
+                         await axios.patch(`${API_URL}/job-applications/${selectedJobApp._id}/status`, 
+                           { status: newStatus },
+                           { headers: { Authorization: `Bearer ${token}` }}
+                         );
+                         setSelectedJobApp({ ...selectedJobApp, status: newStatus });
+                         setJobApplications(jobApplications.map(a => a._id === selectedJobApp._id ? { ...a, status: newStatus } : a));
+                         alert("Status updated successfully.");
+                      } catch(err) {
+                        alert("Update failed: " + err.message);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border-2 outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
+                      selectedJobApp.status === 'shortlisted' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                      selectedJobApp.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                      'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="shortlisted">Shortlisted</option>
+                    <option value="interviewed">Interviewed</option>
+                    <option value="hired">Hired</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => setSelectedJobApp(null)}
+                  className="bg-gray-800 text-white font-bold px-8 py-3 rounded-xl hover:bg-gray-900 transition-all shadow-lg"
+                >
+                  Close Detail
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedApp && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
+              <div className="p-4 sm:p-6 border-b flex justify-between items-center bg-gray-50">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">Student Application Details</h2>
+                  <p className="text-sm text-gray-500">App ID: {selectedApp.referenceNumber || selectedApp._id.slice(-6).toUpperCase()}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <button 
+                    onClick={() => handleDownloadPDF(selectedApp)}
+                    disabled={isDownloadingPDF}
+                    className="flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary hover:text-white px-4 py-2 rounded-xl font-bold transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Download Application PDF"
+                  >
+                    {isDownloadingPDF ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Generating...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <FaFileAlt />
+                        <span className="hidden sm:inline">Application PDF</span>
+                      </>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => handleDownloadAllDocuments(selectedApp)}
+                    disabled={isDownloadingFiles}
+                    className="flex items-center gap-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-4 py-2 rounded-xl font-bold transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-100 shadow-sm"
+                    title="Download All Documents (ZIP)"
+                  >
+                    {isDownloadingFiles ? (
+                      <span className="flex items-center gap-2">
+                        <FaSpinner className="animate-spin" />
+                        <span>Zipping...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <FaFileUpload />
+                        <span className="hidden sm:inline">Download All Docs</span>
+                      </>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteApplication(selectedApp._id)}
+                    className="p-2.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"
+                    title="Delete Application"
+                  >
+                    <FaTrash size={16} />
+                  </button>
+                  <button onClick={() => setSelectedApp(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500">
+                    <FaPlus className="rotate-45 text-2xl" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+                {/* Student Photo */}
+                {selectedApp.studentPhoto && (
+                  <div className="flex justify-center mb-8">
+                    <img src={selectedApp.studentPhoto} alt="Student" className="w-28 h-28 rounded-2xl object-cover border-4 border-primary/20 shadow-lg" />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 mb-6 sm:mb-10">
+                  <div className="col-span-1 border-r border-gray-100 pr-4">
+                    <h4 className="text-xs uppercase font-bold text-gray-400 mb-3 tracking-widest">Personal Information</h4>
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Name:</span> <span className="text-gray-900 font-medium block text-lg">{selectedApp.studentName}</span></p>
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Grade Applied:</span> <span className="font-medium uppercase text-sm bg-primary/10 text-primary px-2 py-1 rounded inline-block mt-1">{selectedApp.gradeApplied}</span></p>
+                    {selectedApp.nccInterest && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">NCC Interest:</span> <span className="font-medium text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded inline-block mt-1">YES (11th Assam Bn)</span></p>}
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">DOB:</span> <span className="text-gray-900 block">{selectedApp.dateOfBirth}</span></p>
+                    {selectedApp.placeOfBirth && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Place of Birth:</span> <span className="text-gray-900 block">{selectedApp.placeOfBirth}</span></p>}
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Gender:</span> <span className="text-gray-900 block">{selectedApp.gender}</span></p>
+                    {selectedApp.bloodGroup && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Blood Group:</span> <span className="text-gray-900 block">{selectedApp.bloodGroup}</span></p>}
+                    {selectedApp.religion && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Religion:</span> <span className="text-gray-900 block">{selectedApp.religion}</span></p>}
+                    {selectedApp.caste && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Caste:</span> <span className="text-gray-900 block">{selectedApp.caste}</span></p>}
+                  </div>
+                  <div className="col-span-1 border-r border-gray-100 pr-4">
+                    <h4 className="text-xs uppercase font-bold text-gray-400 mb-3 tracking-widest">Parent/Guardian</h4>
+                    {selectedApp.guardianName && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Guardian:</span> <span className="text-gray-900 block">{selectedApp.guardianName} {selectedApp.relationship ? `(${selectedApp.relationship})` : ''}</span></p>}
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Father:</span> <span className="text-gray-900 block">{selectedApp.fatherName || 'N/A'}</span></p>
+                    {selectedApp.fatherOccupation && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Father's Occupation:</span> <span className="text-gray-900 block">{selectedApp.fatherOccupation}</span></p>}
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Mother:</span> <span className="text-gray-900 block">{selectedApp.motherName || 'N/A'}</span></p>
+                    {selectedApp.motherOccupation && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Mother's Occupation:</span> <span className="text-gray-900 block">{selectedApp.motherOccupation}</span></p>}
+                  </div>
+                  <div className="col-span-1">
+                    <h4 className="text-xs uppercase font-bold text-gray-400 mb-3 tracking-widest">Contact Info</h4>
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Phone:</span> <span className="text-gray-900 block font-bold text-lg">{selectedApp.contactNumber}</span></p>
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Email:</span> <span className="text-gray-900 block break-words">{selectedApp.email}</span></p>
+                    <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Address:</span> <span className="text-gray-900 block text-xs leading-relaxed">{selectedApp.address}</span></p>
+                    {selectedApp.po && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Post Office:</span> <span className="text-gray-900 block">{selectedApp.po}</span></p>}
+                    {selectedApp.ps && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Police Station:</span> <span className="text-gray-900 block">{selectedApp.ps}</span></p>}
+                    {selectedApp.pincode && <p className="mb-2"><span className="font-semibold text-gray-600 text-sm">Pincode:</span> <span className="text-gray-900 block">{selectedApp.pincode}</span></p>}
+                  </div>
+                </div>
+
+                {/* Identity & ID Numbers */}
+                {(selectedApp.aadharNumber || selectedApp.penNumber) && (
+                  <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100 mb-10">
+                    <h4 className="text-xs uppercase font-bold text-gray-400 mb-4 tracking-widest">Identity Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {selectedApp.aadharNumber && <p><span className="font-semibold text-gray-600 text-sm">Aadhar Number:</span> <span className="text-gray-900 block font-mono">{selectedApp.aadharNumber}</span></p>}
+                      {selectedApp.penNumber && <p><span className="font-semibold text-gray-600 text-sm">PEN (Permanent Education No.):</span> <span className="text-gray-900 block font-mono">{selectedApp.penNumber}</span></p>}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 mb-10">
+                  <h4 className="text-xs uppercase font-bold text-gray-400 mb-4 tracking-widest">Academic Background</h4>
+                  <p className="mb-2"><span className="font-semibold text-gray-600">Previous School:</span> <span className="text-gray-900">{selectedApp.previousSchool || 'N/A'}</span></p>
+                  {selectedApp.stream && <p className="mb-2"><span className="font-semibold text-gray-600">Stream:</span> <span className="text-gray-900">{selectedApp.stream}</span></p>}
+                  {selectedApp.elective && <p className="mb-2"><span className="font-semibold text-gray-600">Elective:</span> <span className="text-gray-900">{selectedApp.elective}</span></p>}
+                  {selectedApp.mil && <p className="mb-2"><span className="font-semibold text-gray-600">MIL (Modern Indian Language):</span> <span className="text-gray-900">{selectedApp.mil}</span></p>}
+                  {selectedApp.selectedSubjects && selectedApp.selectedSubjects.length > 0 && (
+                    <div className="mt-2">
+                      <span className="font-semibold text-gray-600 text-sm">Selected Subjects:</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedApp.selectedSubjects.map((subj, idx) => (
+                          <span key={idx} className="bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-lg">{subj}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h4 className="text-xs uppercase font-bold text-gray-400 mb-4 tracking-widest">Documents Provided</h4>
+                  <div className="flex flex-wrap gap-4">
+                    {selectedApp.studentPhoto ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.studentPhoto)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Student Photo</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.studentPhoto, `Photo_${selectedApp.studentName.replace(/\s+/g, '_')}.jpg`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {selectedApp.birthCertificate ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.birthCertificate)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-green-100 text-green-600 rounded-lg flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Birth Certificate</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.birthCertificate, `BirthCert_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {selectedApp.transferCertificate ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.transferCertificate)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Transfer Certificate</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.transferCertificate, `TransferCert_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+                    
+                    {selectedApp.marksheet ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.marksheet)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Marksheet / Report Card</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.marksheet, `Marksheet_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {selectedApp.aadharVidOrReceipt ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.aadharVidOrReceipt)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                            <FaClipboardList />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Aadhar VID / Receipt</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.aadharVidOrReceipt, `Aadhar_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {selectedApp.paymentReceipt ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.paymentReceipt)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                            <FaDownload />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Payment Receipt</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.paymentReceipt, `Receipt_${selectedApp.studentName.replace(/\s+/g, '_')}.jpg`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {selectedApp.casteCertificate ? (
+                      <div className="flex flex-col gap-2">
+                        <a href={getProxyUrl(selectedApp.casteCertificate)} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-amber-500 hover:shadow-md transition-all group">
+                          <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                            <FaIdCard />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">Caste Certificate</p>
+                            <p className="text-xs text-gray-500">View online</p>
+                          </div>
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadFile(selectedApp.casteCertificate, `CasteCert_${selectedApp.studentName.replace(/\s+/g, '_')}.pdf`)}
+                          className="flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold py-1.5 rounded-lg border border-gray-200 text-gray-600 transition-all uppercase"
+                        >
+                          <FaDownload size={10} /> Download
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {!selectedApp.studentPhoto && !selectedApp.birthCertificate && !selectedApp.transferCertificate && !selectedApp.marksheet && !selectedApp.aadharVidOrReceipt && (
+                      <p className="text-sm text-gray-400 italic">No documents provided</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-gray-50 border-t flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500 uppercase font-bold">Status:</span>
+                  <span className={`px-4 py-1.5 rounded-full text-sm font-black ${
+                    selectedApp.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                    selectedApp.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                    'bg-amber-100 text-amber-700'
+                  }`}>
+                    {selectedApp.status.toUpperCase()}
+                  </span>
+                </div>
+                
+                {selectedApp.status !== 'accepted' && (
+                  <div className="flex flex-wrap gap-4">
+                    <button 
+                      onClick={() => initiateStatusUpdate(selectedApp, 'accepted')}
+                      className="bg-green-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition-all hover:-translate-y-0.5"
+                    >
+                      Approve Application
+                    </button>
+                    <button 
+                      onClick={() => initiateStatusUpdate(selectedApp, 'rejected')}
+                      className="bg-red-500 text-white px-6 py-2 rounded-xl font-bold hover:bg-red-600 shadow-lg shadow-red-200 transition-all hover:-translate-y-0.5"
+                    >
+                      {selectedApp.status === 'rejected' ? 'Update Remark' : 'Reject Application'}
+                    </button>
+                    {selectedApp.status !== 'pending' && (
+                       <button 
+                         onClick={() => handleStatusUpdate(selectedApp._id, 'pending')}
+                         className="bg-gray-200 text-gray-700 px-6 py-2 rounded-xl font-bold hover:bg-gray-300 transition-all shadow-sm"
+                       >
+                         Reset to Pending
+                       </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- OTP Verification Modal --- */}
+        {otpModalVisible && pendingAdminAction && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Security Verification</h2>
+              <p className="text-sm text-gray-500 mb-6">
+                A dual-OTP verification is required. OTPs have been sent to your Super Admin email and the target admin email.
+              </p>
+              
+              <form onSubmit={verifyOtpAndComplete} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                    Super Admin OTP
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={otpString}
+                    onChange={(e) => setOtpString(e.target.value)}
+                    className="w-full p-3 border rounded-xl font-mono text-center tracking-widest text-lg bg-gray-50 focus:bg-white:bg-[#1E293B]:bg-[#1E293B] focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="Enter 6 digit OTP"
+                    maxLength={6}
+                  />
+                  {pendingAdminAction.type === 'create' && (
+                    <p className="text-[10px] text-gray-400 mt-1 italic">Sent to your active session email.</p>
+                  )}
+                </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 mt-4">
+                      Target Admin OTP
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newAdminOtpString}
+                      onChange={(e) => setNewAdminOtpString(e.target.value)}
+                      className="w-full p-3 border rounded-xl font-mono text-center tracking-widest text-lg bg-gray-50 focus:bg-white:bg-[#1E293B]:bg-[#1E293B] focus:ring-2 focus:ring-primary/20 transition-all"
+                      placeholder="Enter 6 digit OTP"
+                      maxLength={6}
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1 italic">Sent to {pendingAdminAction.data.email}</p>
+                  </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpModalVisible(false);
+                      setOtpString('');
+                      setNewAdminOtpString('');
+                    }}
+                    className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isOtpLoading || !otpString || !newAdminOtpString}
+                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all transform hover:-translate-y-0.5 shadow-lg shadow-primary/30 disabled:opacity-50 disabled:transform-none disabled:shadow-none"
+                  >
+                    {isOtpLoading ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {renderStatusUpdateModal()}
+        {renderTenderBidModal()}
+      </div>
+    </div>
+  );
+}
+
+export default AdminPage;

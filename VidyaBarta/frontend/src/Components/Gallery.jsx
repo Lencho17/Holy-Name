@@ -1,0 +1,523 @@
+import React, { useState, useContext, useEffect, useMemo, useRef } from "react";
+import { FaImages, FaSearchPlus, FaArrowLeft, FaShareAlt, FaEye, FaDownload } from "react-icons/fa";
+import { SiteDataContext } from "../context/SiteDataContext";
+import { useSearchParams, useNavigate } from "react-router-dom";
+
+function Gallery() {
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [activeTab, setActiveTab] = useState("photos"); // "photos" or "videos"
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const handleShare = async (imageUrl, title, photoId) => {
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      let page = '/gallery';
+      if (eventId) page += `?event=${eventId}`;
+      if (photoId) page += `${eventId ? '&' : '?'}photo=${photoId}`;
+      const res = await fetch(`${apiBase}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, desc: `${title} — ${schoolProfile?.name || "Our School"}`, image: imageUrl, page }),
+      });
+      const { url } = await res.json();
+      const shareUrl = url || window.location.href;
+      if (navigator.share) { await navigator.share({ title, text: `${title} — ${schoolProfile?.name || "Our School"}`, url: shareUrl }); }
+      else { await navigator.clipboard.writeText(shareUrl); alert('Link copied to clipboard!'); }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
+
+  const handleDownload = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'gallery-image.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(url, '_blank');
+    }
+  };
+
+  const trackView = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const validIds = ids.filter(id => id && !String(id).startsWith('temp-') && !String(id).startsWith('album-') && !String(id).startsWith('event-'));
+    if (validIds.length === 0) return;
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      await fetch(`${apiBase}/content/gallery-view`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: validIds }),
+      });
+    } catch (err) { /* silent */ }
+  };
+
+  const categories = ["All", "Campus Life", "Academic Events", "Sports", "Cultural Programs"];
+
+  const { gallery: galleryItems, events, schoolProfile, videos } = useContext(SiteDataContext);
+
+  // Check if we're filtering by a specific event
+  const eventId = searchParams.get("event") || null;
+
+  // Find the event details for the heading
+  const currentEvent = eventId ? events.find(e => String(e._id) === String(eventId) || String(e.id) === String(eventId)) : null;
+
+  // Auto-open photo from share link
+  const shareHandled = useRef(false);
+  useEffect(() => {
+    const photoId = searchParams.get('photo');
+    if (photoId && galleryItems.length > 0 && !shareHandled.current) {
+      shareHandled.current = true;
+      const photo = galleryItems.find(item => String(item._id) === String(photoId));
+      if (photo) {
+        setSelectedImage(photo);
+        trackView([photoId]);
+      }
+    }
+  }, [galleryItems]);
+
+  useEffect(() => {
+    if (eventId) {
+      setActiveTab("photos");
+    }
+  }, [eventId]);
+
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return '';
+    try {
+      let videoId = '';
+      if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1].split('?')[0];
+      } else if (url.includes('youtube.com/watch')) {
+        const urlParams = new URLSearchParams(new URL(url).search);
+        videoId = urlParams.get('v');
+      } else if (url.includes('youtube.com/embed/')) {
+        videoId = url.split('youtube.com/embed/')[1].split('?')[0];
+      } else {
+        return url;
+      }
+      return `https://www.youtube.com/embed/${videoId}?rel=0`;
+    } catch {
+      return url;
+    }
+  };
+
+  const isYouTube = (url) => {
+    if (!url) return false;
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  };
+
+  // Build the display items — if filtered by event, show only that event's gallery images
+  let displayItems = galleryItems;
+
+  if (eventId) {
+    // Filter gallery items that belong to this event
+    const eventGalleryItems = galleryItems.filter(item => String(item.eventId) === String(eventId));
+    
+    // Also include galleryImages from the event itself (auto-generated entries)
+    const eventExtraImages = (currentEvent?.galleryImages || []).map((src, idx) => ({
+      _id: `event-${eventId}-${idx}`,
+      src,
+      title: currentEvent?.title || 'Event Photo',
+      category: "Events",
+      description: currentEvent?.description || "",
+      eventId: eventId,
+    }));
+
+    // Combine, removing duplicates by src
+    const allSrcs = new Set(eventGalleryItems.map(item => item.src));
+    const combined = [...eventGalleryItems];
+    eventExtraImages.forEach(img => {
+      if (!allSrcs.has(img.src)) {
+        combined.push(img);
+        allSrcs.add(img.src);
+      }
+    });
+
+    displayItems = combined.slice(0, 10);
+  } else {
+    // Filter out any gallery items that belong to an event which no longer exists
+    const validGalleryItems = galleryItems.filter(item => 
+      !item.eventId || 
+      events.some(e => String(e.id) === String(item.eventId) || String(e._id) === String(item.eventId))
+    );
+    
+    const filtered = activeCategory === "All"
+      ? validGalleryItems
+      : validGalleryItems.filter(item => item.category === activeCategory);
+
+    // Group photos into album tiles — by eventId for events, by title+category for regular uploads
+    const eventGroups = {};
+    const titleGroups = {};
+    filtered.forEach(item => {
+      if (item.eventId) {
+        const key = String(item.eventId);
+        if (!eventGroups[key]) eventGroups[key] = [];
+        eventGroups[key].push(item);
+      } else {
+        const key = `${item.title}|||${item.category}`;
+        if (!titleGroups[key]) titleGroups[key] = [];
+        titleGroups[key].push(item);
+      }
+    });
+
+    const eventAlbums = Object.entries(eventGroups).map(([eid, photos]) => ({
+      ...photos[0],
+      _id: `album-${eid}`,
+      _isAlbum: true,
+      _albumEventId: eid,
+      _albumPhotos: photos,
+      _photoCount: photos.length,
+    }));
+
+    const titleAlbums = Object.entries(titleGroups).map(([, photos]) => {
+      if (photos.length === 1) return photos[0]; // single photo, no album
+      return {
+        ...photos[0],
+        _id: `album-title-${photos[0]._id}`,
+        _isAlbum: true,
+        _albumPhotos: photos,
+        _photoCount: photos.length,
+      };
+    });
+
+    displayItems = [...eventAlbums, ...titleAlbums].slice(0, 20);
+  }
+
+  // Compute total views for album tiles
+  const getViews = (item) => {
+    if (item._albumPhotos) return item._albumPhotos.reduce((sum, p) => sum + (p.views || 0), 0);
+    return item.views || 0;
+  };
+
+  // Ensure current image's collection is used for lightbox navigation
+  const lightboxItems = useMemo(() => {
+    if (!selectedImage) return [];
+    if (eventId) return displayItems; // Stay in the event (already limited to 10)
+    // Show all photos with same title+category (album browsing), limited to 10
+    return galleryItems.filter(i => i.title === selectedImage.title && i.category === selectedImage.category).slice(0, 10);
+  }, [selectedImage, galleryItems, eventId, displayItems]);
+
+  const handleNext = (e) => {
+    if (e) e.stopPropagation();
+    if (!selectedImage) return;
+    const currentIndex = lightboxItems.findIndex(i => (i._id && i._id === selectedImage._id) || i.src === selectedImage.src);
+    if (currentIndex === -1) return;
+    const nextIndex = (currentIndex + 1) % lightboxItems.length;
+    setSelectedImage(lightboxItems[nextIndex]);
+  };
+
+  const handlePrev = (e) => {
+    if (e) e.stopPropagation();
+    if (!selectedImage) return;
+    const currentIndex = lightboxItems.findIndex(i => (i._id && i._id === selectedImage._id) || i.src === selectedImage.src);
+    if (currentIndex === -1) return;
+    const prevIndex = (currentIndex - 1 + lightboxItems.length) % lightboxItems.length;
+    setSelectedImage(lightboxItems[prevIndex]);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!selectedImage) return;
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+      if (e.key === "Escape") setSelectedImage(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedImage, displayItems]);
+
+  return (
+    <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
+      {/* Hero Section */}
+      <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
+        <div className="absolute inset-0 z-0">
+          <img
+            src={schoolProfile?.pageHeroImages?.gallery || "https://images.unsplash.com/photo-1511629091441-ee46146481b6?q=80&w=2070&auto=format&fit=crop"}
+            alt="Gallery"
+            className="w-full h-full object-cover opacity-95"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-700/60 via-blue-700/30 to-transparent"></div>
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 w-full text-left">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50/30 text-white border border-white/20 backdrop-blur-sm shadow-sm mb-4">
+            <span className="material-symbols-outlined text-sm text-white drop-shadow-sm">
+              imagesmode
+            </span>
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-sm">
+              Visual Journey
+            </span>
+          </div>
+          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
+            {currentEvent ? currentEvent.title : "School"} <span className="text-amber-400 italic drop-shadow-md">{currentEvent ? "" : "Gallery"}</span>
+          </h1>
+          <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
+            {currentEvent
+              ? currentEvent.description || `Photos from this event at ${schoolProfile?.name || "School"}.`
+              : `Glimpses of academic excellence, vibrant campus life, and memorable events.`}
+          </p>
+        </div>
+      </section>
+
+      <div className="max-w-7xl mx-auto px-4 md:px-8 -mt-8 relative z-20">
+
+        {/* Back button when viewing event photos */}
+        {eventId && (
+          <button
+            onClick={() => navigate("/gallery")}
+            className="mb-6 px-6 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl transition-all duration-300 flex items-center gap-2 border border-indigo-100 self-start"
+          >
+            <FaArrowLeft /> Back to All Photos
+          </button>
+        )}
+
+        {/* Tab Selector - hidden when viewing event-specific gallery */}
+        {!eventId && (
+          <div className="flex justify-center gap-4 mb-10">
+            <button
+              onClick={() => setActiveTab("photos")}
+              className={`px-8 py-3 rounded-xl font-bold text-sm shadow-sm transition-all duration-300 border ${
+                activeTab === "photos"
+                  ? "bg-primary text-white border-primary scale-105"
+                  : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50"
+              }`}
+            >
+              Photo Gallery
+            </button>
+            <button
+              onClick={() => setActiveTab("videos")}
+              className={`px-8 py-3 rounded-xl font-bold text-sm shadow-sm transition-all duration-300 border ${
+                activeTab === "videos"
+                  ? "bg-primary text-white border-primary scale-105"
+                  : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50"
+              }`}
+            >
+              Video Gallery
+            </button>
+          </div>
+        )}
+        
+        {/* Photo Gallery Tab Content */}
+        {activeTab === "photos" && (
+          <>
+            {/* Filter Navigation — hidden when viewing event-specific gallery */}
+            {!eventId && (
+              <div className="bg-white rounded-2xl shadow-lg p-2 mb-12 flex flex-wrap justify-center border border-gray-100">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={`px-6 py-3 m-1 rounded-xl text-sm font-bold transition-all duration-300 ${
+                      activeCategory === category
+                        ? "bg-primary text-white shadow-md transform scale-105"
+                        : "bg-transparent text-gray-500 hover:bg-gray-50 hover:text-primary"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Mobile Horizontal Scroll / Desktop Grid */}
+            <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 p-2 lg:p-4 rounded-xl snap-x snap-mandatory pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {displayItems.map((item) => (
+                <div 
+                  key={item._id} 
+                  className="relative flex items-center justify-center shrink-0 snap-start w-[60vw] sm:w-auto h-auto transition-transform"
+                  onClick={() => {
+                    if (item._isAlbum && item._albumEventId) {
+                      trackView(item._albumPhotos ? item._albumPhotos.map(p => p._id) : [item._id]);
+                      navigate(`/gallery?event=${item._albumEventId}`);
+                    } else if (item._isAlbum && item._albumPhotos) {
+                      trackView(item._albumPhotos.map(p => p._id));
+                      setSelectedImage(item._albumPhotos[0]);
+                    } else {
+                      trackView([item._id]);
+                      setSelectedImage(item);
+                    }
+                  }}
+                >
+                  {/* Card Container */ }
+                  <div className="relative overflow-hidden group cursor-pointer w-full aspect-[3/4] bg-white rounded-xl border border-gray-200 shadow-md transition-all duration-300 sm:hover:-translate-y-2 z-10 flex-shrink-0 hover:border-primary/40 hover:shadow-xl">
+                    <img 
+                      src={item.src || null} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    
+                    {/* Album photo count badge */}
+                    {item._isAlbum && item._photoCount > 1 && (
+                      <div className="absolute top-3 right-3 z-30 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
+                        <FaImages className="text-[10px]" />
+                        {item._photoCount}
+                      </div>
+                    )}
+
+                    <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end p-4 text-center z-20 transition-transform duration-500 translate-y-1 group-hover:translate-y-0">
+                      <h3 className="text-white text-sm md:text-base font-sans font-bold mb-1 shadow-black drop-shadow-2xl tracking-wide leading-tight px-1 line-clamp-2">
+                        {item.title}
+                      </h3>
+                      <p className="text-amber-300 text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-black drop-shadow-md pb-1">
+                        {item.category}
+                      </p>
+                      {getViews(item) > 0 && (
+                        <span className="flex items-center gap-1 text-white/70 text-[10px] md:text-xs mt-0.5">
+                          <FaEye className="text-[10px]" /> {getViews(item)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {displayItems.length === 0 && (
+              <div className="text-center py-20 bg-white rounded-3xl shadow-lg border border-gray-100">
+                <FaImages className="text-6xl text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-500">
+                  {eventId ? "No photos found for this event yet." : "No images found in this category."}
+                </h3>
+                <p className="text-gray-400 mt-2 text-sm">Please check back later for new photos.</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Video Gallery Tab Content */}
+        {activeTab === "videos" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {videos.slice(0, 4).map((video, idx) => {
+              const embedUrl = getYouTubeEmbedUrl(video.src);
+              return (
+                <div key={video._id || idx} className="bg-white rounded-3xl border border-gray-100 shadow-md p-5 flex flex-col overflow-hidden hover:shadow-2xl transition-all duration-300">
+                  <div className="aspect-video bg-slate-100 flex items-center justify-center rounded-2xl overflow-hidden mb-5">
+                    {isYouTube(video.src) ? (
+                      <iframe 
+                        src={embedUrl || null}
+                        width="100%" 
+                        height="100%" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allowFullScreen 
+                        title={video.title}
+                        className="w-full h-full"
+                      ></iframe>
+                    ) : (
+                      <video 
+                        src={video.src || null}
+                        width="100%" 
+                        height="100%" 
+                        controls
+                        title={video.title}
+                        className="bg-black object-cover w-full h-full"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                  </div>
+                  <h3 className="font-serif text-xl font-bold text-gray-800 mb-2 px-1 text-left">{video.title}</h3>
+                  <p className="text-gray-600 text-sm leading-relaxed px-1 text-left whitespace-pre-line mt-2">
+                    {video.description || `Video highlight from ${schoolProfile?.name || "Our School"}.`}
+                  </p>
+                </div>
+              );
+            })}
+            {videos.length === 0 && (
+              <div className="col-span-full text-center py-20 bg-white rounded-3xl shadow-lg border border-gray-100">
+                <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">video_library</span>
+                <h3 className="text-xl font-bold text-gray-500">No videos found.</h3>
+                <p className="text-gray-400 mt-2 text-sm">Please check back later for new video events.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {selectedImage && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-2 md:p-10" onClick={() => setSelectedImage(null)}>
+          <div className="relative max-w-5xl w-full h-full flex flex-col items-center justify-center px-4" onClick={e => e.stopPropagation()}>
+            <button 
+              className="absolute top-4 right-4 z-[60] text-white/50 hover:text-white text-4xl transition-colors bg-white/10 w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md border border-white/20"
+              onClick={() => setSelectedImage(null)}
+            >
+              &times;
+            </button>
+
+            {/* Main Image Area */}
+            <div className="relative w-full h-[65vh] flex items-center justify-center group/lightbox">
+              {/* Navigation Arrows */}
+              {lightboxItems.length > 1 && (
+                <>
+                  <button 
+                    onClick={handlePrev}
+                    className="absolute left-0 z-[60] text-white/70 hover:text-white bg-black/30 hover:bg-black/50 p-4 rounded-full transition-all border border-white/10 hidden md:flex"
+                  >
+                    <span className="material-symbols-outlined text-4xl">chevron_left</span>
+                  </button>
+                  <button 
+                    onClick={handleNext}
+                    className="absolute right-0 z-[60] text-white/70 hover:text-white bg-black/30 hover:bg-black/50 p-4 rounded-full transition-all border border-white/10 hidden md:flex"
+                  >
+                    <span className="material-symbols-outlined text-4xl">chevron_right</span>
+                  </button>
+                </>
+              )}
+
+              <img 
+                src={selectedImage.src || null} 
+                alt={selectedImage.title} 
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-all duration-300"
+              />
+            </div>
+
+            {/* Sub-panel */}
+            <div className="mt-6 w-full max-w-4xl bg-white/5 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="flex-1 text-left">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded uppercase tracking-wider border border-amber-500/20">{selectedImage.category}</span>
+                    <h3 className="text-xl md:text-3xl font-serif font-bold text-white tracking-tight">{selectedImage.title}</h3>
+                  </div>
+                  <p className="text-slate-400 text-sm md:text-base leading-relaxed">{selectedImage.description || `Captured moment at ${schoolProfile?.name || "School"}.`}</p>
+                </div>
+
+                <div className="flex items-center gap-6 bg-white/5 px-6 py-4 rounded-2xl border border-white/5 self-end md:self-center">
+                  <span className="text-white font-mono text-lg font-black tracking-widest text-center px-4">
+                    <span className="text-amber-500">
+                      {Math.max(1, lightboxItems.findIndex(i => (i._id && i._id === selectedImage._id) || i.src === selectedImage.src) + 1)}
+                    </span>
+                    <span className="text-white/20 mx-2">/</span>
+                    <span className="text-white/40">{lightboxItems.length}</span>
+                  </span>
+                  
+                  {/* Mobile Nav */}
+                  <div className="flex md:hidden gap-2">
+                    <button onClick={handlePrev} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_left</span></button>
+                    <button onClick={handleNext} className="p-2 bg-white/10 rounded-lg text-white"><span className="material-symbols-outlined">chevron_right</span></button>
+                  </div>
+                  <button onClick={() => handleDownload(selectedImage.src, `${selectedImage.title || 'gallery'}.jpg`)} className="p-2.5 bg-white/10 hover:bg-emerald-500 rounded-lg text-white transition-all" title="Download this photo">
+                    <FaDownload className="text-sm" />
+                  </button>
+                  <button onClick={() => handleShare(selectedImage.src, selectedImage.title, selectedImage._id)} className="p-2.5 bg-white/10 hover:bg-amber-500 rounded-lg text-white transition-all" title="Share this photo">
+                    <FaShareAlt className="text-sm" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Gallery;

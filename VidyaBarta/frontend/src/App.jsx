@@ -13,7 +13,7 @@ import { FaSpinner } from "react-icons/fa";
 
 // SaaS Components
 const SaaSHome = React.lazy(() => import("./Components/SaaSHome"));
-const SuperAdminLogin = React.lazy(() => import("./Components/SuperAdminLogin"));
+
 const AdminSignUp = React.lazy(() => import("./Components/AdminSignUp"));
 
 // School Components

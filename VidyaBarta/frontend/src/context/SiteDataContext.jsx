@@ -273,13 +273,13 @@ export const SiteDataProvider = ({ children }) => {
           localStorage.setItem('test_domain', testDomain);
         }
         
-        const domain = (window.location.hostname === 'localhost' && localStorage.getItem('test_domain')) 
-          ? localStorage.getItem('test_domain') 
-          : window.location.hostname;
+        const targetDomain = (window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app')) && localStorage.getItem('test_domain') 
+            ? localStorage.getItem('test_domain') 
+            : window.location.hostname;
           
         const token = localStorage.getItem('adminToken');
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const { data } = await axios.get(`${API_URL}/content?domain=${domain}`, { headers });
+        const { data } = await axios.get(`${API_URL}/content?domain=${targetDomain}`, { headers });
         const legacyData = mapSupabaseToLegacy(data);
         if (Array.isArray(legacyData.gallery)) setGallery(legacyData.gallery);
         if (Array.isArray(legacyData.events)) setEvents(legacyData.events);

@@ -164,7 +164,7 @@ const SuperAdminLayout = () => {
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
                 <p className="text-body-sm font-semibold text-neutral">{adminData?.name || 'System Admin'}</p>
-                <p className="text-label-sm text-on-surface-variant">{adminData?.email || 'admin@vidyabarta.in'}</p>
+                <p className="text-label-sm text-on-surface-variant">{adminData?.email || 'admin@vidyabarta.com'}</p>
               </div>
               <div className="w-10 h-10 rounded-full bg-primary-container text-primary flex items-center justify-center font-bold shadow-inner">
                 {getInitials(adminData?.name)}

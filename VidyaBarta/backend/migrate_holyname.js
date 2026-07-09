@@ -11,7 +11,7 @@ async function migrate() {
     .from('schools')
     .insert({
       name: 'Holy Name High School',
-      subdomain: 'holyname.vidyabarta.in',
+      subdomain: 'holyname.vidyabarta.com',
       custom_domain: 'holynamehsschool.in',
       package: 'Premium',
       status: 'Active'

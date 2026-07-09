@@ -38,7 +38,7 @@ const DashboardMockup = () => (
             </div>
             <div>
               <p className="text-label-md font-bold text-neutral leading-none">System Admin</p>
-              <p className="text-[10px] text-on-surface-variant">admin@vidyabarta.in</p>
+              <p className="text-[10px] text-on-surface-variant">admin@vidyabarta.com</p>
             </div>
         </div>
       </div>

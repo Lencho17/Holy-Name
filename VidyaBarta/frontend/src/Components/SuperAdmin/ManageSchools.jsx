@@ -239,10 +239,10 @@ export const ManageSchools = () => {
     try {
       const token = localStorage.getItem('adminToken');
       
-      // Append .vidyabarta.in to subdomain if not already present
+      // Append .vidyabarta.com to subdomain if not already present
       const submissionData = { ...formData };
-      if (submissionData.subdomain && !submissionData.subdomain.endsWith('.vidyabarta.in')) {
-        submissionData.subdomain = `${submissionData.subdomain.toLowerCase().replace(/[^a-z0-9]/g, '')}.vidyabarta.in`;
+      if (submissionData.subdomain && !submissionData.subdomain.endsWith('.vidyabarta.com')) {
+        submissionData.subdomain = `${submissionData.subdomain.toLowerCase().replace(/[^a-z0-9]/g, '')}.vidyabarta.com`;
       }
       
       await axios.post(`${API_URL}/superadmin/schools`, submissionData, {
@@ -340,7 +340,7 @@ export const ManageSchools = () => {
                     <label className="block text-label-md font-medium text-neutral mb-1.5">System Subdomain <span className="text-red-500">*</span></label>
                     <div className="flex">
                       <input required type="text" name="subdomain" value={formData.subdomain} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant border-r-0 rounded-l-xl focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-body-md outline-none" placeholder="school-name" />
-                      <span className="px-4 py-3 bg-surface-variant border border-outline-variant rounded-r-xl text-neutral font-medium text-body-md whitespace-nowrap">.vidyabarta.in</span>
+                      <span className="px-4 py-3 bg-surface-variant border border-outline-variant rounded-r-xl text-neutral font-medium text-body-md whitespace-nowrap">.vidyabarta.com</span>
                     </div>
                   </div>
                   <div>

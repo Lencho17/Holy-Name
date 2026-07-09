@@ -12,14 +12,14 @@ function StudentPortalBtn() {
       {showButtons ? (
         <div className="flex justify-center">
           <a
-            href="http://vidyabarta.in/"
+            href="http://vidyabarta.com/"
             target='_blank'
             className="bg-primary hover:bg-primary text-white text-center text-xl py-5 px-10 w-[70%] h-24 rounded-md duration-200 mr-5"
           >
             Student Login
           </a>
           <a
-            href="http://result.vidyabarta.in/"
+            href="http://result.vidyabarta.com/"
             target='_blank'
             className="bg-primary hover:bg-primary text-white text-center text-xl py-5 px-10 w-[70%] h-24 rounded-md duration-200"
           >

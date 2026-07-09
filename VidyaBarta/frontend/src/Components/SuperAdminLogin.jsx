@@ -105,7 +105,7 @@ function SuperAdminLogin() {
                 type="email"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
-                placeholder="admin@vidyabarta.in"
+                placeholder="admin@vidyabarta.com"
               />
             </div>
 

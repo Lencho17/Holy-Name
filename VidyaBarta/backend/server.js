@@ -63,7 +63,13 @@ const corsOptions = {
     
     const sanitizedOrigin = origin ? origin.replace(/\/$/, '') : null;
     
-    if (!isProduction || !sanitizedOrigin || allowedOrigins.includes(sanitizedOrigin)) {
+    const isVidyabartaDomain = sanitizedOrigin && (
+      sanitizedOrigin === 'https://vidyabarta.com' || 
+      sanitizedOrigin === 'https://www.vidyabarta.com' ||
+      sanitizedOrigin.endsWith('.vidyabarta.com')
+    );
+    
+    if (!isProduction || !sanitizedOrigin || allowedOrigins.includes(sanitizedOrigin) || isVidyabartaDomain) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked for origin: ${origin}`);

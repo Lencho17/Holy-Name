@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 import { ManageSchools } from './ManageSchools';
 
 // Premium Page Wrapper
@@ -35,10 +38,10 @@ export const Dashboard = () => {
 
         // Fetch stats and schools concurrently
         const [statsRes, schoolsRes] = await Promise.all([
-          axios.get('/api/superadmin/dashboard-stats', config).catch(() => ({ data: {
+          axios.get(`${API_URL}/superadmin/dashboard-stats`, config).catch(() => ({ data: {
             totalSchools: 0, activeSchools: 0, inactiveSchools: 0, totalPackages: 0
           }})),
-          axios.get('/api/superadmin/schools', config).catch(() => ({ data: [] }))
+          axios.get(`${API_URL}/superadmin/schools`, config).catch(() => ({ data: [] }))
         ]);
 
         if (statsRes.data) {

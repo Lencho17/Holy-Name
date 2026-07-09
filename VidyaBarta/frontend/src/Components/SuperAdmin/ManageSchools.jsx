@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { FiImage, FiUpload, FiMoreVertical, FiEdit2, FiTrash2, FiUser, FiPower, FiSettings } from 'react-icons/fi';
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 const PageWrapper = ({ title, children }) => (
   <div className="p-6 max-w-7xl mx-auto animate-fadeIn">
     <div className="mb-8">
@@ -73,10 +75,10 @@ export const ManageSchools = () => {
   const fetchSchools = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get('/api/superadmin/schools', {
+      const res = await axios.get(`${API_URL}/superadmin/schools`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setSchools(res.data || []);
+      setSchools(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to fetch schools', err);
     } finally {
@@ -92,7 +94,7 @@ export const ManageSchools = () => {
     const newStatus = school.status === 'Active' ? 'Inactive' : 'Active';
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.patch(`/api/superadmin/schools/${school.id}/status`, { status: newStatus }, {
+      await axios.patch(`${API_URL}/superadmin/schools/${school.id}/status`, { status: newStatus }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchSchools();
@@ -107,7 +109,7 @@ export const ManageSchools = () => {
     try {
       setModalLoading(true);
       const token = localStorage.getItem('adminToken');
-      await axios.delete(`/api/superadmin/schools/${selectedSchool.id}`, {
+      await axios.delete(`${API_URL}/superadmin/schools/${selectedSchool.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchSchools();
@@ -123,7 +125,7 @@ export const ManageSchools = () => {
   const fetchServicesVisibility = async (schoolId) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`/api/superadmin/schools/${schoolId}/settings`, {
+      const res = await axios.get(`${API_URL}/superadmin/schools/${schoolId}/settings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data && res.data.services_visibility) {
@@ -144,7 +146,7 @@ export const ManageSchools = () => {
     try {
       setModalLoading(true);
       const token = localStorage.getItem('adminToken');
-      await axios.put(`/api/superadmin/schools/${selectedSchool.id}/settings`, {
+      await axios.put(`${API_URL}/superadmin/schools/${selectedSchool.id}/settings`, {
         services_visibility: servicesFormData
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -163,7 +165,7 @@ export const ManageSchools = () => {
     try {
       setModalLoading(true);
       const token = localStorage.getItem('adminToken');
-      await axios.put(`/api/superadmin/schools/${selectedSchool.id}`, editFormData, {
+      await axios.put(`${API_URL}/superadmin/schools/${selectedSchool.id}`, editFormData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchSchools();
@@ -186,7 +188,7 @@ export const ManageSchools = () => {
         alert('No admin found for this school');
         return;
       }
-      await axios.patch(`/api/superadmin/schools/${selectedSchool.id}/admin`, { ...adminFormData, admin_id: adminId }, {
+      await axios.patch(`${API_URL}/superadmin/schools/${selectedSchool.id}/admin`, { ...adminFormData, admin_id: adminId }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchSchools();
@@ -214,7 +216,7 @@ export const ManageSchools = () => {
       formData.append('image', file);
       
       // using the existing upload endpoint
-      const res = await axios.post('/api/content/upload', formData, {
+      const res = await axios.post(`${API_URL}/content/upload`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -243,7 +245,7 @@ export const ManageSchools = () => {
         submissionData.subdomain = `${submissionData.subdomain.toLowerCase().replace(/[^a-z0-9]/g, '')}.vidyabarta.in`;
       }
       
-      await axios.post('/api/superadmin/schools', submissionData, {
+      await axios.post(`${API_URL}/superadmin/schools`, submissionData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSuccess('School created successfully!');
@@ -438,7 +440,7 @@ export const ManageSchools = () => {
                 <tr>
                   <td colSpan="7" className="p-4 text-center text-on-surface-variant">Loading schools...</td>
                 </tr>
-              ) : schools.length > 0 ? (
+              ) : Array.isArray(schools) && schools.length > 0 ? (
                 schools.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((school, index) => (
                   <tr key={school.id} className="border-b border-outline-variant/50 hover:bg-surface-variant/20 transition-colors group">
                     <td className="p-5 text-on-surface-variant">{(currentPage - 1) * itemsPerPage + index + 1}</td>

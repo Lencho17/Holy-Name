@@ -622,7 +622,7 @@ router.patch('/:id/status', protect, async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(tempPassword, salt);
 
-        await supabase.from('students').insert({
+        const { error: insertError } = await supabase.from('students').insert({
           student_name: admission.student_name,
           date_of_birth: admission.date_of_birth,
           gender: admission.gender,
@@ -637,6 +637,11 @@ router.patch('/:id/status', protect, async (req, res) => {
           school_id: admission.school_id || null, // Ensure school_id is passed
           password: hashedPassword
         });
+
+        if (insertError) {
+          console.error('Failed to create student record:', insertError);
+          return res.status(500).json({ message: 'Failed to create student account during approval.' });
+        }
 
         // Send email with the login credentials
         const mailOptions = {

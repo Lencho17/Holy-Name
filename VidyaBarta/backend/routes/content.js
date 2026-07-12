@@ -162,9 +162,20 @@ router.get('/', optionalProtect, async (req, res) => {
       }
     }
 
-    // If logged in as a school admin, they always see their school's content
+    // If logged in as a school admin or student, they always see their school's content
     if (req.user && req.user.school_id) {
       schoolId = req.user.school_id;
+    } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      // Check if it's a student token
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+        if (decoded.school_id) {
+          schoolId = decoded.school_id;
+        }
+      } catch (err) {
+        // Not a valid token, ignore
+      }
     }
 
     const now = Date.now();

@@ -8,6 +8,7 @@ import SaaSLayout from "./SaaSLayout";
 import SchoolLayout from "./SchoolLayout";
 import "./App.css";
 import { SiteDataProvider, SiteDataContext } from "./context/SiteDataContext";
+import { StudentAuthProvider } from "./context/StudentAuthContext";
 import React, { useContext, useEffect, Suspense } from "react";
 import { FaSpinner } from "react-icons/fa";
 
@@ -32,7 +33,9 @@ const AdmissionCheckout = React.lazy(() => import("./Components/AdmissionCheckou
 const Faculty = React.lazy(() => import("./Components/Faculty"));
 const Emeritus = React.lazy(() => import("./Components/Emeritus"));
 const Notice = React.lazy(() => import("./Components/Notice"));
+const AdmissionTracker = React.lazy(() => import("./Components/AdmissionTracker"));
 const StudentPortal = React.lazy(() => import("./Components/StudentPortal"));
+const StudentLogin = React.lazy(() => import("./Components/StudentLogin"));
 const JobApplicationForm = React.lazy(() => import("./Components/JobApplicationForm"));
 const Tenders = React.lazy(() => import("./Components/Tenders"));
 const TenderApply = React.lazy(() => import("./Components/TenderApply"));
@@ -120,7 +123,8 @@ function App() {
   // We show SaaS if domain is vidyabarta.com OR www.vidyabarta.com OR (localhost without test_domain)
   // OR if we are explicitly trying to access a superadmin route
   const isPreviewSchool = urlParams.get('preview_school') === 'true';
-  const isSaaS = ((hostname === 'vidyabarta.com' || hostname === 'www.vidyabarta.com' || (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) || (isLocalhost && !hasTestDomain) || isSuperAdminPath)) && !isPreviewSchool;
+  const isStudentSite = hostname === 'student.vidyabarta.com' || hostname.startsWith('student.') || urlParams.get('site') === 'student';
+  const isSaaS = ((hostname === 'vidyabarta.com' || hostname === 'www.vidyabarta.com' || (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) || (isLocalhost && !hasTestDomain) || isSuperAdminPath)) && !isPreviewSchool && !isStudentSite;
 
   const saasRouter = createBrowserRouter(
     createRoutesFromElements(
@@ -178,6 +182,7 @@ function App() {
             <Route path="system-settings/terms" element={<SA.TermsConditions />} />
             <Route path="system-settings/refund" element={<SA.RefundCancellation />} />
             <Route path="system-settings/school-terms" element={<SA.SchoolTermsCondition />} />
+            <Route path="system-settings/student-portal" element={<SA.StudentPortalSettings />} />
             
             <Route path="system-update" element={<SA.SystemUpdate />} />
           </Route>
@@ -204,6 +209,8 @@ function App() {
           <Route path="faculty" element={<Suspense fallback={<SuspenseFallback />}><Faculty /></Suspense>} />
           <Route path="emeritus" element={<Suspense fallback={<SuspenseFallback />}><Emeritus /></Suspense>} />
           <Route path="notice" element={<Suspense fallback={<SuspenseFallback />}><Notice /></Suspense>} />
+          <Route path="admission-tracker" element={<Suspense fallback={<SuspenseFallback />}><AdmissionTracker /></Suspense>} />
+          <Route path="student-login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
           <Route path="student-portal" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
           <Route path="job-application" element={<Suspense fallback={<SuspenseFallback />}><JobApplicationForm /></Suspense>} />
           <Route path="tenders" element={<Suspense fallback={<SuspenseFallback />}><Tenders /></Suspense>} />
@@ -221,10 +228,24 @@ function App() {
     )
   );
 
+  const studentRouter = createBrowserRouter(
+    createRoutesFromElements(
+      <Route>
+        <Route path="/" element={<SchoolLayout />} errorElement={<ErrorBoundary />}>
+          <Route index element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
+          <Route path="login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
+          <Route path="student-login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
+        </Route>
+      </Route>
+    )
+  );
+
   return (
     <SiteDataProvider>
-      <DocumentHeadManager isSaaS={isSaaS} />
-      <RouterProvider router={isSaaS ? saasRouter : schoolRouter} />
+      <StudentAuthProvider>
+        <DocumentHeadManager isSaaS={isSaaS} />
+        <RouterProvider router={isStudentSite ? studentRouter : (isSaaS ? saasRouter : schoolRouter)} />
+      </StudentAuthProvider>
     </SiteDataProvider>
   );
 }

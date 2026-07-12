@@ -143,6 +143,7 @@ const SuperAdminLayout = () => {
             <SubItem to="/superadmin/system-settings/terms" label="Terms & Conditions" />
             <SubItem to="/superadmin/system-settings/refund" label="Refund Cancellation" />
             <SubItem to="/superadmin/system-settings/school-terms" label="School Terms & Condition" />
+            <SubItem to="/superadmin/system-settings/student-portal" label="Student Portal" />
           </SidebarItem>
 
           <SidebarItem to="/superadmin/system-update" icon={FiSettings} label="System Update" />

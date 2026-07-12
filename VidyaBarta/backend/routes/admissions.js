@@ -611,10 +611,17 @@ router.patch('/:id/status', protect, async (req, res) => {
       const { data: existingStudent } = await supabase
         .from('students')
         .select('id')
-        .eq('admission_id', admission.id)
+        .eq('admission_id', admission.reference_number)
         .maybeSingle();
 
       if (!existingStudent) {
+        // Generate a random 8-character password
+        const crypto = require('crypto');
+        const bcrypt = require('bcryptjs');
+        const tempPassword = crypto.randomBytes(4).toString('hex').toLowerCase();
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(tempPassword, salt);
+
         await supabase.from('students').insert({
           student_name: admission.student_name,
           date_of_birth: admission.date_of_birth,
@@ -624,10 +631,39 @@ router.patch('/:id/status', protect, async (req, res) => {
           contact_number: admission.contact_number,
           email: admission.email,
           address: admission.address,
-          admission_id: admission.id,
+          admission_id: admission.reference_number, // Use the human-readable reference number
           pen_number: admission.pen_number,
           aadhar_number: admission.aadhar_number,
+          school_id: admission.school_id || null, // Ensure school_id is passed
+          password: hashedPassword
         });
+
+        // Send email with the login credentials
+        const mailOptions = {
+          from: `"Vidyabarta Admissions" <${process.env.EMAIL_USER}>`,
+          to: admission.email,
+          subject: 'Welcome! Your Student Portal Login Credentials',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #1e3a8a;">Your admission has been officially approved!</h2>
+              <p>Dear ${admission.student_name},</p>
+              <p>Welcome to the Vidyabarta Student Portal. Below are your official login credentials:</p>
+              <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>Login ID:</strong> <span style="font-family: monospace; font-size: 16px;">${admission.reference_number}</span></p>
+                <p><strong>Temporary Password:</strong> <span style="font-family: monospace; font-size: 16px;">${tempPassword}</span></p>
+              </div>
+              <p>Please log in at our central student portal:</p>
+              <a href="https://student.vidyabarta.com/login" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Go to Student Portal</a>
+              <p style="margin-top: 30px; font-size: 12px; color: #64748b;">For security reasons, please change your password after logging in for the first time.</p>
+            </div>
+          `
+        };
+
+        try {
+          await transporter.sendMail(mailOptions);
+        } catch (err) {
+          console.error('Failed to send student credential email:', err.message);
+        }
       }
     }
     res.json(admission);

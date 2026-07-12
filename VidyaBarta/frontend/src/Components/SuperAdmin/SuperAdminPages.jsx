@@ -288,6 +288,7 @@ export const AboutUs = () => <PageWrapper title="About Us"><p>Manage About Us co
 export const TermsConditions = () => <PageWrapper title="Terms & Conditions"><p>Manage system Terms & Conditions.</p></PageWrapper>;
 export const RefundCancellation = () => <PageWrapper title="Refund & Cancellation"><p>Manage refund policies.</p></PageWrapper>;
 export const SchoolTermsCondition = () => <PageWrapper title="School Terms & Condition"><p>Manage terms specific to schools.</p></PageWrapper>;
+export { default as StudentPortalSettings } from './StudentPortalSettings';
 
 export const SystemUpdate = () => <PageWrapper title="System Update"><p>Check and apply system updates.</p></PageWrapper>;
 

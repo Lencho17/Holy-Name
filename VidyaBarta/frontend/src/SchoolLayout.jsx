@@ -4,7 +4,7 @@ import Header from "./Components/Header.jsx";
 import Footer from "./Components/Footer.jsx";
 import PopupBanner from "./Components/PopupBanner.jsx";
 import ScrollToTop from "./Components/ScrollToTop.jsx";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { SiteDataContext } from "./context/SiteDataContext.jsx";
 
 // Premium skeleton loading screen shown while backend is waking up
@@ -171,14 +171,20 @@ function Layout() {
   }
 
   const testDomain = localStorage.getItem('test_domain');
+  const location = useLocation();
+  const hostname = window.location.hostname;
+  const urlParams = new URLSearchParams(window.location.search);
+  const isStudentSite = hostname === 'student.vidyabarta.com' || hostname.startsWith('student.') || urlParams.get('site') === 'student';
+  
+  const isStudentPortalRoute = isStudentSite || location.pathname.includes('/student-login') || location.pathname.includes('/student-portal');
 
   return (
     <>
       <ScrollToTop />
-      <Header />
-      <PopupBanner />
+      {!isStudentPortalRoute && <Header />}
+      {!isStudentPortalRoute && <PopupBanner />}
       <Outlet />
-      <Footer />
+      {!isStudentPortalRoute && <Footer />}
       {testDomain && window.location.hostname === 'localhost' && (
         <a 
           href="/?clear_test_domain=true" 

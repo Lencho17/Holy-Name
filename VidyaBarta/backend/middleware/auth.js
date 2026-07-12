@@ -113,4 +113,36 @@ const protectStaff = async (req, res, next) => {
   return res.status(401).json({ message: 'Not authorized, no token' });
 };
 
-module.exports = { protect, optionalProtect, authorize, protectStaff };
+const protectStudent = async (req, res, next) => {
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.query.token) {
+    token = req.query.token;
+  }
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      const { data: student, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', decoded.id)
+        .single();
+      
+      if (error || !student) {
+        return res.status(401).json({ message: 'Not authorized, student not found' });
+      }
+
+      req.student = student;
+      return next();
+    } catch (error) {
+      return res.status(401).json({ message: 'Not authorized, token failed' });
+    }
+  }
+
+  return res.status(401).json({ message: 'Not authorized, no token' });
+};
+
+module.exports = { protect, optionalProtect, authorize, protectStaff, protectStudent };

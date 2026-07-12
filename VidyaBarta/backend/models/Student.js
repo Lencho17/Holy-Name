@@ -19,6 +19,9 @@ const studentSchema = new mongoose.Schema({
   section: String,
   penNumber: String,
   aadharNumber: String,
+  password: { type: String }, // Hashed password for portal login
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
 }, { timestamps: true });
 
 module.exports = mongoose.model('Student', studentSchema);

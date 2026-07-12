@@ -36,6 +36,8 @@ const domainsRoutes = require('./routes/domains');
 const holidayRoutes = require('./routes/holidays');
 const staffRoutes = require('./routes/staff');
 const superadminRoutes = require('./routes/superadmin');
+const studentAuthRoutes = require('./routes/studentAuth');
+const studentPortalRoutes = require('./routes/studentPortal');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -139,6 +141,8 @@ app.use('/api/superadmin', apiLimiter, superadminRoutes);
 app.use('/api/content', apiLimiter, contentRoutes);
 app.use('/api/admissions', apiLimiter, admissionsRoutes);
 app.use('/api/students', apiLimiter, studentsRoutes);
+app.use('/api/student-auth', apiLimiter, studentAuthRoutes);
+app.use('/api/student-portal', apiLimiter, studentPortalRoutes);
 app.use('/api/inquiries', submissionLimiter, inquiriesRoutes);
 app.use('/api/staff', apiLimiter, staffRoutes);
 app.use('/api/jobs', apiLimiter, jobRoutes);

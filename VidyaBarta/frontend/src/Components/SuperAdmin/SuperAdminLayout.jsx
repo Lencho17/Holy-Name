@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { 
   FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, 
-  FiDollarSign, FiUsers, FiSettings, FiMonitor, FiChevronDown, FiMenu
+  FiDollarSign, FiUsers, FiSettings, FiMonitor, FiChevronDown, FiMenu, FiGlobe
 } from 'react-icons/fi';
 
 const SidebarItem = ({ to, icon: Icon, label, children }) => {
@@ -113,7 +113,8 @@ const SuperAdminLayout = () => {
           <SidebarItem to="/superadmin/addons" icon={FiLayers} label="Addons" />
           <SidebarItem to="/superadmin/features" icon={FiStar} label="Features" />
           <SidebarItem to="/superadmin/subscription" icon={FiCreditCard} label="Subscription" />
-          <SidebarItem to="/superadmin/subscription-transaction" icon={FiDollarSign} label="Subscription Transaction" />
+          <SidebarItem to="/superadmin/revenue" icon={FiDollarSign} label="Revenue & Settlements" />
+          <SidebarItem to="/superadmin/domain-requests" icon={FiGlobe} label="Domain Requests" />
           
           <SidebarItem to="/superadmin/staff-management" icon={FiUsers} label="Staff Management">
             <SubItem to="/superadmin/staff-management/roles" label="Role & Permission" />

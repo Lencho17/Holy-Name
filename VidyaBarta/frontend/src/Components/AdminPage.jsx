@@ -14,11 +14,24 @@ import HolidaySettings from './HolidaySettings';
 import IDCardViewer from './IDCardViewer';
 import AdminStaffLeaves from './AdminStaffLeaves';
 import AdminStaffRequests from './AdminStaffRequests';
+import FeeManagement from './FeeManagement';
 import AdminStaffAssignments from './AdminStaffAssignments';
 import AdminPayroll from './AdminPayroll';
 import AdminAnnouncements from './AdminAnnouncements';
-import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn } from 'react-icons/fa';
-
+import StudentProfileViewer from './StudentProfileViewer';
+import SchoolAdminsManager from './SchoolAdminsManager';
+import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn, FaPaperPlane, FaDatabase } from 'react-icons/fa';
+import ExamManagement from './ExamManagement';
+import AdmitCardPanel from './AdmitCardPanel';
+import ResultsPortal from './ResultsPortal';
+import TimetableManager from './TimetableManager';
+import SeatArrangement from './SeatArrangement';
+import AttendanceManager from './AttendanceManager';
+import AdminStaffAttendance from './AdminStaffAttendance';
+import CertificateGenerator from './CertificateGenerator';
+import CommunicationHub from './CommunicationHub';
+import WalletDashboard from './WalletDashboard';
+import DomainManager from './DomainManager';
 
 const SidebarItem = ({ active, onClick, icon: Icon, label, children }) => {
   const [isOpen, ReactSetIsOpen] = React.useState(false);
@@ -71,6 +84,7 @@ const SubItem = ({ active, onClick, label }) => (
 
 function AdminPage() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('adminActiveTab') || 'dashboard');
+  const [previewTemplate, setPreviewTemplate] = useState(null);
 
   useEffect(() => {
     localStorage.setItem('adminActiveTab', activeTab);
@@ -1497,6 +1511,8 @@ function AdminPage() {
   const [editingAdminId, setEditingAdminId] = useState(null);
   const [editAdminData, setEditAdminData] = useState({});
   const [viewingIdCardFor, setViewingIdCardFor] = useState(null);
+  const [viewingProfileFor, setViewingProfileFor] = useState(null);
+  const [isEditingSubjectsFor, setIsEditingSubjectsFor] = useState(null);
   
   const [selectedStudents, setSelectedStudents] = useState([]);
 
@@ -8238,9 +8254,12 @@ function AdminPage() {
     return name.substring(0, 2).toUpperCase();
   };
 
+  const isFinanceActive = ['fees', 'payments', 'discounts', 'fines', 'wallet'].includes(activeTab);
   const isContentActive = ['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].includes(activeTab);
-  const isDataActive = ['admission', 'students', 'inquiries', 'jobApplications', 'staffLeaves', 'staffRequests', 'staffAssignments', 'staffPayroll', 'staffAnnouncements', 'tenders', 'appointments'].includes(activeTab);
-  const isSystemActive = ['pendingAdmins', 'status', 'bulk', 'holidays', 'idCardViewer'].includes(activeTab);
+  const isDataActive = ['admission', 'students', 'studentAttendance', 'inquiries', 'jobApplications', 'staffLeaves', 'staffRequests', 'staffAssignments', 'staffPayroll', 'staffAnnouncements', 'staffAttendance', 'tenders', 'appointments', 'teachers'].includes(activeTab);
+  const isAcademicsActive = ['exams', 'admitCards', 'results', 'timetables', 'seats', 'certificates'].includes(activeTab);
+  const isCommunicationActive = ['communication'].includes(activeTab);
+  const isSystemActive = ['pendingAdmins', 'status', 'bulk', 'holidays', 'idCardViewer', 'domains'].includes(activeTab);
 
   return (
     <div className="min-h-screen bg-background flex font-sans overflow-hidden">
@@ -8296,6 +8315,26 @@ function AdminPage() {
             <SubItem active={activeTab === 'amenities'} onClick={() => { setActiveTab('amenities'); setIsSidebarOpen(false); }} label="Amenities" />
           </SidebarItem>
 
+          <SidebarItem active={isFinanceActive} icon={FaMoneyCheckAlt} label="Finance & Fees">
+            <SubItem active={activeTab === 'fees'} onClick={() => { setActiveTab('fees'); setIsSidebarOpen(false); }} label="Fee Dashboard" />
+            <SubItem active={activeTab === 'discounts'} onClick={() => { setActiveTab('discounts'); setIsSidebarOpen(false); }} label="Discounts & Scholarships" />
+            <SubItem active={activeTab === 'fines'} onClick={() => { setActiveTab('fines'); setIsSidebarOpen(false); }} label="Late Fees & Fines" />
+            <SubItem active={activeTab === 'wallet'} onClick={() => { setActiveTab('wallet'); setIsSidebarOpen(false); }} label="Escrow Wallet & Payouts" />
+          </SidebarItem>
+
+          <SidebarItem active={isAcademicsActive} icon={FaGraduationCap} label="Exams & Academics">
+            <SubItem active={activeTab === 'timetables'} onClick={() => { setActiveTab('timetables'); setIsSidebarOpen(false); }} label="Class Timetables" />
+            <SubItem active={activeTab === 'exams'} onClick={() => { setActiveTab('exams'); setIsSidebarOpen(false); }} label="Exam Management" />
+            <SubItem active={activeTab === 'admitCards'} onClick={() => { setActiveTab('admitCards'); setIsSidebarOpen(false); }} label="Admit Cards & Concessions" />
+            <SubItem active={activeTab === 'seats'} onClick={() => { setActiveTab('seats'); setIsSidebarOpen(false); }} label="Exam Duties & Seats" />
+            <SubItem active={activeTab === 'results'} onClick={() => { setActiveTab('results'); setIsSidebarOpen(false); }} label="Results & Marksheets" />
+            <SubItem active={activeTab === 'certificates'} onClick={() => { setActiveTab('certificates'); setIsSidebarOpen(false); }} label="Certificates (TC/Character)" />
+          </SidebarItem>
+
+          <SidebarItem active={isCommunicationActive} icon={FaPaperPlane} label="Communication">
+            <SubItem active={activeTab === 'communication'} onClick={() => { setActiveTab('communication'); setIsSidebarOpen(false); }} label="Broadcast Hub (WhatsApp/SMS)" />
+          </SidebarItem>
+
           <SidebarItem active={isDataActive} icon={FiUsers} label="Data">
              <SubItem active={activeTab === 'admission'} onClick={() => { setActiveTab('admission'); setIsSidebarOpen(false); }} label="Admission" />
              <SubItem active={activeTab === 'appointments'} onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} label="Appointments" />
@@ -8306,7 +8345,10 @@ function AdminPage() {
              <SubItem active={activeTab === 'staffAssignments'} onClick={() => { setActiveTab('staffAssignments'); setIsSidebarOpen(false); }} label="Staff Assignments" />
              <SubItem active={activeTab === 'staffPayroll'} onClick={() => { setActiveTab('staffPayroll'); setIsSidebarOpen(false); }} label="Payroll" />
              <SubItem active={activeTab === 'staffAnnouncements'} onClick={() => { setActiveTab('staffAnnouncements'); setIsSidebarOpen(false); }} label="Announcements" />
+             <SubItem active={activeTab === 'teachers'} onClick={() => { setActiveTab('teachers'); setIsSidebarOpen(false); }} label="Teachers Database" />
              <SubItem active={activeTab === 'students'} onClick={() => { setActiveTab('students'); setIsSidebarOpen(false); }} label="Students" />
+             <SubItem active={activeTab === 'studentAttendance'} onClick={() => { setActiveTab('studentAttendance'); setIsSidebarOpen(false); }} label="Student Attendance" />
+             <SubItem active={activeTab === 'staffAttendance'} onClick={() => { setActiveTab('staffAttendance'); setIsSidebarOpen(false); }} label="Staff Attendance" />
              <SubItem active={activeTab === 'tenders'} onClick={() => { setActiveTab('tenders'); setIsSidebarOpen(false); }} label="Tenders" />
           </SidebarItem>
 
@@ -8314,8 +8356,9 @@ function AdminPage() {
             <SubItem active={activeTab === 'pendingAdmins'} onClick={() => { setActiveTab('pendingAdmins'); setIsSidebarOpen(false); }} label="Access Requests" />
             <SubItem active={activeTab === 'status'} onClick={() => { setActiveTab('status'); setIsSidebarOpen(false); }} label="Portal Status" />
             <SubItem active={activeTab === 'bulk'} onClick={() => { setActiveTab('bulk'); setIsSidebarOpen(false); }} label="Bulk Upload" />
-            <SubItem active={activeTab === 'holidays'} onClick={() => { setActiveTab('holidays'); setIsSidebarOpen(false); }} label="Holiday Settings" />
-            <SubItem active={activeTab === 'idCardViewer'} onClick={() => { setActiveTab('idCardViewer'); setIsSidebarOpen(false); }} label="ID Cards" />
+            <SubItem active={activeTab === 'holidays'} onClick={() => { setActiveTab('holidays'); setIsSidebarOpen(false); }} label="Holiday Calendar" />
+            <SubItem active={activeTab === 'idCardViewer'} onClick={() => { setActiveTab('idCardViewer'); setIsSidebarOpen(false); }} label="ID Card Template Viewer" />
+            <SubItem active={activeTab === 'domains'} onClick={() => { setActiveTab('domains'); setIsSidebarOpen(false); }} label="Custom Domains" />
           </SidebarItem>
         </div>
       </aside>
@@ -8353,6 +8396,20 @@ function AdminPage() {
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-slate-50">
 
           {activeTab === 'dashboard' && renderDashboard()}
+
+          {activeTab === 'fees' && <FeeManagement apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'exams' && <ExamManagement apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'admitCards' && <AdmitCardPanel apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'results' && <ResultsPortal apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'timetables' && <TimetableManager apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'seats' && <SeatArrangement apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'studentAttendance' && <AttendanceManager apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'staffAttendance' && <AdminStaffAttendance apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'certificates' && <CertificateGenerator apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'communication' && <CommunicationHub apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'wallet' && <WalletDashboard apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'domains' && <DomainManager apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+
           {activeTab === 'gallery' && renderGalleryTab()}
           {activeTab === 'tenders' && renderTendersTab()}
           {activeTab === 'staffLeaves' && <AdminStaffLeaves />}
@@ -8381,7 +8438,68 @@ function AdminPage() {
           {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
           {activeTab === 'activity' && adminUser?.role === 'developer' && renderActivityTab()}
           {activeTab === 'admission' && renderAdmissionTab()}
+
+          {activeTab === 'status' && <SchoolStatusSettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'holidays' && <HolidaySettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'bulk' && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <h2 className="text-2xl font-black text-gray-800 mb-6">Bulk Upload System</h2>
+              <div className="space-y-12">
+                <div className="border border-gray-100 p-6 rounded-xl">
+                  <h3 className="text-xl font-bold mb-4 text-blue-800">Student Database</h3>
+                  <BulkUpload apiUrl={API_URL} endpoint="students" token={localStorage.getItem('adminToken')} entityName="Students" onUploadSuccess={() => {}} />
+                </div>
+                <div className="border border-gray-100 p-6 rounded-xl">
+                  <h3 className="text-xl font-bold mb-4 text-emerald-800">Teacher Database</h3>
+                  <BulkUpload apiUrl={API_URL} endpoint="teachers" token={localStorage.getItem('adminToken')} entityName="Teachers" onUploadSuccess={() => {}} />
+                </div>
+              </div>
+            </div>
+          )}
+          {activeTab === 'pendingAdmins' && (
+            <div className="animate-fadeIn">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-black text-gray-800">School Administrators</h2>
+                  <p className="text-gray-500 mt-2">Manage additional admin accounts for this school (Max 3).</p>
+                </div>
+              </div>
+              <SchoolAdminsManager apiUrl={API_URL} token={localStorage.getItem('adminToken')} />
+            </div>
+          )}
+          {activeTab === 'idCardViewer' && (
+             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h2 className="text-2xl font-black text-gray-800 mb-2">ID Cards Generator</h2>
+                <p className="text-gray-500 mb-6">Generate and download ID cards in bulk. (Feature implementation pending in later phases).</p>
+             </div>
+          )}
+
           {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}
+          {activeTab === 'teachers' && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <FaChalkboardTeacher className="text-primary" />
+                  Teachers Database
+                </h3>
+              </div>
+              
+              <div className="mb-6">
+                <BulkUpload 
+                  apiUrl={API_URL} 
+                  endpoint="teachers" 
+                  token={localStorage.getItem('adminToken')} 
+                  entityName="Teachers" 
+                  onUploadSuccess={() => {}}
+                />
+              </div>
+
+              <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <FaChalkboardTeacher className="mx-auto text-gray-300 text-4xl mb-3" />
+                <p className="text-gray-500">Upload teacher details in bulk using a CSV file. The database will be populated automatically.</p>
+              </div>
+            </div>
+          )}
           {activeTab === 'students' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -8464,6 +8582,13 @@ function AdminPage() {
                           <td className="py-4 text-xs text-gray-400">{new Date(student.createdAt).toLocaleDateString()}</td>
                           <td className="py-4 text-right flex justify-end gap-3">
                              <button 
+                               onClick={() => setViewingProfileFor(student)}
+                               className="text-primary hover:text-blue-600 transition-colors inline-flex items-center"
+                               title="View Profile"
+                             >
+                               <FaUser size={14} />
+                             </button>
+                             <button 
                                onClick={() => setViewingIdCardFor(student)}
                                className="text-blue-400 hover:text-blue-600 transition-colors inline-flex items-center"
                                title="View ID Card"
@@ -8529,6 +8654,61 @@ function AdminPage() {
               onClose={() => setViewingIdCardFor(null)} 
             />
           )}
+
+          {viewingProfileFor && (
+            <StudentProfileViewer
+              student={viewingProfileFor}
+              onClose={() => setViewingProfileFor(null)}
+              onEditSubjects={() => {
+                setIsEditingSubjectsFor(viewingProfileFor);
+                setViewingProfileFor(null);
+              }}
+            />
+          )}
+
+          {isEditingSubjectsFor && (
+            <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">Edit Subjects</h2>
+                <p className="text-sm text-gray-500 mb-4">Update subjects for {isEditingSubjectsFor.student_name || isEditingSubjectsFor.name}</p>
+                
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const token = localStorage.getItem('adminToken');
+                    const formData = new FormData(e.target);
+                    await axios.put(`${API_URL}/students/${isEditingSubjectsFor._id || isEditingSubjectsFor.id}`, {
+                      mil_subject: formData.get('mil_subject'),
+                      elective_subject: formData.get('elective_subject')
+                    }, { headers: { Authorization: `Bearer ${token}` } });
+                    
+                    alert('Subjects updated successfully!');
+                    setIsEditingSubjectsFor(null);
+                    fetchStudents();
+                  } catch (error) {
+                    alert('Failed to update subjects: ' + error.message);
+                  }
+                }} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">MIL Subject</label>
+                    <input type="text" name="mil_subject" defaultValue={isEditingSubjectsFor.mil_subject || ''} className="w-full border rounded-lg p-2" placeholder="e.g. Assamese, Hindi, Bengali" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Elective Subject</label>
+                    <input type="text" name="elective_subject" defaultValue={isEditingSubjectsFor.elective_subject || ''} className="w-full border rounded-lg p-2" placeholder="e.g. Advanced Mathematics, Computer Science" />
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button type="button" onClick={() => {
+                      setViewingProfileFor(isEditingSubjectsFor);
+                      setIsEditingSubjectsFor(null);
+                    }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">Save</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
 
           {activeTab === 'inquiries' && (() => {
             const filteredInqs = inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST'))
@@ -9956,6 +10136,35 @@ function AdminPage() {
         )}
         {renderStatusUpdateModal()}
         {renderTenderBidModal()}
+
+        {previewTemplate && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 lg:p-8 animate-fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-7xl h-full flex flex-col shadow-2xl overflow-hidden relative">
+              <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-bold text-slate-800 text-lg">
+                    Preview: {previewTemplate === 'academic' ? 'Academic Excellence' : 'Classic Campus'}
+                  </h3>
+                  <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded">Desktop View</span>
+                </div>
+                <button 
+                  onClick={() => setPreviewTemplate(null)}
+                  className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <div className="flex-1 bg-slate-100 relative overflow-hidden">
+                <iframe 
+                  src={`/?preview_school=true&preview_theme=${previewTemplate}`} 
+                  className="w-full h-full border-none shadow-inner"
+                  title="Template Preview"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </main>
   </div>

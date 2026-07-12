@@ -1,19 +1,18 @@
-import React, { useState, useContext } from "react";
-import axios from "axios";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import { FaCommentDots, FaPaperPlane, FaCheckCircle, FaExclamationCircle, FaSearch } from "react-icons/fa";
-import { SiteDataContext } from "../context/SiteDataContext";
+import React, { useState, useContext } from 'react';
+import axios from 'axios';
+import { jsPDF } from 'jspdf';
+import { SiteDataContext } from '../context/SiteDataContext';
 
-function Complaints() {
+const Complaints = () => {
   const { schoolProfile } = useContext(SiteDataContext);
+  
   const initialFormState = {
     name: "",
     email: "",
     phone: "",
     subject: "",
     message: "",
-    type: "Suggestion", // Capitalized to match backend "Suggestion" | "Complain" | "General Inquiry"
+    type: "Suggestion", // Default
     userType: "Student",
     isAnonymous: false,
     className: "",
@@ -24,10 +23,6 @@ function Complaints() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [trackingInput, setTrackingInput] = useState('');
-  const [trackingResult, setTrackingResult] = useState(null);
-  const [trackingError, setTrackingError] = useState(null);
-  const [trackingLoading, setTrackingLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -35,6 +30,29 @@ function Complaints() {
 
   const handleCheckboxChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.checked });
+  };
+
+  const generateReceiptPDF = (inquiry) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      doc.setFontSize(22);
+      doc.setTextColor(30, 64, 175);
+      doc.text(schoolProfile?.name || "School", pageWidth / 2, 25, { align: "center" });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text("Feedback/Suggestion Receipt", pageWidth / 2, 35, { align: "center" });
+      
+      doc.text(`Tracking ID: ${inquiry.referenceNumber || 'N/A'}`, 20, 50);
+      doc.text(`Subject: ${inquiry.subject}`, 20, 60);
+      doc.text(`Date: ${new Date().toLocaleString()}`, 20, 70);
+      
+      doc.save(`Receipt_${inquiry.referenceNumber || 'Feedback'}.pdf`);
+    } catch (err) {
+      console.warn("PDF Generation skipped", err);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -46,15 +64,12 @@ function Complaints() {
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
       
-      // Normalize data to uppercase (except email)
       const normalizedData = {
         ...formData,
-        name: formData.isAnonymous ? "ANONYMOUS" : (formData.name || '').trim().toUpperCase(),
+        name: formData.isAnonymous ? "ANONYMOUS" : "Student",
         subject: (formData.subject || '').trim().toUpperCase(),
         message: (formData.message || '').trim().toUpperCase(),
-        className: (formData.className || '').trim().toUpperCase(),
-        section: (formData.section || '').trim().toUpperCase(),
-        email: (formData.email || '').trim().toLowerCase()
+        email: formData.isAnonymous ? "anonymous@local.com" : "student@local.com"
       };
 
       const response = await axios.post(`${apiBase}/inquiries`, normalizedData);
@@ -62,438 +77,283 @@ function Complaints() {
       
       setSubmitted(true);
       
-      // Generate PDF Receipt
-      try {
-        if (formData.type === 'Suggestion' || formData.type === 'Complain') {
-          generateReceiptPDF(newInquiry);
-        }
-      } catch (pdfErr) {
-        console.error('PDF Generation failed:', pdfErr);
-        // We don't block the UI success for a PDF failure, but we notify console
+      if (formData.type === 'Suggestion' || formData.type === 'Complain') {
+        generateReceiptPDF(newInquiry);
       }
       
       setFormData(initialFormState);
       
-      // Auto-hide success message after 5 seconds
       setTimeout(() => setSubmitted(false), 5000);
     } catch (err) {
       console.error('Submission error:', err);
-      setSubmitError(err.response?.data?.message || 'Failed to submit feedback. Please try again.');
+      setSubmitError(err.response?.data?.message || 'Failed to submit feedback.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const generateReceiptPDF = (inquiry) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    // Header - School Name and Logo
-    doc.setFontSize(22);
-    doc.setTextColor(30, 64, 175); // Primary color #1E40AF
-    doc.text(schoolProfile?.name || "School", pageWidth / 2, 25, { align: "center" });
-    
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(schoolProfile?.officeAddress || "", pageWidth / 2, 32, { align: "center" });
-    
-    // Line separator
-    doc.setDrawColor(200);
-    doc.line(15, 40, pageWidth - 15, 40);
-    
-    // Receipt Title
-    doc.setFontSize(16);
-    doc.setTextColor(0);
-    doc.text("Acknowledgment Receipt", pageWidth / 2, 50, { align: "center" });
-    
-    // Tracking Details
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Tracking No: ${inquiry.trackingNumber}`, 15, 65);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Date: ${new Date(inquiry.createdAt).toLocaleDateString()}`, pageWidth - 15, 65, { align: "right" });
-    
-    // Data Table
-    const tableData = [
-      ["Feedback Type", inquiry.type],
-      ["Subject", inquiry.subject],
-      ["Status", "Submitted"],
-      ["Submitted By", inquiry.isAnonymous ? "Anonymous" : inquiry.name],
-      ["User Category", inquiry.userType || "N/A"]
-    ];
-    
-    if (inquiry.userType === 'Student' && inquiry.className) {
-      tableData.push(["Class/Section", `${inquiry.className}${inquiry.section ? ` - ${inquiry.section}` : ""}`]);
-    }
-    
-    if (!inquiry.isAnonymous) {
-      tableData.push(["Email", inquiry.email || "N/A"]);
-      if (inquiry.phone) tableData.push(["Phone", inquiry.phone]);
-    }
-    
-    autoTable(doc, {
-      startY: 75,
-      head: [["Field", "Details"]],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255] },
-      styles: { fontSize: 10, cellPadding: 5 },
-      columnStyles: { 0: { fontStyle: 'bold', width: 50 } }
-    });
-    
-    // Message Section
-    const finalY = doc.lastAutoTable.finalY + 15;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Message Details:", 15, finalY);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    const splitMessage = doc.splitTextToSize(inquiry.message, pageWidth - 30);
-    doc.text(splitMessage, 15, finalY + 7);
-    
-    // Footer
-    const pageHeight = doc.internal.pageSize.getHeight();
-    doc.setFontSize(9);
-    doc.setTextColor(150);
-    doc.text("This is an automatically generated receipt. No signature required.", pageWidth / 2, pageHeight - 15, { align: "center" });
-    doc.text(`Generated on: ${new Date().toLocaleString()} | ${schoolProfile?.name || "School"} Management System`, pageWidth / 2, pageHeight - 10, { align: "center" });
-    
-    // Attempt to add logo if available
-    if (schoolProfile?.logo) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = schoolProfile.logo;
-      img.onload = () => {
-        try {
-          const format = schoolProfile.logo.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG';
-          doc.addImage(img, format, 15, 12, 20, 20);
-          saveAndFinish();
-        } catch (err) {
-          console.error("PDF Logo Error:", err);
-          saveAndFinish();
-        }
-      };
-      img.onerror = () => {
-        console.warn("Could not load logo for PDF");
-        saveAndFinish();
-      };
-    } else {
-      saveAndFinish();
-    }
-
-    function saveAndFinish() {
-      // Save the PDF
-      const fileName = `${inquiry.type}_Receipt_${inquiry.trackingNumber.replace(/\//g, '_')}.pdf`;
-      doc.save(fileName);
-    }
-  };
-
   return (
-    <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
-      {/* Hero Section */}
-      <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
-        <div className="absolute inset-0 z-0">
-          <img
-            src={schoolProfile?.pageHeroImages?.complaints || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2070&auto=format&fit=crop"}
-            alt="Feedback"
-            className="w-full h-full object-cover opacity-95"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-700/60 via-blue-700/30 to-transparent"></div>
-        </div>
-        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 w-full text-left">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50/30 text-white border border-white/20 backdrop-blur-sm shadow-sm mb-4">
-            <span className="material-symbols-outlined text-sm text-white drop-shadow-sm">
-              chat_bubble
-            </span>
-            <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-sm">
-              We Value Your Input
-            </span>
+    <div className="bg-background text-on-background font-body-md min-h-screen">
+      <main className="pt-24 pb-section-padding">
+        {/* Hero / Intro Section */}
+        <section className="max-w-container-max mx-auto px-gutter mb-16 relative overflow-hidden">
+          <div className="absolute top-0 right-0 -z-10 w-1/3 h-full opacity-10"></div>
+          <div className="max-w-3xl">
+            <span className="inline-block px-3 py-1 rounded-full bg-surface-container-high text-primary font-label-md mb-4">Community Focused</span>
+            <h1 className="font-display text-display text-on-surface mb-6">Your Voice Shapes Our <span className="bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent">Future</span></h1>
+            <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl leading-relaxed">
+              At {schoolProfile?.name || 'Excellence Academy'}, we believe the best ideas come from our community. Whether it's a small suggestion for the cafeteria or a major academic initiative, we want to hear from you.
+            </p>
           </div>
-          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Submit <span className="text-amber-400 italic drop-shadow-md">Feedback</span>
-          </h1>
-          <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
-            Your suggestions and feedback help us continuously improve the ${schoolProfile?.name || "Our School"} experience for everyone.
-          </p>
-        </div>
-      </section>
+        </section>
 
-      <div className="max-w-4xl mx-auto px-4 md:px-8 -mt-10 relative z-20">
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-10 -mt-10 pointer-events-none"></div>
-          
-          <h2 className="text-2xl font-serif font-bold text-primary mb-2 flex items-center relative z-10">
-            <span className="w-2 h-8 bg-amber-500 rounded-full mr-3"></span>
-            Share Your Thoughts
-          </h2>
-          <p className="text-gray-500 mb-8 relative z-10">Please fill out the form below. We review all feedback within 48 hours.</p>
-
-          {submitted && (
-            <div className="mb-8 p-4 bg-green-50 border border-green-200 text-green-700 rounded-2xl flex items-center shadow-sm animate-fade-in">
-              <FaCheckCircle className="text-2xl mr-3 flex-shrink-0" />
-              <p className="font-medium">Thank you for your valuable feedback! We will review it shortly.</p>
+        <div className="max-w-container-max mx-auto px-gutter grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Sidebar Navigation (Portal Style) */}
+          <aside className="lg:col-span-3 hidden lg:block">
+            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant space-y-stack-md sticky top-28 shadow-md">
+              <div className="flex flex-col mb-6 p-2">
+                <span className="font-headline-md text-headline-md font-bold text-primary">Student Portal</span>
+                <span className="font-label-md text-label-md text-on-surface-variant">{schoolProfile?.name || 'Excellence Academy'}</span>
+              </div>
+              <nav className="space-y-1">
+                <a className="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all group" href="#">
+                  <span className="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+                  <span className="font-label-md text-label-md">Dashboard</span>
+                </a>
+                <a className="flex items-center gap-3 p-3 bg-primary-container text-on-primary-container rounded-lg font-bold" href="#">
+                  <span className="material-symbols-outlined">reviews</span>
+                  <span className="font-label-md text-label-md">Suggestions</span>
+                </a>
+                <a className="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all group" href="#">
+                  <span className="material-symbols-outlined group-hover:scale-110 transition-transform">school</span>
+                  <span className="font-label-md text-label-md">Resources</span>
+                </a>
+                <a className="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all group" href="#">
+                  <span className="material-symbols-outlined group-hover:scale-110 transition-transform">newspaper</span>
+                  <span className="font-label-md text-label-md">News &amp; Blog</span>
+                </a>
+                <a className="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all group" href="#">
+                  <span className="material-symbols-outlined group-hover:scale-110 transition-transform">settings</span>
+                  <span className="font-label-md text-label-md">Settings</span>
+                </a>
+              </nav>
+              <div className="pt-8 border-t border-outline-variant">
+                <a className="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-variant rounded-lg" href="#">
+                  <span className="material-symbols-outlined">help</span>
+                  <span className="font-label-md text-label-md">Help</span>
+                </a>
+              </div>
             </div>
-          )}
+          </aside>
 
-          <form onSubmit={handleSubmit} className="relative z-10">
+          {/* Main Content Area */}
+          <div className="lg:col-span-9 space-y-16">
             
-            {/* Feedback Type Toggle */}
-            <div className="mb-8">
-              <label className="block text-sm font-bold text-gray-700 mb-3">Feedback Type</label>
-              <div className="flex flex-wrap gap-4">
-                <label className={`cursor-pointer w-full sm:w-auto px-6 py-3 rounded-xl border-2 transition-all flex items-center justify-center ${formData.type === 'Suggestion' ? 'border-amber-500 bg-amber-50 text-primary font-bold shadow-sm' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                  <input type="radio" name="type" value="Suggestion" className="hidden" checked={formData.type === 'Suggestion'} onChange={handleChange} />
-                  Suggestion
-                </label>
-                <label className={`cursor-pointer w-full sm:w-auto px-6 py-3 rounded-xl border-2 transition-all flex items-center justify-center ${formData.type === 'Complain' ? 'border-primary bg-primary/10 text-primary font-bold shadow-sm' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                  <input type="radio" name="type" value="Complain" className="hidden" checked={formData.type === 'Complain'} onChange={handleChange} />
-                  Complaint
-                </label>
-                <label className={`cursor-pointer w-full sm:w-auto px-6 py-3 rounded-xl border-2 transition-all flex items-center justify-center ${formData.type === 'General Inquiry' ? 'border-blue-400 bg-blue-50 text-blue-800 font-bold shadow-sm' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                  <input type="radio" name="type" value="General Inquiry" className="hidden" checked={formData.type === 'General Inquiry'} onChange={handleChange} />
-                  General Inquiry
-                </label>
+            {/* Feedback Form Section */}
+            <section className="bg-white rounded-2xl border border-outline-variant shadow-sm overflow-hidden" id="feedback-form">
+              <div className="bg-primary p-8 text-on-primary">
+                <h2 className="font-headline-lg text-headline-lg mb-2">Submit New Suggestion</h2>
+                <p className="opacity-90">Please categorize your feedback to help us route it to the right department.</p>
               </div>
-            </div>
-
-            {submitError && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-center shadow-sm">
-                <FaExclamationCircle className="text-xl mr-3 flex-shrink-0" />
-                <p className="font-medium">{submitError}</p>
-              </div>
-            )}
-
-            {(formData.type === 'Suggestion' || formData.type === 'Complain') && (
-              <div className="mb-6 bg-gray-50 border border-gray-200 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-primary">Additional Details</h3>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isAnonymous"
-                      name="isAnonymous"
-                      checked={formData.isAnonymous}
-                      onChange={handleCheckboxChange}
-                      className="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500 cursor-pointer"
-                    />
-                    <label htmlFor="isAnonymous" className="ml-2 text-sm text-gray-700 font-medium cursor-pointer relative top-[1px]">Submit Anonymously</label>
-                  </div>
-                </div>
-
+              
+              <form className="p-8 space-y-8" onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="userType">Who is submitting? *</label>
+                  {/* Category Selection */}
+                  <div className="space-y-2 group-focus-within:text-primary transition-colors">
+                    <label className="font-label-md text-label-md text-on-surface-variant transition-colors">Feedback Category</label>
                     <select 
-                      id="userType"
-                      name="userType"
-                      value={formData.userType}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" 
-                      required
+                      name="type" 
+                      value={formData.type} 
+                      onChange={handleChange} 
+                      className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                     >
-                      <option value="Student">Student</option>
-                      <option value="Parent">Parent</option>
-                      <option value="Other">Other</option>
+                      <option value="Suggestion">Suggestion</option>
+                      <option value="Complain">Complaint</option>
+                      <option value="General Inquiry">General Inquiry</option>
                     </select>
                   </div>
+                  
+                  {/* Title */}
+                  <div className="space-y-2">
+                    <label className="font-label-md text-label-md text-on-surface-variant transition-colors">Brief Summary</label>
+                    <input 
+                      required 
+                      name="subject" 
+                      value={formData.subject} 
+                      onChange={handleChange} 
+                      className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" 
+                      placeholder="e.g. Library Hours Extension" 
+                      type="text"
+                    />
+                  </div>
+                </div>
 
-                  {formData.userType === 'Student' && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="className">Class *</label>
-                        <input 
-                          type="text" 
-                          id="className"
-                          name="className"
-                          value={formData.className}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all uppercase" 
-                          placeholder="e.g. 10" 
-                          required={formData.userType === 'Student'}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="section">Section</label>
-                        <input 
-                          type="text" 
-                          id="section"
-                          name="section"
-                          value={formData.section}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all uppercase" 
-                          placeholder="e.g. A" 
-                        />
-                      </div>
+                {/* Main Feedback */}
+                <div className="space-y-2">
+                  <label className="font-label-md text-label-md text-on-surface-variant transition-colors">Detailed Description</label>
+                  <textarea 
+                    required 
+                    name="message" 
+                    value={formData.message} 
+                    onChange={handleChange} 
+                    className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none" 
+                    placeholder="Share your thoughts, concerns, or ideas..." 
+                    rows="5"
+                  ></textarea>
+                </div>
+
+                {/* Anonymous Toggle */}
+                <div className="flex items-center justify-between p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-secondary">visibility_off</span>
+                    <div>
+                      <p className="font-label-md text-label-md text-on-surface font-bold">Submit Anonymously</p>
+                      <p className="text-xs text-on-surface-variant">Your identity will be hidden from administrators.</p>
                     </div>
-                  )}
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      name="isAnonymous" 
+                      checked={formData.isAnonymous} 
+                      onChange={handleCheckboxChange} 
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {/* Submit Error Handling */}
+                {submitError && (
+                  <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2">
+                    <span className="material-symbols-outlined">error</span>
+                    {submitError}
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <div className="flex justify-end pt-4">
+                  <button 
+                    disabled={submitting || submitted}
+                    className={`px-8 py-4 rounded-lg font-bold flex items-center gap-2 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-95 ${submitted ? 'bg-green-600 text-white' : 'bg-primary text-on-primary'}`} 
+                    type="submit"
+                  >
+                    {submitting ? (
+                      <><span className="material-symbols-outlined animate-spin">sync</span> Sending...</>
+                    ) : submitted ? (
+                      <><span className="material-symbols-outlined">check_circle</span> Sent!</>
+                    ) : (
+                      <><span>Submit Feedback</span><span className="material-symbols-outlined">send</span></>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {/* Impact Section: You Suggested, We Did */}
+            <section className="space-y-8">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h2 className="font-headline-lg text-headline-lg text-on-surface">You Suggested, <span className="text-primary">We Did</span></h2>
+                  <p className="text-on-surface-variant mt-2">Real changes implemented from community submissions.</p>
+                </div>
+                <button className="text-primary font-semibold flex items-center gap-1 hover:underline">
+                  View All History <span className="material-symbols-outlined">arrow_forward</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Impact Card 1 */}
+                <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all group">
+                  <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>restaurant</span>
+                  </div>
+                  <span className="inline-block px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold bg-primary-fixed text-on-primary-fixed-variant mb-3">Implemented • Dec 2023</span>
+                  <h3 className="font-headline-md text-headline-md mb-2 group-hover:text-primary transition-colors">Digital Meal Credits</h3>
+                  <p className="text-on-surface-variant text-sm leading-relaxed mb-4">
+                    Students requested a cashless system for the campus cafeteria to reduce queues. We've launched the "Excellence Wallet" integrated into the mobile app.
+                  </p>
+                  <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    40% reduction in queue wait times.
+                  </div>
+                </div>
+
+                {/* Impact Card 2 */}
+                <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all group">
+                  <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>library_books</span>
+                  </div>
+                  <span className="inline-block px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold bg-primary-fixed text-on-primary-fixed-variant mb-3">Implemented • Jan 2024</span>
+                  <h3 className="font-headline-md text-headline-md mb-2 group-hover:text-primary transition-colors">24/7 Library Access</h3>
+                  <p className="text-on-surface-variant text-sm leading-relaxed mb-4">
+                    Feedback showed a need for late-night study spaces during finals. The North Wing library is now open 24/7 with secure badge access.
+                  </p>
+                  <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    Used by 200+ students weekly.
+                  </div>
+                </div>
+
+                {/* Impact Card 3 */}
+                <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all group">
+                  <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>wifi</span>
+                  </div>
+                  <span className="inline-block px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold bg-primary-fixed text-on-primary-fixed-variant mb-3">Implemented • Feb 2024</span>
+                  <h3 className="font-headline-md text-headline-md mb-2 group-hover:text-primary transition-colors">Campus-wide High Speed Fiber</h3>
+                  <p className="text-on-surface-variant text-sm leading-relaxed mb-4">
+                    You highlighted dead zones in the sports complex and dorms. We've upgraded 50+ access points to high-speed fiber-backed WiFi 6.
+                  </p>
+                  <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    100% campus coverage achieved.
+                  </div>
+                </div>
+
+                {/* Impact Card 4 */}
+                <div className="bg-white/80 backdrop-blur-md border border-slate-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
+                  <div className="absolute -right-4 -bottom-4 opacity-10 transform rotate-12">
+                    <span className="material-symbols-outlined text-9xl">groups</span>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>groups</span>
+                  </div>
+                  <span className="inline-block px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold bg-primary-fixed text-on-primary-fixed-variant mb-3">Implemented • Mar 2024</span>
+                  <h3 className="font-headline-md text-headline-md mb-2 group-hover:text-primary transition-colors">Mentorship Program</h3>
+                  <p className="text-on-surface-variant text-sm leading-relaxed mb-4">
+                    Alumni requested more ways to give back. We launched the Peer-to-Alumni mentorship matching platform this semester.
+                  </p>
+                  <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    150 pairings in the first month.
+                  </div>
                 </div>
               </div>
-            )}
+            </section>
 
-            {!formData.isAnonymous && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="name">Full Name {formData.type === 'General Inquiry' ? '*' : ''}</label>
-                  <input
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all uppercase"
-                    id="name" name="name" type="text" placeholder="John Doe"
-                    value={formData.name} onChange={handleChange} required={!formData.isAnonymous}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="email">Email Address {formData.type === 'General Inquiry' ? '*' : ''}</label>
-                  <input
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white:bg-[#1E293B]:bg-[#1E293B] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                    id="email" name="email" type="email" placeholder="john@example.com"
-                    value={formData.email} onChange={handleChange} required={!formData.isAnonymous}
-                  />
-                </div>
+            {/* Feedback Stats / Transparency */}
+            <section className="bg-surface-container rounded-2xl p-8 flex flex-col md:flex-row items-center justify-around gap-8 text-center">
+              <div>
+                <div className="text-primary font-display text-4xl mb-1">1,240</div>
+                <div className="font-label-md text-on-surface-variant">Suggestions Received</div>
               </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {!formData.isAnonymous && (
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="phone">Phone Number</label>
-                  <input
-                    className={`w-full px-4 py-3 rounded-xl border bg-gray-50 focus:bg-white:bg-[#1E293B]:bg-[#1E293B] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${formData.phone.length > 0 && formData.phone.length < 10 ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-                    id="phone" 
-                    name="phone" 
-                    type="tel" 
-                    placeholder="10-digit phone number"
-                    value={formData.phone} 
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                      setFormData({...formData, phone: val});
-                    }}
-                  />
-                  {formData.phone.length > 0 && formData.phone.length < 10 && (
-                    <p className="text-red-500 text-[10px] mt-1">Please enter a valid 10-digit number</p>
-                  )}
-                </div>
-              )}
-              <div className={formData.isAnonymous ? "md:col-span-2" : ""}>
-                <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="subject">Subject</label>
-                <input
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all uppercase"
-                  id="subject" name="subject" type="text" placeholder="Brief summary of your message"
-                  value={formData.subject} onChange={handleChange} required
-                />
+              <div className="w-px h-12 bg-outline-variant hidden md:block"></div>
+              <div>
+                <div className="text-primary font-display text-4xl mb-1">86%</div>
+                <div className="font-label-md text-on-surface-variant">Response Rate</div>
               </div>
-            </div>
-
-            <div className="mb-8">
-              <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="message">Message Details</label>
-              <textarea
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none uppercase"
-                id="message" name="message" rows="5" placeholder="Please provide as much detail as possible..."
-                value={formData.message} onChange={handleChange} required
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500 hidden sm:flex items-center"><FaExclamationCircle className="mr-1"/> All required fields must be filled</p>
-              <button
-                disabled={submitting}
-                className={`w-full sm:w-auto font-bold py-3.5 px-8 rounded-xl shadow-md transition-all flex items-center justify-center transform hover:-translate-y-1 ${submitting ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-primary hover:bg-primary-container text-white hover:shadow-lg:shadow-none:shadow-none'}`}
-                type="submit"
-              >
-                {submitting ? 'Sending...' : 'Send Message'} <FaPaperPlane className="ml-3" />
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Tracking Section */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 mt-10 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-32 h-32 bg-blue-50 rounded-br-full -ml-10 -mt-10 pointer-events-none"></div>
-          <h2 className="text-2xl font-serif font-bold text-primary mb-2 flex items-center relative z-10">
-            <span className="w-2 h-8 bg-blue-500 rounded-full mr-3"></span>
-            Track Your Inquiry
-          </h2>
-          <p className="text-gray-500 mb-6 relative z-10">Enter your tracking number to check the status of your inquiry.</p>
-          <div className="flex gap-3 relative z-10">
-            <div className="relative flex-1">
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={trackingInput}
-                onChange={(e) => setTrackingInput(e.target.value.toUpperCase())}
-                placeholder="e.g. HNS/SUG/2026/001"
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono uppercase"
-              />
-            </div>
-            <button
-              onClick={async () => {
-                if (!trackingInput.trim()) return;
-                setTrackingLoading(true);
-                setTrackingError(null);
-                setTrackingResult(null);
-                try {
-                  const apiBase = import.meta.env.VITE_API_URL || '/api';
-                  const res = await axios.get(`${apiBase}/inquiries/track/${encodeURIComponent(trackingInput.trim())}`);
-                  setTrackingResult(res.data);
-                } catch (err) {
-                  setTrackingError(err.response?.data?.message || 'Could not find inquiry. Please check the tracking number.');
-                } finally {
-                  setTrackingLoading(false);
-                }
-              }}
-              disabled={trackingLoading || !trackingInput.trim()}
-              className={`px-6 py-3 rounded-xl font-bold text-white transition-all flex items-center gap-2 ${trackingLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 hover:shadow-lg'}`}
-            >
-              {trackingLoading ? 'Searching...' : 'Track'}
-            </button>
+              <div className="w-px h-12 bg-outline-variant hidden md:block"></div>
+              <div>
+                <div className="text-primary font-display text-4xl mb-1">42</div>
+                <div className="font-label-md text-on-surface-variant">Actions Implemented</div>
+              </div>
+            </section>
           </div>
-
-          {trackingError && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-center animate-fade-in">
-              <FaExclamationCircle className="text-xl mr-3 flex-shrink-0" />
-              <p className="font-medium">{trackingError}</p>
-            </div>
-          )}
-
-          {trackingResult && (
-            <div className="mt-6 bg-gray-50 rounded-2xl border border-gray-200 p-6 animate-fade-in">
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                <span className="font-mono font-bold text-primary text-lg">{trackingResult.trackingNumber}</span>
-                <span className={`text-xs font-black px-3 py-1 rounded-full uppercase ${
-                  trackingResult.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
-                  trackingResult.status === 'Under Review' ? 'bg-blue-100 text-blue-700' :
-                  trackingResult.status === 'Resolved' ? 'bg-green-100 text-green-700' :
-                  'bg-gray-100 text-gray-600'
-                }`}>{trackingResult.status}</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-400 font-bold uppercase text-xs">Type</span>
-                  <p className="text-gray-800 font-medium">{trackingResult.type}</p>
-                </div>
-                <div>
-                  <span className="text-gray-400 font-bold uppercase text-xs">Subject</span>
-                  <p className="text-gray-800 font-medium">{trackingResult.subject}</p>
-                </div>
-                <div>
-                  <span className="text-gray-400 font-bold uppercase text-xs">Submitted On</span>
-                  <p className="text-gray-800 font-medium">{new Date(trackingResult.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                </div>
-              </div>
-              {trackingResult.adminReply && (
-                <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <p className="text-xs text-emerald-600 font-bold uppercase mb-1">School's Response</p>
-                  <p className="text-sm text-emerald-800 whitespace-pre-wrap">{trackingResult.adminReply}</p>
-                  {trackingResult.repliedAt && (
-                    <p className="text-xs text-emerald-500 mt-2">{new Date(trackingResult.repliedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
-      </div>
+      </main>
     </div>
   );
-}
+};
 
 export default Complaints;

@@ -822,3 +822,10 @@
         padding: 1.5rem !important;
     }
 }
+@layer utilities {
+  .glass-sidebar {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(226, 232, 240, 1);
+  }
+}

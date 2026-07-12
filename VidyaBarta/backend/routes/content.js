@@ -69,6 +69,7 @@ const getAggregatedContent = async (schoolId) => {
       offline_admission_instructions: settings?.offline_admission_instructions || [],
       establishedYear: settings?.established_year,
       isMaintenanceMode: settings?.is_maintenance_mode || false,
+      theme: settings?.theme || 'academic',
       facultyVisibility: settings?.faculty_visibility || { graduate: true, higher_secondary: true, upper_primary: true, primary: true, play_school: true, administration: true, support_staff: true },
       servicesVisibility: settings?.services_visibility || { admission: true, career: true, tenders: true, appointment: true, gallery: true, studentPortal: true, faculty: true, alumestron: true, excellence: true, complaints: true }
     },
@@ -214,6 +215,7 @@ router.put('/', protect, async (req, res) => {
       online_admission_instructions: updateData.schoolProfile?.onlineAdmissionInstructions,
       offline_admission_instructions: updateData.schoolProfile?.offlineAdmissionInstructions,
       established_year: updateData.schoolProfile?.establishedYear,
+      theme: updateData.schoolProfile?.theme,
       social_links: updateData.socialLinks,
       notification_email: updateData.notificationEmail,
       admission_fee: updateData.admissionFee,

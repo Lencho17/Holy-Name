@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { FiImage, FiUpload, FiMoreVertical, FiEdit2, FiTrash2, FiUser, FiPower, FiSettings } from 'react-icons/fi';
+import { FiImage, FiUpload, FiMoreVertical, FiEdit2, FiTrash2, FiUser, FiPower, FiSettings, FiDownload } from 'react-icons/fi';
+import BulkIDCardDownloader from './BulkIDCardDownloader';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -18,6 +19,7 @@ const PageWrapper = ({ title, children }) => (
 
 export const ManageSchools = () => {
   const [schools, setSchools] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +31,7 @@ export const ManageSchools = () => {
   const [isChangeAdminModalOpen, setIsChangeAdminModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
+  const [isBulkDownloadModalOpen, setIsBulkDownloadModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   
   // Pagination State
@@ -69,18 +72,23 @@ export const ManageSchools = () => {
     admin_last_name: '',
     admin_contact: '',
     admin_email: '',
-    admin_image_url: ''
+    admin_image_url: '',
+    package_id: '',
+    platform_fee: 0,
+    transaction_fee: 0
   });
 
   const fetchSchools = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/superadmin/schools`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSchools(Array.isArray(res.data) ? res.data : []);
+      const [schoolsRes, packagesRes] = await Promise.all([
+        axios.get(`${API_URL}/superadmin/schools`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/superadmin/packages`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
+      ]);
+      setSchools(Array.isArray(schoolsRes.data) ? schoolsRes.data : []);
+      setPackages(Array.isArray(packagesRes.data) ? packagesRes.data : []);
     } catch (err) {
-      console.error('Failed to fetch schools', err);
+      console.error('Failed to fetch data', err);
     } finally {
       setLoading(false);
     }
@@ -304,12 +312,26 @@ export const ManageSchools = () => {
 
               <div>
                 <label className="block text-label-md font-medium text-neutral mb-1.5">Subscription Package <span className="text-red-500">*</span></label>
-                <select required name="package" value={formData.package} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md appearance-none">
+                <select required name="package_id" value={formData.package_id} onChange={(e) => {
+                  const selectedPkg = packages.find(p => p.id === e.target.value);
+                  setFormData({ ...formData, package_id: e.target.value, package: selectedPkg ? selectedPkg.name : '' });
+                }} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md appearance-none">
                   <option value="">Select a package</option>
-                  <option value="Basic">Basic Package</option>
-                  <option value="Standard">Standard Package</option>
-                  <option value="Premium">Premium Package</option>
+                  {packages.map(pkg => (
+                    <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                  ))}
                 </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-label-md font-medium text-neutral mb-1.5">Platform Fee (%)</label>
+                  <input type="number" step="0.01" name="platform_fee" value={formData.platform_fee} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="e.g. 5" />
+                </div>
+                <div>
+                  <label className="block text-label-md font-medium text-neutral mb-1.5">Transaction Fee (%)</label>
+                  <input type="number" step="0.01" name="transaction_fee" value={formData.transaction_fee} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="e.g. 2" />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-5">
@@ -568,11 +590,25 @@ export const ManageSchools = () => {
                           <button 
                             onClick={() => {
                               setSelectedSchool(school);
+                              setIsBulkDownloadModalOpen(true);
+                              setOpenDropdownId(null);
+                            }}
+                            className="w-full text-left px-4 py-2 text-body-md text-neutral hover:bg-surface-variant transition-colors flex items-center gap-2"
+                          >
+                            <FiDownload className="text-secondary" /> Bulk Download ID Cards
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              setSelectedSchool(school);
                               setEditFormData({
                                 name: school.name,
                                 subdomain: school.subdomain,
                                 custom_domain: school.custom_domain || '',
                                 package: school.package || '',
+                                package_id: school.package_id || '',
+                                platform_fee: school.platform_fee || 0,
+                                transaction_fee: school.transaction_fee || 0,
                                 phone: school.phone || '',
                                 email: school.email || '',
                                 tagline: school.tagline || '',
@@ -671,13 +707,27 @@ export const ManageSchools = () => {
                     <input type="text" value={editFormData.custom_domain} onChange={(e) => setEditFormData({...editFormData, custom_domain: e.target.value})} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl" />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-label-md font-medium text-neutral mb-1.5">Subscription Package</label>
-                  <select value={editFormData.package} onChange={(e) => setEditFormData({...editFormData, package: e.target.value})} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary rounded-xl">
-                    <option value="Basic">Basic Package</option>
-                    <option value="Standard">Standard Package</option>
-                    <option value="Premium">Premium Package</option>
-                  </select>
+                <div className="grid grid-cols-3 gap-5">
+                  <div>
+                    <label className="block text-label-md font-medium text-neutral mb-1.5">Subscription Package</label>
+                    <select value={editFormData.package_id} onChange={(e) => {
+                      const selectedPkg = packages.find(p => p.id === e.target.value);
+                      setEditFormData({...editFormData, package_id: e.target.value, package: selectedPkg ? selectedPkg.name : ''});
+                    }} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary rounded-xl">
+                      <option value="">Select Package</option>
+                      {packages.map(pkg => (
+                        <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-label-md font-medium text-neutral mb-1.5">Platform Fee (%)</label>
+                    <input type="number" step="0.01" value={editFormData.platform_fee} onChange={(e) => setEditFormData({...editFormData, platform_fee: e.target.value})} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary rounded-xl" />
+                  </div>
+                  <div>
+                    <label className="block text-label-md font-medium text-neutral mb-1.5">Transaction Fee (%)</label>
+                    <input type="number" step="0.01" value={editFormData.transaction_fee} onChange={(e) => setEditFormData({...editFormData, transaction_fee: e.target.value})} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary rounded-xl" />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-5">
                   <div>
@@ -802,6 +852,32 @@ export const ManageSchools = () => {
             </div>
           </div>
         </div>
+      )}
+      {isServicesModalOpen && selectedSchool && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+            <h2 className="text-title-lg font-bold mb-4">Manage Allowed Features</h2>
+            <p className="text-body-sm text-on-surface-variant mb-6">Select the features enabled for <strong>{selectedSchool.name}</strong>.</p>
+            <form onSubmit={handleServicesSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">
+                {Object.keys(servicesFormData).map((service) => (
+                  <label key={service} className="flex items-center gap-3 p-3 border border-outline-variant rounded-xl cursor-pointer hover:bg-surface-variant">
+                    <input type="checkbox" checked={servicesFormData[service]} onChange={(e) => setServicesFormData({...servicesFormData, [service]: e.target.checked})} className="w-5 h-5 text-primary rounded" />
+                    <span className="capitalize font-medium text-body-md">{service.replace(/([A-Z])/g, ' $1').trim()}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setIsServicesModalOpen(false)} className="px-6 py-2 border rounded-xl font-bold">Cancel</button>
+                <button type="submit" disabled={modalLoading} className="bg-primary text-white px-6 py-2 rounded-xl font-bold disabled:opacity-50">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isBulkDownloadModalOpen && selectedSchool && (
+        <BulkIDCardDownloader school={selectedSchool} onClose={() => setIsBulkDownloadModalOpen(false)} />
       )}
     </PageWrapper>
   );

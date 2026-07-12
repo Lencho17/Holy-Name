@@ -138,6 +138,8 @@ exports.updateStudent = async (req, res) => {
       email: req.body.email,
       address: req.body.address,
       status: req.body.status,
+      mil_subject: req.body.mil_subject,
+      elective_subject: req.body.elective_subject,
       updated_at: new Date()
     };
 

@@ -144,11 +144,124 @@ export const Dashboard = () => {
 };
 
 export { ManageSchools as Schools };
-export const Packages = () => <PageWrapper title="Packages"><p>Manage subscription packages.</p></PageWrapper>;
+export const Packages = () => {
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ id: null, name: '', features: {} });
+
+  const allFeatures = ['admission', 'career', 'tenders', 'appointment', 'gallery', 'studentPortal', 'faculty', 'alumestron', 'excellence', 'complaints'];
+
+  const fetchPackages = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/superadmin/packages`, { headers: { Authorization: `Bearer ${token}` } });
+      setPackages(res.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchPackages(); }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('adminToken');
+    const headers = { Authorization: `Bearer ${token}` };
+    try {
+      if (formData.id) {
+        await axios.put(`${API_URL}/superadmin/packages/${formData.id}`, formData, { headers });
+      } else {
+        await axios.post(`${API_URL}/superadmin/packages`, formData, { headers });
+      }
+      fetchPackages();
+      setIsModalOpen(false);
+    } catch (err) { alert('Failed to save package'); }
+  };
+
+  const handleDelete = async (id) => {
+    if(!confirm('Delete package?')) return;
+    const token = localStorage.getItem('adminToken');
+    try {
+      await axios.delete(`${API_URL}/superadmin/packages/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      fetchPackages();
+    } catch (err) { alert('Failed to delete package'); }
+  };
+
+  const handleFeatureToggle = (feature) => {
+    setFormData(prev => ({
+      ...prev,
+      features: { ...prev.features, [feature]: !prev.features[feature] }
+    }));
+  };
+
+  return (
+    <PageWrapper title="Packages">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-title-lg font-bold">Subscription Packages</h2>
+        <button onClick={() => { setFormData({ id: null, name: '', features: {} }); setIsModalOpen(true); }} className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm transition-all">Add Package</button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {loading ? <p className="text-on-surface-variant">Loading packages...</p> : packages.map(pkg => (
+          <div key={pkg.id} className="border border-outline-variant p-6 rounded-2xl bg-white shadow-sm flex flex-col hover:shadow-md transition-shadow">
+            <h3 className="text-title-md font-bold text-neutral mb-4">{pkg.name}</h3>
+            <ul className="flex-1 space-y-2 mb-6 grid grid-cols-2 gap-x-2 gap-y-1">
+              {allFeatures.map(f => (
+                <li key={f} className="text-body-sm flex items-center gap-2">
+                  <span className={`w-4 h-4 flex items-center justify-center rounded-full text-[10px] ${pkg.features[f] ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                    {pkg.features[f] ? '✓' : '✕'}
+                  </span> 
+                  <span className="capitalize">{f}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-3">
+              <button onClick={() => { setFormData(pkg); setIsModalOpen(true); }} className="flex-1 py-2 bg-surface-variant hover:bg-surface-variant/80 rounded-xl font-bold text-neutral transition-colors">Edit</button>
+              <button onClick={() => handleDelete(pkg.id)} className="flex-1 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold transition-colors">Delete</button>
+            </div>
+          </div>
+        ))}
+        {packages.length === 0 && !loading && (
+          <div className="col-span-full py-8 text-center bg-surface rounded-2xl border border-dashed border-outline-variant">
+            <p className="text-on-surface-variant">No packages defined yet.</p>
+          </div>
+        )}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl animate-scaleIn">
+            <h2 className="text-title-lg font-bold mb-6 text-neutral">{formData.id ? 'Edit' : 'Add'} Package</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-label-md font-medium text-neutral mb-2">Package Name</label>
+                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary rounded-xl" placeholder="e.g. Premium" />
+              </div>
+              <div>
+                <label className="block text-label-md font-medium text-neutral mb-3">Allowed Features</label>
+                <div className="grid grid-cols-2 gap-3 p-4 bg-surface rounded-xl border border-outline-variant">
+                  {allFeatures.map(f => (
+                    <label key={f} className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={formData.features[f] || false} onChange={() => handleFeatureToggle(f)} className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary" />
+                      <span className="text-body-md capitalize text-on-surface-variant">{f}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 border border-outline-variant hover:bg-surface-variant rounded-xl font-bold text-neutral transition-colors">Cancel</button>
+                <button type="submit" className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-xl font-bold shadow-sm transition-colors">Save Package</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </PageWrapper>
+  );
+};
 export const Addons = () => <PageWrapper title="Addons"><p>Manage system addons.</p></PageWrapper>;
 export const Features = () => <PageWrapper title="Features"><p>Toggle and manage system features.</p></PageWrapper>;
 export const Subscription = () => <PageWrapper title="Subscription"><p>View active subscriptions.</p></PageWrapper>;
-export const SubscriptionTransaction = () => <PageWrapper title="Subscription Transaction"><p>View subscription transaction history.</p></PageWrapper>;
+export { RevenueSettlements } from './RevenueSettlements';
+// export const SubscriptionTransaction
 
 // Staff Management
 export const RolePermission = () => <PageWrapper title="Role & Permission"><p>Manage roles and permissions.</p></PageWrapper>;
@@ -177,3 +290,5 @@ export const RefundCancellation = () => <PageWrapper title="Refund & Cancellatio
 export const SchoolTermsCondition = () => <PageWrapper title="School Terms & Condition"><p>Manage terms specific to schools.</p></PageWrapper>;
 
 export const SystemUpdate = () => <PageWrapper title="System Update"><p>Check and apply system updates.</p></PageWrapper>;
+
+export { DomainRequests } from './DomainRequests';

@@ -8,12 +8,12 @@ let content = fs.readFileSync(filePath, 'utf8');
 if (!content.includes('FiChevronDown')) {
   content = content.replace(
     "import { FaUsers", 
-    "import { FiChevronDown, FiMenu, FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, FiDollarSign, FiUsers, FiSettings, FiMonitor } from 'react-icons/fi';\\nimport { FaUsers"
+    "import { FiChevronDown, FiMenu, FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, FiDollarSign, FiUsers, FiSettings, FiMonitor } from 'react-icons/fi';\nimport { FaUsers"
   );
 }
 
 // 2. Inject SidebarItem and SubItem
-const sidebarComponents = \`
+const sidebarComponents = `
 const SidebarItem = ({ active, onClick, icon: Icon, label, children }) => {
   const [isOpen, ReactSetIsOpen] = React.useState(false);
   const isActive = active;
@@ -62,20 +62,20 @@ const SubItem = ({ active, onClick, label }) => (
     {label}
   </button>
 );
-\`;
+`;
 
 if (!content.includes('const SidebarItem = ({ active')) {
-  content = content.replace("function AdminPage() {", sidebarComponents + "\\nfunction AdminPage() {");
+  content = content.replace("function AdminPage() {", sidebarComponents + "\nfunction AdminPage() {");
 }
 
-const returnStartStr = '  return (\\n    <div className="min-h-screen flex flex-col font-sans relative overflow-x-hidden" style={{ backgroundColor: \\'#F1F5F9\\' }}>';
-const mainStr = '<main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-8" style={{ backgroundColor: \\'#F8FAFC\\' }}>';
+const returnStartStr = '  return (\n    <div className="min-h-screen flex flex-col font-sans relative overflow-x-hidden" style={{ backgroundColor: \`#F1F5F9\` }}>';
+const mainStr = '<main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-8" style={{ backgroundColor: \`#F8FAFC\` }}>';
 
 const startIndex = content.indexOf(returnStartStr);
 const endIndex = content.indexOf(mainStr);
 
 if (startIndex !== -1 && endIndex !== -1) {
-  const newLayout = \`  const getInitials = (name) => {
+  const newLayout = `  const getInitials = (name) => {
     if (!name) return 'SA';
     const parts = name.trim().split(' ');
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -195,10 +195,10 @@ if (startIndex !== -1 && endIndex !== -1) {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-slate-50">
-\`;
+`;
 
   content = content.substring(0, startIndex) + newLayout + content.substring(endIndex + mainStr.length);
-  content = content.replace("    </div>\\n  );\\n}\\n\\nexport default AdminPage;", "    </div>\\n      </main>\\n    </div>\\n  );\\n}\\n\\nexport default AdminPage;");
+  content = content.replace("    </div>\n  );\n}\n\nexport default AdminPage;", "    </div>\n      </main>\n    </div>\n  );\n}\n\nexport default AdminPage;");
   
   fs.writeFileSync(filePath, content, 'utf8');
   console.log('AdminPage.jsx patched successfully');

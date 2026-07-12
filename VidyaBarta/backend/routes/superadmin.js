@@ -206,10 +206,10 @@ router.put('/schools/:id', protect, async (req, res) => {
     if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    const { name, subdomain, custom_domain, package: schoolPackage, phone, email, tagline, address, logo_url } = req.body;
+    const { name, subdomain, custom_domain, package: schoolPackage, phone, email, tagline, address, logo_url, platform_fee, transaction_fee, allowed_features, package_id } = req.body;
     const { error } = await supabase
       .from('schools')
-      .update({ name, subdomain, custom_domain, package: schoolPackage, phone, email, tagline, address, logo_url })
+      .update({ name, subdomain, custom_domain, package: schoolPackage, phone, email, tagline, address, logo_url, platform_fee, transaction_fee, allowed_features, package_id })
       .eq('id', req.params.id);
 
     if (error) throw error;
@@ -311,6 +311,121 @@ router.put('/schools/:id/settings', protect, async (req, res) => {
     res.json({ message: 'Settings updated successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// --- PACKAGES MANAGEMENT ---
+// GET /api/superadmin/packages
+router.get('/packages', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') return res.status(403).json({ message: 'Forbidden' });
+    const { data, error } = await supabase.from('packages').select('*').order('created_at', { ascending: true });
+    if (error) throw error;
+    res.json(data);
+  } catch (error) { res.status(500).json({ message: 'Server error', error: error.message }); }
+});
+
+// POST /api/superadmin/packages
+router.post('/packages', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') return res.status(403).json({ message: 'Forbidden' });
+    const { name, features } = req.body;
+    const { data, error } = await supabase.from('packages').insert({ name, features }).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (error) { res.status(500).json({ message: 'Server error', error: error.message }); }
+});
+
+// PUT /api/superadmin/packages/:id
+router.put('/packages/:id', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') return res.status(403).json({ message: 'Forbidden' });
+    const { name, features } = req.body;
+    const { data, error } = await supabase.from('packages').update({ name, features }).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (error) { res.status(500).json({ message: 'Server error', error: error.message }); }
+});
+
+// DELETE /api/superadmin/packages/:id
+router.delete('/packages/:id', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') return res.status(403).json({ message: 'Forbidden' });
+    const { error } = await supabase.from('packages').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ message: 'Package deleted' });
+  } catch (error) { res.status(500).json({ message: 'Server error', error: error.message }); }
+});
+
+// --- BULK ID CARD DATA ---
+// GET /api/superadmin/schools/:id/id-cards-data
+router.get('/schools/:id/id-cards-data', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') return res.status(403).json({ message: 'Forbidden' });
+    const { id } = req.params;
+    
+    // Fetch students
+    const { data: students, error: studentError } = await supabase
+      .from('students')
+      .select('id, student_name, admission_id, roll_number, class_name, section, blood_group, guardian_name, contact_number, address, dob, photo_url')
+      .eq('school_id', id);
+    if (studentError) throw studentError;
+
+    // Fetch staff
+    const { data: staff, error: staffError } = await supabase
+      .from('staff')
+      .select('id, name, employee_id, role, department, blood_group, phone, address, dob, photo_url')
+      .eq('school_id', id);
+    if (staffError) throw staffError;
+
+    // Fetch school settings for the ID card header/logo
+    const { data: settings, error: settingsError } = await supabase
+      .from('site_settings')
+      .select('school_name, logo, phone, email, office_address')
+      .eq('school_id', id)
+      .single();
+
+    res.json({ students: students || [], staff: staff || [], schoolProfile: settings || {} });
+  } catch (error) {
+    console.error('ID Card Data Error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// ================= DOMAIN REQUESTS =================
+
+router.get('/domains', protect, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('domain_purchases')
+      .select('*, schools(name, subdomain)')
+      .order('purchased_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to fetch domain requests' });
+  }
+});
+
+router.patch('/domains/:id/status', protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    const { data, error } = await supabase
+      .from('domain_purchases')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to update domain status' });
   }
 });
 

@@ -93,6 +93,7 @@ const defaultSchoolProfile = {
   heroImages: [],
   pageHeroImages: {},
   affiliation: [],
+  theme: 'academic',
   facultyVisibility: { graduate: true, higher_secondary: true, upper_primary: true, primary: true, play_school: true, administration: true, support_staff: true }
 };
 
@@ -303,7 +304,14 @@ export const SiteDataProvider = ({ children }) => {
         if (legacyData.visionStatement !== undefined) setVisionStatement(legacyData.visionStatement);
         if (legacyData.aimsAndObjectives) setAimsAndObjectives(legacyData.aimsAndObjectives);
         if (legacyData.headMistress && typeof legacyData.headMistress === 'object') setHeadMistress({ ...defaultHeadMistress, ...legacyData.headMistress });
-        if (legacyData.schoolProfile && typeof legacyData.schoolProfile === 'object') setSchoolProfile({ ...defaultSchoolProfile, ...legacyData.schoolProfile });
+        if (legacyData.schoolProfile && typeof legacyData.schoolProfile === 'object') {
+          const previewTheme = urlParams.get('preview_theme');
+          const mergedProfile = { ...defaultSchoolProfile, ...legacyData.schoolProfile };
+          if (previewTheme) {
+            mergedProfile.theme = previewTheme;
+          }
+          setSchoolProfile(mergedProfile);
+        }
         if (Array.isArray(legacyData.emeritus)) setEmeritus(legacyData.emeritus);
         if (Array.isArray(legacyData.centerOfExcellence)) setCenterOfExcellence(legacyData.centerOfExcellence);
         if (legacyData.coursesPage && typeof legacyData.coursesPage === 'object') setCoursesPage(legacyData.coursesPage);

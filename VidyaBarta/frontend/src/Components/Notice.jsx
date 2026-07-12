@@ -1,9 +1,9 @@
-import React, { useContext } from "react";
-import { FaFilePdf, FaDownload, FaBell, FaCalendarAlt, FaShareAlt } from "react-icons/fa";
-import { SiteDataContext } from "../context/SiteDataContext";
+import React, { useContext, useState } from 'react';
+import { SiteDataContext } from '../context/SiteDataContext';
 
-function Notice() {
+const Notice = () => {
   const { notices, schoolProfile, API_URL } = useContext(SiteDataContext);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const getProxyUrl = (url) => {
     if (!url) return url;
@@ -11,186 +11,200 @@ function Notice() {
     if (!isExternal) return url;
     return `${API_URL}/files/proxy?url=${encodeURIComponent(url)}`;
   };
-  const latestNotice = notices && notices.length > 0 ? notices[0] : null;
-  const previousNotices = notices && notices.length > 1 ? notices.slice(1) : [];
 
-  const handleShare = async (e, notice) => {
-    e?.preventDefault();
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || '/api';
-      const res = await fetch(`${apiBase}/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: notice.title, 
-          desc: `Notice published on ${notice.date} — ${schoolProfile?.name || "Our School"}`, 
-          image: schoolProfile?.pageHeroImages?.notice || "", 
-          page: '/notice' 
-        }),
-      });
-      const { url } = await res.json();
-      const shareUrl = url || window.location.href;
-      if (navigator.share) { 
-        await navigator.share({ title: notice.title, text: notice.title, url: shareUrl }); 
-      } else { 
-        await navigator.clipboard.writeText(shareUrl); 
-        alert('Link copied to clipboard!'); 
-      }
-    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
-  };
+  const filteredNotices = (notices || []).filter(notice => 
+    notice.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
-      {/* Hero Section */}
-      <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
-        <div className="absolute inset-0 z-0">
-          <img
-            src={schoolProfile?.pageHeroImages?.notice || "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?q=80&w=2070&auto=format&fit=crop"}
-            alt="Notice Board"
-            className="w-full h-full object-cover opacity-95"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-700/60 via-blue-700/30 to-transparent"></div>
-        </div>
-        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 w-full text-left">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50/30 text-white border border-white/20 backdrop-blur-sm shadow-sm mb-4">
-            <span className="material-symbols-outlined text-sm text-white drop-shadow-sm">
-              notifications_active
-            </span>
-            <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-sm">
-              Stay Updated
-            </span>
+    <div className="bg-surface text-on-surface font-body-md min-h-screen">
+      <main className="max-w-container-max mx-auto px-6 py-12">
+        {/* Hero Title Section */}
+        <div className="mb-12">
+          <div className="flex items-center gap-2 text-primary font-label-md mb-2">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>campaign</span>
+            COMMUNICATIONS HUB
           </div>
-          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
-            Notice <span className="text-amber-400 italic drop-shadow-md">Board</span>
-          </h1>
-          <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
-            Get the latest circulars, announcements, and important updates directly from the school administration.
+          <h1 className="font-display text-display text-on-surface mb-4">Notice Board</h1>
+          <p className="text-body-lg text-on-surface-variant max-w-2xl">
+            Stay updated with the latest announcements, examination schedules, and institutional circulars for the current academic year at {schoolProfile?.name || 'Excellence Academy'}.
           </p>
         </div>
-      </section>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 -mt-10 relative z-20">
-        <div className="grid grid-cols-1 gap-8">
+        {/* Search and Filter Bar */}
+        <section className="bg-surface-container-lowest rounded-xl p-4 mb-10 border border-outline-variant flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
+          <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <button className="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-md text-label-md">All Notices</button>
+            <button className="bg-surface-container text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-lg font-label-md text-label-md transition-colors">Exams</button>
+            <button className="bg-surface-container text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-lg font-label-md text-label-md transition-colors">Holidays</button>
+            <button className="bg-surface-container text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-lg font-label-md text-label-md transition-colors">Admissions</button>
+          </div>
+          <div className="relative w-full md:w-80 flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-label-md focus:border-primary focus:ring-2 focus:ring-primary/20"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Main Content Layout: Bento Grid Style */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
           
-          {/* Latest Notice - Main Column */}
-          {latestNotice ? (
-            <div className="flex flex-col h-full">
-              <div className="bg-white rounded-3xl shadow-xl p-8 md:p-10 border border-gray-100 flex-grow relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-10 -mt-10"></div>
-                
-                <div className="flex flex-wrap items-center justify-between mb-8 relative z-10">
-                  <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary flex items-center mb-4 sm:mb-0">
-                    <span className="w-2 h-8 bg-amber-500 rounded-full mr-4"></span>
-                    Latest Circular
-                  </h2>
-                  <span className="px-4 py-1.5 bg-red-100 text-red-600 rounded-full text-sm font-bold tracking-wide animate-pulse shadow-sm">
-                    NEW
-                  </span>
-                </div>
+          {/* Recent Announcements Column (8 cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            <h2 className="font-headline-lg text-headline-lg flex items-center gap-3 mb-6">
+              Recent Announcements
+              <span className="h-1 flex-grow bg-outline-variant rounded-full opacity-30"></span>
+            </h2>
 
-                {/* Notice Content Rendering Area */}
-                <div className="bg-[#F9F9FB] rounded-2xl border border-gray-200 p-8 min-h-[300px] flex items-center justify-center relative shadow-inner group">
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/50 rounded-2xl pointer-events-none"></div>
-                  <div className="text-center relative z-10 transform group-hover:-translate-y-2 transition-transform duration-300">
-                    <div className="w-20 h-20 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-red-100">
-                       <FaFilePdf className="text-5xl text-red-500 drop-shadow-sm" />
+            {filteredNotices.length > 0 ? (
+              filteredNotices.map((notice, idx) => (
+                <article key={idx} className="notice-card bg-surface-container-lowest border border-outline-variant rounded-xl p-6 transition-all hover:shadow-lg group">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex gap-2">
+                      {idx === 0 && (
+                        <span className="bg-error-container text-on-error-container px-3 py-1 rounded-full text-label-sm font-label-sm flex items-center gap-1">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>priority_high</span>
+                          NEW
+                        </span>
+                      )}
+                      <span className="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-label-sm font-label-sm">General</span>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-800 mb-3">{latestNotice.title}</h3>
-                    <p className="text-gray-500 mb-8 font-medium bg-white inline-block px-4 py-1 rounded-full shadow-sm">Published on {latestNotice.date}</p>
-                    <div>
-                      <div className="flex gap-4 items-center justify-center">
-                        <a href={`${getProxyUrl(latestNotice.pdfLink || latestNotice.pdf_link)}&filename=${encodeURIComponent(latestNotice.title)}.pdf`} target="_blank" rel="noreferrer" className="bg-primary hover:bg-primary-container text-white px-8 py-3 rounded-full font-medium transition-all shadow-md hover:shadow-lg inline-flex items-center transform hover:scale-105">
-                          <FaDownload className="mr-3" /> View / Download PDF
-                        </a>
-                        <button 
-                          onClick={(e) => handleShare(e, latestNotice)}
-                          className="p-3.5 rounded-full bg-white border border-gray-200 text-primary hover:bg-primary hover:text-white transition-all shadow-sm hover:shadow-md"
-                          title="Share Notice"
-                        >
-                          <FaShareAlt />
-                        </button>
-                      </div>
+                    <time className="text-label-sm text-outline">{notice.date}</time>
+                  </div>
+                  <h3 className="notice-title font-headline-md text-headline-md mb-2 transition-colors group-hover:text-primary">{notice.title}</h3>
+                  <p className="text-body-md text-on-surface-variant mb-6">Please find the attached document for more details.</p>
+                  
+                  {notice.pdf_url && (
+                    <div className="flex flex-wrap gap-4">
+                      <a 
+                        className="flex items-center gap-2 bg-surface-container text-primary px-4 py-2 rounded-lg font-label-md hover:bg-primary hover:text-on-primary transition-all" 
+                        href={getProxyUrl(notice.pdf_url)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                      >
+                        <span className="material-symbols-outlined">download</span>
+                        Download Document
+                      </a>
                     </div>
+                  )}
+                </article>
+              ))
+            ) : (
+              <div className="text-center py-10 bg-surface-container-lowest border border-outline-variant rounded-xl">
+                <span className="material-symbols-outlined text-4xl text-outline mb-2">inbox</span>
+                <p className="text-on-surface-variant font-label-md">No notices found.</p>
+              </div>
+            )}
+            
+            {filteredNotices.length > 3 && (
+              <button className="w-full py-4 border-2 border-dashed border-outline-variant rounded-xl text-outline font-label-md hover:border-primary hover:text-primary transition-all">
+                Load Older Notices
+              </button>
+            )}
+          </div>
+
+          {/* Sidebar Column (4 cols) */}
+          <div className="lg:col-span-4 space-y-8">
+            
+            {/* Quick Downloads */}
+            <div className="bg-surface-container-low rounded-xl p-6 border border-outline-variant">
+              <h3 className="font-headline-md text-headline-md mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">cloud_download</span>
+                Key Documents
+              </h3>
+              <div className="space-y-3">
+                <a className="flex items-center justify-between p-3 bg-surface-container-lowest rounded-lg border border-outline-variant hover:border-primary transition-colors group" href="#">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-error">picture_as_pdf</span>
+                    <span className="text-label-md">Academic Calendar 24-25</span>
+                  </div>
+                  <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors">download</span>
+                </a>
+                <a className="flex items-center justify-between p-3 bg-surface-container-lowest rounded-lg border border-outline-variant hover:border-primary transition-colors group" href="#">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-error">picture_as_pdf</span>
+                    <span className="text-label-md">School Circular No. 42</span>
+                  </div>
+                  <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors">download</span>
+                </a>
+                <a className="flex items-center justify-between p-3 bg-surface-container-lowest rounded-lg border border-outline-variant hover:border-primary transition-colors group" href="#">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-error">picture_as_pdf</span>
+                    <span className="text-label-md">Fee Structure 2024</span>
+                  </div>
+                  <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors">download</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Mini Event Calendar */}
+            <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant shadow-sm">
+              <h3 className="font-headline-md text-headline-md mb-6 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">calendar_month</span>
+                Upcoming Events
+              </h3>
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 w-12 h-14 bg-primary rounded-lg flex flex-col items-center justify-center text-on-primary">
+                    <span className="text-label-sm font-bold uppercase">Oct</span>
+                    <span className="text-headline-md leading-none">28</span>
+                  </div>
+                  <div>
+                    <h4 className="font-label-md text-on-surface">Parent-Teacher Meeting</h4>
+                    <p className="text-label-sm text-outline">09:00 AM - Main Hall</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 w-12 h-14 bg-surface-container rounded-lg flex flex-col items-center justify-center text-on-surface-variant">
+                    <span className="text-label-sm font-bold uppercase">Nov</span>
+                    <span className="text-headline-md leading-none">05</span>
+                  </div>
+                  <div>
+                    <h4 className="font-label-md text-on-surface">Inter-School Debates</h4>
+                    <p className="text-label-sm text-outline">10:30 AM - Auditorium</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 w-12 h-14 bg-surface-container rounded-lg flex flex-col items-center justify-center text-on-surface-variant">
+                    <span className="text-label-sm font-bold uppercase">Nov</span>
+                    <span className="text-headline-md leading-none">12</span>
+                  </div>
+                  <div>
+                    <h4 className="font-label-md text-on-surface">Basketball Finals</h4>
+                    <p className="text-label-sm text-outline">03:00 PM - Sports Complex</p>
                   </div>
                 </div>
               </div>
+              <button className="w-full mt-8 text-primary font-label-md hover:underline flex items-center justify-center gap-2">
+                View Full Calendar
+                <span className="material-symbols-outlined">open_in_new</span>
+              </button>
             </div>
-          ) : (
-            <div className="bg-white rounded-3xl shadow-xl p-20 text-center border border-gray-100">
-              <p className="text-gray-400 font-medium">No notices published yet.</p>
-            </div>
-          )}
-        </div>
 
-        {/* Previous Notices Archive */}
-        {previousNotices.length > 0 && (
-          <div className="mt-12 bg-white rounded-3xl shadow-lg p-8 md:p-12 border border-gray-100">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8">
-              <h2 className="text-2xl md:text-3xl font-serif font-bold text-primary">Notice Archive</h2>
-              <p className="text-sm text-gray-500 mt-2 sm:mt-0 bg-gray-100 px-4 py-2 rounded-lg">Showing archive</p>
+            {/* Contact & Support Card */}
+            <div className="relative overflow-hidden bg-primary rounded-xl p-6 text-on-primary">
+              <div className="absolute -right-4 -bottom-4 opacity-10">
+                <span className="material-symbols-outlined" style={{ fontSize: '120px' }}>contact_support</span>
+              </div>
+              <h3 className="font-headline-md text-headline-md mb-2">Need Help?</h3>
+              <p className="text-label-md mb-4 opacity-90">Have questions regarding a specific notice or scheduling conflict?</p>
+              <a className="inline-block bg-on-primary text-primary px-4 py-2 rounded-lg font-label-md hover:bg-primary-container hover:text-on-primary-container transition-all" href="#">
+                Contact Office
+              </a>
             </div>
-            
-            <div className="overflow-x-auto rounded-xl border border-gray-100">
-              <table className="w-full min-w-[600px] text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#F9F9FB] border-b border-gray-200">
-                    <th className="py-4 px-6 text-gray-500 font-semibold w-24">No.</th>
-                    <th className="py-4 px-6 text-gray-500 font-semibold">Title</th>
-                    <th className="py-4 px-6 text-gray-500 font-semibold w-48">Date</th>
-                    <th className="py-4 px-6 text-gray-500 font-semibold w-40 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previousNotices.map((notice, index) => (
-                    <tr 
-                      key={notice._id || index} 
-                      className="border-b last:border-0 border-gray-100 hover:bg-primary/5 transition-colors group"
-                    >
-                      <td className="py-5 px-6 text-gray-400 font-medium">#{index + 1}</td>
-                      <td className="py-5 px-6 font-medium text-primary group-hover:text-amber-600 transition-colors">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center mr-4">
-                             <FaFilePdf className="text-red-400 text-sm" />
-                          </div>
-                          {notice.title}
-                        </div>
-                      </td>
-                      <td className="py-5 px-6 text-gray-500">
-                        <div className="flex items-center">
-                          <FaCalendarAlt className="mr-3 text-amber-500/70" />
-                          <span className="font-medium bg-gray-50 px-3 py-1 rounded-md">{notice.date}</span>
-                        </div>
-                      </td>
-                      <td className="py-5 px-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <a
-                            href={`${getProxyUrl(notice.pdfLink || notice.pdf_link)}&filename=${encodeURIComponent(notice.title)}.pdf`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center justify-center bg-white border border-gray-200 hover:border-primary hover:bg-primary hover:text-white text-gray-700 px-5 py-2.5 rounded-xl font-medium transition-all duration-300 shadow-sm hover:shadow-md whitespace-nowrap"
-                          >
-                            <FaDownload className="mr-2" />
-                            <span className="text-xs">{notice.size || 'View'}</span>
-                          </a>
-                          <button 
-                            onClick={(e) => handleShare(e, notice)}
-                            className="inline-flex items-center justify-center bg-white border border-gray-200 text-gray-400 hover:text-primary hover:border-primary p-2.5 rounded-xl transition-all shadow-sm hover:shadow-md"
-                            title="Share"
-                          >
-                            <FaShareAlt size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
           </div>
-        )}
-      </div>
+        </div>
+      </main>
     </div>
   );
-}
+};
 
 export default Notice;

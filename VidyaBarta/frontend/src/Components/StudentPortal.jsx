@@ -18,6 +18,7 @@ import {
   FaArrowRight,
 } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
+import StudentDues from "./StudentDues";
 
 // Status pipeline in order
 const STATUS_STEPS = [
@@ -29,6 +30,7 @@ const STATUS_STEPS = [
 function StudentPortal() {
   const { schoolProfile, API_URL } = useContext(SiteDataContext);
 
+  const [activePortalTab, setActivePortalTab] = useState("tracker");
   const [query, setQuery] = useState("");
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -150,7 +152,27 @@ function StudentPortal() {
         </div>
       </section>
 
-      <div className="max-w-4xl mx-auto px-4 md:px-8 -mt-14 relative z-20">
+      
+      <div className="max-w-4xl mx-auto px-4 md:px-8 -mt-14 relative z-20 mb-6">
+        <div className="flex bg-white rounded-full shadow-lg p-1 border border-gray-100 mb-6">
+          <button 
+            onClick={() => setActivePortalTab('tracker')}
+            className={`flex-1 py-3 rounded-full text-sm font-bold transition-all ${activePortalTab === 'tracker' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+          >
+            Admission Tracker
+          </button>
+          <button 
+            onClick={() => setActivePortalTab('dues')}
+            className={`flex-1 py-3 rounded-full text-sm font-bold transition-all ${activePortalTab === 'dues' ? 'bg-green-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+          >
+            My Dues & Payments
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 md:px-8 relative z-20">
+        {activePortalTab === "tracker" && (
+        <>
         {/* Search Card */}
         <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100">
           <form onSubmit={handleSearch} className="mb-6">
@@ -442,6 +464,9 @@ function StudentPortal() {
             </p>
           )}
         </div>
+        </>
+      )}
+      {activePortalTab === "dues" && <StudentDues />}
       </div>
     </div>
   );

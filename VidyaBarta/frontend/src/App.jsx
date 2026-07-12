@@ -18,6 +18,7 @@ const AdminSignUp = React.lazy(() => import("./Components/AdminSignUp"));
 
 // School Components
 const SchoolHome = React.lazy(() => import("./Components/SchoolHome"));
+// const ThemeResolver = React.lazy(() => import("./ThemeResolver"));
 const About = React.lazy(() => import("./Components/About"));
 const Contact = React.lazy(() => import("./Components/Contact"));
 const Gallery = React.lazy(() => import("./Components/Gallery"));
@@ -118,7 +119,8 @@ function App() {
   // Determine if we should show the SaaS Landing Page
   // We show SaaS if domain is vidyabarta.com OR www.vidyabarta.com OR (localhost without test_domain)
   // OR if we are explicitly trying to access a superadmin route
-  const isSaaS = hostname === 'vidyabarta.com' || hostname === 'www.vidyabarta.com' || (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) || (isLocalhost && !hasTestDomain) || isSuperAdminPath;
+  const isPreviewSchool = urlParams.get('preview_school') === 'true';
+  const isSaaS = ((hostname === 'vidyabarta.com' || hostname === 'www.vidyabarta.com' || (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) || (isLocalhost && !hasTestDomain) || isSuperAdminPath)) && !isPreviewSchool;
 
   const saasRouter = createBrowserRouter(
     createRoutesFromElements(
@@ -151,7 +153,8 @@ function App() {
             <Route path="addons" element={<SA.Addons />} />
             <Route path="features" element={<SA.Features />} />
             <Route path="subscription" element={<SA.Subscription />} />
-            <Route path="subscription-transaction" element={<SA.SubscriptionTransaction />} />
+            <Route path="revenue" element={<SA.RevenueSettlements />} />
+            <Route path="domain-requests" element={<SA.DomainRequests />} />
             
             <Route path="staff-management/roles" element={<SA.RolePermission />} />
             <Route path="staff-management/staff" element={<SA.Staff />} />
@@ -187,7 +190,7 @@ function App() {
     createRoutesFromElements(
       <Route>
         <Route path="/" element={<SchoolLayout />} errorElement={<ErrorBoundary />}>
-          <Route index element={<Suspense fallback={<SuspenseFallback />}><SchoolHome /></Suspense>} />
+      <Route index element={<Suspense fallback={<SuspenseFallback />}><SchoolHome /></Suspense>} />
           <Route path="about" element={<Suspense fallback={<SuspenseFallback />}><About /></Suspense>} />
           <Route path="contact" element={<Suspense fallback={<SuspenseFallback />}><Contact /></Suspense>} />
           <Route path="gallery" element={<Suspense fallback={<SuspenseFallback />}><Gallery /></Suspense>} />

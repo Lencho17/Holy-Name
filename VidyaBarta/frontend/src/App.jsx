@@ -206,7 +206,7 @@ function App() {
           <Route path="complaints" element={<Suspense fallback={<SuspenseFallback />}><Complaints /></Suspense>} />
           <Route path="admission" element={<Suspense fallback={<SuspenseFallback />}><Admission /></Suspense>} />
           <Route path="admission/form" element={<Suspense fallback={<SuspenseFallback />}><AdmissionForm /></Suspense>} />
-          <Route path="admission/checkout" element={<Suspense fallback={<SuspenseFallback />}><AdmissionCheckout /></Suspense>} />
+          <Route path="admission/checkout/:refNum" element={<Suspense fallback={<SuspenseFallback />}><AdmissionCheckout /></Suspense>} />
           <Route path="faculty" element={<Suspense fallback={<SuspenseFallback />}><Faculty /></Suspense>} />
           <Route path="emeritus" element={<Suspense fallback={<SuspenseFallback />}><Emeritus /></Suspense>} />
           <Route path="notice" element={<Suspense fallback={<SuspenseFallback />}><Notice /></Suspense>} />

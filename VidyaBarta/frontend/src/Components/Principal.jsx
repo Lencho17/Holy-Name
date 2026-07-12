@@ -1,197 +1,142 @@
-import React, { useContext } from 'react';
-import { SiteDataContext } from '../context/SiteDataContext';
+import React, { useContext } from "react";
+import { SiteDataContext } from "../context/SiteDataContext";
+import { FaShareAlt } from "react-icons/fa";
 
-const Principal = () => {
+function Principal() {
   const { principal, schoolProfile } = useContext(SiteDataContext);
+
+  const handleShare = async (e) => {
+    e?.preventDefault();
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: `Message from the Principal - ${principal?.name || ''}`, 
+          desc: principal?.introQuote || '', 
+          image: principal?.photo || schoolProfile?.pageHeroImages?.principal || "", 
+          page: '/principal' 
+        }),
+      });
+      const { url } = await res.json();
+      const shareUrl = url || window.location.href;
+      if (navigator.share) { 
+        await navigator.share({ title: `Principal's Message`, text: `Read the message from the Principal of ${schoolProfile?.name || "Our School"}`, url: shareUrl }); 
+      } else { 
+        await navigator.clipboard.writeText(shareUrl); 
+        alert('Link copied to clipboard!'); 
+      }
+    } catch (err) { if (err.name !== 'AbortError') console.warn('Share failed', err); }
+  };
 
   if (!principal) return null;
 
   return (
-    <div className="bg-background text-on-surface font-body-md antialiased overflow-x-hidden min-h-screen">
-      <main>
-        {/* Hero Section */}
-        <section className="relative pt-section-padding pb-20 bg-surface-container-low overflow-hidden">
-          <div className="max-w-container-max mx-auto px-gutter relative z-10">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-              {/* Text Content */}
-              <div className="lg:col-span-7" id="hero-text">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-high text-primary mb-6">
-                  <span className="material-symbols-outlined text-sm">verified</span>
-                  <span className="font-label-sm text-label-sm">Leadership &amp; Vision</span>
-                </div>
-                <h1 className="font-display text-display text-on-background mb-6">A Message from the Principal</h1>
-                <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
-                  {principal.introQuote || '"Education is not the learning of facts, but the training of the mind to think." At Excellence Academy, we are committed to nurturing global citizens who are prepared to lead with integrity.'}
+    <div className="min-h-screen bg-surface pb-16">
+      {/* Hero Section */}
+      <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-4">
+        <div className="absolute inset-0 z-0">
+          <img
+            src={schoolProfile?.pageHeroImages?.principal || "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop"}
+            alt="Principal's Desk"
+            className="w-full h-full object-cover opacity-95"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-700/60 via-blue-700/30 to-transparent"></div>
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 w-full text-left">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50/30 text-white border border-white/20 backdrop-blur-sm shadow-sm mb-4">
+            <span className="material-symbols-outlined text-sm text-white drop-shadow-sm">
+              history_edu
+            </span>
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-sm">
+              Leadership Message
+            </span>
+          </div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+              <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
+                From the <span className="text-amber-400 italic drop-shadow-md">Principal's Desk</span>
+              </h1>
+              <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
+                A message from our Principal on our vision, values, and commitment to excellence.
+              </p>
+            </div>
+            <button 
+              onClick={handleShare}
+              className="flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-md text-white rounded-2xl font-bold hover:bg-white/20 transition-all border border-white/20 shadow-lg group mb-2"
+            >
+              <FaShareAlt size={14} className="group-hover:scale-110 transition-transform" />
+              <span>Share Message</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div className="max-w-4xl mx-auto px-4 md:px-8 -mt-10 z-20 bg-surface-container-low shadow-2xl rounded-3xl overflow-hidden p-8 md:p-14 border border-outline-variant/30 relative">
+        
+        <div className="flex justify-center mb-10">
+          <div className="w-24 h-1 bg-amber-500 rounded-full shadow-sm shadow-amber-200"></div>
+        </div>
+
+        <p className="italic text-amber-600 text-center text-xl md:text-2xl border-l-4 border-primary pl-6 my-10 max-w-2xl mx-auto font-medium">
+          "{principal.introQuote}"
+        </p>
+        
+        <div className="flex flex-col items-center">
+          {principal.photo && !principal.photo.includes("signature") && (
+            <div className="relative mb-10 group w-64 md:w-80 max-w-full">
+              <div className="absolute inset-0 bg-primary rounded-3xl transform rotate-3 group-hover:rotate-6 transition-transform duration-300"></div>
+              <img
+                src={principal.photo}
+                alt={principal.name}
+                className="relative w-full h-auto rounded-3xl shadow-xl transition-transform duration-300 group-hover:-translate-y-2 border-4 border-white"
+              />
+            </div>
+          )}
+
+          <div className="space-y-6 text-on-surface-variant leading-relaxed text-lg text-justify md:text-left font-medium">
+            {(() => {
+              const msg = principal.message || '';
+              const words = msg.split(/\s+/).filter(w => w.length > 0);
+              const truncatedMsg = words.length > 400 
+                ? words.slice(0, 400).join(' ') + '...'
+                : msg;
+                
+              return truncatedMsg.split('\n').filter(p => p.trim() !== '').map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ));
+            })()}
+            
+            {principal.closingQuote && (
+              <div className="p-6 bg-primary-container/30 rounded-2xl border border-primary/10 mt-8">
+                <p className="text-center italic font-bold text-primary text-xl">
+                  {principal.closingQuote}
                 </p>
               </div>
-              {/* Portrait Area */}
-              <div className="lg:col-span-5 relative group">
-                <div className="absolute -top-10 -right-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors"></div>
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white aspect-[4/5]">
-                  <img 
-                    className="w-full h-full object-cover" 
-                    alt={principal.name || "Principal"} 
-                    src={principal.photo || "https://lh3.googleusercontent.com/aida-public/AB6AXuAxMOv-KMi_dlGlbvQSGn2NGIuuHLKugyrOvOG8Piry1BrtyLBe1L3axHm-xsaEIuczGnn7dyvVmNpo6lIwITmAYL4rSwBQs9d1vr-4bLB7ufjPZYbBq3XrlQ_tjz2SqlHvL0X72SaUBi8bPC1uQiy22V6YwbF8UYTMimHXB2T_xvBsDAmYP1G_XtmsmZ02KTbvlfiuGho6MYwbI-12ahjfAQckZgCszjLV8IbUAzMw5XmbOrtI7KwZxn-UGUcwHY7AIja22BKXyoI"}
-                  />
-                </div>
-                <div className="absolute -bottom-6 -left-6 bg-white p-6 shadow-xl rounded-xl border border-outline-variant max-w-xs">
-                  <h3 className="font-headline-md text-headline-md text-primary mb-1">{principal.name || "Dr. Arthur J. Sterling"}</h3>
-                  <p className="font-label-md text-label-md text-secondary mb-2">{principal.title || "Ph.D. in Educational Leadership"}</p>
-                  <div className="flex gap-2">
-                    <span className="w-8 h-1 bg-primary rounded-full"></span>
-                    <span className="w-2 h-1 bg-primary/30 rounded-full"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
-          {/* Atmospheric Pattern */}
-          <div className="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
-            <svg className="w-full h-full" viewBox="0 0 100 100">
-              <defs>
-                <pattern height="10" id="grid" patternUnits="userSpaceOnUse" width="10">
-                  <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeWidth="0.5"></path>
-                </pattern>
-              </defs>
-              <rect fill="url(#grid)" height="100" width="100"></rect>
-            </svg>
-          </div>
-        </section>
 
-        {/* Main Content (The Vision Statement) */}
-        <section className="py-section-padding bg-surface">
-          <div className="max-w-container-max mx-auto px-gutter">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-              {/* Left Sidebar (Credentials & Stats) */}
-              <div className="lg:col-span-4 space-y-8">
-                <div className="bg-surface-container-low p-8 rounded-xl border border-outline-variant">
-                  <h4 className="font-label-md text-label-md uppercase tracking-wider text-primary mb-6">Academic Background</h4>
-                  <ul className="space-y-6">
-                    <li className="flex gap-4">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-primary">history_edu</span>
-                      </div>
-                      <div>
-                        <p className="font-label-md text-label-md text-on-surface">Doctorate in Education</p>
-                        <p className="font-label-sm text-label-sm text-on-surface-variant">Stanford University, 2012</p>
-                      </div>
-                    </li>
-                    <li className="flex gap-4">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-primary">school</span>
-                      </div>
-                      <div>
-                        <p className="font-label-md text-label-md text-on-surface">M.A. International Policy</p>
-                        <p className="font-label-sm text-label-sm text-on-surface-variant">Oxford University, 2005</p>
-                      </div>
-                    </li>
-                    <li className="flex gap-4">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-primary">military_tech</span>
-                      </div>
-                      <div>
-                        <p className="font-label-md text-label-md text-on-surface">Global Educator Award</p>
-                        <p className="font-label-sm text-label-sm text-on-surface-variant">UNESCO Recognition, 2021</p>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-                <div className="bg-primary p-8 rounded-xl text-on-primary">
-                  <h4 className="font-label-md text-label-md uppercase tracking-wider opacity-80 mb-6">Our Philosophy</h4>
-                  <p className="font-headline-md text-headline-md mb-6 italic">"To inspire is to lead. We build more than students; we build futures."</p>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                      <span className="font-label-md text-label-md">Holistic Development</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                      <span className="font-label-md text-label-md">Innovative Pedagogy</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                      <span className="font-label-md text-label-md">Ethical Leadership</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Right Column (The Long-form Message) */}
-              <div className="lg:col-span-8">
-                <div className="prose prose-lg max-w-none space-y-8">
-                  {principal.message ? (
-                    <div dangerouslySetInnerHTML={{ __html: principal.message }} className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed space-y-6" />
-                  ) : (
-                    <>
-                      <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                          Dear Students, Parents, and Faculty,
-                      </p>
-                      <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                          It is with profound joy and a deep sense of responsibility that I welcome you to Excellence Academy. As we navigate an era of unprecedented global change, the role of education has transformed from simple instruction to an immersive journey of discovery and character-building. 
-                      </p>
-                      <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                          At the heart of our institution lies a simple yet powerful belief: every child possesses a unique reservoir of potential. Our mission is to provide the catalyst that turns that potential into purpose. We have designed our curriculum not just to meet international standards, but to exceed them through critical thinking, digital literacy, and emotional intelligence.
-                      </p>
-                      <div className="py-6 border-l-4 border-primary pl-8 my-10 bg-surface-container-low rounded-r-lg">
-                        <p className="font-headline-md text-headline-md text-on-background leading-snug italic">
-                            "We don't just teach for the classroom; we prepare for the world. Our graduates leave these halls not just with diplomas, but with the courage to question and the empathy to serve."
-                        </p>
-                      </div>
-                      <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                          Looking ahead, we are investing heavily in STEAM initiatives and sustainable campus practices. We want our students to be as comfortable in a high-tech lab as they are in a community service project. Our faculty, a handpicked group of dedicated educators, are here to mentor, challenge, and support every student's individual journey.
-                      </p>
-                      <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                          I invite you to join us in this noble endeavor. Together, let us cultivate an environment where excellence is not an act, but a habit.
-                      </p>
-                    </>
-                  )}
-                  
-                  <div className="pt-12">
-                    <p className="font-body-md text-body-md text-on-surface-variant mb-4">Warm regards,</p>
-                    <div className="flex flex-col gap-2">
-                      <div className="h-16 w-64 mb-2">
-                        {principal.signature ? (
-                          <img 
-                            className="h-full object-contain filter brightness-90 contrast-125" 
-                            alt="Signature" 
-                            src={principal.signature}
-                          />
-                        ) : (
-                          <img 
-                            className="h-full object-contain filter brightness-90 contrast-125" 
-                            alt="Signature" 
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi-JFHv9kUqABoYOXw-ooeSNxmbd451yPs1qdN-yK3WAQuk3mZCld2D-KNTnyd6sEiIU29vRS6ydnhN7egwlks3LIoS9oo1KNIq9mduCEaloxaWpQztWgO21oDqwtvN61_7hx9yLF-zTkTxDGS50YnkZYLG87CTurJlI1PGMgjm6BczoEDpfCpmikfbsv9CRcyz4k-7ZjP-QTRsLzP29uwPM031Ear5UvePJXZypchsQRPbt5EfQlwb0BbMfVgFo9mPHscriVAps4"
-                          />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-headline-md text-headline-md text-on-background">{principal.name || "Dr. Arthur J. Sterling"}</p>
-                        <p className="font-label-md text-label-md text-secondary">Principal, {schoolProfile?.name || "Excellence Academy"}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Newsletter / CTA Section */}
-        <section className="py-20 bg-surface-container-highest">
-          <div className="max-w-container-max mx-auto px-gutter text-center">
-            <div className="max-w-3xl mx-auto">
-              <h2 className="font-headline-lg text-headline-lg text-on-background mb-4">Stay Connected with our Vision</h2>
-              <p className="font-body-md text-body-md text-on-surface-variant mb-8">Subscribe to the Principal's monthly newsletter for insights on education, school updates, and leadership reflections.</p>
-              <form className="flex flex-col sm:flex-row gap-4 justify-center" onSubmit={(e) => e.preventDefault()}>
-                <input className="px-6 py-3 rounded-lg border border-outline focus:ring-2 focus:ring-primary focus:border-primary outline-none min-w-[300px]" placeholder="Your email address" type="email"/>
-                <button className="bg-primary text-on-primary px-8 py-3 rounded-lg font-label-md text-label-md hover:shadow-lg transition-all active:scale-95" type="submit">Subscribe Now</button>
-              </form>
-            </div>
-          </div>
-        </section>
-      </main>
+          <footer className="mt-16 flex flex-col items-center text-on-surface-variant">
+            {principal.signature && (
+              <img
+                src={principal.signature}
+                className="h-16 mb-4 opacity-70 mix-blend-multiply flex-shrink-0"
+                alt="Signature"
+              />
+            )}
+            <div className="w-16 h-px bg-outline-variant mb-4"></div>
+            <span className="text-2xl font-black text-primary academic-serif">
+              {principal.name === "Hitler" ? "Fr. Hemanta Pegu" : principal.name}
+            </span>
+            <span className="text-amber-600 tracking-widest uppercase text-sm font-bold mt-1">
+              {principal.title === "PRINCIPAL" ? "Principal" : principal.title}
+            </span>
+          </footer>
+        </div>
+      </div>
     </div>
   );
-};
+}
 
 export default Principal;

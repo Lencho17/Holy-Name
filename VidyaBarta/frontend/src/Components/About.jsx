@@ -1,206 +1,527 @@
 import React, { useContext } from 'react';
 import { SiteDataContext } from '../context/SiteDataContext';
+import vargheseImage from '../Pictures/varghese.png';
 
 const About = () => {
   const { visionStatement, aimsAndObjectives, headMistress, schoolProfile, aboutPage } = useContext(SiteDataContext);
 
-  const headMistressPhoto = headMistress?.photo || aboutPage?.leadership?.headMistress?.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuA3LxXJGhgPPWbwxySCUIkZYMPfwyaeuYfhzrT6SiCGDAKDOl4o3VX9U04AqCBd7na-Y9oDHT5ZbzFP2kFnLozscSsMyJVU_83u-bGubVN9GPekl8ZDGQ_kvGImKGJbOGw4oXrc9pbik8nPEVPy4XlLJMlWRiSSVDp_fyq-xHj-iFY0WrbnRrva_2dzn-19WqaCjTF2hoLrsdxROxsJTy7eQk-E-sb7PDyL98J3OdU8KnwgIEErhDj9gdD8_8GbofZKR8r5hNbfP2M";
-
+  const headMistressPhoto = headMistress?.photo || "/Pictures/assets/head_mistress_photo.png";
   return (
-    <div className="bg-background text-on-surface font-body-md min-h-screen">
-      <main className="max-w-container-max mx-auto px-6 py-section-padding">
-        {/* Hero Section / Title */}
-        <div className="mb-16">
-          <nav aria-label="Breadcrumb" className="flex mb-4 text-on-surface-variant font-label-sm gap-2">
-            <a className="hover:text-primary" href="/">Home</a>
-            <span className="material-symbols-outlined text-xs" data-icon="chevron_right">chevron_right</span>
-            <span className="text-primary font-bold">About Us</span>
-          </nav>
-          <h1 className="font-display text-display text-on-surface mb-4">Shaping Futures Since {schoolProfile?.establishedYear || '1992'}</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
-            {aboutPage?.shortDescription?.text || `Learn more about ${schoolProfile?.name || 'Excellence Academy'}'s journey, our commitment to educational integrity, and the leadership that drives our success.`}
+    <div className="bg-surface min-h-screen pb-16">
+      {/* Hero Section */}
+      <section className="relative w-full h-[300px] md:h-[400px] flex items-center overflow-hidden bg-white rounded-none md:rounded-b-[3rem] shadow-xl border-b border-blue-50/50 mb-10">
+        <div className="absolute inset-0 z-0">
+          <img
+            src={schoolProfile?.pageHeroImages?.about || "https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?q=80&w=2070&auto=format&fit=crop"}
+            alt={`About ${schoolProfile?.name || "Our School"}`}
+            className="w-full h-full object-cover opacity-95"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-700/60 via-blue-700/30 to-transparent"></div>
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 w-full">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50/30 text-white border border-white/20 backdrop-blur-sm shadow-sm mb-4">
+            <span className="material-symbols-outlined text-sm text-white drop-shadow-sm">
+              info
+            </span>
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-white drop-shadow-sm">
+              Established {schoolProfile?.establishedYear || 1986}
+            </span>
+          </div>
+          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight tracking-tighter drop-shadow-lg">
+            About <span className="text-amber-400 italic drop-shadow-md">Us</span>
+          </h1>
+          <p className="text-white/95 text-lg mt-4 max-w-2xl hidden md:block font-medium drop-shadow-md">
+            Discover our journey of {new Date().getFullYear() - (schoolProfile?.establishedYear || 1986)} years in academic excellence and holistic student development.
           </p>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Main Content Column */}
-          <div className="lg:col-span-8 space-y-24">
-            {/* Mission & Vision */}
-            <section className="scroll-mt-32" id="mission-vision">
-              <h2 className="font-headline-lg text-headline-lg text-on-surface mb-8 border-l-4 border-primary pl-6">Our Mission & Vision</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="p-8 rounded-xl bg-surface-container-low border border-outline-variant">
-                  <span className="material-symbols-outlined text-4xl text-primary mb-4" data-icon="rocket_launch">rocket_launch</span>
-                  <h3 className="font-headline-md text-headline-md mb-4">Our Mission</h3>
-                  <p className="text-on-surface-variant leading-relaxed">
-                    {visionStatement || "To provide a holistic, inclusive, and challenging learning environment that empowers students to become lifelong learners, critical thinkers, and ethical global citizens."}
-                  </p>
+      <div className="max-w-7xl mx-auto px-4 md:px-8">
+
+        {/* --- DYNAMIC TOP SECTIONS (Short Description & Founder) --- */}
+        {(aboutPage?.shortDescription?.text || aboutPage?.founder?.text) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
+            {aboutPage?.shortDescription?.text && (
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100">
+                <h2 className="text-2xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
+                  <span className="material-symbols-outlined text-secondary text-3xl">school</span>
+                  About The School
+                </h2>
+                {aboutPage.shortDescription.image && (
+                  <img src={aboutPage.shortDescription.image} className="w-full h-48 object-cover rounded-xl mb-6 shadow-sm" alt="School" />
+                )}
+                <p className="text-gray-700 leading-relaxed font-medium whitespace-pre-line">
+                  {aboutPage.shortDescription.text}
+                </p>
+              </div>
+            )}
+            
+            {aboutPage?.founder?.text && (
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100">
+                <h2 className="text-2xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
+                  <span className="material-symbols-outlined text-secondary text-3xl">account_balance</span>
+                  Our Founder
+                </h2>
+                {aboutPage.founder.image && (
+                  <img src={aboutPage.founder.image} className="w-full h-48 object-cover rounded-xl mb-6 shadow-sm grayscale hover:grayscale-0 transition-all duration-500" alt="Founder" />
+                )}
+                <p className="text-gray-700 leading-relaxed font-medium whitespace-pre-line">
+                  {aboutPage.founder.text}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+
+        {/* ORIGINAL HARDCODED HISTORY */}
+        <div className="bg-surface-container-low shadow-2xl rounded-3xl p-8 md:p-14 border border-outline-variant/30 mb-16 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+          <h3 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-10 border-b border-outline-variant pb-4">
+            Our <span className="text-amber-600 italic">History</span>
+          </h3>
+
+          <div className="space-y-16 text-on-surface-variant text-lg leading-relaxed font-medium">
+
+            {/* Section 1 */}
+            <div className="flex flex-col md:flex-row gap-8 items-start">
+              <p className="flex-1">
+                It all begins with a small step. The Diocese of Dibrugarh had been
+                on the hunt out for a plot of land from the year 1983 to establish
+                a center of ours at Sivasagar. By the end of 1984, Rev. Fr. Alex
+                Kapiarumala was entrusted with this task. Fr. Alex, aptly called
+                the ‘Pioneer Palter’, visited various people and places in search
+                of a suitable land in and around Sivasagar. Finally, Lt. Adv Mr.
+                Anil Dutta directed Fr. Alex to Mr. Hemo Gogoi of Cherekapar, who,
+                after a lot of negotiation, decided to part with a portion of his
+                land. This plot is situated by the B.G. Road, some 3kms from
+                Sivasagar Town.
+              </p>
+              <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
+                <img
+                  src="/Pictures/about/Fr alex.jpg"
+                  alt="Fr Alex"
+                  className="w-full h-auto rounded-2xl shadow-lg border border-outline-variant/30 object-cover aspect-square grayscale hover:grayscale-0 transition-all duration-500"
+                />
+                <p className="text-center font-bold text-primary academic-serif text-xl border-b border-primary/20 pb-2">Fr. Alex Kapiarumala</p>
+              </div>
+            </div>
+
+            {/* Section 2 */}
+            <div className="flex flex-col md:flex-row-reverse gap-8 items-start">
+              <p className="flex-1">
+                Most Rev. Thomas Menaparampil SDB, DD, the then Bishop of the
+                Diocese of Dibrugarh, consented to go ahead with the purchase of
+                the land in the name of the Catholic Church for the purpose of
+                establishing an English Medium School and for other Church
+                functions. The formal opening of the center was done in a public
+                function held at the site on 19.01.1986, attended by a number of
+                local dignitaries. The foundation stone of the permanent structure
+                of the School was laid by most Rev. Thomas Menaparampil SDB, DD in
+                October 1987, and the construction work of the ground floor was
+                completed in March 1989.
+              </p>
+              <div className="w-full md:w-80 shrink-0">
+                <img
+                  src="/Pictures/about/sch building foundation.png"
+                  alt="School Building Foundation"
+                  className="w-full h-auto rounded-2xl shadow-lg border border-outline-variant/30 sepia hover:sepia-0 transition-all duration-500"
+                />
+                <p className="text-center text-sm mt-3 text-on-surface-variant italic">School Building Foundation (1987)</p>
+              </div>
+            </div>
+
+            {/* Section 3 */}
+            <div className="flex flex-col md:flex-row gap-8 items-start">
+              <p className="flex-1">
+                In July 1988, the sisters of the Holy Cross of Chavanod joined the
+                school staff, with Sr. Ragasblvi Michael in 1988 and Sr. Carmeline
+                (Superior) joining the {schoolProfile?.name || 'Our School'} family, giving great impetus to
+                the overall functioning of the school. The Holy Cross sisters
+                started with a very humble setup, using a portion of the temporary
+                school shed as their convent. The new permanent accommodation for sisters was
+                completed and blessed by most Rev. Thomas Menaparampil SDB, DD on 26.12.1990.
+              </p>
+              <div className="w-full md:w-80 shrink-0">
+                <img
+                  src="/Pictures/about/convent starting.png"
+                  alt="Convent Starting"
+                  className="w-full h-auto rounded-2xl shadow-lg border border-outline-variant/30 sepia hover:sepia-0 transition-all duration-500"
+                />
+                <p className="text-center text-sm mt-3 text-on-surface-variant italic">The First Convent Setup</p>
+              </div>
+            </div>
+
+            {/* Section 4 */}
+            <div className="">
+              <div className="flex flex-col md:flex-row gap-8 items-start">
+                <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
+                  <img
+                    src="/Pictures/about/Fr Joy.png"
+                    alt="Fr Joy"
+                    className="w-full h-auto rounded-2xl shadow-lg border border-outline-variant/30 object-cover aspect-square grayscale hover:grayscale-0 transition-all duration-500"
+                  />
+                  <p className="text-center font-bold text-primary academic-serif text-xl border-b border-primary/20 pb-2">Fr. Joseph Pallikunnel</p>
+                  <p className="text-center text-secondary text-sm font-bold uppercase tracking-widest">(1992-1999)</p>
                 </div>
-                <div className="p-8 rounded-xl bg-surface-container-low border border-outline-variant">
-                  <span className="material-symbols-outlined text-4xl text-primary mb-4" data-icon="visibility">visibility</span>
-                  <h3 className="font-headline-md text-headline-md mb-4">Our Vision</h3>
-                  <p className="text-on-surface-variant leading-relaxed">
-                    {aimsAndObjectives?.[0] || "To be a beacon of academic excellence and character development, recognized globally for producing leaders who positively transform society through innovation and integrity."}
+                <div className="flex-1 space-y-4">
+                  <p>
+                    After the transfer of Fr. Alex on 11.04.1992, Fr. Joseph (Joy)
+                    Pallikunnel was appointed as the next principal of the School. Fr.
+                    Joy took up the infrastructure work at a marathon pace. Along with the construction work the School authorities tried
+                    to introduce some of the time tested local customs in the School
+                    like “Guru Sishya Parampara” blessing of the HSLC candidates in the
+                    Church and the students seeking blessings from their “Gurus".
                   </p>
+                  <div className="bg-white/50 p-6 rounded-2xl border border-outline-variant/50 relative">
+                    <span className="material-symbols-outlined absolute top-2 right-2 text-primary/10 text-4xl">menu_book</span>
+                    <p>
+                      On the Initiation day the KG-I students were encouraged to offer a
+                      “Dakshina” of Rs 1.25 in coins, and the Assamese traditional
+                      “Phulam Gamusas” to their “Gurus”. Short passages from The Bible,
+                      The Gita and The Quran were also read symbolizing the Secular
+                      spirit of our Nation.
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                    <img
+                      src="/Pictures/about/fr Joy in KG initiation day (1).png"
+                      alt="Demo"
+                      className="w-48 h-auto rounded-xl shadow-md"
+                    />
+                  </div>
                 </div>
               </div>
-            </section>
+            </div>
 
-            {/* Principal's Message */}
-            <section className="scroll-mt-32" id="principal">
-              <h2 className="font-headline-lg text-headline-lg text-on-surface mb-8 border-l-4 border-primary pl-6">Principal's Message</h2>
-              <div className="flex flex-col md:flex-row gap-10 items-start">
-                <div className="w-full md:w-2/5 shrink-0 group">
-                  <div className="relative rounded-2xl overflow-hidden shadow-lg transition-transform duration-500 group-hover:scale-[1.02]">
-                    <img className="w-full aspect-[3/4] object-cover" alt="Principal" src={headMistressPhoto} />
-                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent text-white">
-                      <p className="font-headline-md text-headline-md">{headMistress?.name || aboutPage?.leadership?.headMistress?.name || "Dr. Alistair Vance"}</p>
-                      <p className="font-label-md opacity-90">Principal</p>
-                    </div>
+            {/* Section 5: Gallery Grid */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <h4 className="text-2xl font-bold text-primary academic-serif">Rev Fr. Jose Varghese <span className="text-secondary text-sm ml-2 tracking-widest">(1999-2005)</span></h4>
+                <div className="flex-1 h-px bg-outline-variant"></div>
+              </div>
+              <div className="flex flex-col md:flex-row gap-6">
+                <img src={vargheseImage} className="w-40 h-40 object-cover rounded-2xl shadow-lg shrink-0 grayscale hover:grayscale-0 transition-all duration-500 border border-outline-variant/30" alt="Rev Fr. Jose Varghese" />
+                <p className="flex-1">
+                  To inculcate in the students a spirit of team work, Co-operation and
+                  for the smooth running of the school the students were divided into
+                  four houses. The School conducts sports week and various Co-curricular activities such as:
+                  Solo Group Dance, Singing Competition, Recitation, Extempore Speech,
+                  Debate and Science Exhibition.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000804.jpg" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" /></div>
+                <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000742.jpg" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" /></div>
+                <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000719.jpg" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" /></div>
+                <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000657.jpg" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" /></div>
+              </div>
+            </div>
+
+            {/* Section 6 */}
+            <div className="">
+              <div className="flex flex-col md:flex-row gap-8 items-start">
+                <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
+                  <img
+                    src="/Pictures/about/IMG_20240731_000410.jpg"
+                    alt="Fr Jose"
+                    className="w-full h-auto rounded-2xl shadow-lg border border-outline-variant/30 object-cover aspect-square grayscale hover:grayscale-0 transition-all duration-500"
+                  />
+                  <p className="text-center font-bold text-primary academic-serif text-xl border-b border-primary/20 pb-2">Rev Fr. Jose Mulloparampil</p>
+                  <p className="text-center text-secondary text-sm font-bold uppercase tracking-widest">(2005-2010)</p>
+                </div>
+                <div className="flex-1 space-y-4">
+                  <p>
+                    Fr. Jose Mulloparampil undertook the much needed work of
+                    constructing a School Auditorium Cum the Church, the ground floor
+                    being the Auditorium and the 1st floor the Church. The construction
+                    was completed in just two and half years. The auditorium became the
+                    3rd largest in Sivasagar.
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <img src="/Pictures/about/auditorium-1.JPG" className="w-full h-24 object-cover rounded-xl shadow-md" />
+                    <img src="/Pictures/about/IMG_20240731_000637.jpg" className="w-full h-24 object-cover rounded-xl shadow-md" />
+                    <img src="/Pictures/about/20240519055618_IMG_6597-1.JPG" className="w-full h-24 object-cover rounded-xl shadow-md" />
                   </div>
                 </div>
-                <div className="w-full md:w-3/5 space-y-6">
-                  <span className="material-symbols-outlined text-6xl text-surface-variant select-none" data-icon="format_quote">format_quote</span>
-                  <p className="font-body-lg text-body-lg text-on-surface-variant italic leading-relaxed -mt-10">
-                    "{headMistress?.greeting || "Education is not merely the transmission of information; it is the ignition of curiosity and the cultivation of character."}"
+              </div>
+            </div>
+
+            {/* Section 7 */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <h4 className="text-2xl font-bold text-primary academic-serif">Rev Fr. Vijay Minj <span className="text-secondary text-sm ml-2 tracking-widest">(2010-2018)</span></h4>
+                <div className="flex-1 h-px bg-outline-variant"></div>
+              </div>
+              <div className="flex flex-col md:flex-row gap-6">
+                <img src="/Pictures/about/IMG_20240731_000427.jpg" className="w-40 h-40 object-cover rounded-2xl shadow-lg shrink-0" />
+                <p>
+                  Fr Vijay completed the extension work of the boys boarding. He tried
+                  his level best to keep up the discipline and proper functioning of
+                  the school on a day to day basis. Fr Vijay Successfully conducted
+                  the Silver Jubilee Celebrations of the School in the year 2011. It
+                  was an overwhelming moment to see the lights of Holy
+                  Name School shining bright in various parts of the country and
+                  abroad.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000508.jpg" className="w-full h-full object-cover" /></div>
+                <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000532.jpg" className="w-full h-full object-cover" /></div>
+                <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG-20240730-WA0035.jpg" className="w-full h-full object-cover" /></div>
+                <div className="aspect-[4/3] rounded-xl overflow-hidden shadow-md"><img src="/Pictures/about/IMG_20240731_000603.jpg" className="w-full h-full object-cover" /></div>
+              </div>
+            </div>
+
+            {/* Section 8 */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <h4 className="text-2xl font-bold text-primary academic-serif">Rev Fr. Bartholomew Bhengra <span className="text-secondary text-sm ml-2 tracking-widest">(2018-2021)</span></h4>
+                <div className="flex-1 h-px bg-outline-variant"></div>
+              </div>
+              <div className="flex flex-col md:flex-row gap-6">
+                <img src="/Pictures/about/IMG_20240731_000445.jpg" className="w-40 h-40 object-cover rounded-2xl shadow-lg shrink-0" />
+                <p>
+                  Fr. Bartholomew’s tenure was mostly marked by the Pandemic
+                  (Covid-19), which gravely affected the smooth functioning of the
+                  School. During his time he constructed new toilets for both the Boys
+                  and Girls. He successfully negotiated for
+                  a plot of land contiguous with the school campus.
+                </p>
+              </div>
+            </div>
+
+            {/* Section 9 */}
+            <div className="relative overflow-hidden">
+              <div className="absolute -right-10 -top-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
+              <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
+                <div className="flex flex-col gap-3 w-full md:w-64 shrink-0">
+                  <img
+                    src="/Pictures/picturesoftheweb/Fr Hemanta Pegu.JPG"
+                    alt="Fr Hemanta"
+                    className="w-full h-auto rounded-2xl shadow-lg border-[6px] border-white object-cover aspect-square"
+                  />
+                  <p className="text-center font-bold text-primary academic-serif text-xl border-b border-primary/20 pb-2">Rev Fr. Hemanta Pegu</p>
+                  <p className="text-center text-secondary text-sm font-bold uppercase tracking-widest">(2021-2025)</p>
+                </div>
+                <div className="flex-1 space-y-4">
+                  <p>
+                    Fr. Hemanta initiated the opening of the Senior Secondary section of
+                    the school with the Science, Commerce & Arts Stream in the already existing
+                    boys boarding building. The Computer Laboratory in the Senior
+                    Secondary section was given a face-lift. In the ground floor of the same building well-equipped laboratories
+                    of Physics, Chemistry and Biology are set up for the benefit of
+                    Senior Secondary students.
                   </p>
-                  <div className="font-body-md text-body-md text-on-surface-variant space-y-4 whitespace-pre-line">
-                    {headMistress?.message || aboutPage?.leadership?.headMistress?.text || "Welcome to Excellence Academy. As you browse our website, you will discover a vibrant community dedicated to fostering academic rigor and creative exploration. Our curriculum is designed to push boundaries while remaining grounded in the timeless values of respect and responsibility.\n\nWe believe that every child possesses a unique spark. Our role as educators is to provide the oxygen of opportunity and the structural support needed for that spark to become a roaring fire of achievement. We invite you to join us on this journey of discovery."}
+                  <p className="font-bold text-primary">
+                    He has also introduced NCC & Scouts and Guides for the
+                    first time in {schoolProfile?.name || "School"}.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <img src="/Pictures/about/Chemistry Lab (1).jpg" className="w-full h-24 object-cover rounded-xl shadow-md border hover:scale-110 transition" />
+                    <img src="/Pictures/about/bio lab (1).jpg" className="w-full h-24 object-cover rounded-xl shadow-md border hover:scale-110 transition" />
+                    <img src="/Pictures/about/computer lab HS building (1).jpg" className="w-full h-24 object-cover rounded-xl shadow-md border hover:scale-110 transition" />
+                    <img src="/Pictures/about/school building (1).JPG" className="w-full h-24 object-cover rounded-xl shadow-md border hover:scale-110 transition" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quote Block */}
+            <div className="mt-12 p-10 bg-gradient-to-br from-primary to-primary-container rounded-3xl shadow-lg text-white text-center relative">
+              <span className="material-symbols-outlined absolute top-4 left-4 text-white/20 text-6xl">format_quote</span>
+              <p className="text-xl md:text-2xl italic font-serif leading-relaxed mb-6">
+                “We are confident that with all the necessary facilities placed at
+                the disposal of the students will enable them in all round
+                development of Mind, Body and Spirit... ‘Education has
+                limits but learning not!’, be a good learner life long.”
+              </p>
+              <div className="flex flex-col items-end opacity-90 text-sm">
+                <span className="font-bold">Written By: Mrs Runa Sharma (English Faculty)</span>
+                <span>Edited by: Rev Fr Jose Varghese</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* --- DYNAMIC HISTORY BLOCK --- */}
+        {aboutPage?.history?.text && (
+          <div className="bg-surface-container-low shadow-2xl rounded-3xl p-8 md:p-14 border border-outline-variant/30 relative overflow-hidden mb-16">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+            <h3 className="font-serif text-3xl md:text-5xl font-black text-gray-900 mb-10 border-b border-outline-variant pb-4 relative z-10">
+              History & <span className="text-amber-600 italic">Planning Stage</span>
+            </h3>
+            
+            <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
+              {aboutPage.history.image && (
+                <div className="w-full md:w-1/3 shrink-0">
+                  <img src={aboutPage.history.image} className="w-full h-auto rounded-2xl shadow-lg border border-outline-variant/30 sepia hover:sepia-0 transition-all duration-500" alt="History" />
+                </div>
+              )}
+              <div className="flex-1 text-on-surface-variant text-lg leading-relaxed font-medium whitespace-pre-line">
+                {aboutPage.history.text}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- DYNAMIC PRINCIPALS --- */}
+        {aboutPage?.principals && aboutPage.principals.length > 0 && (
+          <div className="mb-16">
+            <h3 className="font-serif text-3xl font-black text-gray-900 mb-8 border-b border-outline-variant pb-4">
+              Our <span className="text-amber-600 italic">Past Principals</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {aboutPage.principals.map((p, idx) => (
+                <div key={idx} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:-translate-y-2 transition-all duration-500 group">
+                  <div className="h-48 overflow-hidden bg-gray-100">
+                    {p.image ? (
+                      <img src={p.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt={p.name} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300"><span className="material-symbols-outlined text-6xl">person</span></div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <h4 className="text-xl font-bold text-primary academic-serif mb-1">{p.name}</h4>
+                    <p className="text-secondary text-sm font-bold uppercase tracking-widest mb-4">{p.years}</p>
+                    <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{p.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Info Grid - ORIGINAL AIMS, VISION & HEAD MISTRESS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+
+          <div className="p-8 hover:-translate-y-2 transition duration-500">
+            <h2 className="text-3xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
+              <span className="material-symbols-outlined text-secondary text-4xl">flag</span>
+              Aims & Objectives
+            </h2>
+            <div className="space-y-6 text-on-surface-variant font-medium">
+              {(aimsAndObjectives || []).map((aim, index) => (
+                <div key={index}>
+                  {index > 0 && <div className="w-full h-px bg-outline-variant mb-6 mt-6"></div>}
+                  <h4 className="text-xl font-bold text-primary mb-2">{aim.title}</h4>
+                  <p className="whitespace-pre-line">{aim.description}</p>
+                </div>
+              ))}
+              {(!aimsAndObjectives || aimsAndObjectives.length === 0) && (
+                <p className="italic text-gray-400">Content updating soon...</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            <div className="bg-primary text-white rounded-3xl shadow-xl p-8 hover:-translate-y-2 transition duration-500">
+              <h2 className="text-3xl font-black academic-serif mb-6 flex items-center gap-3">
+                <span className="material-symbols-outlined text-secondary text-4xl">visibility</span>
+                Vision Statement
+              </h2>
+              <p className="text-lg leading-relaxed text-white/90 whitespace-pre-line">
+                {visionStatement}
+              </p>
+            </div>
+
+            <div className="p-8 hover:-translate-y-2 transition duration-500">
+              <h2 className="text-3xl font-black text-primary academic-serif mb-6 flex items-center gap-3">
+                <span className="material-symbols-outlined text-secondary text-4xl">face_3</span>
+                Head Mistress
+              </h2>
+              <div className="flex flex-col sm:flex-row gap-6">
+                <img
+                  src={headMistressPhoto}
+                  alt="Head Mistress"
+                  className="w-32 h-32 rounded-full shadow-lg object-cover border-4 border-white shrink-0 bg-white"
+                />
+                <div className="text-on-surface-variant text-sm space-y-3 font-medium">
+                  <p className="font-bold text-primary">{headMistress?.greeting || ""}</p>
+                  <div className="whitespace-pre-line">
+                    {headMistress?.message || ""}
                   </div>
                   {headMistress?.signature && (
-                    <div className="pt-4">
+                    <div className="flex flex-col items-start pt-4 border-t border-outline-variant mt-4">
                       <p className="font-serif italic text-xl text-primary font-bold tracking-wider mb-1">
                         {headMistress.signature}
+                      </p>
+                      <p className="font-bold text-primary italic text-sm">
+                        Head Mistress
                       </p>
                     </div>
                   )}
                 </div>
               </div>
-            </section>
-
-            {/* History */}
-            <section className="scroll-mt-32" id="history">
-              <h2 className="font-headline-lg text-headline-lg text-on-surface mb-8 border-l-4 border-primary pl-6">Our Legacy</h2>
-              <div className="relative">
-                {/* Timeline vertical line */}
-                <div className="absolute left-0 md:left-1/2 top-0 bottom-0 w-0.5 bg-outline-variant -translate-x-1/2 hidden md:block"></div>
-                <div className="space-y-12">
-                  {/* Entry 1 */}
-                  <div className="flex flex-col md:flex-row gap-8 items-center">
-                    <div className="w-full md:w-1/2 md:text-right">
-                      <h4 className="font-headline-md text-headline-md text-primary mb-2">1992</h4>
-                      <h5 className="font-label-md text-label-md mb-2">The Foundation</h5>
-                      <p className="text-on-surface-variant">{schoolProfile?.name || "Excellence Academy"} opened its doors with a vision to redefine education in the region.</p>
-                    </div>
-                    <div className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white z-10 shrink-0 shadow-sm border-4 border-background">
-                      <span className="material-symbols-outlined text-sm" data-icon="history">history</span>
-                    </div>
-                    <div className="w-full md:w-1/2"></div>
-                  </div>
-                  {/* Entry 2 */}
-                  <div className="flex flex-col md:flex-row-reverse gap-8 items-center">
-                    <div className="w-full md:w-1/2 text-left">
-                      <h4 className="font-headline-md text-headline-md text-primary mb-2">2005</h4>
-                      <h5 className="font-label-md text-label-md mb-2">Campus Expansion</h5>
-                      <p className="text-on-surface-variant">Inauguration of the Science & Technology Wing, bringing state-of-the-art laboratories and digital learning tools to all students.</p>
-                    </div>
-                    <div className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white z-10 shrink-0 shadow-sm border-4 border-background">
-                      <span className="material-symbols-outlined text-sm" data-icon="apartment">apartment</span>
-                    </div>
-                    <div className="w-full md:w-1/2"></div>
-                  </div>
-                  {/* Entry 3 */}
-                  <div className="flex flex-col md:flex-row gap-8 items-center">
-                    <div className="w-full md:w-1/2 md:text-right">
-                      <h4 className="font-headline-md text-headline-md text-primary mb-2">2023</h4>
-                      <h5 className="font-label-md text-label-md mb-2">Global Accreditation</h5>
-                      <p className="text-on-surface-variant">Achieved the International Excellence Shield for innovative teaching methodologies and student well-being programs.</p>
-                    </div>
-                    <div className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white z-10 shrink-0 shadow-sm border-4 border-background">
-                      <span className="material-symbols-outlined text-sm" data-icon="public">public</span>
-                    </div>
-                    <div className="w-full md:w-1/2"></div>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          {/* Sidebar Column */}
-          <aside className="lg:col-span-4 space-y-10">
-            {/* Core Values Sidebar Widget */}
-            <div className="glass-sidebar p-8 rounded-2xl shadow-sm sticky top-32 bg-white/70 backdrop-blur-md border border-slate-200">
-              <h3 className="font-headline-md text-headline-md text-on-surface mb-6 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary" data-icon="star" style={{fontVariationSettings: "'FILL' 1"}}>star</span>
-                Core Values
-              </h3>
-              <ul className="space-y-6">
-                <li className="flex gap-4">
-                  <div className="shrink-0 w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-lg" data-icon="balance">balance</span>
-                  </div>
-                  <div>
-                    <h4 className="font-label-md text-label-md text-on-surface">Integrity</h4>
-                    <p className="text-sm text-on-surface-variant mt-1">Consistency of actions, values, and methods.</p>
-                  </div>
-                </li>
-                <li className="flex gap-4">
-                  <div className="shrink-0 w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-lg" data-icon="psychology">psychology</span>
-                  </div>
-                  <div>
-                    <h4 className="font-label-md text-label-md text-on-surface">Innovation</h4>
-                    <p className="text-sm text-on-surface-variant mt-1">Fostering creativity and forward-thinking.</p>
-                  </div>
-                </li>
-                <li className="flex gap-4">
-                  <div className="shrink-0 w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-lg" data-icon="handshake">handshake</span>
-                  </div>
-                  <div>
-                    <h4 className="font-label-md text-label-md text-on-surface">Collaboration</h4>
-                    <p className="text-sm text-on-surface-variant mt-1">Working together toward shared excellence.</p>
-                  </div>
-                </li>
-              </ul>
-              <div className="mt-12 h-px bg-outline-variant"></div>
-              <h3 className="font-headline-md text-headline-md text-on-surface my-6 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary" data-icon="trophy" style={{fontVariationSettings: "'FILL' 1"}}>trophy</span>
-                Achievements
-              </h3>
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-label-md text-primary">100% Pass Rate</span>
-                    <span className="text-xs font-bold text-on-surface-variant">2023</span>
-                  </div>
-                  <p className="text-xs text-on-surface-variant">Board Examination Results</p>
-                </div>
-                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-label-md text-primary">State Sports Gold</span>
-                    <span className="text-xs font-bold text-on-surface-variant">2024</span>
-                  </div>
-                  <p className="text-xs text-on-surface-variant">Inter-Academy Athletics Meet</p>
-                </div>
-                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-label-md text-primary">Best Green Campus</span>
-                    <span className="text-xs font-bold text-on-surface-variant">2022</span>
-                  </div>
-                  <p className="text-xs text-on-surface-variant">Eco-Sustainability Award</p>
-                </div>
-              </div>
-              <div className="mt-10">
-                <a href="/admission" className="w-full py-3 rounded-lg border-2 border-primary text-primary font-label-md hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-2">
-                  Apply Now
-                  <span className="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
-                </a>
-              </div>
             </div>
-          </aside>
+
+          </div>
         </div>
-      </main>
+
+        {/* --- DYNAMIC LEADERSHIP SPEECHES --- */}
+        {(aboutPage?.leadership?.showHeadMistress || aboutPage?.leadership?.showVicePrincipal) && (
+          <div className="bg-gradient-to-br from-blue-50 to-white shadow-xl rounded-3xl p-8 md:p-14 border border-blue-100 relative overflow-hidden">
+            <h3 className="font-serif text-3xl font-black text-gray-900 mb-10 border-b border-blue-200 pb-4">
+              Leadership <span className="text-amber-600 italic">Message</span>
+            </h3>
+            
+            <div className={`grid grid-cols-1 ${aboutPage.leadership.showHeadMistress && aboutPage.leadership.showVicePrincipal ? 'lg:grid-cols-2' : ''} gap-12`}>
+              
+              {/* Head Mistress */}
+              {aboutPage.leadership.showHeadMistress && (
+                <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="shrink-0">
+                    <div className="w-32 h-32 rounded-full shadow-lg border-4 border-white overflow-hidden bg-white">
+                      {aboutPage.leadership.headMistress?.image ? (
+                        <img src={aboutPage.leadership.headMistress.image} className="w-full h-full object-cover" alt="Head Mistress" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300"><span className="material-symbols-outlined text-5xl">face_3</span></div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-on-surface-variant font-medium space-y-3">
+                    <h4 className="font-bold text-primary text-xl">Head Mistress</h4>
+                    <p className="whitespace-pre-line leading-relaxed">{aboutPage.leadership.headMistress?.text}</p>
+                    {aboutPage.leadership.headMistress?.name && (
+                      <p className="font-serif italic text-lg text-primary font-bold tracking-wider pt-4 border-t border-gray-200 mt-4">
+                        {aboutPage.leadership.headMistress.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Vice Principal */}
+              {aboutPage.leadership.showVicePrincipal && (
+                <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="shrink-0">
+                    <div className="w-32 h-32 rounded-full shadow-lg border-4 border-white overflow-hidden bg-white">
+                      {aboutPage.leadership.vicePrincipal?.image ? (
+                        <img src={aboutPage.leadership.vicePrincipal.image} className="w-full h-full object-cover" alt="Vice Principal" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300"><span className="material-symbols-outlined text-5xl">person</span></div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-on-surface-variant font-medium space-y-3">
+                    <h4 className="font-bold text-primary text-xl">Vice Principal</h4>
+                    <p className="whitespace-pre-line leading-relaxed">{aboutPage.leadership.vicePrincipal?.text}</p>
+                    {aboutPage.leadership.vicePrincipal?.name && (
+                      <p className="font-serif italic text-lg text-primary font-bold tracking-wider pt-4 border-t border-gray-200 mt-4">
+                        {aboutPage.leadership.vicePrincipal.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 };

@@ -1,254 +1,239 @@
 import React, { useContext, useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import axios from 'axios';
+import { jsPDF } from 'jspdf';
 import { SiteDataContext } from '../context/SiteDataContext';
+import { FaFileDownload, FaBuilding, FaInfoCircle, FaLaptop, FaMoneyCheckAlt, FaCheckCircle, FaSpinner } from 'react-icons/fa';
 
-const Admission = () => {
-  const { schoolProfile } = useContext(SiteDataContext);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+function Admission() {
+  const { admissionPage, API_URL: ctxApiUrl } = useContext(SiteDataContext);
+  const apiBase = ctxApiUrl || import.meta.env.VITE_API_URL || '/api';
 
-  const handleSubmit = (e) => {
+  const [leadForm, setLeadForm] = useState({
+    student_name: '',
+    email: '',
+    phone: '',
+    address: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [downloadRef, setDownloadRef] = useState(null);
+
+  const handleInputChange = (e) => {
+    setLeadForm({ ...leadForm, [e.target.name]: e.target.value });
+  };
+
+  const handleProspectusSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    
-    // Simulate network request
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
-      e.target.reset();
+    setLoading(true);
+    setMessage(null);
+    try {
+      const res = await axios.post(`${apiBase}/admissions/prospectus`, leadForm);
+      const { refNum } = res.data;
       
-      setTimeout(() => {
-        setIsSuccess(false);
-      }, 3000);
-    }, 1000);
+      // Simulate Payment Verification
+      const verifyRes = await axios.post(`${apiBase}/admissions/prospectus/verify`, { refNum });
+      
+      if (verifyRes.data.success) {
+        setDownloadRef(refNum);
+        setMessage({ type: 'success', text: 'Payment successful! Downloading prospectus...' });
+        generateProspectusPDF(refNum, leadForm.student_name);
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to submit form.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateProspectusPDF = (refNum, name) => {
+    if (admissionPage?.prospectusPdfLink) {
+      window.open(admissionPage.prospectusPdfLink, '_blank');
+      return;
+    }
+    const doc = new jsPDF();
+    doc.setFontSize(22);
+    doc.text("Admission Prospectus 2026", 20, 20);
+    doc.setFontSize(14);
+    doc.text(`Reference Number: ${refNum}`, 20, 35);
+    doc.text(`Student Name: ${name}`, 20, 45);
+    doc.setFontSize(12);
+    doc.text("Thank you for downloading our prospectus.", 20, 60);
+    doc.text("Please click 'Apply Online' to submit your full application.", 20, 70);
+    doc.save(`Prospectus_${refNum}.pdf`);
   };
 
   return (
-    <div className="bg-background text-on-background font-body-md min-h-screen">
-      {/* Hero Section */}
-      <header className="relative pt-32 pb-20 overflow-hidden">
-        <div className="max-w-container-max mx-auto px-6 relative z-10">
-          <div className="flex flex-col md:flex-row items-center gap-12">
-            <div className="flex-1 space-y-6">
-              <span className="inline-block px-4 py-1.5 rounded-full bg-surface-container text-primary font-label-sm text-label-sm uppercase tracking-wider">Admission Open 2024-25</span>
-              <h1 className="font-display text-display text-on-surface leading-tight">
-                Empower Your Future at <span className="text-primary">{schoolProfile?.name || 'Excellence Academy'}</span>
-              </h1>
-              <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
-                Join a community of scholars and leaders. Our rigorous academic environment and holistic approach ensure every student achieves their fullest potential.
-              </p>
-              <div className="flex flex-wrap gap-4 pt-4">
-                <button className="bg-primary text-on-primary px-8 py-4 rounded-lg font-label-md text-label-md flex items-center gap-2 hover:shadow-lg transition-all active:scale-95">
-                  <span className="material-symbols-outlined">download</span>
-                  Download Admission Form
-                </button>
-                <button className="border border-primary text-primary px-8 py-4 rounded-lg font-label-md text-label-md hover:bg-surface-container transition-all">
-                  View Prospectus
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 relative">
-              <div className="w-full aspect-square rounded-[2rem] overflow-hidden shadow-2xl border-4 border-surface-container relative">
-                <img 
-                  className="w-full h-full object-cover" 
-                  alt="A professional architectural photograph of Excellence Academy's modern educational facility" 
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3aE-9kOiACoCDZ-bAzIMW5VjNG6dcJGHxRa7eZAdPmEu-dssCjkTY6i0zzBTVhIUhdNdDTTjNDSFk_uWMk-BbEdtWooWljOwk7fn8bYlbxcjb7tZyk9wxPQT_BrwdxstlxvMNcGZq3Mw0rraVZmlA0drZZzyUEivytQbEMmETd1Pvme1LbBUK3XsrdGWnlBuit7AuIVNnrlruzIaJ7KslDqeg3geFCOxmeXXx_L_tbv8xmmy4DTe4dWPDHBPt6rxo4zEF8i9Clkg"
-                />
-                <div className="absolute bottom-6 right-6 bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-outline-variant flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-on-primary">
-                    <span className="material-symbols-outlined">verified_user</span>
-                  </div>
-                  <div>
-                    <p className="font-label-md text-label-md text-on-surface">Top 1% Global Ranking</p>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant">Academic Excellence Since {schoolProfile?.establishedYear || '1995'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+    <div className="bg-[#FAFAFA] min-h-screen font-sans text-gray-800 pb-20">
+      
+      {/* 1. Advertisements Carousel */}
+      {admissionPage?.advertisements?.length > 0 && (
+        <section className="w-full bg-blue-900 py-10 relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 flex overflow-x-auto snap-x gap-6 pb-4">
+            {admissionPage.advertisements.map((ad, idx) => (
+              <img 
+                key={idx} 
+                src={ad} 
+                alt={`Advertisement ${idx + 1}`} 
+                className="h-64 object-cover rounded-2xl snap-center shadow-xl border-4 border-white/20"
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Main Container */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-12">
+        {/* VidyaBarta Disclaimer */}
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-6 flex items-start gap-3 shadow-sm">
+          <FaInfoCircle className="text-indigo-500 text-xl mt-0.5 flex-shrink-0" />
+          <div>
+            <h4 className="text-xs font-black text-indigo-800 uppercase tracking-widest">VidyaBarta Portal Integration</h4>
+            <p className="text-sm text-indigo-700 leading-relaxed mt-1 font-medium">
+              Note: All details regarding Admissions, Appointments, Job Applications, and Tenders are securely processed through the official VidyaBarta website portal.
+            </p>
           </div>
         </div>
-      </header>
 
-      {/* Admission Process Bento Grid */}
-      <section className="py-section-padding bg-surface-container-low">
-        <div className="max-w-container-max mx-auto px-6">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="font-headline-lg text-headline-lg text-on-surface">Simplified Admission Journey</h2>
-            <p className="text-on-surface-variant font-body-md text-body-md">Four clear steps to becoming an Excellence scholar</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter">
-            {/* Step 1 */}
-            <div className="bg-surface p-8 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-all group">
-              <div className="w-14 h-14 rounded-lg bg-surface-container text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                <span className="material-symbols-outlined text-[32px]">app_registration</span>
-              </div>
-              <span className="text-primary font-label-sm text-label-sm font-bold uppercase tracking-widest block mb-2">Step 01</span>
-              <h3 className="font-headline-md text-headline-md text-on-surface mb-3">Online Registration</h3>
-              <p className="text-on-surface-variant font-body-md text-body-md">Fill out the digital application form and upload necessary scanned documents.</p>
-            </div>
-            {/* Step 2 */}
-            <div className="bg-surface p-8 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-all group">
-              <div className="w-14 h-14 rounded-lg bg-surface-container text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                <span className="material-symbols-outlined text-[32px]">fact_check</span>
-              </div>
-              <span className="text-primary font-label-sm text-label-sm font-bold uppercase tracking-widest block mb-2">Step 02</span>
-              <h3 className="font-headline-md text-headline-md text-on-surface mb-3">Document Verification</h3>
-              <p className="text-on-surface-variant font-body-md text-body-md">Our admissions team reviews your credentials and verifies educational history.</p>
-            </div>
-            {/* Step 3 */}
-            <div className="bg-surface p-8 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-all group">
-              <div className="w-14 h-14 rounded-lg bg-surface-container text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                <span className="material-symbols-outlined text-[32px]">assignment_turned_in</span>
-              </div>
-              <span className="text-primary font-label-sm text-label-sm font-bold uppercase tracking-widest block mb-2">Step 03</span>
-              <h3 className="font-headline-md text-headline-md text-on-surface mb-3">Entrance Assessment</h3>
-              <p className="text-on-surface-variant font-body-md text-body-md">Participate in an interactive evaluation focusing on core aptitude and values.</p>
-            </div>
-            {/* Step 4 */}
-            <div className="bg-surface p-8 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-all group">
-              <div className="w-14 h-14 rounded-lg bg-surface-container text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                <span className="material-symbols-outlined text-[32px]">school</span>
-              </div>
-              <span className="text-primary font-label-sm text-label-sm font-bold uppercase tracking-widest block mb-2">Step 04</span>
-              <h3 className="font-headline-md text-headline-md text-on-surface mb-3">Final Enrollment</h3>
-              <p className="text-on-surface-variant font-body-md text-body-md">Receive your admission offer letter and complete the fee payment process.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Eligibility & Important Dates */}
-      <section className="py-section-padding bg-surface">
-        <div className="max-w-container-max mx-auto px-6">
-          <div className="flex flex-col lg:flex-row gap-12">
-            {/* Eligibility Criteria */}
-            <div className="flex-1 space-y-8">
-              <h2 className="font-headline-lg text-headline-lg text-on-surface border-l-4 border-primary pl-4">Eligibility Criteria</h2>
-              <div className="space-y-4">
-                <div className="flex gap-4 p-4 rounded-lg bg-surface-container-low border border-outline-variant">
-                  <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>check_circle</span>
-                  <div>
-                    <p className="font-label-md text-label-md text-on-surface">Age Requirement</p>
-                    <p className="text-on-surface-variant font-body-md text-body-md">Students must be between 16-19 years for undergraduate foundation programs.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4 p-4 rounded-lg bg-surface-container-low border border-outline-variant">
-                  <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>check_circle</span>
-                  <div>
-                    <p className="font-label-md text-label-md text-on-surface">Academic Performance</p>
-                    <p className="text-on-surface-variant font-body-md text-body-md">Minimum of 75% aggregate in previous standard board examinations.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4 p-4 rounded-lg bg-surface-container-low border border-outline-variant">
-                  <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>check_circle</span>
-                  <div>
-                    <p className="font-label-md text-label-md text-on-surface">Language Proficiency</p>
-                    <p className="text-on-surface-variant font-body-md text-body-md">Proficiency in English with minimum IELTS 6.5 or equivalent qualification.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Important Dates Table */}
-            <div className="flex-1 space-y-8">
-              <h2 className="font-headline-lg text-headline-lg text-on-surface border-l-4 border-primary pl-4">Important Dates</h2>
-              <div className="overflow-hidden border border-outline-variant rounded-xl shadow-sm">
-                <table className="w-full text-left">
-                  <thead className="bg-surface-container text-on-surface">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        
+        {/* Left Column: Rules & Vacant Seats */}
+        <div className="lg:col-span-2 space-y-10">
+          
+          {/* Vacant Seats */}
+          <section className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+            <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6 flex items-center">
+              <FaBuilding className="text-primary mr-3" /> Vacant Seats
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="p-4 font-bold text-gray-700 rounded-tl-xl">Class</th>
+                    <th className="p-4 font-bold text-gray-700 rounded-tr-xl">Available Seats</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {admissionPage?.vacantSeats?.map((seat, i) => (
+                    <tr key={i} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
+                      <td className="p-4 font-medium text-gray-800">{seat.className}</td>
+                      <td className="p-4 font-bold text-primary">{seat.vacant}</td>
+                    </tr>
+                  ))}
+                  {(!admissionPage?.vacantSeats || admissionPage.vacantSeats.length === 0) && (
                     <tr>
-                      <th className="px-6 py-4 font-label-md text-label-md">Event Description</th>
-                      <th className="px-6 py-4 font-label-md text-label-md">Deadline</th>
+                      <td colSpan="2" className="p-4 text-center text-gray-500">No vacant seats information available.</td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant">
-                    <tr className="hover:bg-surface-container-low transition-colors">
-                      <td className="px-6 py-4 text-on-surface font-body-md">Opening of Online Applications</td>
-                      <td className="px-6 py-4 font-label-md text-label-md text-primary">January 15, 2024</td>
-                    </tr>
-                    <tr className="hover:bg-surface-container-low transition-colors">
-                      <td className="px-6 py-4 text-on-surface font-body-md">Scholarship Application Deadline</td>
-                      <td className="px-6 py-4 font-label-md text-label-md text-error">March 31, 2024</td>
-                    </tr>
-                    <tr className="hover:bg-surface-container-low transition-colors">
-                      <td className="px-6 py-4 text-on-surface font-body-md">First Entrance Assessment Wave</td>
-                      <td className="px-6 py-4 font-label-md text-label-md text-primary">April 15-20, 2024</td>
-                    </tr>
-                    <tr className="hover:bg-surface-container-low transition-colors">
-                      <td className="px-6 py-4 text-on-surface font-body-md">Final Admission Lists Released</td>
-                      <td className="px-6 py-4 font-label-md text-label-md text-primary">May 25, 2024</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                  )}
+                </tbody>
+              </table>
             </div>
+          </section>
+
+          {/* Rules and Regulations */}
+          <section className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+            <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6 flex items-center">
+              <FaInfoCircle className="text-amber-500 mr-3" /> Rules & Regulations
+            </h2>
+            <div className="prose max-w-none text-gray-600 leading-relaxed whitespace-pre-line">
+              {admissionPage?.rules}
+            </div>
+          </section>
+
+          {/* Procedures */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <section className="bg-gradient-to-br from-blue-50 to-white p-8 rounded-3xl shadow-sm border border-blue-100">
+              <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center">
+                <FaBuilding className="mr-2" /> Offline Admission
+              </h3>
+              <p className="text-gray-600 whitespace-pre-line">{admissionPage?.offlineProcedure}</p>
+            </section>
+            
+            <section className="bg-gradient-to-br from-amber-50 to-white p-8 rounded-3xl shadow-sm border border-amber-100">
+              <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center">
+                <FaLaptop className="mr-2" /> Online Admission
+              </h3>
+              <p className="text-gray-600 whitespace-pre-line">{admissionPage?.onlineProcedure}</p>
+            </section>
           </div>
         </div>
-      </section>
 
-      {/* Book Appointment Form Section */}
-      <section className="py-section-padding bg-surface-container text-on-surface overflow-hidden relative">
-        <div className="max-w-container-max mx-auto px-6 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-6">
-              <h2 className="font-display text-display leading-tight">Need Guidance? <br/>Book an Appointment</h2>
-              <p className="font-body-lg text-body-lg text-on-surface-variant">Schedule a one-on-one session with our admissions counselors to discuss courses, scholarships, and campus life.</p>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
-                    <span className="material-symbols-outlined">call</span>
-                  </div>
-                  <span className="font-label-md text-label-md">{schoolProfile?.phone || '+1 (555) 0123 4567'}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
-                    <span className="material-symbols-outlined">mail</span>
-                  </div>
-                  <span className="font-label-md text-label-md">{schoolProfile?.email || 'admissions@excellence.edu'}</span>
-                </div>
+        {/* Right Column: Download Form & Apply Online */}
+        <div className="space-y-6">
+          
+          {/* Apply Online Sticky Action */}
+          <div className="bg-primary text-white p-8 rounded-3xl shadow-lg relative overflow-hidden group">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500"></div>
+            <h2 className="text-2xl font-bold mb-3 relative z-10">Ready to Apply?</h2>
+            <p className="text-white/80 mb-6 relative z-10 text-sm">Submit your documents and apply directly for admission.</p>
+            <NavLink 
+              to="/admission/apply" 
+              className="block w-full bg-white text-primary text-center font-bold py-4 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all relative z-10"
+            >
+              Apply Online Now
+            </NavLink>
+          </div>
+
+          {/* Download Prospectus Form */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-2 flex items-center">
+              <FaFileDownload className="text-primary mr-2" /> Download Prospectus
+            </h2>
+            <p className="text-sm text-gray-500 mb-6">Fill this form and complete the Rs.500 payment to download the prospectus.</p>
+
+            {message && (
+              <div className={`p-4 mb-6 rounded-xl flex items-start gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {message.type === 'success' ? <FaCheckCircle className="mt-1" /> : <FaInfoCircle className="mt-1" />}
+                <p className="text-sm font-medium">{message.text}</p>
               </div>
-            </div>
-            <div className="bg-surface-container-lowest p-8 rounded-2xl shadow-xl border border-outline-variant">
-              <form className="space-y-6" onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="font-label-md text-label-md">Full Name</label>
-                    <input required className="w-full px-4 py-3 rounded-lg border border-outline focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Enter your name" type="text"/>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-label-md text-label-md">Email Address</label>
-                    <input required className="w-full px-4 py-3 rounded-lg border border-outline focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="email@example.com" type="email"/>
-                  </div>
+            )}
+
+            {!downloadRef ? (
+              <form onSubmit={handleProspectusSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Student Name</label>
+                  <input required type="text" name="student_name" value={leadForm.student_name} onChange={handleInputChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="font-label-md text-label-md">Preferred Date</label>
-                    <input required className="w-full px-4 py-3 rounded-lg border border-outline focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" type="date"/>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-label-md text-label-md">Preferred Slot</label>
-                    <select required className="w-full px-4 py-3 rounded-lg border border-outline focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
-                      <option>Morning (10 AM - 12 PM)</option>
-                      <option>Afternoon (2 PM - 4 PM)</option>
-                      <option>Evening (4 PM - 6 PM)</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
+                  <input required type="email" name="email" value={leadForm.email} onChange={handleInputChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" />
                 </div>
-                <div className="space-y-2">
-                  <label className="font-label-md text-label-md">Topic of Discussion</label>
-                  <textarea required className="w-full px-4 py-3 rounded-lg border border-outline focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Briefly describe your queries..." rows="3"></textarea>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Phone</label>
+                  <input required type="tel" name="phone" value={leadForm.phone} onChange={handleInputChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Address</label>
+                  <textarea required name="address" value={leadForm.address} onChange={handleInputChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none min-h-[80px]" />
                 </div>
                 <button 
-                  className={`w-full ${isSuccess ? 'bg-green-600' : 'bg-primary'} text-on-primary py-4 rounded-lg font-label-md text-label-md shadow-lg hover:shadow-xl hover:brightness-110 active:scale-[0.98] transition-all`} 
-                  type="submit"
-                  disabled={isSubmitting || isSuccess}
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full bg-amber-500 text-white font-bold py-4 rounded-xl hover:bg-amber-600 transition-colors flex items-center justify-center gap-2 mt-2"
                 >
-                  {isSubmitting ? 'Sending...' : isSuccess ? 'Request Sent!' : 'Confirm Appointment Request'}
+                  {loading ? <FaSpinner className="animate-spin" /> : <FaMoneyCheckAlt />}
+                  Pay & Download
                 </button>
               </form>
-            </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-500 mb-2">Your Reference Number:</p>
+                <p className="text-2xl font-mono font-bold text-primary mb-6">{downloadRef}</p>
+                <button 
+                  onClick={() => generateProspectusPDF(downloadRef, leadForm.student_name)}
+                  className="bg-gray-100 text-gray-800 font-bold py-3 px-6 rounded-xl hover:bg-gray-200 transition-colors text-sm"
+                >
+                  Download Again
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </section>
+
+      </div>
+      </div>
     </div>
   );
-};
+}
 
 export default Admission;

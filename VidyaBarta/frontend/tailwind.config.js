@@ -8,53 +8,52 @@ export default {
   theme: {
     extend: {
       colors: {
-        "surface-tint": "#2f53ce",
-        "primary": "#002c98", // Updated primary from design system
-        "on-primary": "#ffffff",
-        "primary-container": "#1a43bf", // Blue 100
-        "on-primary-container": "#b2bfff", // Blue 800
-        "primary-fixed": "#dde1ff",
-        "on-primary-fixed": "#001453",
-        "primary-fixed-dim": "#b7c4ff",
-        "on-primary-fixed-variant": "#0438b6",
+        "primary": "#2563EB", // Blue 600
+        "on-primary": "#FFFFFF",
+        "primary-container": "#DBEAFE", // Blue 100
+        "on-primary-container": "#1E40AF", // Blue 800
+        "primary-fixed": "#DBEAFE",
+        "on-primary-fixed": "#2563EB",
+        "primary-fixed-dim": "#BFDBFE",
+        "on-primary-fixed-variant": "#1D4ED8",
         
-        "secondary": "#505f76", 
-        "on-secondary": "#ffffff",
-        "secondary-container": "#d0e1fb", 
-        "on-secondary-container": "#54647a",
-        "secondary-fixed": "#d3e4fe",
-        "on-secondary-fixed": "#0b1c30",
-        "secondary-fixed-dim": "#b7c8e1",
-        "on-secondary-fixed-variant": "#38485d",
+        "secondary": "#64748B", 
+        "on-secondary": "#FFFFFF",
+        "secondary-container": "#F1F5F9", 
+        "on-secondary-container": "#0F172A",
+        "secondary-fixed": "#F1F5F9",
+        "on-secondary-fixed": "#0F172A",
+        "secondary-fixed-dim": "#E2E8F0",
+        "on-secondary-fixed-variant": "#334155",
 
-        "tertiary": "#36393b", 
-        "on-tertiary": "#ffffff",
-        "tertiary-container": "#4d5052",
-        "on-tertiary-container": "#c0c2c4",
-        "tertiary-fixed": "#e0e3e5",
-        "on-tertiary-fixed": "#191c1e",
-        "tertiary-fixed-dim": "#c4c7c9",
-        "on-tertiary-fixed-variant": "#444749",
+        "tertiary": "#F8FAFC", 
+        "on-tertiary": "#000000",
+        "tertiary-container": "#FEF3C7",
+        "on-tertiary-container": "#92400E",
+        "tertiary-fixed": "#FEF3C7",
+        "on-tertiary-fixed": "#92400E",
+        "tertiary-fixed-dim": "#FDE68A",
+        "on-tertiary-fixed-variant": "#D97706",
         
-        "neutral": "#767680", // Updated neutral from design system
+        "neutral": "#1E293B",
 
-        "error": "#ba1a1a",
-        "on-error": "#ffffff",
-        "error-container": "#ffdad6",
-        "on-error-container": "#93000a",
+        "error": "#BA1A1A",
+        "on-error": "#FFFFFF",
+        "error-container": "#FFDAD6",
+        "on-error-container": "#93000A",
 
-        "background": "#fbf8ff", // Neutral 50
-        "on-background": "#1a1b23", // Zinc 900
-        "surface": "#fbf8ff",
-        "on-surface": "#1a1b23",
-        "surface-variant": "#e2e1ec", // Neutral 100
-        "on-surface-variant": "#444654", // Zinc 600
-        "outline": "#747685", // Zinc 300
-        "outline-variant": "#c4c5d6", // Zinc 200
+        "background": "#FAFAFA", // Neutral 50
+        "on-background": "#18181B", // Zinc 900
+        "surface": "#FFFFFF",
+        "on-surface": "#18181B",
+        "surface-variant": "#F4F4F5", // Neutral 100
+        "on-surface-variant": "#52525B", // Zinc 600
+        "outline": "#D4D4D8", // Zinc 300
+        "outline-variant": "#E4E4E7", // Zinc 200
         
-        "inverse-on-surface": "#f1f0fa",
-        "inverse-surface": "#2f3038",
-        "inverse-primary": "#b7c4ff",
+        "inverse-on-surface": "#F8FAFC",
+        "inverse-surface": "#0F172A",
+        "inverse-primary": "#93C5FD",
         
         "canva-cyan": "#00c4cc",
         "canva-purple": "#7d2ae8",
@@ -62,19 +61,19 @@ export default {
         "canva-bg-mid": "#f1f5f9",
         "canva-bg-end": "#fafafa",
         
-        "surface-dim": "#dad9e4",
-        "surface-bright": "#fbf8ff",
-        "surface-container-lowest": "#ffffff",
-        "surface-container-low": "#f4f2fd",
-        "surface-container": "#eeedf8",
-        "surface-container-high": "#e8e7f2",
-        "surface-container-highest": "#e2e1ec",
+        "surface-dim": "#D4D4D8",
+        "surface-bright": "#FAFAFA",
+        "surface-container-lowest": "#FFFFFF",
+        "surface-container-low": "#F4F4F5",
+        "surface-container": "#E4E4E7",
+        "surface-container-high": "#D4D4D8",
+        "surface-container-highest": "#A1A1AA"
       },
       fontFamily: {
-        "sans": ["Public Sans", "sans-serif"],
-        "headline": ["Public Sans", "sans-serif"],
-        "body": ["Public Sans", "sans-serif"],
-        "label": ["Public Sans", "sans-serif"]
+        "sans": ["Inter", "sans-serif"],
+        "headline": ["Plus Jakarta Sans", "serif"],
+        "body": ["Inter", "sans-serif"],
+        "label": ["Inter", "sans-serif"]
       },
       fontSize: {
         "display-lg": ["3.5rem", { lineHeight: "1.2", letterSpacing: "0" }],

@@ -26,7 +26,7 @@ function StudentLogin() {
     setLoading(false);
 
     if (result.success) {
-      navigate('/student-portal');
+      navigate('/dashboard');
     } else {
       setError(result.message);
     }

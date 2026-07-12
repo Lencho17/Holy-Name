@@ -36,6 +36,7 @@ const Notice = React.lazy(() => import("./Components/Notice"));
 const AdmissionTracker = React.lazy(() => import("./Components/AdmissionTracker"));
 const StudentPortal = React.lazy(() => import("./Components/StudentPortal"));
 const StudentLogin = React.lazy(() => import("./Components/StudentLogin"));
+const StudentPortalLanding = React.lazy(() => import("./Components/StudentPortalLanding"));
 const JobApplicationForm = React.lazy(() => import("./Components/JobApplicationForm"));
 const Tenders = React.lazy(() => import("./Components/Tenders"));
 const TenderApply = React.lazy(() => import("./Components/TenderApply"));
@@ -232,7 +233,8 @@ function App() {
     createRoutesFromElements(
       <Route>
         <Route path="/" element={<SchoolLayout />} errorElement={<ErrorBoundary />}>
-          <Route index element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
+          <Route index element={<Suspense fallback={<SuspenseFallback />}><StudentPortalLanding /></Suspense>} />
+          <Route path="dashboard" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
           <Route path="login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
           <Route path="student-login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
         </Route>

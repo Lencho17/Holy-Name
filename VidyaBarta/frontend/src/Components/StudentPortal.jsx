@@ -60,12 +60,12 @@ function StudentPortal() {
   }
 
   if (!token || !student) {
-    return <Navigate to="/student-login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   const handleLogout = () => {
     logout();
-    navigate('/student-login');
+    navigate('/login');
   };
 
   const getBorderColorForNotice = (idx) => {

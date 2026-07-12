@@ -167,7 +167,7 @@ function Admission() {
             <h2 className="text-2xl font-bold mb-3 relative z-10">Ready to Apply?</h2>
             <p className="text-white/80 mb-6 relative z-10 text-sm">Submit your documents and apply directly for admission.</p>
             <NavLink 
-              to="/admission/apply" 
+              to="/admission/form" 
               className="block w-full bg-white text-primary text-center font-bold py-4 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all relative z-10"
             >
               Apply Online Now

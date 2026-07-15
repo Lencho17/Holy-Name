@@ -109,6 +109,44 @@ function Layout() {
     return <SkeletonLoader />;
   }
 
+  if (schoolProfile?.isNotFound) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden p-4 font-sans">
+        <div className="absolute top-0 left-0 w-full h-full opacity-40">
+           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-red-100 blur-[120px] rounded-full" />
+           <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] bg-orange-50 blur-[120px] rounded-full" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-xl">
+          <div className="bg-white rounded-[3rem] p-12 md:p-20 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-white text-center">
+            <div className="flex justify-center mb-12">
+              <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center shadow-inner">
+                <span className="text-4xl">🏫</span>
+              </div>
+            </div>
+
+            <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">
+              School <span className="text-red-500">Not Found</span>
+            </h1>
+            
+            <div className="w-12 h-1.5 bg-red-200 rounded-full mx-auto mb-8" />
+
+            <p className="text-gray-500 text-lg font-medium leading-relaxed max-w-md mx-auto mb-10">
+              The domain <strong className="text-gray-800">{window.location.hostname}</strong> is not registered to any school on the VidyaBarta platform.
+            </p>
+
+            <button
+              onClick={() => window.location.href = 'https://www.vidyabarta.com'}
+              className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto"
+            >
+              Visit VidyaBarta
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isMaintenanceMode && !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden p-4 font-sans">

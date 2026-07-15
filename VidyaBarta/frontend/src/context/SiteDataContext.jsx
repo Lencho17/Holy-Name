@@ -325,6 +325,12 @@ export const SiteDataProvider = ({ children }) => {
         retryCount = 0; // Reset on success
         setLoading(false);
       } catch (error) {
+        if (error.response?.status === 404 && error.response?.data?.isNotFound) {
+          setSchoolProfile({ isNotFound: true });
+          setLoading(false);
+          return;
+        }
+        
         console.warn('Backend fetch error:', error.message);
         if (retryCount < maxRetries) {
           retryCount++;

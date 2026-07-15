@@ -4,6 +4,7 @@ import {
   FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, 
   FiDollarSign, FiUsers, FiSettings, FiMonitor, FiChevronDown, FiMenu, FiGlobe
 } from 'react-icons/fi';
+import { FaWallet } from 'react-icons/fa';
 
 const SidebarItem = ({ to, icon: Icon, label, children }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -114,6 +115,7 @@ const SuperAdminLayout = () => {
           <SidebarItem to="/superadmin/features" icon={FiStar} label="Features" />
           <SidebarItem to="/superadmin/subscription" icon={FiCreditCard} label="Subscription" />
           <SidebarItem to="/superadmin/revenue" icon={FiDollarSign} label="Revenue & Settlements" />
+          <SidebarItem to="/superadmin/wallets" icon={FaWallet} label="Wallets & Payouts" />
           <SidebarItem to="/superadmin/domain-requests" icon={FiGlobe} label="Domain Requests" />
           
           <SidebarItem to="/superadmin/staff-management" icon={FiUsers} label="Staff Management">

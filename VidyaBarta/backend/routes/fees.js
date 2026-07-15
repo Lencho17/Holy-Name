@@ -159,6 +159,47 @@ router.post('/checkout', async (req, res) => {
     }).select().single();
 
     if (error) throw error;
+
+    // ── Credit the school's escrow wallet ──
+    let { data: wallet } = await supabase
+      .from('school_wallets')
+      .select('*')
+      .eq('school_id', student.school_id)
+      .single();
+
+    if (wallet) {
+      const newBalance = Number(wallet.balance) + net_to_school;
+      await supabase
+        .from('school_wallets')
+        .update({ balance: newBalance, last_updated: new Date() })
+        .eq('id', wallet.id);
+
+      // Record credit in ledger
+      await supabase.from('wallet_ledger').insert({
+        school_id: student.school_id,
+        type: 'credit',
+        amount: net_to_school,
+        balance_after: newBalance,
+        reference_type: 'fee_payment',
+        reference_id: transaction.id,
+        description: `Fee payment received (₹${gross_amount} gross, ₹${net_to_school} net)`
+      });
+    } else {
+      // Create wallet with initial balance
+      await supabase
+        .from('school_wallets')
+        .insert([{ school_id: student.school_id, balance: net_to_school }]);
+
+      await supabase.from('wallet_ledger').insert({
+        school_id: student.school_id,
+        type: 'credit',
+        amount: net_to_school,
+        balance_after: net_to_school,
+        reference_type: 'fee_payment',
+        reference_id: transaction.id,
+        description: `Fee payment received — wallet created (₹${gross_amount} gross, ₹${net_to_school} net)`
+      });
+    }
     
     res.json({ message: 'Payment Successful', transaction });
   } catch (error) {

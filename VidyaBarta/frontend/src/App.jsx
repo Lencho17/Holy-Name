@@ -159,6 +159,7 @@ function App() {
             <Route path="features" element={<SA.Features />} />
             <Route path="subscription" element={<SA.Subscription />} />
             <Route path="revenue" element={<SA.RevenueSettlements />} />
+            <Route path="wallets" element={<SA.Wallets />} />
             <Route path="domain-requests" element={<SA.DomainRequests />} />
             
             <Route path="staff-management/roles" element={<SA.RolePermission />} />

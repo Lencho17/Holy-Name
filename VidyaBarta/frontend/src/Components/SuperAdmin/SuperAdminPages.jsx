@@ -261,6 +261,7 @@ export const Addons = () => <PageWrapper title="Addons"><p>Manage system addons.
 export const Features = () => <PageWrapper title="Features"><p>Toggle and manage system features.</p></PageWrapper>;
 export const Subscription = () => <PageWrapper title="Subscription"><p>View active subscriptions.</p></PageWrapper>;
 export { RevenueSettlements } from './RevenueSettlements';
+export { default as Wallets } from './SuperAdminWallets';
 // export const SubscriptionTransaction
 
 // Staff Management

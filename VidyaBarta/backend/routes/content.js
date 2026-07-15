@@ -148,9 +148,8 @@ router.get('/', optionalProtect, async (req, res) => {
     const domain = req.query.domain;
     let schoolId = null;
 
-    if (domain) {
+    if (domain && !['vidyabarta.com', 'www.vidyabarta.com', 'localhost', '127.0.0.1'].includes(domain) && !domain.includes('vercel.app') && !domain.startsWith('student.')) {
       // Find school by subdomain or custom_domain
-      // Note: in a real app you might want to cache this domain->schoolId mapping
       const { data: school } = await supabase
         .from('schools')
         .select('id')
@@ -159,6 +158,8 @@ router.get('/', optionalProtect, async (req, res) => {
       
       if (school) {
         schoolId = school.id;
+      } else {
+        return res.status(404).json({ error: "School not found", isNotFound: true });
       }
     }
 

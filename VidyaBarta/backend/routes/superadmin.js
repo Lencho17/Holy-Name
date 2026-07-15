@@ -61,10 +61,10 @@ router.post('/schools', protect, async (req, res) => {
       return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
     }
 
-    const { 
+    const {
       name, logo_url, email, phone, tagline, address, 
       subdomain, custom_domain, package, status,
-      admin_first_name, admin_last_name, admin_email, admin_contact, admin_image_url
+      admin_first_name, admin_last_name, admin_email, admin_contact, admin_image_url, admin_password
     } = req.body;
 
     if (!name || !subdomain || !admin_email) {
@@ -87,9 +87,9 @@ router.post('/schools', protect, async (req, res) => {
     }
 
     // Insert Admin for the school
-    // Generate a default password, for example: School@123
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash('School@123', salt);
+    const passwordToHash = admin_password && admin_password.trim() !== '' ? admin_password : 'School@123';
+    const hashedPassword = await bcrypt.hash(passwordToHash, salt);
 
     const { data: newAdmin, error: adminError } = await supabase
       .from('admins')

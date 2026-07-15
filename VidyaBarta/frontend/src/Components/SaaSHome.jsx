@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiArrowRight, FiShield, FiMonitor, FiTrendingUp } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 
 const FeatureCard = ({ icon: Icon, title, description }) => (
   <div className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
@@ -116,6 +117,31 @@ const DashboardMockup = () => (
 );
 
 const Home = () => {
+  const [pricingPlans, setPricingPlans] = useState([]);
+  const [loadingPricing, setLoadingPricing] = useState(true);
+  const [contactSettings, setContactSettings] = useState({ contact_email: 'sales@vidyabarta.com', contact_phone: '+91 98765 43210' });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || '/api';
+        const [pricingRes, contactRes] = await Promise.all([
+          axios.get(`${apiBase}/saas-pricing`).catch(() => ({ data: [] })),
+          axios.get(`${apiBase}/saas-settings`).catch(() => ({ data: { contact_email: 'sales@vidyabarta.com', contact_phone: '+91 98765 43210' } }))
+        ]);
+        setPricingPlans(pricingRes.data);
+        if (contactRes.data) {
+          setContactSettings(contactRes.data);
+        }
+      } catch (e) {
+        console.error('Failed to load data', e);
+      } finally {
+        setLoadingPricing(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background font-sans overflow-x-hidden">
       {/* Hero Section */}
@@ -319,49 +345,125 @@ const Home = () => {
           <p className="text-title-md text-on-surface-variant max-w-2xl mx-auto mb-16">Choose the perfect plan for your institution's size and needs.</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-            {/* Basic Plan */}
-            <div className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant flex flex-col hover:-translate-y-1 transition-transform duration-300">
-              <h3 className="text-title-lg font-bold text-neutral mb-2">Starter</h3>
-              <p className="text-body-sm text-on-surface-variant mb-6">Perfect for small schools getting started.</p>
-              <p className="text-display-sm font-bold text-neutral mb-6">₹1,999<span className="text-title-sm font-normal text-on-surface-variant">/mo</span></p>
-              <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-center gap-3 text-body-md text-neutral"><FiShield className="text-primary" /> Up to 500 Students</li>
-                <li className="flex items-center gap-3 text-body-md text-neutral"><FiMonitor className="text-primary" /> Core Management Modules</li>
-                <li className="flex items-center gap-3 text-body-md text-neutral"><FiTrendingUp className="text-primary" /> Basic Reporting</li>
-              </ul>
-              <button className="w-full py-3 rounded-xl border border-primary text-primary font-bold hover:bg-primary/5 transition-colors">Start Free Trial</button>
-            </div>
-            
-            {/* Pro Plan */}
-            <div className="bg-primary p-8 rounded-3xl shadow-xl border border-primary flex flex-col relative transform md:-translate-y-4">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-secondary text-white px-4 py-1 rounded-full text-label-sm font-bold uppercase tracking-wide">Most Popular</div>
-              <h3 className="text-title-lg font-bold text-white mb-2">Professional</h3>
-              <p className="text-body-sm text-white/80 mb-6">For growing institutions needing more power.</p>
-              <p className="text-display-sm font-bold text-white mb-6">₹4,999<span className="text-title-sm font-normal text-white/80">/mo</span></p>
-              <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-center gap-3 text-body-md text-white"><FiShield className="text-white" /> Up to 2,000 Students</li>
-                <li className="flex items-center gap-3 text-body-md text-white"><FiMonitor className="text-white" /> All Core & Advanced Modules</li>
-                <li className="flex items-center gap-3 text-body-md text-white"><FiTrendingUp className="text-white" /> Advanced Analytics</li>
-              </ul>
-              <button className="w-full py-3 rounded-xl bg-white text-primary font-bold hover:bg-white/90 transition-colors shadow-lg">Get Started</button>
-            </div>
-            
-            {/* Enterprise Plan */}
-            <div className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant flex flex-col hover:-translate-y-1 transition-transform duration-300">
-              <h3 className="text-title-lg font-bold text-neutral mb-2">Enterprise</h3>
-              <p className="text-body-sm text-on-surface-variant mb-6">For large schools and university campuses.</p>
-              <p className="text-display-sm font-bold text-neutral mb-6">Custom</p>
-              <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-center gap-3 text-body-md text-neutral"><FiShield className="text-primary" /> Unlimited Students</li>
-                <li className="flex items-center gap-3 text-body-md text-neutral"><FiMonitor className="text-primary" /> Custom Integrations</li>
-                <li className="flex items-center gap-3 text-body-md text-neutral"><FiTrendingUp className="text-primary" /> Dedicated Support Agent</li>
-              </ul>
-              <button className="w-full py-3 rounded-xl border border-outline text-neutral font-bold hover:bg-surface-variant transition-colors">Contact Sales</button>
-            </div>
+            {loadingPricing ? (
+              <div className="col-span-1 md:col-span-3 text-center py-10 text-on-surface-variant font-medium">Loading pricing plans...</div>
+            ) : pricingPlans.map((plan) => {
+              let featuresList = [];
+              try {
+                featuresList = typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features;
+              } catch (e) {
+                featuresList = [];
+              }
+              
+              if (plan.is_popular) {
+                return (
+                  <div key={plan.id} className="bg-primary p-8 rounded-3xl shadow-xl border border-primary flex flex-col relative transform md:-translate-y-4">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-secondary text-white px-4 py-1 rounded-full text-label-sm font-bold uppercase tracking-wide">Most Popular</div>
+                    <h3 className="text-title-lg font-bold text-white mb-2">{plan.name}</h3>
+                    <p className="text-body-sm text-white/80 mb-6">{plan.description}</p>
+                    <p className="text-display-sm font-bold text-white mb-6">{plan.price}<span className="text-title-sm font-normal text-white/80">{plan.interval}</span></p>
+                    <ul className="space-y-4 mb-8 flex-1">
+                      {featuresList.map((feat, i) => (
+                        <li key={i} className="flex items-center gap-3 text-body-md text-white"><FiShield className="text-white shrink-0" /> <span>{feat}</span></li>
+                      ))}
+                    </ul>
+                    {plan.button_link.startsWith('#') ? (
+                      <a href={plan.button_link} className="w-full py-3 rounded-xl bg-white text-primary font-bold hover:bg-white/90 transition-colors shadow-lg block text-center">{plan.button_text}</a>
+                    ) : (
+                      <Link to={plan.button_link} className="w-full py-3 rounded-xl bg-white text-primary font-bold hover:bg-white/90 transition-colors shadow-lg block text-center">{plan.button_text}</Link>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <div key={plan.id} className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant flex flex-col hover:-translate-y-1 transition-transform duration-300">
+                  <h3 className="text-title-lg font-bold text-neutral mb-2">{plan.name}</h3>
+                  <p className="text-body-sm text-on-surface-variant mb-6">{plan.description}</p>
+                  <p className="text-display-sm font-bold text-neutral mb-6">{plan.price}<span className="text-title-sm font-normal text-on-surface-variant">{plan.interval}</span></p>
+                  <ul className="space-y-4 mb-8 flex-1">
+                    {featuresList.map((feat, i) => (
+                      <li key={i} className="flex items-center gap-3 text-body-md text-neutral"><FiShield className="text-primary shrink-0" /> <span>{feat}</span></li>
+                    ))}
+                  </ul>
+                  {plan.button_link.startsWith('#') ? (
+                    <a href={plan.button_link} className="w-full py-3 rounded-xl border border-primary text-primary font-bold hover:bg-primary/5 transition-colors block text-center">{plan.button_text}</a>
+                  ) : (
+                    <Link to={plan.button_link} className="w-full py-3 rounded-xl border border-primary text-primary font-bold hover:bg-primary/5 transition-colors block text-center">{plan.button_text}</Link>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </motion.div>
       </section>
       
+      {/* Contact Section */}
+      <section id="contact" className="py-24 bg-surface border-t border-outline-variant">
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+          viewport={{ once: true, margin: "-100px" }}
+          className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16"
+        >
+          <div>
+            <h2 className="text-headline-lg font-bold font-headline text-neutral mb-6">Get in Touch</h2>
+            <p className="text-title-md text-on-surface-variant mb-8">Have questions about VidyaBarta? Our team is here to help you transform your institution.</p>
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0">
+                  <FiArrowRight size={20} />
+                </div>
+                <div>
+                  <h4 className="text-title-sm font-bold text-neutral">Email Us</h4>
+                  <p className="text-body-md text-on-surface-variant">{contactSettings?.contact_email || 'sales@vidyabarta.com'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0">
+                  <FiArrowRight size={20} />
+                </div>
+                <div>
+                  <h4 className="text-title-sm font-bold text-neutral">Call Us</h4>
+                  <p className="text-body-md text-on-surface-variant">{contactSettings?.contact_phone || '+91 98765 43210'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-surface-variant/30 p-8 rounded-3xl border border-outline-variant shadow-sm">
+            <form onSubmit={(e) => { e.preventDefault(); alert('Thank you for reaching out! Our team will contact you shortly.'); e.target.reset(); }} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-label-sm font-medium text-neutral mb-2">First Name</label>
+                  <input type="text" required className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-neutral" placeholder="John" />
+                </div>
+                <div>
+                  <label className="block text-label-sm font-medium text-neutral mb-2">Last Name</label>
+                  <input type="text" required className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-neutral" placeholder="Doe" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-label-sm font-medium text-neutral mb-2">Email Address</label>
+                <input type="email" required className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-neutral" placeholder="john@example.com" />
+              </div>
+              <div>
+                <label className="block text-label-sm font-medium text-neutral mb-2">School / Institution Name</label>
+                <input type="text" required className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-neutral" placeholder="Holy Name HS School" />
+              </div>
+              <div>
+                <label className="block text-label-sm font-medium text-neutral mb-2">Message</label>
+                <textarea required rows="4" className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all resize-none text-neutral" placeholder="How can we help you?"></textarea>
+              </div>
+              <button type="submit" className="w-full py-4 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-all shadow-md hover:-translate-y-0.5">
+                Send Message
+              </button>
+            </form>
+          </div>
+        </motion.div>
+      </section>
+
       {/* Call to Action Section */}
       <section className="py-24 bg-primary text-white overflow-hidden relative">
         <motion.div 

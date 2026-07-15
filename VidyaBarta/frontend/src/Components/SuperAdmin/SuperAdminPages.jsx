@@ -284,12 +284,13 @@ export const EmailConfiguration = () => <PageWrapper title="Email Configuration"
 export const EmailTemplate = () => <PageWrapper title="Email Template"><p>Manage email templates.</p></PageWrapper>;
 export const PaymentSettings = () => <PageWrapper title="Payment Settings"><p>Configure payment gateways.</p></PageWrapper>;
 export const PrivacyPolicy = () => <PageWrapper title="Privacy Policy"><p>Manage Privacy Policy content.</p></PageWrapper>;
-export const ContactUs = () => <PageWrapper title="Contact Us"><p>Manage Contact Us details.</p></PageWrapper>;
+export { default as ContactUs } from './SaaSContactSettings';
 export const AboutUs = () => <PageWrapper title="About Us"><p>Manage About Us content.</p></PageWrapper>;
 export const TermsConditions = () => <PageWrapper title="Terms & Conditions"><p>Manage system Terms & Conditions.</p></PageWrapper>;
 export const RefundCancellation = () => <PageWrapper title="Refund & Cancellation"><p>Manage refund policies.</p></PageWrapper>;
 export const SchoolTermsCondition = () => <PageWrapper title="School Terms & Condition"><p>Manage terms specific to schools.</p></PageWrapper>;
 export { default as StudentPortalSettings } from './StudentPortalSettings';
+export { default as ManagePricing } from './ManagePricing';
 
 export const SystemUpdate = () => <PageWrapper title="System Update"><p>Check and apply system updates.</p></PageWrapper>;
 

@@ -22,6 +22,8 @@ const appointmentRoutes = require('./routes/appointments');
 const fileRoutes = require('./routes/files');
 const uploadRoutes = require('./routes/upload');
 const settingsRoutes = require('./routes/settings');
+const saasPricingRoutes = require('./routes/saas-pricing');
+const saasSettingsRoutes = require('./routes/saas-settings');
 const bulkUploadRoutes = require('./routes/bulk-upload');
 const examsRoutes = require('./routes/exams');
 const concessionsRoutes = require('./routes/concessions');
@@ -154,6 +156,8 @@ app.use('/api/appointments', submissionLimiter, appointmentRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/upload', apiLimiter, uploadRoutes);
 app.use('/api/settings', apiLimiter, settingsRoutes);
+app.use('/api/saas-pricing', apiLimiter, saasPricingRoutes);
+app.use('/api/saas-settings', apiLimiter, saasSettingsRoutes);
 app.use('/api/bulk-upload', apiLimiter, bulkUploadRoutes);
 app.use('/api/holidays', apiLimiter, holidayRoutes);
 

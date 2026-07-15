@@ -73,6 +73,7 @@ export const ManageSchools = () => {
     admin_contact: '',
     admin_email: '',
     admin_image_url: '',
+    admin_password: '',
     package_id: '',
     platform_fee: 0,
     transaction_fee: 0
@@ -418,6 +419,11 @@ export const ManageSchools = () => {
               <div>
                 <label className="block text-label-md font-medium text-neutral mb-1.5">Admin Email (Login ID) <span className="text-red-500">*</span></label>
                 <input required type="email" name="admin_email" value={formData.admin_email} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="admin@school.com" />
+              </div>
+
+              <div>
+                <label className="block text-label-md font-medium text-neutral mb-1.5">Admin Password</label>
+                <input type="text" name="admin_password" value={formData.admin_password} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="School@123 (Default)" />
               </div>
             </div>
           </div>

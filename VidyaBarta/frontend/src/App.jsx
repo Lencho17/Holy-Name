@@ -161,6 +161,7 @@ function App() {
           <Route element={<SuperAdminLayout />}>
             <Route index element={<SA.Dashboard />} />
             <Route path="schools" element={<SA.Schools />} />
+            <Route path="pricing" element={<SA.ManagePricing />} />
             <Route path="packages" element={<SA.Packages />} />
             <Route path="addons" element={<SA.Addons />} />
             <Route path="features" element={<SA.Features />} />

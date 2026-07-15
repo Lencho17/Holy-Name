@@ -110,6 +110,7 @@ const SuperAdminLayout = () => {
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
           <SidebarItem to="/superadmin" icon={FiHome} label="Dashboard" />
           <SidebarItem to="/superadmin/schools" icon={FiBriefcase} label="Schools" />
+          <SidebarItem to="/superadmin/pricing" icon={FiCreditCard} label="Pricing Plans" />
           <SidebarItem to="/superadmin/packages" icon={FiBox} label="Package" />
           <SidebarItem to="/superadmin/addons" icon={FiLayers} label="Addons" />
           <SidebarItem to="/superadmin/features" icon={FiStar} label="Features" />

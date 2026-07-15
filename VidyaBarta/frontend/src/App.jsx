@@ -103,6 +103,13 @@ function ErrorBoundary() {
   );
 }
 
+function ExternalRedirect({ to }) {
+  useEffect(() => {
+    window.location.href = to;
+  }, [to]);
+  return <SuspenseFallback />;
+}
+
 function App() {
   const urlParams = new URLSearchParams(window.location.search);
   
@@ -221,12 +228,12 @@ function App() {
           <Route path="appointment" element={<Suspense fallback={<SuspenseFallback />}><Appointment /></Suspense>} />
         </Route>
         
-        <Route path="adminLogin" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/login"</script>'}} />} />
-        <Route path="login" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/login"</script>'}} />} />
-        <Route path="staff-signup" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/staff-signup"</script>'}} />} />
+        <Route path="adminLogin" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
+        <Route path="login" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
+        <Route path="staff-signup" element={<ExternalRedirect to="https://www.vidyabarta.com/staff-signup" />} />
         
-        <Route path="admin/*" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/login"</script>'}} />} />
-        <Route path="staff/*" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/login"</script>'}} />} />
+        <Route path="admin/*" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
+        <Route path="staff/*" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
       </Route>
     )
   );

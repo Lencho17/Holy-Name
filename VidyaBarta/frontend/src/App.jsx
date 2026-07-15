@@ -221,11 +221,12 @@ function App() {
           <Route path="appointment" element={<Suspense fallback={<SuspenseFallback />}><Appointment /></Suspense>} />
         </Route>
         
-        <Route path="adminLogin" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/adminLogin"</script>'}} />} />
+        <Route path="adminLogin" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/login"</script>'}} />} />
+        <Route path="login" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/login"</script>'}} />} />
         <Route path="staff-signup" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/staff-signup"</script>'}} />} />
         
-        <Route path="admin/*" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/adminLogin"</script>'}} />} />
-        <Route path="staff/*" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/adminLogin"</script>'}} />} />
+        <Route path="admin/*" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/login"</script>'}} />} />
+        <Route path="staff/*" element={<div dangerouslySetInnerHTML={{__html: '<script>window.location.href="https://www.vidyabarta.com/login"</script>'}} />} />
       </Route>
     )
   );

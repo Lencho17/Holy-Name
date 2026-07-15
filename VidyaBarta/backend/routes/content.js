@@ -55,6 +55,7 @@ const getAggregatedContent = async (schoolId) => {
   return {
     schoolProfile: {
       name: settings?.school_name,
+      whyUsText: settings?.why_us_text,
       logo: settings?.logo,
       punchLine: settings?.punch_line,
       email: settings?.email,
@@ -214,6 +215,7 @@ router.put('/', protect, async (req, res) => {
     // 1. Update site_settings (Single Row)
     const settingsFields = {
       school_name: updateData.schoolProfile?.name,
+      why_us_text: updateData.schoolProfile?.whyUsText,
       logo: updateData.schoolProfile?.logo,
       punch_line: updateData.schoolProfile?.punchLine,
       email: updateData.schoolProfile?.email,
@@ -355,20 +357,20 @@ router.put('/', protect, async (req, res) => {
           );
         } else if (Array.isArray(updateData[mod.key])) {
           rows = updateData[mod.key].map(item => {
-            const row = { ...item, school_id: req.user.school_id || null };
-            if (row._id) delete row._id;
-            if (row.id) delete row.id;
+            const school_id = req.user.school_id || null;
+            let parsed = { ...item };
+            if (parsed._id) delete parsed._id;
+            if (parsed.id) delete parsed.id;
             
             if (mod.table === 'notices') {
-              return { 
+              parsed = { 
                 title: item.title, 
                 date: item.date, 
                 size: item.size, 
                 pdf_link: item.pdfLink || item.pdf_link 
               };
-            }
-            if (mod.table === 'gallery') {
-              return { 
+            } else if (mod.table === 'gallery') {
+              parsed = { 
                 category: item.category, 
                 title: item.title, 
                 src: item.src, 
@@ -379,18 +381,16 @@ router.put('/', protect, async (req, res) => {
                 is_album_cover: item.isAlbumCover || item.is_album_cover || false,
                 event_id: item.eventId || item.event_id
               };
-            }
-            if (mod.table === 'events') {
-              return { 
+            } else if (mod.table === 'events') {
+              parsed = { 
                 title: item.title, 
                 date: item.date, 
                 image: item.image, 
                 description: item.description, 
                 gallery_images: item.galleryImages || item.gallery_images 
               };
-            }
-            if (mod.table === 'highlights') {
-              return { 
+            } else if (mod.table === 'highlights') {
+              parsed = { 
                 title: item.title, 
                 date: item.date, 
                 image: item.image, 
@@ -398,9 +398,8 @@ router.put('/', protect, async (req, res) => {
                 category: item.category,
                 gallery_images: item.galleryImages || item.gallery_images 
               };
-            }
-            if (mod.table === 'faculty') {
-              return { 
+            } else if (mod.table === 'faculty') {
+              parsed = { 
                 name: item.name, 
                 department: item.department, 
                 subject: item.Subject || item.subject, 
@@ -416,9 +415,8 @@ router.put('/', protect, async (req, res) => {
                 teaching_experience: item.teachingExperience || item.teaching_experience,
                 job_title: item.jobTitle || item.job_title
               };
-            }
-            if (mod.table === 'alumni') {
-              return {
+            } else if (mod.table === 'alumni') {
+              parsed = {
                 name: item.name,
                 passed_year: item.passedYear || item.passed_year,
                 rank: item.rank,
@@ -429,22 +427,19 @@ router.put('/', protect, async (req, res) => {
                 photo: item.photo || item.photo_url,
                 description: item.description
               };
-            }
-            if (mod.table === 'stats') {
-              return {
+            } else if (mod.table === 'stats') {
+              parsed = {
                 label: item.label,
                 value: item.value
               };
-            }
-            if (mod.table === 'faqs') {
-              return {
+            } else if (mod.table === 'faqs') {
+              parsed = {
                 question: item.question,
                 answer: item.answer,
                 order_index: item.orderIndex || item.order_index || 0
               };
-            }
-            if (mod.table === 'emeritus') {
-              return {
+            } else if (mod.table === 'emeritus') {
+              parsed = {
                 name: item.name,
                 role: item.role,
                 category: item.category,
@@ -455,9 +450,8 @@ router.put('/', protect, async (req, res) => {
                 photo: item.photo || item.image || '',
                 order_index: item.orderIndex || item.order_index || 0
               };
-            }
-            if (mod.table === 'center_of_excellence') {
-              return {
+            } else if (mod.table === 'center_of_excellence') {
+              parsed = {
                 title: item.title,
                 name: item.name,
                 passed_year: item.passedYear || item.passed_year,
@@ -469,7 +463,8 @@ router.put('/', protect, async (req, res) => {
                 order_index: item.orderIndex || item.order_index || 0
               };
             }
-            return row;
+            
+            return { ...parsed, school_id };
           });
         }
 

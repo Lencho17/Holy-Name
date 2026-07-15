@@ -20,7 +20,7 @@ import AdminPayroll from './AdminPayroll';
 import AdminAnnouncements from './AdminAnnouncements';
 import StudentProfileViewer from './StudentProfileViewer';
 import SchoolAdminsManager from './SchoolAdminsManager';
-import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn, FaPaperPlane, FaDatabase } from 'react-icons/fa';
+import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn, FaPaperPlane, FaDatabase, FaTree } from 'react-icons/fa';
 import ExamManagement from './ExamManagement';
 import AdmitCardPanel from './AdmitCardPanel';
 import ResultsPortal from './ResultsPortal';
@@ -83,7 +83,13 @@ const SubItem = ({ active, onClick, label }) => (
 );
 
 function AdminPage() {
-  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('adminActiveTab') || 'dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem('adminActiveTab');
+    const deprecatedTabs = ['gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'principal', 'stats', 'amenities', 'discounts'];
+    if (deprecatedTabs.includes(saved)) return 'schoolProfile';
+    return saved || 'dashboard';
+  });
+  const [profileInnerTab, setProfileInnerTab] = useState('basic');
   const [previewTemplate, setPreviewTemplate] = useState(null);
 
   useEffect(() => {
@@ -1907,6 +1913,8 @@ function AdminPage() {
 
   // --- Gallery Tab ---
   const [newGalleryItem, setNewGalleryItem] = useState({ title: '', category: 'Campus Life', src: '', description: '' });
+  const [alsoShowInHighlights, setAlsoShowInHighlights] = useState(false);
+  const [alsoShowInEvents, setAlsoShowInEvents] = useState(false);
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [isGalleryUploading, setIsGalleryUploading] = useState(false);
   const [editingAlbumId, setEditingAlbumId] = useState(null);
@@ -1979,15 +1987,46 @@ function AdminPage() {
       }
 
       // Use atomic update to prevent race conditions with polling
-      updateSiteContent({
+      const updates = {
         gallery: [...newItems, ...gallery]
-      });
+      };
 
-      alert(`Successfully added ${newItems.length} items to gallery.`);
+      if (alsoShowInHighlights) {
+        updates.highlights = [
+          {
+            title: newGalleryItem.title,
+            date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            image: newItems[0]?.src || '',
+            description: newGalleryItem.description,
+            category: 'Campus Life',
+            galleryImages: newItems.map(item => item.src)
+          },
+          ...highlights
+        ];
+      }
+
+      if (alsoShowInEvents) {
+        updates.events = [
+          {
+            title: newGalleryItem.title,
+            date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            image: newItems[0]?.src || '',
+            description: newGalleryItem.description,
+            galleryImages: newItems.map(item => item.src)
+          },
+          ...events
+        ];
+      }
+
+      updateSiteContent(updates);
+
+      alert(`Successfully added ${newItems.length} items to gallery${alsoShowInHighlights ? ', highlights' : ''}${alsoShowInEvents ? ' and events' : ''}.`);
 
       // Reset form
       setNewGalleryItem({ title: '', category: 'Campus Life', src: '', description: '' });
       setGalleryFiles([]);
+      setAlsoShowInHighlights(false);
+      setAlsoShowInEvents(false);
     } catch (err) {
       alert("Failed to upload images: " + err.message);
     }
@@ -2117,11 +2156,31 @@ function AdminPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end mt-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between mt-4 border-t pt-4 border-gray-100">
+          <div className="flex items-center gap-6 mb-4 sm:mb-0">
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 font-medium">
+              <input 
+                type="checkbox" 
+                checked={alsoShowInHighlights} 
+                onChange={(e) => setAlsoShowInHighlights(e.target.checked)}
+                className="w-4 h-4 text-primary rounded border-gray-300"
+              />
+              Also show in Highlights
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 font-medium">
+              <input 
+                type="checkbox" 
+                checked={alsoShowInEvents} 
+                onChange={(e) => setAlsoShowInEvents(e.target.checked)}
+                className="w-4 h-4 text-primary rounded border-gray-300"
+              />
+              Also show in Events
+            </label>
+          </div>
           <button 
             onClick={handleAddGallery} 
             disabled={isGalleryUploading}
-            className="bg-tertiary text-white px-8 py-2 rounded-lg font-bold hover:opacity-90 flex items-center shadow-lg disabled:opacity-50"
+            className="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold hover:opacity-90 flex items-center shadow-lg disabled:opacity-50"
           >
             {isGalleryUploading ? 'Uploading...' : <><FaPlus className="mr-2"/> Add to Gallery</>}
           </button>
@@ -2423,7 +2482,7 @@ function AdminPage() {
           <button 
             onClick={handleAddHighlight} 
             disabled={isHighlightUploading}
-            className={`flex-1 ${editingHighlightId ? 'bg-blue-600' : 'bg-tertiary'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400 flex items-center justify-center`}
+            className={`flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400 flex items-center justify-center`}
           >
             {isHighlightUploading ? <FaSpinner className="animate-spin mr-2" /> : (editingHighlightId ? <FaEdit className="mr-2" /> : <FaPlus className="mr-2" />)}
             {editingHighlightId ? 'Update Highlight' : 'Add Highlight'}
@@ -2711,7 +2770,7 @@ function AdminPage() {
           <button 
             onClick={handleAddEvent} 
             disabled={isEventUploading}
-            className={`flex-1 ${editingEventId ? 'bg-blue-600' : 'bg-tertiary'} text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400 flex items-center justify-center`}
+            className={`flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400 flex items-center justify-center`}
           >
             {isEventUploading ? <FaSpinner className="animate-spin mr-2" /> : (editingEventId ? <FaEdit className="mr-2" /> : <FaPlus className="mr-2" />)}
             {editingEventId ? 'Update Event' : 'Add Event'}
@@ -2817,7 +2876,7 @@ function AdminPage() {
                       <button 
                         onClick={() => document.getElementById(`event-upload-${item.id || item._id}`).click()}
                         disabled={isAddingPhotos}
-                        className="text-xs bg-tertiary text-white px-3 py-1 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400"
+                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg font-bold hover:opacity-90 disabled:bg-gray-400"
                       >
                         {isAddingPhotos ? 'Uploading...' : '⊕ Add More Photos'}
                       </button>
@@ -2905,7 +2964,7 @@ function AdminPage() {
             <button 
               onClick={handleAddVideo} 
               disabled={videos.length >= 4}
-              className="bg-tertiary text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <FaPlus /> Add Video Section
             </button>
@@ -3012,7 +3071,7 @@ function AdminPage() {
         <button 
           onClick={handleAddNotice} 
           disabled={isPdfUploading || !newNotice.title || !newNotice.pdfLink}
-          className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 h-[42px] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-300"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 md:col-span-2 h-[42px] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-300"
         >
           {isPdfUploading ? (
             <><FaSpinner className="mr-2 animate-spin"/> Uploading...</>
@@ -3411,7 +3470,7 @@ function AdminPage() {
         <div className="flex justify-between flex-wrap items-center mb-6">
           <h3 className="text-xl font-bold text-gray-800">Manage Principal's Desk</h3>
           {!isEditingPrincipal ? (
-            <button onClick={startEditingPrincipal} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Info</button>
+            <button onClick={startEditingPrincipal} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Info</button>
           ) : (
             <div className="flex gap-2 mt-2 sm:mt-0">
               <button onClick={cancelPrincipal} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
@@ -3522,7 +3581,7 @@ function AdminPage() {
       <div className="flex justify-between flex-wrap items-center mb-6">
         <h3 className="text-xl font-bold text-gray-800">Manage Popup Banner</h3>
         {!isEditingBanner ? (
-          <button onClick={startEditingBanner} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Banner</button>
+          <button onClick={startEditingBanner} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Banner</button>
         ) : (
           <div className="flex gap-2 mt-2 sm:mt-0">
             <button onClick={cancelBanner} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
@@ -3938,7 +3997,7 @@ function AdminPage() {
       <div className="flex justify-between flex-wrap items-center mb-6">
         <h3 className="text-xl font-bold text-gray-800">Manage Social Media Links</h3>
         {!isEditingSocial ? (
-          <button onClick={startEditingSocial} className="bg-tertiary text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Links</button>
+          <button onClick={startEditingSocial} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-colors">Edit Links</button>
         ) : (
           <div className="flex gap-2 mt-2 sm:mt-0">
             <button onClick={cancelSocial} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">Cancel</button>
@@ -6259,7 +6318,7 @@ function AdminPage() {
     }
   }, [coursesPage, loading]);
 
-  const renderSchoolProfileTab = () => {
+  const renderBasicProfileInfo = () => {
     const handleLogoUpload = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -6375,6 +6434,17 @@ function AdminPage() {
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
                 placeholder="e.g. Let Your Light Shine"
               />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-1">"Why Us" Description</label>
+              <textarea
+                value={localProfile.whyUsText || ''}
+                onChange={(e) => handleProfileChange('whyUsText', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                placeholder="e.g. Because at our school, we foster curiosity..."
+                rows="3"
+              />
+              <p className="text-xs text-gray-500 mt-1">This text appears under the "Why Our School?" section on the homepage.</p>
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Year Established</label>
@@ -8147,7 +8217,7 @@ function AdminPage() {
             <h3 className="text-xl font-bold text-gray-800">Campus Amenities</h3>
             <p className="text-sm text-gray-500 mt-1">Manage amenities shown on the homepage. Upload images that appear on hover.</p>
           </div>
-          <button onClick={handleAddAmenity} className="bg-tertiary text-white px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 shadow-lg transition-all">
+          <button onClick={handleAddAmenity} className="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 shadow-lg transition-all">
             <FaPlus /> Add Amenity
           </button>
         </div>
@@ -8254,8 +8324,67 @@ function AdminPage() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const isFinanceActive = ['fees', 'payments', 'discounts', 'fines', 'wallet'].includes(activeTab);
-  const isContentActive = ['schoolProfile', 'gallery', 'videos', 'banner', 'highlights', 'events', 'notices', 'faculty', 'principal', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'stats', 'about', 'courses', 'faqs', 'amenities'].includes(activeTab);
+  const renderSchoolProfileTab = () => {
+    return (
+      <div className="space-y-6">
+        <header className="mb-4">
+          <h2 className="text-3xl font-headline font-bold text-gray-800">School Profile & Homepage</h2>
+          <p className="text-gray-500 mt-2">Manage your core school information and the contents of your public homepage.</p>
+        </header>
+
+        {/* Inner Tabs Navigation */}
+        <div className="flex flex-wrap gap-2 mb-6 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
+          {[
+            { id: 'basic', label: 'Basic Info', icon: FaBuilding },
+            { id: 'stats', label: 'Stats Counter', icon: FaChartLine },
+            { id: 'principal', label: 'Principal Msg', icon: FaUserTie },
+            { id: 'highlights', label: 'Board Toppers', icon: FaAward },
+            { id: 'amenities', label: 'Campus Amenities', icon: FaTree },
+            { id: 'events', label: 'Events & Notices', icon: FaCalendarAlt },
+            { id: 'gallery', label: 'Gallery', icon: FaImage },
+            { id: 'videos', label: 'Videos', icon: FaVideo },
+            { id: 'banner', label: 'Popup Banner', icon: FaBullhorn }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setProfileInnerTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                profileInnerTab === tab.id 
+                  ? 'bg-primary text-white shadow-md' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <tab.icon className="text-lg" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Inner Tab Content */}
+        <div className="animate-fadeIn">
+          {profileInnerTab === 'basic' && renderBasicProfileInfo()}
+          {profileInnerTab === 'stats' && renderStatsTab()}
+          {profileInnerTab === 'principal' && renderPrincipalTab()}
+          {profileInnerTab === 'highlights' && renderHighlightsTab()}
+          {profileInnerTab === 'amenities' && renderAmenitiesTab()}
+          {profileInnerTab === 'events' && (
+            <div className="space-y-8">
+              {renderEventsTab()}
+              <div className="border-t border-gray-200 pt-8 mt-8">
+                {renderNoticesTab()}
+              </div>
+            </div>
+          )}
+          {profileInnerTab === 'gallery' && renderGalleryTab()}
+          {profileInnerTab === 'videos' && renderVideosTab()}
+          {profileInnerTab === 'banner' && renderBannerTab()}
+        </div>
+      </div>
+    );
+  };
+
+  const isFinanceActive = ['fees', 'payments', 'fines', 'wallet'].includes(activeTab);
+  const isContentActive = ['schoolProfile', 'faculty', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'about', 'courses', 'faqs'].includes(activeTab);
   const isDataActive = ['admission', 'students', 'studentAttendance', 'inquiries', 'jobApplications', 'staffLeaves', 'staffRequests', 'staffAssignments', 'staffPayroll', 'staffAnnouncements', 'staffAttendance', 'tenders', 'appointments', 'teachers'].includes(activeTab);
   const isAcademicsActive = ['exams', 'admitCards', 'results', 'timetables', 'seats', 'certificates'].includes(activeTab);
   const isCommunicationActive = ['communication'].includes(activeTab);
@@ -8295,29 +8424,20 @@ function AdminPage() {
           
           <SidebarItem active={isContentActive} icon={FiLayers} label="Content">
             <SubItem active={activeTab === 'schoolProfile'} onClick={() => { setActiveTab('schoolProfile'); setIsSidebarOpen(false); }} label="School Profile" />
-            <SubItem active={activeTab === 'gallery'} onClick={() => { setActiveTab('gallery'); setIsSidebarOpen(false); }} label="Gallery" />
-            <SubItem active={activeTab === 'videos'} onClick={() => { setActiveTab('videos'); setIsSidebarOpen(false); }} label="Videos" />
-            <SubItem active={activeTab === 'banner'} onClick={() => { setActiveTab('banner'); setIsSidebarOpen(false); }} label="Popup Banner" />
-            <SubItem active={activeTab === 'highlights'} onClick={() => { setActiveTab('highlights'); setIsSidebarOpen(false); }} label="Highlights" />
-            <SubItem active={activeTab === 'events'} onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }} label="Events" />
-            <SubItem active={activeTab === 'notices'} onClick={() => { setActiveTab('notices'); setIsSidebarOpen(false); }} label="Notices" />
             <SubItem active={activeTab === 'faculty'} onClick={() => { setActiveTab('faculty'); setIsSidebarOpen(false); }} label="Faculty" />
-            <SubItem active={activeTab === 'principal'} onClick={() => { setActiveTab('principal'); setIsSidebarOpen(false); }} label="Principal" />
             <SubItem active={activeTab === 'alumni'} onClick={() => { setActiveTab('alumni'); setIsSidebarOpen(false); }} label="Alumni" />
             <SubItem active={activeTab === 'excellence'} onClick={() => { setActiveTab('excellence'); setIsSidebarOpen(false); }} label="Excellence" />
             <SubItem active={activeTab === 'emeritus'} onClick={() => { setActiveTab('emeritus'); setIsSidebarOpen(false); }} label="Alumestron" />
             <SubItem active={activeTab === 'careerAds'} onClick={() => { setActiveTab('careerAds'); setIsSidebarOpen(false); }} label="Career Ads" />
             <SubItem active={activeTab === 'socialMedia'} onClick={() => { setActiveTab('socialMedia'); setIsSidebarOpen(false); }} label="Social Media" />
-            <SubItem active={activeTab === 'stats'} onClick={() => { setActiveTab('stats'); setIsSidebarOpen(false); }} label="Home Stats" />
             <SubItem active={activeTab === 'about'} onClick={() => { setActiveTab('about'); setIsSidebarOpen(false); }} label="About Page" />
             <SubItem active={activeTab === 'courses'} onClick={() => { setActiveTab('courses'); setIsSidebarOpen(false); }} label="Courses Page" />
             <SubItem active={activeTab === 'faqs'} onClick={() => { setActiveTab('faqs'); setIsSidebarOpen(false); }} label="FAQs" />
-            <SubItem active={activeTab === 'amenities'} onClick={() => { setActiveTab('amenities'); setIsSidebarOpen(false); }} label="Amenities" />
           </SidebarItem>
 
           <SidebarItem active={isFinanceActive} icon={FaMoneyCheckAlt} label="Finance & Fees">
             <SubItem active={activeTab === 'fees'} onClick={() => { setActiveTab('fees'); setIsSidebarOpen(false); }} label="Fee Dashboard" />
-            <SubItem active={activeTab === 'discounts'} onClick={() => { setActiveTab('discounts'); setIsSidebarOpen(false); }} label="Discounts & Scholarships" />
+
             <SubItem active={activeTab === 'fines'} onClick={() => { setActiveTab('fines'); setIsSidebarOpen(false); }} label="Late Fees & Fines" />
             <SubItem active={activeTab === 'wallet'} onClick={() => { setActiveTab('wallet'); setIsSidebarOpen(false); }} label="Escrow Wallet & Payouts" />
           </SidebarItem>
@@ -8410,30 +8530,21 @@ function AdminPage() {
           {activeTab === 'wallet' && <WalletDashboard apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
           {activeTab === 'domains' && <DomainManager apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
 
-          {activeTab === 'gallery' && renderGalleryTab()}
           {activeTab === 'tenders' && renderTendersTab()}
           {activeTab === 'staffLeaves' && <AdminStaffLeaves />}
           {activeTab === 'staffRequests' && <AdminStaffRequests />}
           {activeTab === 'staffAssignments' && <AdminStaffAssignments />}
           {activeTab === 'staffPayroll' && <AdminPayroll />}
           {activeTab === 'staffAnnouncements' && <AdminAnnouncements />}
-          {activeTab === 'videos' && renderVideosTab()}
-          {activeTab === 'banner' && renderBannerTab()}
-          {activeTab === 'highlights' && renderHighlightsTab()}
-          {activeTab === 'events' && renderEventsTab()}
-          {activeTab === 'notices' && renderNoticesTab()}
           {activeTab === 'faculty' && renderFacultyTab()}
-          { activeTab === 'principal' && renderPrincipalTab() }
           { activeTab === 'alumni' && renderAlumniTab() }
           { activeTab === 'excellence' && renderExcellenceTab() }
           { activeTab === 'emeritus' && renderEmeritusTab() }
           { activeTab === 'socialMedia' && renderSocialMediaTab() }
-          { activeTab === 'stats' && renderStatsTab() }
           {activeTab === 'schoolProfile' && renderSchoolProfileTab()}
           {activeTab === 'about' && renderAboutTab()}
           {activeTab === 'courses' && renderCoursesPageTab()}
           {activeTab === 'faqs' && renderFaqsTab()}
-          {activeTab === 'amenities' && renderAmenitiesTab()}
           {activeTab === 'careerAds' && renderCareersTab()}
           {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
           {activeTab === 'activity' && adminUser?.role === 'developer' && renderActivityTab()}

@@ -4,7 +4,16 @@ import { SiteDataContext } from "../context/SiteDataContext";
 import { FaGraduationCap, FaMedal } from "react-icons/fa";
 
 const AlumniSection = () => {
-  const { alumni } = useContext(SiteDataContext);
+  const { alumni: contextAlumni } = useContext(SiteDataContext);
+  
+  const demoAlumni = [
+    { name: 'Rahul Sharma', passed_year: 2020, rank: '1st', percentage: '98%', stream: 'Science', description: 'Currently pursuing Engineering at IIT Bombay.', photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop' },
+    { name: 'Sneha Patel', passed_year: 2021, rank: '2nd', percentage: '96%', stream: 'Commerce', description: 'Studying Chartered Accountancy.', photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' },
+    { name: 'Amit Kumar', passed_year: 2019, rank: '3rd', percentage: '95%', stream: 'Arts', description: 'Pursuing Law at National Law University.', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop' },
+    { name: 'Priya Singh', passed_year: 2022, rank: '1st', percentage: '99%', stream: 'Science', description: 'Medical student at AIIMS Delhi.', photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop' }
+  ];
+
+  const alumni = contextAlumni?.length > 0 ? contextAlumni : demoAlumni;
 
   const scrollRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -31,8 +40,6 @@ const AlumniSection = () => {
 
     return () => cancelAnimationFrame(animationFrameId);
   }, [isHovered]);
-
-  if (!alumni || alumni.length === 0) return null;
 
   // We duplicate the alumni array to create a seamless loop
   const baseAlumni =

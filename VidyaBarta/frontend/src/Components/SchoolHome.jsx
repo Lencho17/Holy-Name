@@ -197,7 +197,7 @@ function Home() {
               </h3>
               
               <p className="text-lg md:text-2xl text-gray-600 leading-relaxed max-w-5xl mx-auto">
-                "Because at {schoolProfile?.name || 'our school'}, we foster curiosity, creativity, and a love for learning, nurturing students to become confident, compassionate leaders of tomorrow. Empowering young minds to dream, discover, and achieve"
+                {schoolProfile?.whyUsText || `"Because at ${schoolProfile?.name || 'our school'}, we foster curiosity, creativity, and a love for learning, nurturing students to become confident, compassionate leaders of tomorrow. Empowering young minds to dream, discover, and achieve"`}
               </p>
             </motion.div>
           </div>

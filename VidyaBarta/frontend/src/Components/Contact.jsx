@@ -118,7 +118,7 @@ function Contact() {
               Explore Our <span className="text-amber-400 italic">Campus</span>
             </h2>
             <p className="text-white/80 text-lg md:text-xl font-medium mb-8">
-              Take an interactive 360° virtual tour of ${schoolProfile?.name || "Our School"}. Experience our world-class facilities and vibrant learning environment from the comfort of your home.
+              Take an interactive 360° virtual tour of {schoolProfile?.name || "Our School"}. Experience our world-class facilities and vibrant learning environment from the comfort of your home.
             </p>
             
             <button className="bg-amber-500 text-[#181445] font-black text-xs md:text-sm uppercase tracking-widest py-4 px-10 rounded-full hover:bg-amber-400 transition-all shadow-xl hover:shadow-amber-500/20 active:scale-95 flex items-center gap-3">

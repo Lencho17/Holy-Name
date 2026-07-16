@@ -4,7 +4,6 @@ import { FiExternalLink, FiInfo, FiCopy, FiCheckCircle } from 'react-icons/fi';
 const StudentPortalSettings = () => {
   const [copied, setCopied] = useState(false);
   
-  // The central URL for the student portal
   const portalUrl = "https://student.vidyabarta.com";
 
   const handleCopy = () => {
@@ -14,91 +13,91 @@ const StudentPortalSettings = () => {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Student Portal</h1>
-        <p className="text-gray-500">Manage and monitor the centralized student login portal.</p>
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      
+      {/* Header */}
+      <div className="border-b border-gray-100 pb-4">
+        <h1 className="text-2xl font-bold text-gray-900">Student Portal Configuration</h1>
+        <p className="text-sm text-gray-500 mt-1">Manage centralized student access and routing settings.</p>
       </div>
 
       {/* Main Link Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-primary-container"></div>
-        
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-800 mb-1">Central Portal Link</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              This is the universal login portal for all students across every school on the VidyaBarta platform.
-            </p>
-            
-            <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
-              <span className="text-lg font-mono font-semibold text-primary overflow-x-auto whitespace-nowrap">
-                {portalUrl}
-              </span>
-              <button 
-                onClick={handleCopy}
-                className="ml-auto p-2 text-gray-400 hover:text-primary transition-colors"
-                title="Copy Link"
-              >
-                {copied ? <FiCheckCircle className="text-green-500" /> : <FiCopy />}
-              </button>
-              <a 
-                href={portalUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 text-sm"
-              >
-                Open <FiExternalLink />
-              </a>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+        <div className="flex-1 pl-2">
+          <h2 className="text-base font-bold text-gray-800">Central Login Link</h2>
+          <p className="text-xs text-gray-500 mt-1 mb-3">
+            Universal portal URL for all students across the platform.
+          </p>
+          <div className="flex items-center gap-2 max-w-md">
+            <div className="flex-1 flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              <span className="text-sm font-mono text-gray-700 truncate">{portalUrl}</span>
             </div>
-          </div>
-          
-          <div className="hidden md:flex flex-shrink-0 w-32 h-32 bg-primary/5 rounded-full items-center justify-center border-4 border-white shadow-inner">
-            <span className="material-symbols-outlined text-5xl text-primary">school</span>
+            <button 
+              onClick={handleCopy}
+              className="p-2 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-primary transition-colors flex-shrink-0"
+              title="Copy"
+            >
+              {copied ? <FiCheckCircle className="text-green-500" /> : <FiCopy />}
+            </button>
+            <a 
+              href={portalUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-primary text-white text-sm rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 flex-shrink-0"
+            >
+              Open <FiExternalLink size={14} />
+            </a>
           </div>
         </div>
       </div>
 
-      {/* How it Works Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4">
-            <span className="material-symbols-outlined">login</span>
+      {/* Info Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex gap-4 items-start">
+          <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[18px]">login</span>
           </div>
-          <h3 className="font-bold text-gray-800 mb-2">Automated Credentials</h3>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            When a school administrator approves an admission, the system automatically generates a secure temporary password and emails it to the student. Their unique <strong>Admission Reference Number</strong> serves as their permanent Login ID.
-          </p>
+          <div>
+            <h3 className="font-bold text-gray-800 text-sm">Automated Credentials</h3>
+            <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">
+              System generates secure passwords and emails students upon admission approval. The <span className="font-semibold text-gray-800">Admission Reference Number</span> acts as the Login ID.
+            </p>
+          </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4">
-            <span className="material-symbols-outlined">hub</span>
+        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex gap-4 items-start">
+          <div className="w-8 h-8 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[18px]">hub</span>
           </div>
-          <h3 className="font-bold text-gray-800 mb-2">Multi-Tenant Routing</h3>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            The portal is completely dynamic. When a student logs in, the backend identifies their school based on their Admission ID. The dashboard instantly adapts to display their specific school's logo, colors, fee structures, and exams.
-          </p>
+          <div>
+            <h3 className="font-bold text-gray-800 text-sm">Multi-Tenant Routing</h3>
+            <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">
+              Portal dynamically adapts to display the specific school's logo, colors, and data based on the student's Admission ID at login.
+            </p>
+          </div>
         </div>
       </div>
       
-      {/* Settings (Future-proofing) */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 opacity-75">
-        <div className="flex items-start gap-4">
-          <FiInfo className="text-blue-500 text-xl mt-1" />
-          <div>
-            <h3 className="font-bold text-gray-800 mb-1">Global Portal Access</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Advanced toggle settings to temporarily disable the student portal during global system maintenance will be available here.
-            </p>
-            <label className="flex items-center cursor-not-allowed">
-              <div className="relative">
-                <input type="checkbox" className="sr-only" checked readOnly disabled />
-                <div className="block bg-green-400 w-10 h-6 rounded-full opacity-50"></div>
-                <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform translate-x-4"></div>
+      {/* Settings Options */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+        <div className="flex items-start gap-3">
+          <FiInfo className="text-blue-500 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-800 text-sm">Global Portal Access</h3>
+                <p className="text-xs text-gray-500 mt-1">Temporarily suspend all student logins during system maintenance.</p>
               </div>
-              <div className="ml-3 text-sm font-medium text-gray-400">Portal is globally active</div>
-            </label>
+              <label className="flex items-center cursor-not-allowed">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked readOnly disabled />
+                  <div className="block bg-green-400 w-9 h-5 rounded-full opacity-50"></div>
+                  <div className="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition transform translate-x-4"></div>
+                </div>
+                <span className="ml-2 text-xs font-medium text-gray-400 uppercase tracking-wider">Active</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>

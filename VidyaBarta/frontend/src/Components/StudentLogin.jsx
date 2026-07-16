@@ -43,8 +43,8 @@ function StudentLogin() {
         <div className="relative z-20 flex flex-col justify-end p-xl h-full w-full">
           <div className="max-w-md animate-fade-in-up">
             <div className="flex items-center gap-sm mb-lg">
-              <span className="material-symbols-outlined text-primary-fixed text-[40px]" style={{fontVariationSettings: "'FILL' 1"}}>account_balance</span>
-              <span className="text-white font-headline-lg text-headline-lg font-bold">EduCore Systems</span>
+              <span className="material-symbols-outlined text-primary-fixed text-[40px]" style={{fontVariationSettings: "'FILL' 1"}}>school</span>
+              <span className="text-white font-headline-lg text-headline-lg font-bold">VidyaBarta Platform</span>
             </div>
             <h2 className="text-white font-display-lg text-display-lg mb-md leading-tight">Empowering your academic journey.</h2>
             <p className="text-primary-fixed font-body-lg text-body-lg opacity-90">Access your personalized learning environment, institutional resources, and collaborative tools in one precision-engineered portal.</p>
@@ -56,8 +56,8 @@ function StudentLogin() {
       <section className="w-full lg:w-1/2 bg-surface flex items-center justify-center p-gutter relative">
         {/* Mobile Brand Logo */}
         <div className="lg:hidden absolute top-8 left-8 flex items-center gap-xs">
-          <span className="material-symbols-outlined text-primary text-[32px]" style={{fontVariationSettings: "'FILL' 1"}}>account_balance</span>
-          <span className="text-primary font-title-lg text-title-lg font-bold">EduCore Systems</span>
+          <span className="material-symbols-outlined text-primary text-[32px]" style={{fontVariationSettings: "'FILL' 1"}}>school</span>
+          <span className="text-primary font-title-lg text-title-lg font-bold">VidyaBarta Platform</span>
         </div>
         
         <div className="w-full max-w-[440px] space-y-xl z-10">

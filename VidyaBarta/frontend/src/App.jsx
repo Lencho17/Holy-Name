@@ -60,7 +60,7 @@ const SuspenseFallback = () => (
   </div>
 );
 
-function DocumentHeadManager({ isSaaS }) {
+function DocumentHeadManager({ isSaaS, isStudentSite }) {
   const { schoolProfile } = useContext(SiteDataContext);
   useEffect(() => {
     let link = document.querySelector("link[rel~='icon']");
@@ -74,11 +74,14 @@ function DocumentHeadManager({ isSaaS }) {
     if (isSaaS) {
       link.href = '/favicon.png';
       document.title = 'VidyaBarta - School Management System';
+    } else if (isStudentSite) {
+      link.href = schoolProfile?.logo || '/favicon.png';
+      document.title = schoolProfile?.name ? `${schoolProfile.name} - Student Portal` : 'Student Portal';
     } else {
       link.href = schoolProfile?.logo || '/favicon.png';
       document.title = schoolProfile?.name || 'School Website';
     }
-  }, [schoolProfile, isSaaS]);
+  }, [schoolProfile, isSaaS, isStudentSite]);
   return null;
 }
 
@@ -242,7 +245,7 @@ function App() {
   return (
     <SiteDataProvider>
       <StudentAuthProvider>
-        <DocumentHeadManager isSaaS={isSaaS} />
+        <DocumentHeadManager isSaaS={isSaaS} isStudentSite={isStudentSite} />
         <RouterProvider router={isStudentSite ? studentRouter : (isSaaS ? saasRouter : schoolRouter)} />
       </StudentAuthProvider>
     </SiteDataProvider>

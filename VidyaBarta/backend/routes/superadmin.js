@@ -548,13 +548,14 @@ router.post('/domains/:id/reject', protect, authorize('superadmin'), async (req,
     if (requestError || !request) return res.status(404).json({ message: 'Domain request not found' });
     if (request.status === 'Active') return res.status(400).json({ message: 'Domain already approved' });
 
-    // Delete the request from DB
-    const { error: deleteError } = await supabase
+    // Update the request status to Rejected instead of deleting
+    const { error: updateError } = await supabase
       .from('domain_purchases')
-      .delete()
+      .update({ status: 'Rejected' })
       .eq('id', id);
 
-    if (deleteError) throw deleteError;
+    if (updateError) throw updateError;
+
 
     // Email Notification
     const { data: admin, error: adminError } = await supabase

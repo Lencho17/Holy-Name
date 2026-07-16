@@ -109,9 +109,10 @@ export const DomainRequests = () => {
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                    req.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                    req.status === 'Active' ? 'bg-green-100 text-green-700' :
+                    req.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {req.status === 'Active' ? <FaCheckCircle /> : <FaSpinner className="animate-spin" />} {req.status}
+                    {req.status === 'Active' ? <FaCheckCircle /> : req.status === 'Rejected' ? <FaTimes /> : <FaSpinner className="animate-spin" />} {req.status}
                   </span>
                   <span className="text-xs font-medium text-on-surface-variant">
                     {new Date(req.purchased_at).toLocaleDateString()}
@@ -123,7 +124,7 @@ export const DomainRequests = () => {
               </div>
 
               <div className="mt-4">
-                {req.status !== 'Active' ? (
+                {req.status === 'Pending Approval' ? (
                   <div className="flex gap-3">
                     <button 
                       onClick={() => setApproveModal({ open: true, reqId: req.id, file: null })}
@@ -139,7 +140,7 @@ export const DomainRequests = () => {
                     </button>
                   </div>
                 ) : (
-                  req.invoice_url && (
+                  req.status === 'Active' && req.invoice_url && (
                     <a 
                       href={req.invoice_url} 
                       target="_blank" 

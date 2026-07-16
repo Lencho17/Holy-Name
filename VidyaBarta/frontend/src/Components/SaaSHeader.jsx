@@ -27,6 +27,7 @@ const Header = () => {
         <nav className="hidden md:flex items-center gap-8">
           <a href="#features" className="text-body-md font-medium text-on-surface-variant hover:text-primary transition-colors">Features</a>
           <a href="#pricing" className="text-body-md font-medium text-on-surface-variant hover:text-primary transition-colors">Pricing</a>
+          <a href="#faq" className="text-body-md font-medium text-on-surface-variant hover:text-primary transition-colors">FAQs</a>
           <a href="#contact" className="text-body-md font-medium text-on-surface-variant hover:text-primary transition-colors">Contact</a>
         </nav>
 
@@ -56,6 +57,7 @@ const Header = () => {
         <div className="absolute top-full left-0 w-full bg-surface shadow-lg border-t border-outline-variant py-4 px-6 flex flex-col gap-4 md:hidden animate-slideDown">
           <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">Features</a>
           <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">Pricing</a>
+          <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">FAQs</a>
           <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">Contact</a>
           <div className="flex flex-col gap-3 pt-4">
             <Link to="/login" target="_blank" rel="noopener noreferrer" onClick={() => setMobileMenuOpen(false)} className="text-center py-3 rounded-lg font-bold text-neutral border border-outline hover:bg-surface-variant">Login</Link>

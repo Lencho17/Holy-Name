@@ -1,8 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { FiArrowRight, FiShield, FiMonitor, FiTrendingUp } from 'react-icons/fi';
+import { FiArrowRight, FiShield, FiMonitor, FiTrendingUp, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import * as Icons from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+
+
+
+const FaqItem = ({ faq, isOpen, toggleOpen }) => (
+  <div className="border border-outline-variant rounded-2xl bg-surface overflow-hidden mb-4 shadow-sm transition-all duration-300">
+    <button 
+      onClick={toggleOpen}
+      className="w-full flex items-center justify-between p-6 text-left focus:outline-none"
+    >
+      <span className="text-title-md font-bold text-neutral">{faq.question}</span>
+      <span className="ml-4 text-primary shrink-0">
+        {isOpen ? <FiChevronUp size={24} /> : <FiChevronDown size={24} />}
+      </span>
+    </button>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="p-6 pt-0 text-body-md text-on-surface-variant leading-relaxed">
+            {faq.answer}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
 
 const FeatureCard = ({ icon: Icon, title, description }) => (
   <div className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
@@ -118,18 +149,25 @@ const DashboardMockup = () => (
 
 const Home = () => {
   const [pricingPlans, setPricingPlans] = useState([]);
+  const [faqs, setFaqs] = useState([]);
+  const [features, setFeatures] = useState([]);
   const [loadingPricing, setLoadingPricing] = useState(true);
+  const [openFaqIndex, setOpenFaqIndex] = useState(0);
   const [contactSettings, setContactSettings] = useState({ contact_email: 'sales@vidyabarta.com', contact_phone: '+91 98765 43210' });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const apiBase = import.meta.env.VITE_API_URL || '/api';
-        const [pricingRes, contactRes] = await Promise.all([
+        const [pricingRes, contactRes, faqsRes, featuresRes] = await Promise.all([
           axios.get(`${apiBase}/saas-pricing`).catch(() => ({ data: [] })),
-          axios.get(`${apiBase}/saas-settings`).catch(() => ({ data: { contact_email: 'sales@vidyabarta.com', contact_phone: '+91 98765 43210' } }))
+          axios.get(`${apiBase}/saas-settings`).catch(() => ({ data: { contact_email: 'sales@vidyabarta.com', contact_phone: '+91 98765 43210' } })),
+          axios.get(`${apiBase}/saas-settings/faqs`).catch(() => ({ data: [] })),
+          axios.get(`${apiBase}/saas-settings/features`).catch(() => ({ data: [] }))
         ]);
         setPricingPlans(pricingRes.data);
+        setFaqs(faqsRes.data);
+        setFeatures(featuresRes.data);
         if (contactRes.data) {
           setContactSettings(contactRes.data);
         }
@@ -265,21 +303,18 @@ const Home = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={FiMonitor}
-              title="Intuitive Interface"
-              description="A beautifully crafted, clutter-free dashboard that requires zero training. Get started instantly."
-            />
-            <FeatureCard 
-              icon={FiShield}
-              title="Enterprise Security"
-              description="Bank-grade encryption for all your student data, financial records, and institutional communications."
-            />
-            <FeatureCard 
-              icon={FiTrendingUp}
-              title="Actionable Insights"
-              description="Deep analytics and reporting to help administrators make data-driven decisions."
-            />
+            {features.map((feature) => {
+              // Dynamically get the icon component from react-icons/fi, fallback to FiMonitor
+              const IconComponent = Icons[feature.icon] || Icons.FiMonitor;
+              return (
+                <FeatureCard 
+                  key={feature.id}
+                  icon={IconComponent}
+                  title={feature.title}
+                  description={feature.description}
+                />
+              );
+            })}
           </div>
         </motion.div>
       </section>
@@ -398,6 +433,33 @@ const Home = () => {
         </motion.div>
       </section>
       
+      {/* FAQ Section */}
+      <section id="faq" className="py-24 bg-surface-variant/20 border-t border-outline-variant">
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+          viewport={{ once: true, margin: "-100px" }}
+          className="max-w-4xl mx-auto px-6"
+        >
+          <div className="text-center mb-16">
+            <h2 className="text-headline-lg font-bold font-headline text-neutral mb-6">Frequently Asked Questions</h2>
+            <p className="text-title-md text-on-surface-variant max-w-2xl mx-auto">Everything you need to know about VidyaBarta.</p>
+          </div>
+          
+          <div className="space-y-2">
+            {faqs.map((faq, index) => (
+              <FaqItem 
+                key={index}
+                faq={faq}
+                isOpen={openFaqIndex === index}
+                toggleOpen={() => setOpenFaqIndex(openFaqIndex === index ? -1 : index)}
+              />
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
       {/* Contact Section */}
       <section id="contact" className="py-24 bg-surface border-t border-outline-variant">
         <motion.div 

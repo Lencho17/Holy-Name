@@ -129,25 +129,8 @@ const SuperAdminLayout = () => {
           </SidebarItem>
 
           <SidebarItem to="/superadmin/system-settings" icon={FiSettings} label="System Settings">
-            <SubItem to="/superadmin/system-settings/app" label="App Settings" />
-            <SubItem to="/superadmin/system-settings/general" label="General Settings" />
-            <SubItem to="/superadmin/system-settings/subscription" label="Subscription Settings" />
-            <SubItem to="/superadmin/system-settings/guidance" label="Guidance" />
-            <SubItem to="/superadmin/system-settings/language" label="Language Settings" />
-            <SubItem to="/superadmin/system-settings/notification" label="Notification Settings" />
-            <SubItem to="/superadmin/system-settings/email-config" label="Email Configuration" />
-            <SubItem to="/superadmin/system-settings/email-template" label="Email Template" />
-            <SubItem to="/superadmin/system-settings/payment" label="Payment Settings" />
-            <SubItem to="/superadmin/system-settings/privacy" label="Privacy - Policy" />
-            <SubItem to="/superadmin/system-settings/contact" label="Contact Us" />
-            <SubItem to="/superadmin/system-settings/about" label="About Us" />
-            <SubItem to="/superadmin/system-settings/terms" label="Terms & Conditions" />
-            <SubItem to="/superadmin/system-settings/refund" label="Refund Cancellation" />
-            <SubItem to="/superadmin/system-settings/school-terms" label="School Terms & Condition" />
             <SubItem to="/superadmin/system-settings/student-portal" label="Student Portal" />
           </SidebarItem>
-
-          <SidebarItem to="/superadmin/system-update" icon={FiSettings} label="System Update" />
         </div>
       </aside>
 

@@ -3,6 +3,7 @@ import {
   RouterProvider,
   createBrowserRouter,
   createRoutesFromElements,
+  Navigate
 } from "react-router-dom";
 import SaaSLayout from "./SaaSLayout";
 import SchoolLayout from "./SchoolLayout";
@@ -170,31 +171,17 @@ function App() {
             <Route path="wallets" element={<SA.Wallets />} />
             <Route path="domain-requests" element={<SA.DomainRequests />} />
             
+            <Route path="staff-management" element={<Navigate to="staff" replace />} />
             <Route path="staff-management/roles" element={<SA.RolePermission />} />
             <Route path="staff-management/staff" element={<SA.Staff />} />
             
+            <Route path="web-settings" element={<Navigate to="general" replace />} />
             <Route path="web-settings/general" element={<SA.WebGeneralSettings />} />
             <Route path="web-settings/features" element={<SA.FeatureSections />} />
             <Route path="web-settings/faqs" element={<SA.Faqs />} />
             
-            <Route path="system-settings/app" element={<SA.AppSettings />} />
-            <Route path="system-settings/general" element={<SA.SystemGeneralSettings />} />
-            <Route path="system-settings/subscription" element={<SA.SubscriptionSettings />} />
-            <Route path="system-settings/guidance" element={<SA.Guidance />} />
-            <Route path="system-settings/language" element={<SA.LanguageSettings />} />
-            <Route path="system-settings/notification" element={<SA.NotificationSettings />} />
-            <Route path="system-settings/email-config" element={<SA.EmailConfiguration />} />
-            <Route path="system-settings/email-template" element={<SA.EmailTemplate />} />
-            <Route path="system-settings/payment" element={<SA.PaymentSettings />} />
-            <Route path="system-settings/privacy" element={<SA.PrivacyPolicy />} />
-            <Route path="system-settings/contact" element={<SA.ContactUs />} />
-            <Route path="system-settings/about" element={<SA.AboutUs />} />
-            <Route path="system-settings/terms" element={<SA.TermsConditions />} />
-            <Route path="system-settings/refund" element={<SA.RefundCancellation />} />
-            <Route path="system-settings/school-terms" element={<SA.SchoolTermsCondition />} />
+            <Route path="system-settings" element={<Navigate to="student-portal" replace />} />
             <Route path="system-settings/student-portal" element={<SA.StudentPortalSettings />} />
-            
-            <Route path="system-update" element={<SA.SystemUpdate />} />
           </Route>
         </Route>
       </Route>
@@ -225,7 +212,7 @@ function App() {
           <Route path="job-application" element={<Suspense fallback={<SuspenseFallback />}><JobApplicationForm /></Suspense>} />
           <Route path="tenders" element={<Suspense fallback={<SuspenseFallback />}><Tenders /></Suspense>} />
           <Route path="tenders/apply/:id" element={<Suspense fallback={<SuspenseFallback />}><TenderApply /></Suspense>} />
-          <Route path="center-of-excellence" element={<Suspense fallback={<SuspenseFallback />}><CenterOfExcellence /></Suspense>} />
+          <Route path="excellence" element={<Suspense fallback={<SuspenseFallback />}><CenterOfExcellence /></Suspense>} />
           <Route path="appointment" element={<Suspense fallback={<SuspenseFallback />}><Appointment /></Suspense>} />
         </Route>
         

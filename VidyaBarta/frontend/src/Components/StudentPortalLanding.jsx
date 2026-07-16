@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiArrowRight, FiShield, FiTrendingUp, FiChevronDown, FiChevronUp, FiBookOpen, FiBell } from 'react-icons/fi';
+import { FiArrowRight, FiShield, FiTrendingUp, FiChevronDown, FiChevronUp, FiBookOpen, FiBell, FiMenu, FiX } from 'react-icons/fi';
 
 const FaqItem = ({ faq, isOpen, toggleOpen }) => (
-  <div className="border border-outline-variant rounded-2xl bg-surface overflow-hidden mb-4 shadow-sm transition-all duration-300">
+  <div className="border border-outline-variant rounded-2xl bg-surface overflow-hidden mb-4 shadow-sm transition-all duration-300 hover:border-primary/30">
     <button 
       onClick={toggleOpen}
       className="w-full flex items-center justify-between p-6 text-left focus:outline-none"
@@ -32,7 +32,7 @@ const FaqItem = ({ faq, isOpen, toggleOpen }) => (
 );
 
 const FeatureCard = ({ icon: Icon, title, description }) => (
-  <div className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+  <div className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant hover:shadow-lg hover:-translate-y-2 transition-all duration-300">
     <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 text-primary">
       <Icon size={28} />
     </div>
@@ -43,6 +43,16 @@ const FeatureCard = ({ icon: Icon, title, description }) => (
 
 function StudentPortalLanding() {
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const faqs = [
     {
@@ -62,53 +72,123 @@ function StudentPortalLanding() {
   return (
     <div className="min-h-screen bg-background font-sans overflow-x-hidden">
       
-      <main className="relative z-10">
+      {/* --- Navigation Bar --- */}
+      <header className={`fixed top-0 w-full z-50 transition-all duration-300 border-b border-outline-variant ${isScrolled ? 'bg-surface/95 backdrop-blur-md shadow-sm py-2' : 'bg-surface/80 backdrop-blur-sm py-3'}`}>
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3 group">
+            <img src="/logo.png" alt="VidyaBarta" className="h-8 md:h-10 w-auto object-contain group-hover:scale-105 transition-transform" />
+            <span className="font-bold text-neutral text-lg tracking-tight hidden sm:block">Student Hub</span>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-8">
+            <a href="#features" className="text-body-md font-medium text-on-surface-variant hover:text-primary transition-colors">Features</a>
+            <a href="#faq" className="text-body-md font-medium text-on-surface-variant hover:text-primary transition-colors">Support</a>
+          </nav>
+
+          <div className="hidden md:flex items-center gap-4">
+            <a href="https://vidyabarta.com" className="text-body-md font-bold text-neutral hover:text-primary transition-colors">
+              Main Site
+            </a>
+            <Link to="/login" className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-body-md hover:bg-primary/90 transition-all shadow-md shadow-primary/20 flex items-center gap-2">
+              Login <FiArrowRight />
+            </Link>
+          </div>
+
+          <button className="md:hidden text-neutral p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-full left-0 w-full bg-surface shadow-xl border-t border-outline-variant py-4 px-6 flex flex-col gap-4 md:hidden"
+            >
+              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">Features</a>
+              <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">Support</a>
+              <a href="https://vidyabarta.com" onClick={() => setMobileMenuOpen(false)} className="text-body-lg font-medium text-neutral py-2 border-b border-outline-variant">Main Site</a>
+              <div className="flex flex-col gap-3 pt-4">
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="text-center py-3 bg-primary text-white rounded-xl font-bold">Login to Portal</Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </header>
+
+      <main className="relative z-10 pt-20">
         
         {/* --- Hero Section --- */}
-        <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden bg-background">
-          <div className="absolute top-20 left-0 -ml-40 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
-          <div className="absolute bottom-0 right-0 -mr-20 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
+        <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-32 overflow-hidden bg-background">
+          <div className="absolute top-20 left-0 -ml-40 w-[600px] h-[600px] bg-primary/10 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
+          <div className="absolute bottom-0 right-0 -mr-20 w-[500px] h-[500px] bg-secondary/10 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
 
           <div className="max-w-7xl mx-auto px-6 relative z-10">
-            <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
               
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: "easeOut" }}
+              {/* Left Content */}
+              <div className="max-w-2xl">
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
+                >
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-6">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                    <span className="text-label-sm font-semibold uppercase tracking-wider">
+                      Student Portal v2.0
+                    </span>
+                  </div>
+                  
+                  <h1 className="text-display-sm md:text-display-md lg:text-display-lg font-bold font-headline text-neutral mb-6 leading-tight tracking-tight">
+                    Your academic life, <br className="hidden md:block" />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+                      unified and clear.
+                    </span>
+                  </h1>
+                  
+                  <p className="text-title-md text-on-surface-variant mb-10 leading-relaxed max-w-xl">
+                    Experience the next generation student dashboard. Access grades, download materials, and manage fees in a beautifully seamless environment.
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row gap-5 pt-2 w-full sm:w-auto">
+                    <Link
+                      to="/login"
+                      className="w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-xl font-bold text-body-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
+                    >
+                      Enter Dashboard
+                      <FiArrowRight />
+                    </Link>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Right Visual Image */}
+              <motion.div 
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+                className="relative hidden lg:block"
               >
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-6">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                  <span className="text-label-sm font-semibold uppercase tracking-wider">
-                    Student Portal v2.0
-                  </span>
+                <div className="relative z-10 mx-auto w-full max-w-lg">
+                  <img 
+                    src="/hero_student.png" 
+                    alt="Student using Portal" 
+                    className="w-full h-auto object-contain mix-blend-multiply drop-shadow-2xl"
+                  />
                 </div>
-                
-                <h1 className="text-display-sm md:text-display-md lg:text-display-lg font-bold font-headline text-neutral mb-6 leading-tight tracking-tight">
-                  Your academic life, <br className="hidden md:block" />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
-                    unified and clear.
-                  </span>
-                </h1>
-                
-                <p className="text-title-md text-on-surface-variant mb-10 leading-relaxed max-w-2xl mx-auto">
-                  Experience the next generation student dashboard. Access grades, download materials, and manage fees in a beautifully seamless environment.
-                </p>
-                
-                <div className="flex flex-col sm:flex-row gap-5 pt-2 justify-center w-full sm:w-auto">
-                  <Link
-                    to="/login"
-                    className="w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-xl font-bold text-body-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
-                  >
-                    Enter Dashboard
-                    <FiArrowRight />
-                  </Link>
-                  <a
-                    href="https://www.vidyabarta.com"
-                    className="w-full sm:w-auto px-8 py-4 bg-surface-variant text-neutral rounded-xl font-bold text-body-lg hover:bg-outline-variant/30 transition-all flex items-center justify-center border border-outline-variant"
-                  >
-                    School Website
-                  </a>
+                {/* Floating elements */}
+                <div className="absolute top-10 -left-10 z-20 bg-white/90 backdrop-blur-md border border-outline-variant p-4 rounded-2xl shadow-xl flex items-center gap-3 animate-bounce" style={{ animationDuration: '3s' }}>
+                   <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                     <span className="material-symbols-outlined">task_alt</span>
+                   </div>
+                   <div>
+                     <p className="text-body-sm font-bold text-neutral">Assignment Graded</p>
+                     <p className="text-xs text-on-surface-variant">A+ in Mathematics</p>
+                   </div>
                 </div>
               </motion.div>
             </div>
@@ -116,7 +196,7 @@ function StudentPortalLanding() {
         </section>
 
         {/* --- Features Grid --- */}
-        <section className="py-24 bg-surface-variant/30 border-t border-outline-variant relative">
+        <section id="features" className="py-24 bg-surface-variant/30 border-y border-outline-variant relative">
           <div className="max-w-7xl mx-auto px-6">
             <div className="text-center max-w-3xl mx-auto mb-16">
               <h2 className="text-headline-lg font-bold font-headline text-neutral mb-4">Everything you need.</h2>
@@ -143,8 +223,50 @@ function StudentPortalLanding() {
           </div>
         </section>
 
+        {/* --- Preview Section --- */}
+        <section className="py-24 bg-background overflow-hidden relative">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+              <motion.div 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.7 }}
+                viewport={{ once: true, margin: "-100px" }}
+                className="order-2 lg:order-1 relative"
+              >
+                 <img src="/dashboard_mockup.png" alt="Dashboard Mockup" className="rounded-3xl shadow-2xl w-full h-auto object-cover border border-outline-variant" />
+                 <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/20 rounded-full blur-2xl -z-10"></div>
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.7, delay: 0.2 }}
+                viewport={{ once: true, margin: "-100px" }}
+                className="order-1 lg:order-2"
+              >
+                 <h2 className="text-headline-lg font-bold font-headline text-neutral mb-6 leading-tight">A beautifully crafted experience</h2>
+                 <p className="text-body-lg text-on-surface-variant mb-8 leading-relaxed">The student portal has been completely redesigned with a focus on speed, clarity, and ease of use. Say goodbye to clunky interfaces.</p>
+                 <ul className="space-y-6">
+                   <li className="flex items-center gap-4 text-title-sm text-neutral">
+                     <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center shrink-0">
+                       <span className="material-symbols-outlined">speed</span>
+                     </div>
+                     Lightning fast navigation
+                   </li>
+                   <li className="flex items-center gap-4 text-title-sm text-neutral">
+                     <div className="w-12 h-12 bg-secondary/10 text-secondary rounded-xl flex items-center justify-center shrink-0">
+                       <span className="material-symbols-outlined">devices</span>
+                     </div>
+                     Optimized for all your devices
+                   </li>
+                 </ul>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
         {/* --- Support / FAQ Grid --- */}
-        <section className="py-24 bg-background border-t border-outline-variant">
+        <section id="faq" className="py-24 bg-surface-variant/30 border-t border-outline-variant">
           <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16">
             
             {/* Left: Support CTA */}

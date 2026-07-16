@@ -5,6 +5,32 @@ import BulkIDCardDownloader from './BulkIDCardDownloader';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
+const getPackageColor = (pkgName) => {
+  if (!pkgName) return 'bg-slate-100 text-slate-800';
+  const name = pkgName.toLowerCase();
+  
+  if (name === 'premium') return 'bg-purple-100 text-purple-800';
+  if (name === 'standard') return 'bg-blue-100 text-blue-800';
+  if (name === 'executive') return 'bg-emerald-100 text-emerald-800';
+  if (name === 'basic') return 'bg-amber-100 text-amber-800';
+
+  const colors = [
+    'bg-indigo-100 text-indigo-800',
+    'bg-pink-100 text-pink-800',
+    'bg-rose-100 text-rose-800',
+    'bg-cyan-100 text-cyan-800',
+    'bg-teal-100 text-teal-800',
+    'bg-fuchsia-100 text-fuchsia-800',
+    'bg-orange-100 text-orange-800',
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < pkgName.length; i++) {
+    hash = pkgName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 const PageWrapper = ({ title, children }) => (
   <div className="p-6 max-w-7xl mx-auto animate-fadeIn">
     <div className="mb-8">
@@ -508,11 +534,7 @@ export const ManageSchools = () => {
                       )}
                     </td>
                     <td className="p-5">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide uppercase ${
-                        school.package === 'Premium' ? 'bg-purple-100 text-purple-800' :
-                        school.package === 'Standard' ? 'bg-blue-100 text-blue-800' :
-                        'bg-slate-100 text-slate-800'
-                      }`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide uppercase ${getPackageColor(school.package)}`}>
                         {school.package || 'None'}
                       </span>
                     </td>
@@ -834,6 +856,46 @@ export const ManageSchools = () => {
               <form id="servicesForm" onSubmit={handleServicesSubmit} className="space-y-4">
                 <p className="text-body-sm text-on-surface-variant mb-4">Toggle services to show or hide them on the school's public website.</p>
                 
+                {/* Quick Apply Package Preset */}
+                <div className="mb-6 bg-primary/5 p-4 rounded-xl border border-primary/20">
+                  <label className="block text-label-md font-bold text-primary mb-2">Quick Apply Package Preset</label>
+                  <select 
+                    className="w-full px-4 py-2.5 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl text-body-md transition-all cursor-pointer"
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const pkg = packages.find(p => p.id === e.target.value);
+                      if (pkg) {
+                        let parsedFeatures = pkg.features || {};
+                        if (typeof parsedFeatures === 'string') {
+                          try { parsedFeatures = JSON.parse(parsedFeatures); } catch(err) { parsedFeatures = {}; }
+                        }
+                        
+                        const newServices = {
+                          admission: false, career: false, tenders: false, appointment: false, 
+                          gallery: false, studentPortal: false, faculty: false, alumestron: false, 
+                          excellence: false, complaints: false
+                        };
+                        
+                        Object.keys(parsedFeatures).forEach(key => {
+                          if (newServices.hasOwnProperty(key)) {
+                            newServices[key] = !!parsedFeatures[key];
+                          }
+                        });
+                        
+                        setServicesFormData(newServices);
+                      }
+                      e.target.value = ""; // Reset dropdown
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select a package to apply...</option>
+                    {packages.map(pkg => (
+                      <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-on-surface-variant mt-2">Selecting a package will automatically update the toggles below.</p>
+                </div>
+
                 {Object.keys(servicesFormData).map((serviceKey) => (
                   <div key={serviceKey} className="flex items-center justify-between p-3 border border-outline-variant rounded-xl hover:bg-surface-variant/30 transition-colors">
                     <span className="text-label-md font-medium text-neutral capitalize">{serviceKey.replace(/([A-Z])/g, ' $1')}</span>
@@ -859,28 +921,7 @@ export const ManageSchools = () => {
           </div>
         </div>
       )}
-      {isServicesModalOpen && selectedSchool && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-            <h2 className="text-title-lg font-bold mb-4">Manage Allowed Features</h2>
-            <p className="text-body-sm text-on-surface-variant mb-6">Select the features enabled for <strong>{selectedSchool.name}</strong>.</p>
-            <form onSubmit={handleServicesSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">
-                {Object.keys(servicesFormData).map((service) => (
-                  <label key={service} className="flex items-center gap-3 p-3 border border-outline-variant rounded-xl cursor-pointer hover:bg-surface-variant">
-                    <input type="checkbox" checked={servicesFormData[service]} onChange={(e) => setServicesFormData({...servicesFormData, [service]: e.target.checked})} className="w-5 h-5 text-primary rounded" />
-                    <span className="capitalize font-medium text-body-md">{service.replace(/([A-Z])/g, ' $1').trim()}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setIsServicesModalOpen(false)} className="px-6 py-2 border rounded-xl font-bold">Cancel</button>
-                <button type="submit" disabled={modalLoading} className="bg-primary text-white px-6 py-2 rounded-xl font-bold disabled:opacity-50">Save</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
 
       {isBulkDownloadModalOpen && selectedSchool && (
         <BulkIDCardDownloader school={selectedSchool} onClose={() => setIsBulkDownloadModalOpen(false)} />

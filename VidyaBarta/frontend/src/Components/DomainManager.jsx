@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaGlobe, FaSearch, FaCheckCircle, FaTimesCircle, FaSpinner, FaRupeeSign, FaShoppingCart, FaServer } from 'react-icons/fa';
+import { FaGlobe, FaSearch, FaCheckCircle, FaTimesCircle, FaSpinner, FaRupeeSign, FaShoppingCart, FaServer, FaWallet, FaFileInvoice } from 'react-icons/fa';
 
 const DomainManager = ({ apiUrl, token }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -10,11 +10,21 @@ const DomainManager = ({ apiUrl, token }) => {
   const [purchasing, setPurchasing] = useState(false);
   const [myDomains, setMyDomains] = useState([]);
   const [loadingDomains, setLoadingDomains] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(0);
 
-  const fetchDomains = async () => {
+  const fetchData = async () => {
     try {
-      const res = await axios.get(`${apiUrl}/domains`, { headers: { Authorization: `Bearer ${token}` } });
-      setMyDomains(res.data);
+      setLoadingDomains(true);
+      const [domainsRes, walletRes] = await Promise.all([
+        axios.get(`${apiUrl}/domains`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${apiUrl}/wallet`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { balance: 0 } }))
+      ]);
+      setMyDomains(domainsRes.data);
+      if (walletRes.data.wallet) {
+        setWalletBalance(walletRes.data.wallet.balance);
+      } else {
+        setWalletBalance(walletRes.data.balance || 0); // fallback if it comes direct
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -23,7 +33,7 @@ const DomainManager = ({ apiUrl, token }) => {
   };
 
   useEffect(() => {
-    fetchDomains();
+    fetchData();
   }, []);
 
   const handleSearch = async (e) => {
@@ -46,7 +56,11 @@ const DomainManager = ({ apiUrl, token }) => {
   };
 
   const handleRequest = async (domainToBuy, priceToPay) => {
-    if (window.confirm(`Are you sure you want to request ${domainToBuy}? The SuperAdmin will review and link this domain to your site.`)) {
+    if (walletBalance < priceToPay) {
+      return alert(`Not enough wallet balance. You need ₹${priceToPay} but you only have ₹${walletBalance}. Please recharge your wallet.`);
+    }
+
+    if (window.confirm(`Are you sure you want to request ${domainToBuy} for ₹${priceToPay}? The SuperAdmin will review and link this domain to your site.`)) {
       try {
         setPurchasing(true);
         const res = await axios.post(`${apiUrl}/domains/request`, {
@@ -57,7 +71,7 @@ const DomainManager = ({ apiUrl, token }) => {
         alert(`Success! Your request for ${domainToBuy} has been submitted.`);
         setSearchResult(null);
         setSearchQuery('');
-        fetchDomains(); // refresh my list
+        fetchData(); // refresh my list and wallet balance
       } catch (err) {
         alert(err.response?.data?.message || 'Request failed');
       } finally {
@@ -68,11 +82,24 @@ const DomainManager = ({ apiUrl, token }) => {
 
   return (
     <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-      <div className="flex items-center gap-3 mb-8 border-b pb-4">
-        <FaGlobe className="text-purple-600 text-3xl" />
-        <div>
-          <h2 className="text-2xl font-black text-gray-800">Custom Domain Requests</h2>
-          <p className="text-sm text-gray-500 font-medium">Search for a domain and request the SuperAdmin to link it to your school platform.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b pb-4">
+        <div className="flex items-center gap-3">
+          <FaGlobe className="text-purple-600 text-3xl" />
+          <div>
+            <h2 className="text-2xl font-black text-gray-800">Custom Domain Requests</h2>
+            <p className="text-sm text-gray-500 font-medium">Search for a domain and request the SuperAdmin to link it to your school platform.</p>
+          </div>
+        </div>
+        <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 flex items-center gap-3">
+          <div className="bg-purple-100 p-2 rounded-lg text-purple-600">
+            <FaWallet />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Available Balance</p>
+            <p className="text-lg font-black text-gray-800 flex items-center">
+              <FaRupeeSign className="text-sm opacity-70" /> {walletBalance}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -192,20 +219,29 @@ const DomainManager = ({ apiUrl, token }) => {
           ) : (
             <div className="space-y-4">
               {myDomains.map(d => (
-                <div key={d.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center hover:border-purple-200 transition-colors cursor-default">
-                  <div>
-                    <h4 className="font-bold text-gray-800 font-mono text-lg">{d.domain_name}</h4>
-                    <p className="text-xs font-bold text-gray-400 mt-1">Purchased on {new Date(d.purchased_at).toLocaleDateString()}</p>
+                <div key={d.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3 hover:border-purple-200 transition-colors cursor-default">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-gray-800 font-mono text-lg">{d.domain_name}</h4>
+                      <p className="text-xs font-bold text-gray-400 mt-1">Purchased on {new Date(d.purchased_at).toLocaleDateString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                        d.status === 'Active' || d.status === 'Linked' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {d.status === 'Active' || d.status === 'Linked' ? <FaCheckCircle /> : <FaSpinner className="animate-spin" />} {d.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-1 ${
-                      d.status === 'Active' || d.status === 'Linked' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {d.status === 'Active' || d.status === 'Linked' ? <FaCheckCircle /> : <FaSpinner className="animate-spin" />} {d.status}
-                    </span>
-                  </div>
+                  {d.invoice_url && (
+                    <div className="mt-2 pt-3 border-t border-gray-100 flex justify-end">
+                      <a href={d.invoice_url} target="_blank" rel="noreferrer" className="text-xs font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                        <FaFileInvoice /> View Invoice
+                      </a>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

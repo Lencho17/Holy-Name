@@ -1,7 +1,8 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const bcrypt = require('bcryptjs');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
+const { upload, uploadToCloudinary } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -394,7 +395,7 @@ router.get('/schools/:id/id-cards-data', protect, async (req, res) => {
 
 // ================= DOMAIN REQUESTS =================
 
-router.get('/domains', protect, async (req, res) => {
+router.get('/domains', protect, authorize('superadmin'), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('domain_purchases')
@@ -409,23 +410,187 @@ router.get('/domains', protect, async (req, res) => {
   }
 });
 
-router.patch('/domains/:id/status', protect, async (req, res) => {
+// @desc    Approve Domain Request & Upload Invoice
+// @route   POST /api/superadmin/domains/:id/approve
+router.post('/domains/:id/approve', protect, authorize('superadmin'), upload.single('invoice'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-    
-    const { data, error } = await supabase
+
+    // 1. Fetch domain request
+    const { data: request, error: requestError } = await supabase
       .from('domain_purchases')
-      .update({ status })
+      .select('*')
       .eq('id', id)
-      .select()
       .single();
 
-    if (error) throw error;
-    res.json(data);
+    if (requestError || !request) return res.status(404).json({ message: 'Domain request not found' });
+    if (request.status === 'Active') return res.status(400).json({ message: 'Domain already approved' });
+
+    // 2. Fetch school wallet
+    const { data: wallet, error: walletError } = await supabase
+      .from('school_wallets')
+      .select('*')
+      .eq('school_id', request.school_id)
+      .single();
+
+    if (walletError || !wallet) return res.status(404).json({ message: 'School wallet not found' });
+
+    if (wallet.balance < request.cost) {
+      return res.status(400).json({ message: 'Not enough wallet balance' });
+    }
+
+    // 3. Upload invoice to Cloudinary if provided
+    let invoiceUrl = null;
+    if (req.file) {
+      invoiceUrl = await uploadToCloudinary(req.file, null, 'domain_invoices');
+    }
+
+    const newBalance = wallet.balance - request.cost;
+
+    // 4. Update Wallet, Ledger & Domain Status
+    const { error: updateWalletError } = await supabase
+      .from('school_wallets')
+      .update({ balance: newBalance, last_updated: new Date() })
+      .eq('id', wallet.id);
+    if (updateWalletError) throw updateWalletError;
+
+    const { error: ledgerError } = await supabase
+      .from('wallet_ledger')
+      .insert([{
+        school_id: request.school_id,
+        type: 'debit',
+        amount: request.cost,
+        balance_after: newBalance,
+        reference_type: 'domain_purchase',
+        reference_id: request.id,
+        description: `Domain Purchase: ${request.domain_name}`
+      }]);
+    if (ledgerError) throw ledgerError;
+
+    const { error: updateDomainError } = await supabase
+      .from('domain_purchases')
+      .update({ status: 'Active', invoice_url: invoiceUrl })
+      .eq('id', request.id)
+      .select()
+      .single();
+    if (updateDomainError) throw updateDomainError;
+
+    // 5. Email Notification
+    const { data: admin, error: adminError } = await supabase
+      .from('admins')
+      .select('email, name')
+      .eq('school_id', request.school_id)
+      .limit(1)
+      .single();
+
+    if (!adminError && admin && admin.email) {
+      const { sendEmail } = require('../utils/mailer');
+      const invoiceHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
+          <h2 style="color: #6366F1;">Domain Purchase Approved</h2>
+          <p>Hello ${admin.name},</p>
+          <p>Your request for the custom domain <strong>${request.domain_name}</strong> has been approved and activated.</p>
+          <hr />
+          <h3>Invoice Details</h3>
+          <table style="width: 100%; text-align: left; margin-bottom: 20px;">
+            <tr><th>Domain</th><td>${request.domain_name}</td></tr>
+            <tr><th>Amount Deducted</th><td>₹${request.cost}</td></tr>
+            <tr><th>Wallet Balance After</th><td>₹${newBalance}</td></tr>
+          </table>
+          ${invoiceUrl ? `<p><a href="${invoiceUrl}" target="_blank" style="background-color: #6366F1; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; display: inline-block;">View Official Invoice</a></p>` : ''}
+          <p>Thank you for using VidyaBarta SaaS!</p>
+        </div>
+      `;
+      
+      const attachments = [];
+      if (req.file) {
+        attachments.push({
+          filename: req.file.originalname,
+          content: req.file.buffer
+        });
+      }
+
+      try {
+        await sendEmail({
+          from: process.env.EMAIL_USER,
+          to: admin.email,
+          subject: `Invoice: Domain Approved - ${request.domain_name}`,
+          html: invoiceHtml,
+          attachments: attachments.length > 0 ? attachments : undefined
+        });
+      } catch(emailErr) {
+        console.error('Failed to send invoice email:', emailErr);
+      }
+    }
+
+    res.json(updateDomainError ? {} : updateDomainError); // Send success response
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to update domain status' });
+    console.error('Domain approval error:', err);
+    res.status(500).json({ message: 'Failed to approve domain request' });
+  }
+});
+
+// @desc    Reject Domain Request
+// @route   POST /api/superadmin/domains/:id/reject
+router.post('/domains/:id/reject', protect, authorize('superadmin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) return res.status(400).json({ message: 'Rejection reason is required' });
+
+    const { data: request, error: requestError } = await supabase
+      .from('domain_purchases')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (requestError || !request) return res.status(404).json({ message: 'Domain request not found' });
+    if (request.status === 'Active') return res.status(400).json({ message: 'Domain already approved' });
+
+    // Delete the request from DB
+    const { error: deleteError } = await supabase
+      .from('domain_purchases')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) throw deleteError;
+
+    // Email Notification
+    const { data: admin, error: adminError } = await supabase
+      .from('admins')
+      .select('email, name')
+      .eq('school_id', request.school_id)
+      .limit(1)
+      .single();
+
+    if (!adminError && admin && admin.email) {
+      const { sendEmail } = require('../utils/mailer');
+      const html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
+          <h2 style="color: #EF4444;">Domain Request Rejected</h2>
+          <p>Hello ${admin.name},</p>
+          <p>Your request for the custom domain <strong>${request.domain_name}</strong> was rejected.</p>
+          <p><strong>Reason:</strong> ${reason}</p>
+          <p>Your wallet has not been charged. If you need assistance, please contact support.</p>
+        </div>
+      `;
+      try {
+        await sendEmail({
+          from: process.env.EMAIL_USER,
+          to: admin.email,
+          subject: `Domain Request Rejected - ${request.domain_name}`,
+          html: html
+        });
+      } catch(emailErr) {
+        console.error('Failed to send rejection email:', emailErr);
+      }
+    }
+
+    res.json({ message: 'Domain request rejected successfully' });
+  } catch (err) {
+    console.error('Domain rejection error:', err);
+    res.status(500).json({ message: 'Failed to reject domain request' });
   }
 });
 

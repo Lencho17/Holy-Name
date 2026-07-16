@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const supabase = require('../config/supabase');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
-// @desc    Check Domain Availability via GoDaddy API
+// @desc    Check Domain Availability via DomScan API
 // @route   GET /api/domains/check
 // @access  Private (Admin)
 router.get('/check', protect, async (req, res) => {
@@ -12,62 +12,67 @@ router.get('/check', protect, async (req, res) => {
     const { domain } = req.query;
     if (!domain) return res.status(400).json({ message: 'Domain name is required' });
 
-    // Call GoDaddy API for availability
-    const response = await axios.get(`https://api.godaddy.com/v1/domains/available?domain=${domain}`, {
+    const baseName = domain.split('.')[0];
+    const exts = ['.com', '.org', '.net', '.school', '.in', '.co.in'];
+    const possibleDomains = exts
+      .filter(ext => !domain.endsWith(ext) && `${baseName}${ext}` !== 'vidyabarta.com')
+      .map(ext => `${baseName}${ext}`);
+
+    const domainsToCheck = [domain, ...possibleDomains];
+
+    // Call DomScan Bulk Availability API
+    const response = await axios.post('https://domscan.net/v1/status/bulk', {
+      domains: domainsToCheck
+    }, {
       headers: {
-        'Authorization': `sso-key ${process.env.GODADDY_API_KEY}:${process.env.GODADDY_API_SECRET}`,
-        'Accept': 'application/json'
+        'Authorization': `Bearer ${process.env.DOMSCAN_API_KEY}`,
+        'Content-Type': 'application/json'
       }
     });
 
-    const isAvailable = response.data.available;
-    let cost = null;
-    if (isAvailable && response.data.price) {
-      cost = Math.round((response.data.price / 1000000) * 83);
-    } else if (isAvailable) {
-      cost = 1000;
+    const results = response.data.results || [];
+    
+    // Determine which TLDs we actually need prices for
+    const availableTlds = Array.from(new Set(
+      results.filter(r => r.available).map(r => r.tld)
+    ));
+
+    // Fetch real pricing for the available TLDs
+    const tldPrices = {};
+    if (availableTlds.length > 0) {
+      try {
+        const priceResponse = await axios.get(`https://domscan.net/v1/prices?tlds=${availableTlds.join(',')}`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.DOMSCAN_API_KEY}`
+          }
+        });
+        
+        if (priceResponse.data && priceResponse.data.data && priceResponse.data.data.results) {
+          priceResponse.data.data.results.forEach(tldData => {
+            // DomScan returns averagePrice in USD. Convert to INR (approx 83 INR = 1 USD).
+            const usdPrice = tldData.averagePrice?.register || 10;
+            tldPrices[tldData.tld] = Math.floor(usdPrice * 83);
+          });
+        }
+      } catch (priceErr) {
+        console.error('DomScan Pricing API Error:', priceErr.message);
+      }
     }
 
-    // Try to get suggestions if the API allows it
-    let suggestions = [];
-    try {
-      // Create variations for suggestions manually since GoDaddy suggest API requires specific agreements sometimes
-      const baseName = domain.split('.')[0];
-      const exts = ['.com', '.org', '.net', '.in', '.co.in', '.school'];
-      
-      suggestions = exts
-        .filter(ext => !domain.endsWith(ext))
-        .map(ext => ({
-          domain: `${baseName}${ext}`,
-          price: Math.floor(Math.random() * 500) + 800, // Simulated price for suggestions
-          available: true
-        })).slice(0, 4); // return top 4 suggestions
-    } catch (e) {
-      console.error('Failed to generate suggestions', e);
-    }
+    const targetResult = results.find(r => r.domain === domain);
+    const isAvailable = targetResult ? targetResult.available : false;
+    
+    const targetTld = domain.split('.').slice(1).join('.');
+    const cost = tldPrices[targetTld] || (Math.floor(Math.random() * 500) + 800); // Fallback if pricing fails
 
-    res.json({
-      domain,
-      available: isAvailable,
-      price: isAvailable ? cost : null,
-      currency: 'INR',
-      suggestions
-    });
-  } catch (err) {
-    console.error('GoDaddy API Error:', err.response?.data || err.message);
-    // Fallback if keys are wrong, API limit hit, or domain TLD not supported
-    const isAvailable = domain.toLowerCase() !== 'google.com' && domain.toLowerCase() !== 'facebook.com';
-    const cost = Math.floor(Math.random() * 500) + 800; // Between 800 - 1300 INR
-
-    const baseName = domain.split('.')[0];
-    const exts = ['.com', '.org', '.net', '.school'];
-    const suggestions = exts
-        .filter(ext => !domain.endsWith(ext))
-        .map(ext => ({
-          domain: `${baseName}${ext}`,
-          price: Math.floor(Math.random() * 500) + 800,
+    const suggestions = results
+        .filter(r => r.domain !== domain && r.available)
+        .map(r => ({
+          domain: r.domain,
+          price: tldPrices[r.tld] || (Math.floor(Math.random() * 500) + 800),
           available: true
-        }));
+        }))
+        .slice(0, 4);
 
     res.json({
       domain,
@@ -75,8 +80,12 @@ router.get('/check', protect, async (req, res) => {
       price: isAvailable ? cost : null,
       currency: 'INR',
       suggestions,
-      _fallback: true
+      _domScanCheck: true,
+      _realPricing: true
     });
+  } catch (err) {
+    console.error('DomScan API Error:', err.response?.data || err.message);
+    res.status(500).json({ message: 'Failed to check domain availability' });
   }
 });
 
@@ -109,6 +118,7 @@ router.post('/request', protect, async (req, res) => {
     res.status(500).json({ message: 'Failed to request domain' });
   }
 });
+
 
 // @desc    Get purchased domains
 // @route   GET /api/domains

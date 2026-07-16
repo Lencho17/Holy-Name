@@ -112,8 +112,6 @@ const SuperAdminLayout = () => {
           <SidebarItem to="/superadmin/schools" icon={FiBriefcase} label="Schools" />
           <SidebarItem to="/superadmin/pricing" icon={FiCreditCard} label="Pricing Plans" />
           <SidebarItem to="/superadmin/packages" icon={FiBox} label="Package" />
-          <SidebarItem to="/superadmin/addons" icon={FiLayers} label="Addons" />
-          <SidebarItem to="/superadmin/features" icon={FiStar} label="Features" />
           <SidebarItem to="/superadmin/subscription" icon={FiCreditCard} label="Subscription" />
           <SidebarItem to="/superadmin/revenue" icon={FiDollarSign} label="Revenue & Settlements" />
           <SidebarItem to="/superadmin/wallets" icon={FaWallet} label="Wallets & Payouts" />

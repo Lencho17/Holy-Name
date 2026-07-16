@@ -45,7 +45,7 @@ export default function ManagePricing() {
         features: JSON.stringify(currentPlan.features.filter(f => f.trim() !== '')),
       };
 
-      if (isEditing) {
+      if (currentPlan.id) {
         await axios.put(`${apiBase}/saas-pricing/${currentPlan.id}`, payload);
         alert('Plan updated successfully');
       } else {

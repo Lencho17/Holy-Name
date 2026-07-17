@@ -100,11 +100,11 @@ function StudentPortal() {
       <aside className="flex flex-col fixed left-0 top-0 h-full w-64 bg-white/60 backdrop-blur-xl border-r border-white/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-[60]">
         <div className="p-6 flex flex-col gap-2">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0 overflow-hidden">
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0 overflow-hidden">
               {schoolProfile?.logo_url ? (
-                <img src={schoolProfile.logo_url} alt="School Logo" className="w-full h-full object-cover" />
+                <img src={schoolProfile.logo_url} alt="School Logo" className="w-full h-full object-contain p-1" />
               ) : (
-                <span className="material-symbols-outlined text-[20px]">school</span>
+                <span className="material-symbols-outlined text-[24px]">school</span>
               )}
             </div>
             <div className="min-w-0 flex-1">

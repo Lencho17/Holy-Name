@@ -107,9 +107,11 @@ function StudentPortal() {
                 <span className="material-symbols-outlined text-[20px]">school</span>
               )}
             </div>
-            <div className="overflow-hidden">
-              <h1 className="font-bold text-gray-900 leading-tight truncate" title={schoolProfile?.name || 'Student Portal'}>{schoolProfile?.name || 'Student Portal'}</h1>
-              <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider truncate">Academic Session</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold text-gray-900 text-lg leading-tight line-clamp-2" title={schoolProfile?.name || 'Student Portal'}>
+                {schoolProfile?.name || 'Student Portal'}
+              </h2>
+              <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider mt-0.5 truncate">Academic Session</p>
             </div>
           </div>
           <nav className="flex flex-col gap-1.5">

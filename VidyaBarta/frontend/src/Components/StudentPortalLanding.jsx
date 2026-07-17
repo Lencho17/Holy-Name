@@ -227,14 +227,14 @@ function StudentPortalLanding() {
         <section className="py-24 bg-background overflow-hidden relative">
           <div className="max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              <motion.div 
+               <motion.div 
                 initial={{ opacity: 0, x: -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.7 }}
                 viewport={{ once: true, margin: "-100px" }}
                 className="order-2 lg:order-1 relative"
               >
-                 <img src="/dashboard_mockup.png" alt="Dashboard Mockup" className="rounded-3xl shadow-2xl w-full h-auto object-cover border border-outline-variant" />
+                 <img src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?q=80&w=2070&auto=format&fit=crop" alt="Dashboard Preview" className="rounded-3xl shadow-2xl w-full h-auto object-cover border border-outline-variant aspect-[4/3]" />
                  <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/20 rounded-full blur-2xl -z-10"></div>
               </motion.div>
               <motion.div 

@@ -84,11 +84,15 @@ router.post('/', protect, async (req, res) => {
     if (class_teacher_id) {
       const { data: teacher } = await supabase.from('staff').select('email, name').eq('id', class_teacher_id).single();
       if (teacher && teacher.email) {
-        await sendEmail({
-          to: teacher.email,
-          subject: 'Class Teacher Assignment Update',
-          html: `<p>Dear ${teacher.name},</p><p>You have been assigned as the Class Teacher for <strong>Class ${class_name} ${section || 'A'}</strong>.</p><p>Please log in to the Teacher Portal to review your assigned class.</p>`
-        });
+        try {
+          await sendEmail({
+            to: teacher.email,
+            subject: 'Class Teacher Assignment Update',
+            html: `<p>Dear ${teacher.name},</p><p>You have been assigned as the Class Teacher for <strong>Class ${class_name} ${section || 'A'}</strong>.</p><p>Please log in to the Teacher Portal to review your assigned class.</p>`
+          });
+        } catch (emailErr) {
+          console.error('Failed to send class teacher notification:', emailErr.message);
+        }
       }
     }
 
@@ -103,11 +107,15 @@ router.post('/', protect, async (req, res) => {
       for (const [tId, subjects] of Object.entries(teacherMap)) {
         const { data: teacher } = await supabase.from('staff').select('email, name').eq('id', tId).single();
         if (teacher && teacher.email) {
-          await sendEmail({
-            to: teacher.email,
-            subject: 'Subject Teacher Assignment Update',
-            html: `<p>Dear ${teacher.name},</p><p>You have been assigned to teach the following subjects for <strong>Class ${class_name} ${section || 'A'}</strong>:</p><ul>${subjects.map(s => `<li>${s}</li>`).join('')}</ul><p>Please log in to the Teacher Portal to enter marks when examinations begin.</p>`
-          });
+          try {
+            await sendEmail({
+              to: teacher.email,
+              subject: 'Subject Teacher Assignment Update',
+              html: `<p>Dear ${teacher.name},</p><p>You have been assigned to teach the following subjects for <strong>Class ${class_name} ${section || 'A'}</strong>:</p><ul>${subjects.map(s => `<li>${s}</li>`).join('')}</ul><p>Please log in to the Teacher Portal to enter marks when examinations begin.</p>`
+            });
+          } catch (emailErr) {
+            console.error('Failed to send subject teacher notification:', emailErr.message);
+          }
         }
       }
     }

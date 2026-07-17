@@ -171,15 +171,15 @@ function StudentLogin() {
               </div>
             </div>
 
-            {/* Student ID / Email */}
+            {/* Email Address */}
             <div className="space-y-xs">
-              <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="student-id">Student ID or Email</label>
+              <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="student-id">Email Address</label>
               <div className="relative group">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">person</span>
                 <input 
                   id="student-id" 
                   name="student-id" 
-                  type="text" 
+                  type="email" 
                   required 
                   value={rollNumber}
                   onChange={(e) => setRollNumber(e.target.value)}
@@ -192,7 +192,7 @@ function StudentLogin() {
             {/* Password - Only in Login Mode */}
             {!isResetMode && (
               <div className="space-y-xs">
-                <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="password">Password</label>
+                <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="password">Password (Date of Birth)</label>
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">lock</span>
                   <input 
@@ -202,7 +202,7 @@ function StudentLogin() {
                     required 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" 
+                    placeholder="YYYY-MM-DD or DDMMYYYY" 
                     className="w-full pl-10 pr-12 py-3 bg-white border border-outline-variant rounded focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline transition-all focus:shadow-[0_0_0_2px_rgba(0,44,152,0.1)]" 
                   />
                   <button 

@@ -36,11 +36,11 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Please provide roll number, password, and select a school' });
     }
 
-    // Find student by admission_id AND school_id
+    // Find student by email AND school_id
     const { data: student, error } = await supabase
       .from('students')
       .select('*')
-      .eq('admission_id', rollNumber)
+      .eq('email', rollNumber)
       .eq('school_id', schoolId)
       .single();
 
@@ -48,12 +48,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    if (!student.password) {
-      return res.status(401).json({ message: 'Account not fully set up. Please check your email for the setup link.' });
+    if (!student.date_of_birth) {
+      return res.status(401).json({ message: 'Date of Birth not registered. Please contact your administrator.' });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, student.password);
+    // Check password against date of birth (support YYYY-MM-DD or DDMMYYYY)
+    const dobParts = student.date_of_birth.split('-');
+    const dobFormatted = dobParts.length === 3 ? `${dobParts[2]}${dobParts[1]}${dobParts[0]}` : null;
+    
+    const isMatch = (password === student.date_of_birth) || (dobFormatted && password === dobFormatted);
 
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });

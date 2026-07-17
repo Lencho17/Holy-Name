@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
-const auth = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 
 // Get all grievances for a school (Admin View)
-router.get('/', auth, async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
-    const { school_id } = req.admin;
+    const { school_id } = req.user;
     const { data, error } = await supabase
       .from('result_grievances')
       .select(`
@@ -26,9 +26,9 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Update grievance status (Admin action)
-router.patch('/:id/resolve', auth, async (req, res) => {
+router.patch('/:id/resolve', protect, async (req, res) => {
   try {
-    const { school_id } = req.admin;
+    const { school_id } = req.user;
     const { id } = req.params;
     const { status, admin_reply } = req.body;
 
@@ -55,9 +55,9 @@ router.patch('/:id/resolve', auth, async (req, res) => {
 // Student submitting a grievance (Need to use student auth here - this assumes studentAuth middleware or checking token)
 // Typically, we might pass studentAuth middleware, but we'll export it for both or assume auth middleware can decode student token
 // We will export a separate route block for student APIs if needed, but for now we will just use a generic token check
-const studentAuth = require('../middleware/studentAuth');
+const { protectStudent } = require('../middleware/auth');
 
-router.post('/submit', studentAuth, async (req, res) => {
+router.post('/submit', protectStudent, async (req, res) => {
   try {
     const { school_id, student_id } = req.student;
     const { exam_id, subject, complaint } = req.body;
@@ -100,7 +100,7 @@ router.post('/submit', studentAuth, async (req, res) => {
 });
 
 // Student fetching their own grievances
-router.get('/my-grievances', studentAuth, async (req, res) => {
+router.get('/my-grievances', protectStudent, async (req, res) => {
   try {
     const { student_id } = req.student;
     const { data, error } = await supabase

@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
-const auth = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 const { sendEmail } = require('../utils/mailer');
 
 // Get all class assignments for a school
-router.get('/', auth, async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
-    const { school_id } = req.admin;
+    const { school_id } = req.user;
     const { data, error } = await supabase
       .from('class_assignments')
       .select(`
@@ -25,9 +25,9 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Create or update a class assignment
-router.post('/', auth, async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
-    const { school_id } = req.admin;
+    const { school_id } = req.user;
     const { class_name, section, class_teacher_id, subject_teachers } = req.body;
 
     if (!class_name) {

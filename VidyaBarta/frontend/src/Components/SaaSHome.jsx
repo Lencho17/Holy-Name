@@ -48,7 +48,7 @@ const FeatureCard = ({ icon: Icon, title, description }) => (
 const DashboardMockup = () => (
   <div className="w-full max-w-5xl mx-auto rounded-t-2xl shadow-2xl border-x border-t border-outline-variant/50 bg-background overflow-hidden flex h-[450px] text-left">
     {/* Sidebar */}
-    <div className="w-56 bg-surface border-r border-outline-variant flex flex-col z-10 shrink-0">
+    <div className="hidden sm:flex w-56 bg-surface border-r border-outline-variant flex-col z-10 shrink-0">
       <div className="p-5 border-b border-outline-variant flex items-center justify-start pl-6">
         <img src="/logo.png" alt="VidyaBarta" className="h-8 w-auto object-contain" />
       </div>
@@ -93,7 +93,7 @@ const DashboardMockup = () => (
       <div className="p-8 overflow-hidden flex-1 flex flex-col">
         
         {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6">
           {[
             { label: 'Total Schools', value: '142', trend: '+12%', color: 'text-primary' },
             { label: 'Active Students', value: '45,291', trend: '+5.4%', color: 'text-neutral' },

@@ -41,18 +41,18 @@ function StudentPortal() {
           axios.get(`${API_URL}/student-portal/upcoming-exams`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
         
-        setGrades(gradesRes.data);
-        setNotices(noticesRes.data);
-        setCourses(coursesRes.data);
-        setAssignments(assignmentsRes.data);
-        setFees(feesRes.data);
-        setTransactions(transactionsRes.data);
-        setUpcomingExams(upcomingExamsRes.data);
+        setGrades(Array.isArray(gradesRes.data) ? gradesRes.data : []);
+        setNotices(Array.isArray(noticesRes.data) ? noticesRes.data : []);
+        setCourses(Array.isArray(coursesRes.data) ? coursesRes.data : []);
+        setAssignments(Array.isArray(assignmentsRes.data) ? assignmentsRes.data : []);
+        setFees(Array.isArray(feesRes.data) ? feesRes.data : []);
+        setTransactions(Array.isArray(transactionsRes.data) ? transactionsRes.data : []);
+        setUpcomingExams(Array.isArray(upcomingExamsRes.data) ? upcomingExamsRes.data : []);
 
         // Fetch Grievances (if route exists)
         try {
           const gRes = await axios.get('/api/grievances/my-grievances', { headers: { Authorization: `Bearer ${token}` } });
-          if(gRes.data) setMyGrievances(gRes.data);
+          if(gRes.data && Array.isArray(gRes.data)) setMyGrievances(gRes.data);
         } catch(e) {}
 
         // Mocking some published results for demonstration (would normally be fetched)

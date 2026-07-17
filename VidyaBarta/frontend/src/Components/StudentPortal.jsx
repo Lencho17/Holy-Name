@@ -51,7 +51,7 @@ function StudentPortal() {
 
         // Fetch Grievances (if route exists)
         try {
-          const gRes = await axios.get('/api/grievances/my-grievances', { headers: { Authorization: `Bearer ${token}` } });
+          const gRes = await axios.get(`${API_URL}/grievances/my-grievances`, { headers: { Authorization: `Bearer ${token}` } });
           if(gRes.data && Array.isArray(gRes.data)) setMyGrievances(gRes.data);
         } catch(e) {}
 
@@ -478,7 +478,7 @@ function StudentPortal() {
                         <form onSubmit={async (e) => {
                           e.preventDefault();
                           try {
-                            const res = await axios.post('/api/grievances/submit', grievanceForm, { headers: { Authorization: `Bearer ${token}` } });
+                            const res = await axios.post(`${API_URL}/grievances/submit`, grievanceForm, { headers: { Authorization: `Bearer ${token}` } });
                             alert('Grievance submitted successfully!');
                             setMyGrievances([res.data.data, ...myGrievances]);
                             setShowGrievanceForm(false);

@@ -61,6 +61,12 @@ const ResultsPortal = ({ apiUrl, token }) => {
         <h3 className="font-bold text-teal-800 mb-4">Generate Marksheets for Exams</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {exams.map(exam => (
+            <div key={exam.id} className="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center">
+              <div>
+                <div className="font-bold text-gray-800">{exam.name}</div>
+                <div className="text-xs text-gray-500">Class {exam.class_level} • Status: {exam.status}</div>
+              </div>
               <div className="flex gap-2">
                 {exam.workflow_status === 'ClassReview' && (
                   <button onClick={() => handlePublish(exam.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700">

@@ -69,6 +69,12 @@ function StaffPage() {
             <FaBookOpen /> Academics & Comms
           </button>
           <button
+            onClick={() => navigate('/teacher-portal')}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all text-gray-600 hover:bg-gray-50"
+          >
+            <span className="material-symbols-outlined text-[18px]">edit_document</span> Examinations & Results
+          </button>
+          <button
             onClick={() => setActiveTab('attendance')}
             className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${activeTab === 'attendance' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >

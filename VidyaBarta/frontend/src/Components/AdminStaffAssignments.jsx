@@ -10,15 +10,20 @@ const AdminStaffAssignments = () => {
   
   const [timetables, setTimetables] = useState([]);
   const [examDuties, setExamDuties] = useState([]);
+  const [classAssignments, setClassAssignments] = useState([]);
+  const [subjectsList] = useState(['Math', 'Science', 'English', 'History', 'Geography', 'Computer']); // Mock static list or fetch
 
   // Form states
   const [ttForm, setTtForm] = useState({ class_level: '', section: '', day_of_week: 'Monday', period_number: '', subject: '', staff_id: '', start_time: '', end_time: '' });
   const [examForm, setExamForm] = useState({ staff_id: '', exam_date: '', start_time: '', end_time: '', room_no: '', role: 'Main Examiner', venue: 'Own School' });
+  const [assignForm, setAssignForm] = useState({ class_name: '', section: '', class_teacher_id: '', subject_teachers: [] });
+  const [tempSubject, setTempSubject] = useState({ subject: '', teacher_id: '' });
 
   useEffect(() => {
     fetchStaff();
     fetchTimetables();
     fetchExamDuties();
+    fetchClassAssignments();
   }, []);
 
   const fetchStaff = async () => {
@@ -45,6 +50,16 @@ const AdminStaffAssignments = () => {
     } catch (e) { console.error(e); }
   };
 
+  const fetchClassAssignments = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      // Assume /api is handled by Vite proxy if using relative, else use API_URL
+      // The assignments route we built is at /api/assignments
+      const res = await axios.get(`/api/assignments`, { headers: { Authorization: `Bearer ${token}` } });
+      setClassAssignments(res.data);
+    } catch (e) { console.error(e); }
+  };
+
   const handleTtSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -65,6 +80,17 @@ const AdminStaffAssignments = () => {
       fetchExamDuties();
       setExamForm({ staff_id: '', exam_date: '', start_time: '', end_time: '', room_no: '', role: 'Main Examiner', venue: 'Own School' });
     } catch (e) { alert('Failed to assign exam duty'); }
+  };
+
+  const handleAssignSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.post(`/api/assignments`, assignForm, { headers: { Authorization: `Bearer ${token}` } });
+      alert('Class Teachers & Subjects Assigned! Email notifications sent.');
+      fetchClassAssignments();
+      setAssignForm({ class_name: '', section: '', class_teacher_id: '', subject_teachers: [] });
+    } catch (e) { alert('Failed to assign class/subjects'); }
   };
 
   const deleteTt = async (id) => {
@@ -99,6 +125,12 @@ const AdminStaffAssignments = () => {
           className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 ${activeTab === 'exams' ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-gray-500 hover:bg-gray-50'}`}
         >
           <FaChalkboardTeacher /> Exam Duties
+        </button>
+        <button 
+          onClick={() => setActiveTab('class-assignments')}
+          className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 ${activeTab === 'class-assignments' ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-gray-500 hover:bg-gray-50'}`}
+        >
+          <span className="material-symbols-outlined text-[18px]">assignment_ind</span> Teacher Mapping
         </button>
       </div>
 
@@ -192,6 +224,104 @@ const AdminStaffAssignments = () => {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'class-assignments' && (
+          <div className="space-y-8">
+            <form onSubmit={handleAssignSubmit} className="bg-gray-50 p-6 rounded-xl border border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h4 className="md:col-span-2 font-bold text-gray-800">Map Teachers to Classes & Subjects</h4>
+              
+              <input required type="text" placeholder="Class (e.g. 10)" className="p-2 border rounded" value={assignForm.class_name} onChange={e => setAssignForm({...assignForm, class_name: e.target.value})} />
+              <input required type="text" placeholder="Section (e.g. A)" className="p-2 border rounded" value={assignForm.section} onChange={e => setAssignForm({...assignForm, section: e.target.value})} />
+              
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-bold text-gray-600">Assign Class Teacher:</label>
+                <select required className="p-2 border rounded w-full" value={assignForm.class_teacher_id} onChange={e => setAssignForm({...assignForm, class_teacher_id: e.target.value})}>
+                  <option value="">Select Class Teacher</option>
+                  {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              <div className="md:col-span-2 border-t border-gray-200 pt-4 space-y-3">
+                <label className="text-sm font-bold text-gray-600">Assign Subject Teachers:</label>
+                
+                <div className="flex gap-2">
+                  <select className="p-2 border rounded flex-1" value={tempSubject.subject} onChange={e => setTempSubject({...tempSubject, subject: e.target.value})}>
+                    <option value="">Select Subject</option>
+                    {subjectsList.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select className="p-2 border rounded flex-1" value={tempSubject.teacher_id} onChange={e => setTempSubject({...tempSubject, teacher_id: e.target.value})}>
+                    <option value="">Select Subject Teacher</option>
+                    {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <button 
+                    type="button" 
+                    className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 font-bold"
+                    onClick={() => {
+                      if(tempSubject.subject && tempSubject.teacher_id) {
+                        setAssignForm({...assignForm, subject_teachers: [...assignForm.subject_teachers, tempSubject]});
+                        setTempSubject({ subject: '', teacher_id: '' });
+                      }
+                    }}
+                  >Add</button>
+                </div>
+
+                {assignForm.subject_teachers.length > 0 && (
+                  <ul className="bg-white border rounded p-3 space-y-2">
+                    {assignForm.subject_teachers.map((st, i) => {
+                      const teacher = staffList.find(s => s.id === st.teacher_id);
+                      return (
+                        <li key={i} className="flex justify-between items-center text-sm border-b pb-1 last:border-0 last:pb-0">
+                          <span><strong>{st.subject}</strong>: {teacher?.name}</span>
+                          <button type="button" onClick={() => {
+                            const filtered = assignForm.subject_teachers.filter((_, idx) => idx !== i);
+                            setAssignForm({...assignForm, subject_teachers: filtered});
+                          }} className="text-red-500 text-xs">Remove</button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <button type="submit" className="bg-blue-600 text-white font-bold p-2 rounded hover:bg-blue-700 md:col-span-2 mt-4">Save Mapping & Notify Teachers</button>
+            </form>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-y border-gray-200">
+                    <th className="p-3 text-xs font-bold text-gray-500 uppercase">Class</th>
+                    <th className="p-3 text-xs font-bold text-gray-500 uppercase">Class Teacher</th>
+                    <th className="p-3 text-xs font-bold text-gray-500 uppercase">Subject Teachers</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {classAssignments.map(ca => {
+                    const ct = staffList.find(s => s.id === ca.class_teacher_id);
+                    return (
+                      <tr key={ca.id} className="hover:bg-gray-50">
+                        <td className="p-3 text-sm font-bold">{ca.class_name} - {ca.section}</td>
+                        <td className="p-3 text-sm text-blue-600 font-medium">{ct?.name || ca.class_teacher_id}</td>
+                        <td className="p-3 text-sm">
+                          <div className="flex flex-wrap gap-1">
+                            {ca.subject_teachers?.map((st, i) => {
+                              const stt = staffList.find(s => s.id === st.teacher_id);
+                              return (
+                                <span key={i} className="bg-gray-100 px-2 py-1 rounded text-xs">
+                                  {st.subject}: {stt?.name}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

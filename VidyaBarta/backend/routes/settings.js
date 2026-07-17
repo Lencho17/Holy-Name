@@ -78,4 +78,48 @@ router.put('/school-status', protect, async (req, res) => {
   }
 });
 
+// PUT /api/settings/svg-templates
+// Protected: Only admins can upload templates
+router.put('/svg-templates', protect, async (req, res) => {
+  try {
+    const { report_card_svg, admission_receipt_svg } = req.body;
+    
+    // Check if a record exists
+    const { data: existing } = await supabase
+      .from('school_settings')
+      .select('id')
+      .limit(1)
+      .maybeSingle();
+
+    const updateData = {
+      last_updated_by: req.user.id,
+      last_updated_at: new Date().toISOString()
+    };
+    if (report_card_svg !== undefined) updateData.report_card_svg = report_card_svg;
+    if (admission_receipt_svg !== undefined) updateData.admission_receipt_svg = admission_receipt_svg;
+
+    let result;
+    if (existing) {
+      result = await supabase
+        .from('school_settings')
+        .update(updateData)
+        .eq('id', existing.id)
+        .select()
+        .single();
+    } else {
+      result = await supabase
+        .from('school_settings')
+        .insert(updateData)
+        .select()
+        .single();
+    }
+
+    if (result.error) throw result.error;
+    res.json({ message: 'Templates saved successfully!' });
+  } catch (error) {
+    console.error('[UPDATE SVG TEMPLATES ERROR]:', error.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

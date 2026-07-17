@@ -20,6 +20,12 @@ function StudentPortal() {
   const [showUdiseBanner, setShowUdiseBanner] = useState(true);
   const navigate = useNavigate();
 
+  // Results & Grievance State
+  const [publishedResults, setPublishedResults] = useState([]);
+  const [myGrievances, setMyGrievances] = useState([]);
+  const [showGrievanceForm, setShowGrievanceForm] = useState(false);
+  const [grievanceForm, setGrievanceForm] = useState({ exam_id: '', subject: '', complaint: '' });
+
   useEffect(() => {
     if (!token) return;
 
@@ -42,6 +48,18 @@ function StudentPortal() {
         setFees(feesRes.data);
         setTransactions(transactionsRes.data);
         setUpcomingExams(upcomingExamsRes.data);
+
+        // Fetch Grievances (if route exists)
+        try {
+          const gRes = await axios.get('/api/grievances/my-grievances', { headers: { Authorization: `Bearer ${token}` } });
+          if(gRes.data) setMyGrievances(gRes.data);
+        } catch(e) {}
+
+        // Mocking some published results for demonstration (would normally be fetched)
+        setPublishedResults([
+          { id: '1', name: 'Mid Term Examination', published_date: new Date().toISOString(), grievance_deadline: new Date(Date.now() + 5*86400000).toISOString(), status: 'Published', marks: [{subject: 'Math', obtained: 85, max: 100}, {subject: 'Science', obtained: 92, max: 100}] }
+        ]);
+
       } catch (error) {
         console.error("Failed to load portal data", error);
       } finally {
@@ -87,17 +105,13 @@ function StudentPortal() {
     return (totalPoints / gradesArray.length).toFixed(2);
   };
 
-  // Glassmorphism classes
-  const glassCard = "bg-white/70 backdrop-blur-md border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl";
-  const glassButton = "bg-white/50 hover:bg-white/80 backdrop-blur-sm border border-white/50 shadow-sm transition-all text-gray-700";
+  // Professional UI Classes
+  const glassCard = "bg-white border border-gray-200 shadow-sm rounded-xl";
+  const glassButton = "bg-white hover:bg-gray-50 border border-gray-200 shadow-sm transition-all text-gray-700";
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 text-gray-800 overflow-x-hidden min-h-screen flex font-sans">
+    <div className="bg-gray-50 text-gray-800 overflow-x-hidden min-h-screen flex font-sans">
       
-      {/* Decorative Orbs */}
-      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-400/20 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-400/20 rounded-full blur-[100px] pointer-events-none"></div>
-
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -107,10 +121,10 @@ function StudentPortal() {
       )}
 
       {/* Side Navigation Shell */}
-      <aside className={`flex flex-col fixed left-0 top-0 h-full w-64 bg-white/60 backdrop-blur-xl border-r border-white/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-[60] transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+      <aside className={`flex flex-col fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 z-[60] transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
         <div className="p-6 flex flex-col gap-2">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0 overflow-hidden">
+            <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center text-blue-600 shrink-0 overflow-hidden">
               {schoolProfile?.logo ? (
                 <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-1" />
               ) : (
@@ -135,10 +149,10 @@ function StudentPortal() {
               <a 
                 key={item.id}
                 onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer font-medium text-sm
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all cursor-pointer font-medium text-sm
                   ${activeTab === item.id 
-                    ? 'bg-white shadow-sm border border-white/80 text-indigo-700 font-semibold' 
-                    : 'text-gray-600 hover:bg-white/40 hover:text-gray-900'}`}
+                    ? 'bg-blue-50 text-blue-700 font-semibold' 
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
               >
                 <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                 <span>{item.label}</span>
@@ -154,9 +168,9 @@ function StudentPortal() {
             </a>
           </nav>
         </div>
-        <div className="mt-auto p-6 border-t border-white/40 bg-white/20">
+        <div className="mt-auto p-6 border-t border-gray-100 bg-gray-50/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border border-white flex items-center justify-center text-gray-600 shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 shadow-sm">
               <span className="material-symbols-outlined">person</span>
             </div>
             <div className="overflow-hidden">
@@ -170,7 +184,7 @@ function StudentPortal() {
       {/* Main Content Area */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative z-10 w-full">
         {/* Top Navigation Shell */}
-        <header className="flex justify-between items-center w-full px-4 md:px-8 h-20 sticky top-0 z-50 bg-white/40 backdrop-blur-md border-b border-white/40 shadow-sm">
+        <header className="flex justify-between items-center w-full px-4 md:px-8 h-20 sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
           <div className="flex items-center flex-1 max-w-xl gap-2 md:gap-4">
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -181,14 +195,14 @@ function StudentPortal() {
             <div className="relative w-full max-w-md hidden sm:block">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
               <input 
-                className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all shadow-inner" 
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all shadow-sm" 
                 placeholder="Search resources, assignments..." 
                 type="text"
               />
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <h2 className="font-bold text-gray-800 mr-4 hidden md:block bg-white/60 px-4 py-1.5 rounded-full border border-white shadow-sm text-sm">
+            <h2 className="font-bold text-gray-800 mr-4 hidden md:block bg-gray-50 px-4 py-1.5 rounded-full border border-gray-200 shadow-sm text-sm">
               {schoolProfile?.name || 'VidyaBarta Platform'}
             </h2>
             <button className={`${glassButton} rounded-full p-2.5 flex items-center justify-center text-gray-600 hover:text-indigo-600`}>
@@ -232,16 +246,15 @@ function StudentPortal() {
               )}
 
               {/* Welcome Banner Section */}
-              <section className="mb-8 relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-700 shadow-xl shadow-indigo-200">
-                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center w-full px-10 py-12">
+              <section className="mb-8 relative rounded-xl overflow-hidden bg-blue-900 shadow-sm border border-blue-800">
+                <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center w-full px-8 py-10">
                   <div>
-                    <h2 className="text-3xl font-bold text-white mb-2">Welcome back, {student.name.split(' ')[0]}! 👋</h2>
-                    <p className="text-indigo-100 text-lg">You are enrolled in Grade <span className="font-semibold text-white">{student.grade}</span>.</p>
+                    <h2 className="text-3xl font-bold text-white mb-2">Welcome back, {student.name.split(' ')[0]}!</h2>
+                    <p className="text-blue-100 text-lg">You are enrolled in Grade <span className="font-semibold text-white">{student.grade}</span>.</p>
                   </div>
                   <div className="hidden md:block mt-6 md:mt-0">
-                    <button onClick={() => setActiveTab('exams')} className="bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg flex items-center gap-2">
+                    <button onClick={() => setActiveTab('exams')} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-2.5 rounded-lg font-semibold transition-all shadow-sm flex items-center gap-2">
                       <span className="material-symbols-outlined">monitoring</span>
                       View Academic Results
                     </button>
@@ -260,7 +273,7 @@ function StudentPortal() {
                   </div>
                   <div className="flex flex-col gap-4 flex-1">
                     {notices.length > 0 ? notices.slice(0, 3).map((notice, idx) => (
-                      <div key={idx} className="p-4 bg-white/50 rounded-xl border border-white/80 hover:shadow-md transition-shadow relative overflow-hidden group">
+                      <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow relative overflow-hidden group">
                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${getBorderColorForNotice(idx).replace('border-', 'bg-')}`}></div>
                         <p className="text-xs font-semibold text-gray-500 mb-1">
                           {new Date(notice.date || notice.created_at).toLocaleDateString()}
@@ -330,7 +343,7 @@ function StudentPortal() {
           ) : activeTab === 'notices' ? (
             <div className={`${glassCard} p-8 min-h-[600px]`}>
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                   <span className="material-symbols-outlined text-2xl">campaign</span>
                 </div>
                 <div>
@@ -341,10 +354,10 @@ function StudentPortal() {
               
               <div className="space-y-4">
                 {notices.map((notice, idx) => (
-                  <div key={idx} className="p-5 bg-white/50 border border-white/80 rounded-2xl hover:shadow-md transition-all group relative overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-indigo-400 to-purple-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div key={idx} className="p-5 bg-white border border-gray-200 rounded-xl hover:shadow-sm transition-all group relative overflow-hidden">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-700 transition-colors">{notice.title}</h3>
+                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{notice.title}</h3>
                       <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-3 py-1 rounded-full border border-gray-200">
                         {new Date(notice.date || notice.created_at).toLocaleDateString()}
                       </span>
@@ -373,7 +386,7 @@ function StudentPortal() {
                   <h2 className="text-3xl font-bold text-gray-900">Examination &amp; Results</h2>
                   <p className="text-sm text-gray-500 mt-1">Manage your upcoming schedules and view academic performance records.</p>
                 </div>
-                <button className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200">
+                <button className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-sm">
                   <span className="material-symbols-outlined text-[20px]">file_download</span>
                   Download Report Card
                 </button>
@@ -383,7 +396,7 @@ function StudentPortal() {
                 {/* Upcoming Exams Bento Section */}
                 <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
                   {/* Next Exam Highlight Card */}
-                  <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-8 flex flex-col md:flex-row justify-between items-center text-white overflow-hidden relative shadow-lg shadow-indigo-200">
+                  <div className="bg-blue-800 rounded-xl p-8 flex flex-col md:flex-row justify-between items-center text-white overflow-hidden relative shadow-sm">
                     <div className="absolute -right-8 -bottom-8 opacity-10">
                       <span className="material-symbols-outlined text-[160px]">event_upcoming</span>
                     </div>
@@ -408,7 +421,7 @@ function StudentPortal() {
                       )}
                     </div>
                     {upcomingExams.length > 0 && (
-                      <button className="mt-6 md:mt-0 relative z-10 bg-white text-indigo-700 px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2">
+                      <button className="mt-6 md:mt-0 relative z-10 bg-white text-blue-700 px-6 py-2.5 rounded-lg font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2">
                         <span className="material-symbols-outlined">badge</span>
                         Admit Card
                       </button>
@@ -433,30 +446,106 @@ function StudentPortal() {
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                           {upcomingExams.length > 0 ? upcomingExams.map((exam, idx) => (
-                            <tr key={idx} className="hover:bg-indigo-50/50 transition-colors rounded-xl">
+                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
                               <td className="px-4 py-3 text-sm text-gray-600 font-medium whitespace-nowrap">{new Date(exam.exam_date).toLocaleDateString()}</td>
                               <td className="px-4 py-3 text-sm text-gray-900 font-bold">{exam.exam_name}</td>
                               <td className="px-4 py-3 text-sm text-gray-500">Class {exam.class_id}</td>
                               <td className="px-4 py-3 text-right">
-                                <button className="text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg transition-colors">
-                                  <span className="material-symbols-outlined text-[20px]">info</span>
-                                </button>
+                                <button className="text-blue-600 font-semibold text-sm hover:text-blue-800">Syllabus</button>
                               </td>
                             </tr>
                           )) : (
-                            <tr>
-                              <td colSpan="4" className="px-4 py-10 text-center text-gray-400 text-sm">
-                                No exams currently scheduled for this term.
-                              </td>
-                            </tr>
+                            <tr><td colSpan="4" className="text-center py-4 text-gray-500 text-sm">No upcoming exams</td></tr>
                           )}
                         </tbody>
                       </table>
                     </div>
                   </div>
+
+                  {/* Published Results & Grievances */}
+                  <div className={`${glassCard} overflow-hidden flex flex-col`}>
+                    <div className="p-6 border-b border-gray-100 bg-white/40 flex justify-between items-center">
+                      <h3 className="text-lg font-bold text-gray-900">Published Results</h3>
+                      <button onClick={() => setShowGrievanceForm(!showGrievanceForm)} className="text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition-colors">
+                        Raise Grievance
+                      </button>
+                    </div>
+
+                    {showGrievanceForm && (
+                      <div className="p-6 bg-orange-50/50 border-b border-orange-100">
+                        <h4 className="font-bold text-orange-800 mb-3">Submit a Grievance</h4>
+                        <p className="text-xs text-orange-600 mb-4">Grievances must be raised within 7 days of result publication.</p>
+                        <form onSubmit={async (e) => {
+                          e.preventDefault();
+                          try {
+                            const res = await axios.post('/api/grievances/submit', grievanceForm, { headers: { Authorization: `Bearer ${token}` } });
+                            alert('Grievance submitted successfully!');
+                            setMyGrievances([res.data.data, ...myGrievances]);
+                            setShowGrievanceForm(false);
+                            setGrievanceForm({ exam_id: '', subject: '', complaint: '' });
+                          } catch(err) { alert(err.response?.data?.message || 'Failed to submit grievance'); }
+                        }} className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <select required className="p-2.5 border rounded-lg bg-white" value={grievanceForm.exam_id} onChange={e => setGrievanceForm({...grievanceForm, exam_id: e.target.value})}>
+                              <option value="">Select Exam</option>
+                              {publishedResults.map(pr => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                            </select>
+                            <input required type="text" placeholder="Subject" className="p-2.5 border rounded-lg bg-white" value={grievanceForm.subject} onChange={e => setGrievanceForm({...grievanceForm, subject: e.target.value})} />
+                          </div>
+                          <textarea required placeholder="Detailed Complaint/Reason..." className="w-full p-2.5 border rounded-lg bg-white h-24" value={grievanceForm.complaint} onChange={e => setGrievanceForm({...grievanceForm, complaint: e.target.value})}></textarea>
+                          <div className="flex justify-end gap-2">
+                            <button type="button" onClick={() => setShowGrievanceForm(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">Cancel</button>
+                            <button type="submit" className="px-4 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700">Submit</button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+
+                    <div className="p-6 space-y-4">
+                      {publishedResults.length === 0 ? <p className="text-sm text-gray-500">No published results.</p> : null}
+                      {publishedResults.map(pr => (
+                        <div key={pr.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+                          <div className="flex justify-between items-center mb-4">
+                            <div>
+                              <h4 className="font-bold text-gray-800">{pr.name}</h4>
+                              <p className="text-xs text-gray-500">Published: {new Date(pr.published_date).toLocaleDateString()}</p>
+                            </div>
+                            <button className="text-blue-600 text-sm font-bold bg-blue-50 px-3 py-1.5 rounded-lg">Download SVG Card</button>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {pr.marks.map((m, i) => (
+                              <div key={i} className="bg-white p-2 rounded border border-gray-100 text-center">
+                                <div className="text-xs text-gray-500 font-bold">{m.subject}</div>
+                                <div className="text-sm font-black text-gray-800">{m.obtained}/{m.max}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {myGrievances.length > 0 && (
+                     <div className={`${glassCard} overflow-hidden flex flex-col p-6`}>
+                       <h3 className="text-lg font-bold text-gray-900 mb-4">My Grievances</h3>
+                       <div className="space-y-3">
+                         {myGrievances.map(g => (
+                           <div key={g.id} className="bg-orange-50/30 p-4 border border-orange-100 rounded-xl">
+                             <div className="flex justify-between mb-2">
+                               <span className="font-bold text-gray-800">{g.exam?.name} - {g.subject}</span>
+                               <span className={`text-xs font-bold px-2 py-1 rounded-full ${g.status === 'Resolved' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{g.status}</span>
+                             </div>
+                             <p className="text-sm text-gray-600"><strong>Complaint:</strong> {g.complaint}</p>
+                             {g.admin_reply && <p className="text-sm text-green-700 mt-2 bg-green-50 p-2 rounded"><strong>Reply:</strong> {g.admin_reply}</p>}
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                  )}
+
                 </div>
 
-                {/* GPA Summary & Stats Column */}
+                {/* Exams Right Sidebar */}
                 <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
                   {/* CGPA Widget */}
                   <div className={`${glassCard} p-6 flex flex-col items-center text-center relative overflow-hidden`}>

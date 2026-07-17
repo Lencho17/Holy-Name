@@ -1074,7 +1074,7 @@ function AdminPage() {
           </button>
         </header>
 
-        <section className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
@@ -2237,7 +2237,7 @@ function AdminPage() {
       {/* Edit Album Modal */}
       {editingAlbumId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in duration-300">
+          <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in duration-300">
             <div className="p-6 border-b flex justify-between items-center bg-gray-50">
               <h3 className="text-xl font-bold text-gray-800">Edit Album</h3>
               <button onClick={() => setEditingAlbumId(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><FaTimes /></button>
@@ -4055,7 +4055,7 @@ function AdminPage() {
       
       {/* Pending Approvals Section */}
       {admins.filter(a => !a.isApproved).length > 0 && (
-        <div className="mb-12 bg-amber-50/50 p-8 rounded-[2rem] border-2 border-dashed border-amber-200/50 animate-in fade-in slide-in-from-top-4 duration-700">
+        <div className="mb-12 bg-amber-50/50 p-8 rounded-xl border-2 border-dashed border-amber-200/50 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex items-center justify-between mb-6">
             <h4 className="font-black text-amber-800 flex items-center text-[10px] uppercase tracking-[0.2em]">
               <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping mr-3" />
@@ -4097,7 +4097,7 @@ function AdminPage() {
       )}
 
       {/* Create New Admin Form */}
-      <div className="bg-gray-50/50 p-8 rounded-[2rem] border border-gray-100 mb-12 relative overflow-hidden group">
+      <div className="bg-gray-50/50 p-8 rounded-xl border border-gray-100 mb-12 relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-8 text-primary/5 group-hover:scale-110 transition-transform duration-700">
            <FaPlus size={60} />
         </div>
@@ -5643,7 +5643,7 @@ function AdminPage() {
 
   const renderApplicationsSubTab = () => {
     return (
-      <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden animate-fadeIn">
+      <div className="bg-white/80 backdrop-blur-xl p-8 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden animate-fadeIn">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
           <div>
             <h3 className="text-2xl font-black text-gray-900 tracking-tight">Admission Applications</h3>
@@ -5997,7 +5997,7 @@ function AdminPage() {
           return (
             <div 
               key={idx} 
-              className="group relative bg-white rounded-[2rem] p-7 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-2 cursor-default overflow-hidden flex flex-col justify-between"
+              className="group relative bg-white rounded-xl p-7 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_60px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-2 cursor-default overflow-hidden flex flex-col justify-between"
             >
               <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${gradients[idx]} opacity-[0.03] rounded-bl-[5rem] group-hover:scale-125 transition-transform duration-700`} />
               
@@ -6027,7 +6027,7 @@ function AdminPage() {
       </div>
 
       {/* Recent Applications Table */}
-      <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-white/50 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative">
+      <div className="bg-white/80 backdrop-blur-xl rounded-xl border border-white/50 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative">
         <div className="p-4 sm:p-6 md:p-8 border-b border-gray-100/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
           <div>
             <h3 className="text-xl font-black text-gray-900 tracking-tight">Recent Activity</h3>
@@ -7189,7 +7189,7 @@ function AdminPage() {
         </div>
 
         {careerSubTab === 'guidelines' ? (
-          <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+          <div className="bg-white p-6 md:p-8 rounded-xl border border-gray-100 shadow-xl space-y-6">
             <h3 className="text-xl font-bold text-gray-800">Recruitment Guidelines</h3>
             <p className="text-sm text-gray-500">Edit the text lines that appear under the guidelines sections of the Careers page. Enter each point on a new line.</p>
 
@@ -7275,7 +7275,7 @@ function AdminPage() {
           </header>
 
         {isAddingJob && (
-          <form onSubmit={handleJobSubmit} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+          <form onSubmit={handleJobSubmit} className="bg-white p-8 rounded-xl border border-gray-100 shadow-xl space-y-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-gray-800">{editingJobId ? 'Edit Vacancy' : 'New Job Opening'}</h3>
               <button type="button" onClick={() => setIsAddingJob(false)} className="text-gray-400 hover:text-red-500"><FaTimes size={24} /></button>
@@ -7381,13 +7381,13 @@ function AdminPage() {
                <FaSpinner className="animate-spin text-4xl text-primary opacity-50" />
              </div>
           ) : jobs.length === 0 ? (
-            <div className="col-span-full bg-white border-2 border-dashed border-gray-200 rounded-3xl p-12 text-center text-gray-400">
+            <div className="col-span-full bg-white border-2 border-dashed border-gray-200 rounded-xl p-12 text-center text-gray-400">
               <FaBriefcase className="text-5xl mx-auto mb-4 opacity-20" />
               <p className="text-lg font-medium">No job vacancies posted yet.</p>
               <p className="text-sm">Active openings will show up on the public careers page.</p>
             </div>
           ) : jobs.map(job => (
-            <div key={job._id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex justify-between items-start gap-4">
+            <div key={job._id} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex justify-between items-start gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-2">
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] uppercase font-black">{job.department}</span>
@@ -7708,21 +7708,21 @@ function AdminPage() {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
             <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaGavel /></div>
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total Tenders</p>
               <h4 className="text-2xl font-black text-gray-800">{tenders.length}</h4>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
             <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaClock /></div>
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Pending Bids</p>
               <h4 className="text-2xl font-black text-gray-800">{stats.pending}</h4>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl shadow-inner"><FaCheckCircle /></div>
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Awarded Bids</p>
@@ -7734,7 +7734,7 @@ function AdminPage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* LEFT: Post/Edit Tender Form */}
           <div className="xl:col-span-1">
-            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 sticky top-8">
+            <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-8">
               <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center"><FaPlus className="text-xs" /></div>
                 {editingTenderId ? 'Edit Tender Notice' : 'Post New Tender'}
@@ -7801,7 +7801,7 @@ function AdminPage() {
 
           {/* RIGHT: Tenders List */}
           <div className="xl:col-span-2 space-y-8">
-            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+            <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center"><FaGavel className="text-xs" /></div>
                 Active Tender Notices
@@ -7851,7 +7851,7 @@ function AdminPage() {
             </section>
 
             {/* Tender Bids List with Advanced Filtering */}
-            <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+            <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
                   <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -7936,7 +7936,7 @@ function AdminPage() {
                     ))}
                   </tbody>
                 </table>
-                {filteredApps.length === 0 && <div className="py-20 text-center text-gray-400 italic bg-gray-50/50 rounded-3xl mt-4">No submissions found matching your filters.</div>}
+                {filteredApps.length === 0 && <div className="py-20 text-center text-gray-400 italic bg-gray-50/50 rounded-xl mt-4">No submissions found matching your filters.</div>}
               </div>
             </section>
           </div>
@@ -7979,7 +7979,7 @@ function AdminPage() {
               </div>
 
               <div className="space-y-6">
-                <div className="bg-primary/5 p-6 rounded-[2rem] border border-primary/10">
+                <div className="bg-primary/5 p-6 rounded-xl border border-primary/10">
                   <label className="text-[10px] font-black text-primary uppercase tracking-widest block mb-2">Total Bid Amount</label>
                   <p className="text-3xl font-black text-primary">₹{Number(app.bidAmount).toLocaleString('en-IN')}</p>
                 </div>
@@ -8115,7 +8115,7 @@ function AdminPage() {
 
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 text-left">
-        <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-gray-100">
+        <div className="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-gray-100">
           <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
             <h3 className="text-xl font-bold text-gray-800">{title}</h3>
             <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full">
@@ -8343,7 +8343,8 @@ function AdminPage() {
             { id: 'events', label: 'Events & Notices', icon: FaCalendarAlt },
             { id: 'gallery', label: 'Gallery', icon: FaImage },
             { id: 'videos', label: 'Videos', icon: FaVideo },
-            { id: 'banner', label: 'Popup Banner', icon: FaBullhorn }
+            { id: 'banner', label: 'Popup Banner', icon: FaBullhorn },
+            { id: 'templates', label: 'SVG Templates', icon: FaFileAlt }
           ].map(tab => (
             <button
               key={tab.id}
@@ -9030,7 +9031,7 @@ function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="mb-8 p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
+                  <div className="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-100">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Message Body</label>
                     <h4 className="text-lg font-black text-gray-800 mb-2">{inquiryReplyModal.inquiry.subject}</h4>
                     <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{inquiryReplyModal.inquiry.message}</p>
@@ -9395,7 +9396,7 @@ function AdminPage() {
           })()}
 
           {activeTab === 'jobApplications' && (
-            <div className="bg-white/80 backdrop-blur-xl p-4 sm:p-6 md:p-8 rounded-2xl md:rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden">
+            <div className="bg-white/80 backdrop-blur-xl p-4 sm:p-6 md:p-8 rounded-2xl md:rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 tracking-tight">Recruitment Console</h3>
@@ -9560,7 +9561,7 @@ function AdminPage() {
         {/* --- Job Application View Modal --- */}
         {selectedJobApp && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
+            <div className="bg-white rounded-2xl sm:rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
               <div className="p-4 sm:p-6 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Job Candidate Details</h2>
@@ -9858,7 +9859,7 @@ function AdminPage() {
 
         {selectedApp && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
+            <div className="bg-white rounded-2xl sm:rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
               <div className="p-4 sm:p-6 border-b flex justify-between items-center bg-gray-50">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-800">Student Application Details</h2>
@@ -10180,7 +10181,7 @@ function AdminPage() {
         {/* --- OTP Verification Modal --- */}
         {otpModalVisible && pendingAdminAction && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
+            <div className="bg-white rounded-2xl sm:rounded-xl p-5 sm:p-8 w-full max-w-md shadow-2xl animate-in zoom-in duration-300">
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Security Verification</h2>
               <p className="text-sm text-gray-500 mb-6">
                 A dual-OTP verification is required. OTPs have been sent to your Super Admin email and the target admin email.
@@ -10273,6 +10274,59 @@ function AdminPage() {
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {profileInnerTab === 'templates' && (
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <FaFileAlt className="text-blue-500" /> SVG Templates (Automation)
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Paste the raw SVG template code here. Use placeholders like `{{STUDENT_NAME}}`, `{{CLASS}}`, and `{{MARKS}}`. The system will automatically inject student data when downloading documents.
+            </p>
+            
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                const token = localStorage.getItem('adminToken');
+                const report_card_svg = e.target.report_card_svg.value;
+                const admission_receipt_svg = e.target.admission_receipt_svg.value;
+                
+                const res = await fetch('/api/settings/svg-templates', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                  body: JSON.stringify({ report_card_svg, admission_receipt_svg })
+                });
+                if(res.ok) alert('Templates saved successfully!');
+                else alert('Failed to save templates');
+              } catch(err) { console.error(err); alert('Error saving templates'); }
+            }} className="space-y-6">
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Report Card SVG Template</label>
+                <textarea 
+                  name="report_card_svg"
+                  className="w-full h-48 p-3 border rounded-xl font-mono text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  placeholder="<svg>...</svg>"
+                ></textarea>
+                <p className="text-xs text-gray-500 mt-1">Available placeholders: `{{STUDENT_NAME}}`, `{{ROLL_NUMBER}}`, `{{CLASS}}`, `{{SECTION}}`, `{{TOTAL_MARKS}}`, `{{PERCENTAGE}}`</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Admission Receipt SVG Template</label>
+                <textarea 
+                  name="admission_receipt_svg"
+                  className="w-full h-48 p-3 border rounded-xl font-mono text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  placeholder="<svg>...</svg>"
+                ></textarea>
+                <p className="text-xs text-gray-500 mt-1">Available placeholders: `{{STUDENT_NAME}}`, `{{DATE}}`, `{{AMOUNT}}`, `{{RECEIPT_NO}}`</p>
+              </div>
+
+              <button type="submit" className="bg-blue-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-blue-700 transition">
+                Save SVG Templates
+              </button>
+            </form>
           </div>
         )}
 

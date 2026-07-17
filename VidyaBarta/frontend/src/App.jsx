@@ -50,6 +50,7 @@ const Login = React.lazy(() => import("./Components/Login"));
 const StaffSignUp = React.lazy(() => import("./Components/StaffSignUp"));
 const AdminPage = React.lazy(() => import("./Components/AdminPage"));
 const StaffPage = React.lazy(() => import("./Components/StaffPage"));
+const TeacherPortal = React.lazy(() => import("./Components/TeacherPortal"));
 
 import SuperAdminLayout from "./Components/SuperAdmin/SuperAdminLayout";
 import * as SA from "./Components/SuperAdmin/SuperAdminPages";
@@ -162,6 +163,10 @@ function App() {
           <Route path="*" element={<Suspense fallback={<SuspenseFallback />}><StaffPage /></Suspense>} />
         </Route>
         
+        <Route path="teacher-portal/*" element={<ProtectedRoute role="staff" />}>
+          <Route path="*" element={<Suspense fallback={<SuspenseFallback />}><TeacherPortal /></Suspense>} />
+        </Route>
+        
         {/* Super Admin routes */}
         <Route path="superadmin" element={<ProtectedRoute role="admin" />}>
           <Route element={<SuperAdminLayout />}>
@@ -228,6 +233,7 @@ function App() {
         
         <Route path="admin/*" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
         <Route path="staff/*" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
+        <Route path="teacher-portal/*" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
       </Route>
     )
   );

@@ -1,4 +1,6 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
+import axios from 'axios';
+import { SiteDataContext } from '../context/SiteDataContext';
 import { useNavigate } from 'react-router-dom';
 import { StudentAuthContext } from '../context/StudentAuthContext';
 import { FaUserGraduate, FaLock, FaSignInAlt, FaSpinner } from 'react-icons/fa';
@@ -9,20 +11,39 @@ function StudentLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [schoolId, setSchoolId] = useState('');
+  const [schools, setSchools] = useState([]);
+  const [loadingSchools, setLoadingSchools] = useState(true);
   const { login } = useContext(StudentAuthContext);
+  const { API_URL } = useContext(SiteDataContext);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        const { data } = await axios.get(`${API_URL}/student-auth/schools`);
+        setSchools(data);
+        if (data.length > 0) setSchoolId(data[0].id);
+      } catch (error) {
+        console.error("Failed to load schools", error);
+      } finally {
+        setLoadingSchools(false);
+      }
+    };
+    fetchSchools();
+  }, [API_URL]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     
-    if (!rollNumber || !password) {
-      setError('Please enter both Roll Number and Password.');
+    if (!rollNumber || !password || !schoolId) {
+      setError('Please select a school and enter both Roll Number and Password.');
       return;
     }
 
     setLoading(true);
-    const result = await login(rollNumber, password);
+    const result = await login(rollNumber, password, schoolId);
     setLoading(false);
 
     if (result.success) {
@@ -76,6 +97,32 @@ function StudentLogin() {
               </div>
             )}
             
+            {/* School Selection */}
+            <div className="space-y-xs">
+              <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="school">Select School</label>
+              <div className="relative group">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">account_balance</span>
+                <select 
+                  id="school" 
+                  name="school" 
+                  required 
+                  value={schoolId}
+                  onChange={(e) => setSchoolId(e.target.value)}
+                  disabled={loadingSchools}
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-outline-variant rounded focus:border-primary focus:ring-0 text-on-surface appearance-none transition-all focus:shadow-[0_0_0_2px_rgba(0,44,152,0.1)]"
+                >
+                  {loadingSchools ? (
+                    <option value="">Loading schools...</option>
+                  ) : (
+                    schools.map(school => (
+                      <option key={school.id} value={school.id}>{school.name}</option>
+                    ))
+                  )}
+                </select>
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none">arrow_drop_down</span>
+              </div>
+            </div>
+
             {/* Student ID / Email */}
             <div className="space-y-xs">
               <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="student-id">Student ID or Email</label>

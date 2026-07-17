@@ -36,11 +36,12 @@ export const StudentAuthProvider = ({ children }) => {
     fetchStudent();
   }, [token, API_URL]);
 
-  const login = async (rollNumber, password) => {
+  const login = async (rollNumber, password, schoolId) => {
     try {
       const { data } = await axios.post(`${API_URL}/student-auth/login`, {
         rollNumber,
-        password
+        password,
+        schoolId
       });
       
       localStorage.setItem('studentToken', data.token);

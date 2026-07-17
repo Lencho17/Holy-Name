@@ -5,22 +5,42 @@ const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
 const { protectStudent } = require('../middleware/auth');
 
+// @route   GET /api/student-auth/schools
+// @desc    Get list of active schools for login dropdown
+// @access  Public
+router.get('/schools', async (req, res) => {
+  try {
+    const { data: schools, error } = await supabase
+      .from('schools')
+      .select('id, name')
+      .ilike('status', 'active')
+      .order('name');
+      
+    if (error) throw error;
+    res.json(schools);
+  } catch (error) {
+    console.error('Error fetching schools:', error);
+    res.status(500).json({ message: 'Server error fetching schools' });
+  }
+});
+
 // @route   POST /api/student-auth/login
 // @desc    Authenticate student & get token
 // @access  Public
 router.post('/login', async (req, res) => {
   try {
-    const { rollNumber, password } = req.body; // rollNumber from frontend form corresponds to admission_id
+    const { rollNumber, password, schoolId } = req.body; // rollNumber from frontend form corresponds to admission_id
 
-    if (!rollNumber || !password) {
-      return res.status(400).json({ message: 'Please provide roll number and password' });
+    if (!rollNumber || !password || !schoolId) {
+      return res.status(400).json({ message: 'Please provide roll number, password, and select a school' });
     }
 
-    // Find student by admission_id
+    // Find student by admission_id AND school_id
     const { data: student, error } = await supabase
       .from('students')
       .select('*')
       .eq('admission_id', rollNumber)
+      .eq('school_id', schoolId)
       .single();
 
     if (error || !student) {

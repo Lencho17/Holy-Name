@@ -5,8 +5,7 @@ export const SiteDataContext = createContext();
 
 // Use VITE_API_URL env var if available, otherwise default to '/api'
 // The Vite proxy configuration ensures this works in development
-// Forcefully override VITE_API_URL because it's incorrectly set to the frontend domain in Vercel
-const API_URL = import.meta.env.DEV ? 'http://localhost:5000/api' : 'https://holy-name-sb9t.vercel.app/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Fallback defaults (used while API loads or if offline)
 // Removed default videos to hide VideoBlog when empty

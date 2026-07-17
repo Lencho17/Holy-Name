@@ -5,6 +5,10 @@
       "destination": "https://holy-name-sb9t.vercel.app/api/share/:id"
     },
     {
+      "source": "/api/(.*)",
+      "destination": "https://holy-name-sb9t.vercel.app/api/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

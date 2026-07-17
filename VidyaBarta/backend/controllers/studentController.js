@@ -17,6 +17,14 @@ exports.getStudents = async (req, res) => {
     if (search) {
       query = query.or(`student_name.ilike.%${search}%,admission_id.ilike.%${search}%,guardian_name.ilike.%${search}%,email.ilike.%${search}%,contact_number.ilike.%${search}%`);
     }
+    
+    if (req.query.class_level) {
+      query = query.eq('class', req.query.class_level);
+    }
+    
+    if (req.query.section) {
+      query = query.eq('section', req.query.section);
+    }
 
     const { data: students, count, error } = await query
       .order('created_at', { ascending: false })

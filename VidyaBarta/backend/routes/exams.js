@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, protectAnyStaff } = require('../middleware/auth');
 const supabase = require('../config/supabase');
 
 // Get all exams
-router.get('/', protect, async (req, res) => {
+router.get('/', protectAnyStaff, async (req, res) => {
   try {
     const { data: exams, error } = await supabase
       .from('exams')
@@ -39,7 +39,7 @@ router.post('/', protect, async (req, res) => {
 });
 
 // Get marks for an exam
-router.get('/:id/marks', protect, async (req, res) => {
+router.get('/:id/marks', protectAnyStaff, async (req, res) => {
   try {
     const { data: marks, error } = await supabase
       .from('marks')
@@ -55,7 +55,7 @@ router.get('/:id/marks', protect, async (req, res) => {
 });
 
 // Subject Teacher marks entry
-router.post('/:id/marks/subject-teacher', protect, async (req, res) => {
+router.post('/:id/marks/subject-teacher', protectAnyStaff, async (req, res) => {
   try {
     const { marks } = req.body; // Array of { student_id, subject, marks_obtained, max_marks }
     const staff_id = req.admin.id; // Or req.user.id depending on auth middleware
@@ -100,7 +100,7 @@ router.post('/:id/marks/subject-teacher', protect, async (req, res) => {
 });
 
 // Class Teacher review marks
-router.post('/:id/marks/class-teacher-review', protect, async (req, res) => {
+router.post('/:id/marks/class-teacher-review', protectAnyStaff, async (req, res) => {
   try {
     // modifications is array of { mark_id, marks_obtained, reason }
     const { modifications } = req.body; 

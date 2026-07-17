@@ -94,7 +94,10 @@ function TeacherPortal() {
       // Fetch students for class
       const sRes = await fetch(`${API_URL}/students?class_level=${selectedAssignment.class_name}&section=${selectedAssignment.section}`, { headers: { 'Authorization': `Bearer ${token}` } });
       let studs = [];
-      if (sRes.ok) studs = await sRes.json();
+      if (sRes.ok) {
+        const resData = await sRes.json();
+        studs = resData.data || resData;
+      }
       setStudents(studs);
 
       // Fetch marks
@@ -120,7 +123,8 @@ function TeacherPortal() {
         // We only want to review marks for the assigned class. We need student info to filter by class.
         // Assuming backend handles class filtering or we do it here:
         const sRes = await fetch(`${API_URL}/students?class_level=${selectedAssignment.class_name}&section=${selectedAssignment.section}`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const studs = sRes.ok ? await sRes.json() : [];
+        const sResData = sRes.ok ? await sRes.json() : [];
+        const studs = sResData.data || sResData;
         const classStudentIds = studs.map(s => s.id);
         
         const filteredMarks = allMarks.filter(m => classStudentIds.includes(m.student_id));

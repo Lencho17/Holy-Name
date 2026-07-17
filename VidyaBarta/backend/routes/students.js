@@ -8,20 +8,17 @@ const {
   deleteStudent,
   exportStudents
 } = require('../controllers/studentController');
-const { protect } = require('../middleware/auth');
-
-// All student routes are protected
-router.use(protect);
+const { protect, protectAnyStaff } = require('../middleware/auth');
 
 router.route('/')
-  .get(getStudents)
-  .post(createStudent);
+  .get(protectAnyStaff, getStudents)
+  .post(protect, createStudent);
 
-router.get('/export', exportStudents);
+router.get('/export', protect, exportStudents);
 
 router.route('/:id')
-  .get(getStudentById)
-  .put(updateStudent)
-  .delete(deleteStudent);
+  .get(protectAnyStaff, getStudentById)
+  .put(protect, updateStudent)
+  .delete(protect, deleteStudent);
 
 module.exports = router;

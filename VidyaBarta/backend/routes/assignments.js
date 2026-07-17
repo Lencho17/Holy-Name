@@ -1,20 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
-const { protect } = require('../middleware/auth');
+const { protect, protectAnyStaff } = require('../middleware/auth');
 const { sendEmail } = require('../utils/mailer');
 
 // Get all class assignments for a school
-router.get('/', protect, async (req, res) => {
+router.get('/', protectAnyStaff, async (req, res) => {
   try {
     const { school_id } = req.user;
-    const { data, error } = await supabase
+    let query = supabase
       .from('class_assignments')
       .select(`
         *,
         class_teacher:staff!class_teacher_id (id, name, email)
-      `)
-      .eq('school_id', school_id);
+      `);
+      
+    if (school_id) {
+      query = query.eq('school_id', school_id);
+    }
+    
+    const { data, error } = await query;
       
     if (error) throw error;
     res.json(data);

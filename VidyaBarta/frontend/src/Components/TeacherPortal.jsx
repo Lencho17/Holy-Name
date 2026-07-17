@@ -4,7 +4,7 @@ import { SiteDataContext } from '../context/SiteDataContext';
 import { FaUser, FaSignOutAlt, FaBook, FaCheckDouble, FaSearch } from 'react-icons/fa';
 
 function TeacherPortal() {
-  const { schoolProfile } = useContext(SiteDataContext);
+  const { schoolProfile, API_URL } = useContext(SiteDataContext);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('subject-marks');
   const [staffData, setStaffData] = useState(null);
@@ -47,7 +47,7 @@ function TeacherPortal() {
     const fetchAssignments = async () => {
       try {
         const token = localStorage.getItem('staffToken') || localStorage.getItem('adminToken');
-        const res = await fetch('/api/assignments', {
+        const res = await fetch(`${API_URL}/assignments`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -71,7 +71,7 @@ function TeacherPortal() {
     const fetchExams = async () => {
       try {
         const token = localStorage.getItem('staffToken') || localStorage.getItem('adminToken');
-        const res = await fetch('/api/exams', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch(`${API_URL}/exams`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) setExams(await res.json());
       } catch(err) { console.error(err); }
     };
@@ -92,13 +92,13 @@ function TeacherPortal() {
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('adminToken');
       // Fetch students for class
-      const sRes = await fetch(`/api/students?class_level=${selectedAssignment.class_name}&section=${selectedAssignment.section}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const sRes = await fetch(`${API_URL}/students?class_level=${selectedAssignment.class_name}&section=${selectedAssignment.section}`, { headers: { 'Authorization': `Bearer ${token}` } });
       let studs = [];
       if (sRes.ok) studs = await sRes.json();
       setStudents(studs);
 
       // Fetch marks
-      const mRes = await fetch(`/api/exams/${selectedExam}/marks`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const mRes = await fetch(`${API_URL}/exams/${selectedExam}/marks`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (mRes.ok) {
         const marksData = await mRes.json();
         const initialGrid = {};
@@ -114,12 +114,12 @@ function TeacherPortal() {
   const loadReviewData = async () => {
     try {
       const token = localStorage.getItem('staffToken') || localStorage.getItem('adminToken');
-      const mRes = await fetch(`/api/exams/${selectedExam}/marks`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const mRes = await fetch(`${API_URL}/exams/${selectedExam}/marks`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (mRes.ok) {
         const allMarks = await mRes.json();
         // We only want to review marks for the assigned class. We need student info to filter by class.
         // Assuming backend handles class filtering or we do it here:
-        const sRes = await fetch(`/api/students?class_level=${selectedAssignment.class_name}&section=${selectedAssignment.section}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const sRes = await fetch(`${API_URL}/students?class_level=${selectedAssignment.class_name}&section=${selectedAssignment.section}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const studs = sRes.ok ? await sRes.json() : [];
         const classStudentIds = studs.map(s => s.id);
         
@@ -139,7 +139,7 @@ function TeacherPortal() {
         max_marks: marksGrid[sId].max
       }));
 
-      const res = await fetch(`/api/exams/${selectedExam}/marks/subject-teacher`, {
+      const res = await fetch(`${API_URL}/exams/${selectedExam}/marks/subject-teacher`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ marks: payload })
@@ -168,7 +168,7 @@ function TeacherPortal() {
         }
       });
 
-      const res = await fetch(`/api/exams/${selectedExam}/marks/class-teacher-review`, {
+      const res = await fetch(`${API_URL}/exams/${selectedExam}/marks/class-teacher-review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ modifications: mods })

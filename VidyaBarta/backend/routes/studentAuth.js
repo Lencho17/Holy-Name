@@ -162,6 +162,7 @@ router.post('/reset-password', async (req, res) => {
     `;
 
     await sendEmail({
+      from: `"VidyaBarta Admin" <${process.env.EMAIL_USER}>`,
       to: student.email,
       subject: 'Your Student Portal Password Has Been Reset',
       html: emailHtml

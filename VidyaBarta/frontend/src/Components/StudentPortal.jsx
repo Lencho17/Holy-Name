@@ -8,6 +8,7 @@ function StudentPortal() {
   const { API_URL, schoolProfile } = useContext(SiteDataContext);
   const { student, token, logout, loading: authLoading } = useContext(StudentAuthContext);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [grades, setGrades] = useState([]);
   const [notices, setNotices] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -96,8 +97,16 @@ function StudentPortal() {
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-400/20 rounded-full blur-[100px] pointer-events-none"></div>
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-400/20 rounded-full blur-[100px] pointer-events-none"></div>
 
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[55] md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Side Navigation Shell */}
-      <aside className="flex flex-col fixed left-0 top-0 h-full w-64 bg-white/60 backdrop-blur-xl border-r border-white/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-[60]">
+      <aside className={`flex flex-col fixed left-0 top-0 h-full w-64 bg-white/60 backdrop-blur-xl border-r border-white/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-[60] transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
         <div className="p-6 flex flex-col gap-2">
           <div className="flex items-center gap-3 mb-8">
             <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0 overflow-hidden">
@@ -124,7 +133,7 @@ function StudentPortal() {
             ].map(item => (
               <a 
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer font-medium text-sm
                   ${activeTab === item.id 
                     ? 'bg-white shadow-sm border border-white/80 text-indigo-700 font-semibold' 
@@ -158,11 +167,17 @@ function StudentPortal() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col min-h-screen relative z-10">
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative z-10 w-full">
         {/* Top Navigation Shell */}
-        <header className="flex justify-between items-center w-full px-8 h-20 sticky top-0 z-50 bg-white/40 backdrop-blur-md border-b border-white/40 shadow-sm">
-          <div className="flex items-center flex-1 max-w-xl">
-            <div className="relative w-full max-w-md">
+        <header className="flex justify-between items-center w-full px-4 md:px-8 h-20 sticky top-0 z-50 bg-white/40 backdrop-blur-md border-b border-white/40 shadow-sm">
+          <div className="flex items-center flex-1 max-w-xl gap-2 md:gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden p-2 text-gray-600 hover:text-indigo-600 focus:outline-none flex items-center justify-center rounded-lg hover:bg-white/50"
+            >
+              <span className="material-symbols-outlined text-[24px]">menu</span>
+            </button>
+            <div className="relative w-full max-w-md hidden sm:block">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
               <input 
                 className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all shadow-inner" 

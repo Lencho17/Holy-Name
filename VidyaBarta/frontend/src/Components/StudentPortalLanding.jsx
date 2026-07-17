@@ -175,9 +175,9 @@ function StudentPortalLanding() {
               >
                 <div className="relative z-10 mx-auto w-full max-w-lg">
                   <img 
-                    src="/hero_student.png" 
+                    src="/student_portal_new_hero.png" 
                     alt="Student using Portal" 
-                    className="w-full h-auto object-contain mix-blend-multiply drop-shadow-2xl"
+                    className="w-full h-auto object-contain mix-blend-multiply drop-shadow-2xl rounded-2xl"
                   />
                 </div>
                 {/* Floating elements */}

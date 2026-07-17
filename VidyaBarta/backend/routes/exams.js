@@ -8,8 +8,7 @@ router.get('/', protectAnyStaff, async (req, res) => {
   try {
     const { data: exams, error } = await supabase
       .from('exams')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*');
       
     if (error) throw error;
     res.json(exams);

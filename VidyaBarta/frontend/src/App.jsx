@@ -44,6 +44,7 @@ const TenderApply = React.lazy(() => import("./Components/TenderApply"));
 const CenterOfExcellence = React.lazy(() => import("./Components/CenterOfExcellence"));
 const BelowSocialbtn = React.lazy(() => import("./Components/BelowSocialbtn"));
 const Appointment = React.lazy(() => import("./Components/Appointment"));
+const UdiseStudentForm = React.lazy(() => import("./Components/UdiseStudentForm"));
 
 const Login = React.lazy(() => import("./Components/Login"));
 const StaffSignUp = React.lazy(() => import("./Components/StaffSignUp"));
@@ -213,6 +214,7 @@ function App() {
           <Route path="admission-tracker" element={<Suspense fallback={<SuspenseFallback />}><AdmissionTracker /></Suspense>} />
           <Route path="student-login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
           <Route path="student-portal" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
+          <Route path="student-udise-form" element={<Suspense fallback={<SuspenseFallback />}><UdiseStudentForm /></Suspense>} />
           <Route path="job-application" element={<Suspense fallback={<SuspenseFallback />}><JobApplicationForm /></Suspense>} />
           <Route path="tenders" element={<Suspense fallback={<SuspenseFallback />}><Tenders /></Suspense>} />
           <Route path="tenders/apply/:id" element={<Suspense fallback={<SuspenseFallback />}><TenderApply /></Suspense>} />
@@ -236,6 +238,8 @@ function App() {
         <Route path="/" element={<SchoolLayout />} errorElement={<ErrorBoundary />}>
           <Route index element={<Suspense fallback={<SuspenseFallback />}><StudentPortalLanding /></Suspense>} />
           <Route path="dashboard" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
+          <Route path="udise-form" element={<Suspense fallback={<SuspenseFallback />}><UdiseStudentForm /></Suspense>} />
+          <Route path="student-udise-form" element={<Suspense fallback={<SuspenseFallback />}><UdiseStudentForm /></Suspense>} />
           <Route path="login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
           <Route path="student-login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
         </Route>

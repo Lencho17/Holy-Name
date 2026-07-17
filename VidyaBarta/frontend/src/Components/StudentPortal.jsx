@@ -17,6 +17,7 @@ function StudentPortal() {
   const [transactions, setTransactions] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showUdiseBanner, setShowUdiseBanner] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -206,6 +207,30 @@ function StudentPortal() {
             </div>
           ) : activeTab === 'dashboard' ? (
             <>
+              {/* UDISE Form Banner */}
+              {showUdiseBanner && (
+                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-yellow-500"></div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 shrink-0">
+                      <span className="material-symbols-outlined text-2xl">assignment_late</span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-yellow-800">Action Required: UDISE Student Form</h3>
+                      <p className="text-sm text-yellow-700 mt-1 font-medium">You must complete your mandatory UDISE profile data for this academic year.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
+                    <button onClick={() => setShowUdiseBanner(false)} className="px-5 py-2.5 bg-transparent border border-yellow-300 hover:bg-yellow-100 text-yellow-800 font-bold rounded-xl transition-all whitespace-nowrap active:scale-95 flex-1 md:flex-auto">
+                      Fill Later
+                    </button>
+                    <button onClick={() => navigate('/student-udise-form')} className="px-6 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-xl shadow-md transition-all whitespace-nowrap active:scale-95 flex-1 md:flex-auto">
+                      Complete Now
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Welcome Banner Section */}
               <section className="mb-8 relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-700 shadow-xl shadow-indigo-200">
                 <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>

@@ -75,8 +75,9 @@ function DocumentHeadManager({ isSaaS, isStudentSite }) {
       link.href = '/favicon.png';
       document.title = 'VidyaBarta - School Management System';
     } else if (isStudentSite) {
-      link.href = schoolProfile?.logo || '/favicon.png';
-      document.title = schoolProfile?.name ? `${schoolProfile.name} - Student Portal` : 'Student Portal';
+      const isGlobalStudentSite = window.location.hostname === 'student.vidyabarta.com' || window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+      link.href = isGlobalStudentSite ? '/favicon.png' : (schoolProfile?.logo || '/favicon.png');
+      document.title = (schoolProfile?.name && !isGlobalStudentSite) ? `${schoolProfile.name} - Student Portal` : 'VidyaBarta Student Hub';
     } else {
       link.href = schoolProfile?.logo || '/favicon.png';
       document.title = schoolProfile?.name || 'School Website';

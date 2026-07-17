@@ -234,7 +234,7 @@ function StudentPortalLanding() {
                 viewport={{ once: true, margin: "-100px" }}
                 className="order-2 lg:order-1 relative"
               >
-                 <img src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?q=80&w=2070&auto=format&fit=crop" alt="Dashboard Preview" className="rounded-3xl shadow-2xl w-full h-auto object-cover border border-outline-variant aspect-[4/3]" />
+                 <img src="/modern_classroom.png" alt="Dashboard Preview" className="rounded-3xl shadow-2xl w-full h-auto object-cover border border-outline-variant aspect-[4/3]" />
                  <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/20 rounded-full blur-2xl -z-10"></div>
               </motion.div>
               <motion.div 

@@ -11,6 +11,8 @@ function StudentLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
   const [schoolId, setSchoolId] = useState('');
   const [schools, setSchools] = useState([]);
   const [loadingSchools, setLoadingSchools] = useState(true);
@@ -33,9 +35,42 @@ function StudentLogin() {
     fetchSchools();
   }, [API_URL]);
 
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    if (!rollNumber || !schoolId) {
+      setError('Please select a school and enter your Roll Number.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data } = await axios.post(`${API_URL}/student-auth/reset-password`, {
+        rollNumber,
+        schoolId
+      });
+      setSuccessMsg(data.message || 'Password reset instructions have been sent to your email.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to reset password. Please contact your administrator.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    if (isResetMode) {
+      handlePasswordReset(e);
+    } else {
+      handleLogin(e);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     
     if (!rollNumber || !password || !schoolId) {
       setError('Please select a school and enter both Roll Number and Password.');
@@ -84,16 +119,29 @@ function StudentLogin() {
         <div className="w-full max-w-[440px] space-y-xl z-10">
           {/* Header */}
           <div className="space-y-sm">
-            <h1 className="font-headline-lg text-headline-lg text-on-surface">Welcome Back</h1>
-            <p className="text-on-surface-variant font-body-md text-body-md">Please enter your institutional credentials to access your student portal account.</p>
+            <h1 className="font-headline-lg text-headline-lg text-on-surface">
+              {isResetMode ? 'Reset Password' : 'Welcome Back'}
+            </h1>
+            <p className="text-on-surface-variant font-body-md text-body-md">
+              {isResetMode 
+                ? 'Enter your institutional credentials below to receive a password reset link to your registered email.'
+                : 'Please enter your institutional credentials to access your student portal account.'}
+            </p>
           </div>
           
           {/* Form */}
-          <form className="space-y-lg" onSubmit={handleLogin}>
+          <form className="space-y-lg" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-error-container text-on-error-container p-4 rounded-lg font-body-sm flex items-start gap-2">
                 <span className="material-symbols-outlined">error</span>
                 <p>{error}</p>
+              </div>
+            )}
+            
+            {successMsg && (
+              <div className="bg-green-100 text-green-800 p-4 rounded-lg font-body-sm flex items-start gap-2 border border-green-200">
+                <span className="material-symbols-outlined">check_circle</span>
+                <p>{successMsg}</p>
               </div>
             )}
             
@@ -141,38 +189,48 @@ function StudentLogin() {
               </div>
             </div>
             
-            {/* Password */}
-            <div className="space-y-xs">
-              <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="password">Password</label>
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">lock</span>
-                <input 
-                  id="password" 
-                  name="password" 
-                  type={showPassword ? "text" : "password"} 
-                  required 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" 
-                  className="w-full pl-10 pr-12 py-3 bg-white border border-outline-variant rounded focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline transition-all focus:shadow-[0_0_0_2px_rgba(0,44,152,0.1)]" 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface-variant transition-colors"
-                >
-                  <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
-                </button>
+            {/* Password - Only in Login Mode */}
+            {!isResetMode && (
+              <div className="space-y-xs">
+                <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="password">Password</label>
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">lock</span>
+                  <input 
+                    id="password" 
+                    name="password" 
+                    type={showPassword ? "text" : "password"} 
+                    required 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••" 
+                    className="w-full pl-10 pr-12 py-3 bg-white border border-outline-variant rounded focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline transition-all focus:shadow-[0_0_0_2px_rgba(0,44,152,0.1)]" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface-variant transition-colors"
+                  >
+                    <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Options */}
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-sm cursor-pointer group">
-                <input type="checkbox" className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary-container cursor-pointer transition-all" />
-                <span className="font-body-sm text-body-sm text-on-surface-variant group-hover:text-on-surface">Remember me</span>
-              </label>
-              <a href="#" className="font-label-md text-label-md text-primary hover:underline transition-all">Forgot password?</a>
+              {!isResetMode ? (
+                <>
+                  <label className="flex items-center gap-sm cursor-pointer group">
+                    <input type="checkbox" className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary-container cursor-pointer transition-all" />
+                    <span className="font-body-sm text-body-sm text-on-surface-variant group-hover:text-on-surface">Remember me</span>
+                  </label>
+                  <button type="button" onClick={() => { setIsResetMode(true); setError(''); setSuccessMsg(''); }} className="font-label-md text-label-md text-primary hover:underline transition-all">Forgot password?</button>
+                </>
+              ) : (
+                <button type="button" onClick={() => { setIsResetMode(false); setError(''); setSuccessMsg(''); }} className="font-label-md text-label-md text-primary hover:underline transition-all flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px]">arrow_back</span> Back to Login
+                </button>
+              )}
             </div>
             
             {/* Submit Button */}
@@ -182,9 +240,9 @@ function StudentLogin() {
               className="w-full h-[48px] bg-primary text-white font-title-lg text-title-lg rounded-lg hover:bg-primary-container active:scale-[0.98] transition-all duration-200 shadow-sm flex items-center justify-center gap-sm group disabled:opacity-70"
             >
               {loading ? (
-                <><span className="material-symbols-outlined animate-spin">progress_activity</span> Authenticating...</>
+                <><span className="material-symbols-outlined animate-spin">progress_activity</span> {isResetMode ? 'Sending...' : 'Authenticating...'}</>
               ) : (
-                <>Login <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span></>
+                <>{isResetMode ? 'Send Reset Email' : 'Login'} <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">{isResetMode ? 'mail' : 'arrow_forward'}</span></>
               )}
             </button>
           </form>

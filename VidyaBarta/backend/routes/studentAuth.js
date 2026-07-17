@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
 const { protectStudent } = require('../middleware/auth');
+const { sendEmail } = require('../utils/mailer');
 
 // @route   GET /api/student-auth/schools
 // @desc    Get list of active schools for login dropdown
@@ -88,6 +89,88 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Error in student login:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/student-auth/reset-password
+// @desc    Reset student password to DOB and email them
+// @access  Public
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { rollNumber, schoolId } = req.body;
+
+    if (!rollNumber || !schoolId) {
+      return res.status(400).json({ message: 'Please provide roll number and select a school' });
+    }
+
+    // Find student by admission_id AND school_id
+    const { data: student, error } = await supabase
+      .from('students')
+      .select('id, admission_id, student_name, email, date_of_birth, school_id')
+      .eq('admission_id', rollNumber)
+      .eq('school_id', schoolId)
+      .single();
+
+    if (error || !student) {
+      return res.status(404).json({ message: 'Student account not found with the provided details.' });
+    }
+
+    if (!student.date_of_birth) {
+      return res.status(400).json({ message: 'Date of Birth is not registered for your account. Please contact your administrator to reset your password.' });
+    }
+
+    if (!student.email) {
+      return res.status(400).json({ message: 'No email address registered for your account. Please contact your administrator.' });
+    }
+
+    // Format DOB from YYYY-MM-DD to DDMMYYYY
+    // Ex: "2005-11-20" -> ["2005", "11", "20"] -> "20112005"
+    const parts = student.date_of_birth.split('-');
+    if (parts.length !== 3) {
+      return res.status(400).json({ message: 'Invalid Date of Birth format in database. Please contact your administrator.' });
+    }
+    const newPasswordPlain = `${parts[2]}${parts[1]}${parts[0]}`;
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPasswordPlain, salt);
+
+    // Update in database
+    const { error: updateError } = await supabase
+      .from('students')
+      .update({ password: hashedPassword })
+      .eq('id', student.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Send Email
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Password Reset Successful</h2>
+        <p>Dear ${student.student_name},</p>
+        <p>Your password for the VidyaBarta Student Portal has been successfully reset.</p>
+        <p>Your new password is your Date of Birth in <strong>DDMMYYYY</strong> format.</p>
+        <p style="font-size: 20px; font-weight: bold; color: #002C98; padding: 15px; background: #f0f4ff; border-radius: 8px; text-align: center;">
+          ${newPasswordPlain}
+        </p>
+        <p>Please log in with this new password. For security reasons, do not share this password with anyone.</p>
+        <br/>
+        <p>Best regards,<br/>The VidyaBarta Team</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: student.email,
+      subject: 'Your Student Portal Password Has Been Reset',
+      html: emailHtml
+    });
+
+    res.json({ message: `Password reset successfully. An email has been sent to ${student.email}.` });
+  } catch (error) {
+    console.error('Error in student password reset:', error);
+    res.status(500).json({ message: 'Server error during password reset' });
   }
 });
 

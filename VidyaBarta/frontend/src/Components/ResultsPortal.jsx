@@ -5,6 +5,7 @@ import { FaFileAlt, FaDownload, FaSpinner } from 'react-icons/fa';
 const ResultsPortal = ({ apiUrl, token }) => {
   const [exams, setExams] = useState([]);
   const [grievances, setGrievances] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchData = async () => {
     try {

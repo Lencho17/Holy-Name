@@ -57,14 +57,14 @@ const ExamManagement = ({ apiUrl, token }) => {
 
   const handleSelectExam = (exam) => {
     setSelectedExam(exam);
-    fetchMarks(exam._id);
+    fetchMarks(exam.id);
   };
 
   const handleSaveMarks = async () => {
     if (!selectedExam) return;
     setSavingMarks(true);
     try {
-      await axios.post(`${apiUrl}/exams/${selectedExam._id}/marks`, { marks }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${apiUrl}/exams/${selectedExam.id}/marks`, { marks }, { headers: { Authorization: `Bearer ${token}` } });
       alert('Marks saved successfully!');
     } catch (err) {
       alert('Failed to save marks');
@@ -75,8 +75,8 @@ const ExamManagement = ({ apiUrl, token }) => {
 
   const toggleWithhold = async (studentId, subject, currentStatus) => {
     try {
-      await axios.put(`${apiUrl}/exams/${selectedExam._id}/marks/${studentId}/withhold`, { subject, withheld: !currentStatus }, { headers: { Authorization: `Bearer ${token}` } });
-      fetchMarks(selectedExam._id);
+      await axios.put(`${apiUrl}/exams/${selectedExam.id}/marks/${studentId}/withhold`, { subject, withheld: !currentStatus }, { headers: { Authorization: `Bearer ${token}` } });
+      fetchMarks(selectedExam.id);
     } catch (err) {
       alert('Failed to update withhold status');
     }
@@ -126,9 +126,9 @@ const ExamManagement = ({ apiUrl, token }) => {
           <div className="space-y-3">
             {exams.map(exam => (
               <div 
-                key={exam._id} 
+                key={exam.id} 
                 onClick={() => handleSelectExam(exam)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedExam?._id === exam._id ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'hover:bg-gray-50 border-gray-100'}`}
+                className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedExam?.id === exam.id ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'hover:bg-gray-50 border-gray-100'}`}
               >
                 <div className="font-bold text-gray-800">{exam.name}</div>
                 <div className="text-xs text-gray-500 mt-1">Class {exam.class_level} • {exam.type.toUpperCase()}</div>

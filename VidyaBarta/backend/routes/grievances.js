@@ -7,15 +7,20 @@ const { protect } = require('../middleware/auth');
 router.get('/', protect, async (req, res) => {
   try {
     const { school_id } = req.user;
-    const { data, error } = await supabase
+    let query = supabase
       .from('result_grievances')
       .select(`
         *,
         exam:exams (id, name, class_level),
         student:students (id, name, roll_number)
       `)
-      .eq('school_id', school_id)
       .order('created_at', { ascending: false });
+    
+    if (school_id) {
+      query = query.eq('school_id', school_id);
+    }
+    
+    const { data, error } = await query;
       
     if (error) throw error;
     res.json(data);

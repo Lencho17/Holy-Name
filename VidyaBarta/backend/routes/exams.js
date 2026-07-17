@@ -3,12 +3,17 @@ const router = express.Router();
 const { protect, protectAnyStaff } = require('../middleware/auth');
 const supabase = require('../config/supabase');
 
-// Get all exams
+// Get all exams (scoped by school_id)
 router.get('/', protectAnyStaff, async (req, res) => {
   try {
-    const { data: exams, error } = await supabase
-      .from('exams')
-      .select('*');
+    const { school_id } = req.user;
+    let query = supabase.from('exams').select('*');
+    
+    if (school_id) {
+      query = query.eq('school_id', school_id);
+    }
+    
+    const { data: exams, error } = await query;
       
     if (error) throw error;
     res.json(exams);
@@ -18,14 +23,15 @@ router.get('/', protectAnyStaff, async (req, res) => {
   }
 });
 
-// Create a new exam
+// Create a new exam (admin only, attaches school_id)
 router.post('/', protect, async (req, res) => {
   try {
     const { name, type, class_level, start_date, end_date } = req.body;
+    const { school_id } = req.user;
     
     const { data: exam, error } = await supabase
       .from('exams')
-      .insert([{ name, type, class_level, start_date, end_date }])
+      .insert([{ name, type, class_level, start_date, end_date, school_id }])
       .select()
       .single();
 
@@ -57,7 +63,16 @@ router.get('/:id/marks', protectAnyStaff, async (req, res) => {
 router.post('/:id/marks/subject-teacher', protectAnyStaff, async (req, res) => {
   try {
     const { marks } = req.body; // Array of { student_id, subject, marks_obtained, max_marks }
-    const staff_id = req.admin.id; // Or req.user.id depending on auth middleware
+    const staff_id = req.user.id;
+
+    // Fetch exam name for the required exam_name column in marks table
+    const { data: exam } = await supabase
+      .from('exams')
+      .select('name')
+      .eq('id', req.params.id)
+      .single();
+    
+    const exam_name = exam ? exam.name : 'Unknown';
 
     // We process each mark
     for (let mark of marks) {
@@ -67,7 +82,7 @@ router.post('/:id/marks/subject-teacher', protectAnyStaff, async (req, res) => {
         .eq('exam_id', req.params.id)
         .eq('student_id', mark.student_id)
         .eq('subject', mark.subject)
-        .single();
+        .maybeSingle();
         
       if (existingMark) {
         // Only update if not finalized
@@ -79,8 +94,9 @@ router.post('/:id/marks/subject-teacher', protectAnyStaff, async (req, res) => {
            }).eq('id', existingMark.id);
         }
       } else {
-        await supabase.from('marks').insert({
+        const { error: insertErr } = await supabase.from('marks').insert({
           exam_id: req.params.id,
+          exam_name,
           student_id: mark.student_id,
           subject: mark.subject,
           marks_obtained: mark.marks_obtained,
@@ -88,8 +104,14 @@ router.post('/:id/marks/subject-teacher', protectAnyStaff, async (req, res) => {
           staff_id,
           status: 'submitted_by_subject_teacher'
         });
+        if (insertErr) {
+          console.error('Mark insert error:', insertErr);
+        }
       }
     }
+
+    // Update exam workflow status to indicate subject entries are in progress
+    await supabase.from('exams').update({ workflow_status: 'SubjectEntry' }).eq('id', req.params.id);
 
     res.json({ message: 'Marks submitted successfully' });
   } catch (err) {
@@ -103,7 +125,7 @@ router.post('/:id/marks/class-teacher-review', protectAnyStaff, async (req, res)
   try {
     // modifications is array of { mark_id, marks_obtained, reason }
     const { modifications } = req.body; 
-    const staff_id = req.admin.id;
+    const staff_id = req.user.id;
 
     for (let mod of modifications) {
       const { data: existingMark } = await supabase
@@ -113,7 +135,7 @@ router.post('/:id/marks/class-teacher-review', protectAnyStaff, async (req, res)
         .single();
         
       if (existingMark) {
-        if (existingMark.marks_obtained !== mod.marks_obtained) {
+        if (String(existingMark.marks_obtained) !== String(mod.marks_obtained)) {
           if (!mod.reason) {
             return res.status(400).json({ message: 'Reason is required for modification' });
           }
@@ -144,7 +166,7 @@ router.post('/:id/marks/class-teacher-review', protectAnyStaff, async (req, res)
       }
     }
     
-    // Update exam status if all marks are reviewed (Optional depending on how strict workflow is)
+    // Update exam status
     await supabase.from('exams').update({ workflow_status: 'ClassReview' }).eq('id', req.params.id);
 
     res.json({ message: 'Marks reviewed and updated' });
@@ -186,7 +208,7 @@ router.post('/:id/finalize', protect, async (req, res) => {
     const { data: exam, error: examError } = await supabase.from('exams').select('grievance_deadline').eq('id', req.params.id).single();
     if (examError) throw examError;
 
-    if (new Date() < new Date(exam.grievance_deadline)) {
+    if (exam.grievance_deadline && new Date() < new Date(exam.grievance_deadline)) {
       return res.status(400).json({ message: 'Cannot finalize until 7-day grievance window has passed.' });
     }
 

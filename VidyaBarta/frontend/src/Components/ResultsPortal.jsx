@@ -10,10 +10,10 @@ const ResultsPortal = ({ apiUrl, token }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/api/exams`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${apiUrl}/exams`, { headers: { Authorization: `Bearer ${token}` } });
       setExams(res.data);
 
-      const gRes = await axios.get(`/api/grievances`, { headers: { Authorization: `Bearer ${token}` } });
+      const gRes = await axios.get(`${apiUrl}/grievances`, { headers: { Authorization: `Bearer ${token}` } });
       setGrievances(gRes.data);
     } catch (err) {
       console.error(err);
@@ -29,7 +29,7 @@ const ResultsPortal = ({ apiUrl, token }) => {
   const handlePublish = async (id) => {
     if(!window.confirm('Publish results? Students will see their marks and have 7 days to raise grievances.')) return;
     try {
-      await axios.post(`/api/exams/${id}/publish`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${apiUrl}/exams/${id}/publish`, {}, { headers: { Authorization: `Bearer ${token}` } });
       fetchData();
     } catch (e) { alert('Failed to publish'); }
   };
@@ -37,14 +37,14 @@ const ResultsPortal = ({ apiUrl, token }) => {
   const handleFinalize = async (id) => {
     if(!window.confirm('Finalize results? Marks will be locked permanently.')) return;
     try {
-      await axios.post(`/api/exams/${id}/finalize`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${apiUrl}/exams/${id}/finalize`, {}, { headers: { Authorization: `Bearer ${token}` } });
       fetchData();
     } catch (e) { alert(e.response?.data?.message || 'Failed to finalize'); }
   };
 
   const handleResolveGrievance = async (id, status, admin_reply) => {
     try {
-      await axios.patch(`/api/grievances/${id}/resolve`, { status, admin_reply }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.patch(`${apiUrl}/grievances/${id}/resolve`, { status, admin_reply }, { headers: { Authorization: `Bearer ${token}` } });
       fetchData();
     } catch (e) { alert('Failed to resolve grievance'); }
   };
@@ -66,7 +66,7 @@ const ResultsPortal = ({ apiUrl, token }) => {
             <div key={exam.id} className="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center">
               <div>
                 <div className="font-bold text-gray-800">{exam.name}</div>
-                <div className="text-xs text-gray-500">Class {exam.class_level} • Status: {exam.status}</div>
+                <div className="text-xs text-gray-500">Class {exam.class_level} • Status: {exam.workflow_status || 'Draft'}</div>
               </div>
               <div className="flex gap-2">
                 {exam.workflow_status === 'ClassReview' && (

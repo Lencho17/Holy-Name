@@ -265,13 +265,6 @@ function TeacherPortal() {
             </p>
           </div>
 
-          {/* DEBUG INFO: Please ignore this, just for fixing the issue! */}
-          <div className="bg-yellow-50 text-yellow-800 p-4 rounded-lg mb-6 text-sm">
-            <p><strong>Debug Info:</strong></p>
-            <p>Staff ID: {staffData?.id}</p>
-            <p>Total Assignments for me: {assignments.length}</p>
-            <p>Assignments JSON: {JSON.stringify(assignments)}</p>
-          </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             

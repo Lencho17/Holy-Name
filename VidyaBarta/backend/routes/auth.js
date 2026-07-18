@@ -1260,8 +1260,7 @@ router.post('/add-staff-manual', protect, async (req, res) => {
         name,
         role,
         password_hash,
-        is_approved: true, // auto-approve since admin added them
-        school_id
+        is_approved: true // auto-approve since admin added them
       }])
       .select('id, name, email')
       .single();

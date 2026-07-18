@@ -19,11 +19,13 @@ exports.getStudents = async (req, res) => {
     }
     
     if (req.query.class_level) {
-      query = query.eq('class', req.query.class_level);
-    }
-    
-    if (req.query.section) {
-      query = query.eq('section', req.query.section);
+      let gradeQuery = req.query.class_level;
+      if (req.query.section) {
+        gradeQuery += ` ${req.query.section}`;
+      }
+      // some records might have "4A" or "4 A"
+      // to be safe, we could use ilike or eq, let's try exact match first
+      query = query.or(`grade.eq.${req.query.class_level},grade.ilike.${req.query.class_level} ${req.query.section},grade.ilike.${req.query.class_level}${req.query.section}`);
     }
 
     const { data: students, count, error } = await query

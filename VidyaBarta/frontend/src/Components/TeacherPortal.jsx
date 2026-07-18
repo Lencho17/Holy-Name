@@ -350,6 +350,11 @@ function TeacherPortal() {
                     </div>
                   </div>
                 )}
+                {students.length === 0 && selectedSubject && selectedExam && (
+                  <div className="mt-8 text-center p-8 bg-gray-50 rounded-lg border border-gray-100">
+                    <p className="text-gray-500 font-medium">No students found in this class.</p>
+                  </div>
+                )}
               </div>
             )}
 

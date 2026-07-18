@@ -1227,7 +1227,7 @@ router.post('/verify-staff-otp', async (req, res) => {
 router.post('/add-staff-manual', protect, async (req, res) => {
   try {
     // Only school admins/superadmins can add staff
-    if (req.user.role !== 'school_admin' && req.user.role !== 'superadmin' && req.user.role !== 'developer') {
+    if (req.user.role !== 'admin' && req.user.role !== 'school_admin' && req.user.role !== 'superadmin' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Insufficient privileges' });
     }
 

@@ -1250,7 +1250,6 @@ router.post('/add-staff-manual', protect, async (req, res) => {
 
     const crypto = require('crypto');
     const tempPassword = 'Staff#' + crypto.randomInt(1000, 9999).toString();
-    const bcrypt = require('bcrypt');
     const password_hash = await bcrypt.hash(tempPassword, 10);
 
     const { data, error } = await supabase

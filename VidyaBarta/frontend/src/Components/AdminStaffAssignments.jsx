@@ -53,9 +53,7 @@ const AdminStaffAssignments = () => {
   const fetchClassAssignments = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      // Assume /api is handled by Vite proxy if using relative, else use API_URL
-      // The assignments route we built is at /api/assignments
-      const res = await axios.get(`/api/assignments`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_URL}/assignments`, { headers: { Authorization: `Bearer ${token}` } });
       setClassAssignments(res.data);
     } catch (e) { console.error(e); }
   };
@@ -86,7 +84,7 @@ const AdminStaffAssignments = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.post(`/api/assignments`, assignForm, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${API_URL}/assignments`, assignForm, { headers: { Authorization: `Bearer ${token}` } });
       alert('Class Teachers & Subjects Assigned! Email notifications sent.');
       fetchClassAssignments();
       setAssignForm({ class_name: '', section: '', class_teacher_id: '', subject_teachers: [] });

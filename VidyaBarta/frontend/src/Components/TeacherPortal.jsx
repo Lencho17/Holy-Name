@@ -53,10 +53,11 @@ function TeacherPortal() {
         if (res.ok) {
           const data = await res.json();
           // Filter assignments for this teacher
-          const myAssignments = data.filter(a => 
-            a.class_teacher_id === staffData.id || 
-            (a.subject_teachers && a.subject_teachers.some(st => st.teacher_id === staffData.id))
-          );
+          const myAssignments = data.filter(a => {
+            const staffId = staffData.id || staffData._id;
+            return a.class_teacher_id === staffId || 
+            (a.subject_teachers && a.subject_teachers.some(st => st.teacher_id === staffId));
+          });
           setAssignments(myAssignments);
         }
       } catch (err) {
@@ -264,6 +265,14 @@ function TeacherPortal() {
             </p>
           </div>
 
+          {/* DEBUG INFO: Please ignore this, just for fixing the issue! */}
+          <div className="bg-yellow-50 text-yellow-800 p-4 rounded-lg mb-6 text-sm">
+            <p><strong>Debug Info:</strong></p>
+            <p>Staff ID: {staffData?.id}</p>
+            <p>Total Assignments for me: {assignments.length}</p>
+            <p>Assignments JSON: {JSON.stringify(assignments)}</p>
+          </div>
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             
             {activeTab === 'subject-marks' && (
@@ -274,7 +283,10 @@ function TeacherPortal() {
                     onChange={(e) => setSelectedAssignment(assignments.find(a => a.id === e.target.value))}
                   >
                     <option value="">-- Select Class --</option>
-                    {assignments.filter(a => a.subject_teachers?.some(st => st.teacher_id === staffData.id)).map(a => (
+                    {assignments.filter(a => {
+                      const staffId = staffData.id || staffData._id;
+                      return a.subject_teachers?.some(st => st.teacher_id === staffId);
+                    }).map(a => (
                       <option key={a.id} value={a.id}>{a.class_name} {a.section}</option>
                     ))}
                   </select>
@@ -285,7 +297,10 @@ function TeacherPortal() {
                     disabled={!selectedAssignment}
                   >
                     <option value="">-- Select Subject --</option>
-                    {selectedAssignment?.subject_teachers?.filter(st => st.teacher_id === staffData.id).map(st => (
+                    {selectedAssignment?.subject_teachers?.filter(st => {
+                      const staffId = staffData.id || staffData._id;
+                      return st.teacher_id === staffId;
+                    }).map(st => (
                       <option key={st.subject} value={st.subject}>{st.subject}</option>
                     ))}
                   </select>

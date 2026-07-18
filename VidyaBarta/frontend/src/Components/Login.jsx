@@ -53,7 +53,8 @@ function Login() {
       .then((res) => {
         if (res.data.token && res.data._id) {
           const userInfo = {
-            _id: res.data._id,
+            id: res.data.id || res.data._id,
+            _id: res.data._id || res.data.id,
             name: res.data.name,
             email: res.data.email,
             role: res.data.role,

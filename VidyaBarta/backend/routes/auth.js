@@ -1223,6 +1223,62 @@ router.post('/verify-staff-otp', async (req, res) => {
 
 
 // POST /api/auth/register (protected — only superadmins can create new admins)
+// Admin manually add staff
+router.post('/add-staff-manual', protect, async (req, res) => {
+  try {
+    // Only school admins/superadmins can add staff
+    if (req.user.role !== 'school_admin' && req.user.role !== 'superadmin' && req.user.role !== 'developer') {
+      return res.status(403).json({ message: 'Insufficient privileges' });
+    }
+
+    const { email, phone, name, role } = req.body;
+    if (!email || !phone || !name || !role) {
+      return res.status(400).json({ message: 'Email, phone, name, and role are required' });
+    }
+
+    const school_id = req.user.school_id;
+    if (!school_id) {
+      return res.status(400).json({ message: 'No school_id found for admin' });
+    }
+
+    const lowerEmail = email.toLowerCase();
+    
+    // Check if staff exists across ANY school to prevent global conflicts (or scope to school if multi-tenant allows same email)
+    // Actually, usually emails should be unique globally for login, or unique per school. We'll check globally for simplicity.
+    const { data: exists } = await supabase.from('staff').select('id').eq('email', lowerEmail).single();
+    if (exists) return res.status(400).json({ message: 'Staff with this email already exists' });
+
+    const crypto = require('crypto');
+    const tempPassword = 'Staff#' + crypto.randomInt(1000, 9999).toString();
+    const bcrypt = require('bcrypt');
+    const password_hash = await bcrypt.hash(tempPassword, 10);
+
+    const { data, error } = await supabase
+      .from('staff')
+      .insert([{
+        email: lowerEmail,
+        phone,
+        name,
+        role,
+        password_hash,
+        is_approved: true, // auto-approve since admin added them
+        school_id
+      }])
+      .select('id, name, email')
+      .single();
+
+    if (error) {
+      console.error('Error inserting staff:', error);
+      return res.status(500).json({ message: 'Database error while creating staff', error: error.message });
+    }
+
+    res.json({ message: 'Staff added successfully', staff: data, temporaryPassword: tempPassword });
+  } catch (error) {
+    console.error('Error in /add-staff-manual:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 router.post('/register', protect, async (req, res) => {
   try {
     if (req.user.role !== 'superadmin' && req.user.role !== 'developer') {

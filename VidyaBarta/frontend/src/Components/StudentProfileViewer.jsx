@@ -8,16 +8,16 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    name: student.student_name || student.name || '',
-    admissionId: student.admission_id || student.admissionId || '',
-    rollNumber: student.roll_number || student.rollNumber || '',
+    name: student.studentName || student.student_name || student.name || '',
+    admissionId: student.admissionId || student.admission_id || '',
+    rollNumber: student.rollNumber || student.roll_number || '',
     dob: student.dob || '',
-    bloodGroup: student.blood_group || student.bloodGroup || '',
-    phone: student.contact_number || student.phone || student.contactNumber || '',
+    bloodGroup: student.bloodGroup || student.blood_group || '',
+    phone: student.contactNumber || student.contact_number || student.phone || '',
     email: student.email || '',
     address: student.address || '',
-    guardianName: student.guardian_name || student.parentsName || student.guardianName || '',
-    guardianPhone: student.guardian_phone || student.parentsPhone || ''
+    guardianName: student.guardianName || student.guardian_name || student.parentsName || '',
+    guardianPhone: student.guardianPhone || student.guardian_phone || student.parentsPhone || ''
   });
 
   const handleSave = async () => {
@@ -58,18 +58,18 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
     doc.setFont("helvetica", "normal");
     
     const details = [
-      ['Name:', student.student_name || student.name || 'N/A'],
-      ['Admission ID:', student.admission_id || student.admissionId || 'N/A'],
-      ['Roll Number:', student.roll_number || student.rollNumber || 'N/A'],
-      ['Class:', `${student.class_name || student.grade || 'N/A'} - ${student.section || ''}`],
+      ['Name:', student.studentName || student.student_name || student.name || 'N/A'],
+      ['Admission ID:', student.admissionId || student.admission_id || 'N/A'],
+      ['Roll Number:', student.rollNumber || student.roll_number || 'N/A'],
+      ['Class:', `${student.className || student.class_name || student.grade || 'N/A'} - ${student.section || ''}`],
       ['Date of Birth:', student.dob || 'N/A'],
-      ['Blood Group:', student.blood_group || student.bloodGroup || 'N/A'],
+      ['Blood Group:', student.bloodGroup || student.blood_group || 'N/A'],
       ['Gender:', student.gender || 'N/A'],
-      ['Phone:', student.contact_number || student.phone || student.contactNumber || 'N/A'],
+      ['Phone:', student.contactNumber || student.contact_number || student.phone || 'N/A'],
       ['Email:', student.email || 'N/A'],
       ['Address:', student.address || 'N/A'],
-      ['Guardian Name:', student.guardian_name || student.parentsName || student.guardianName || 'N/A'],
-      ['Guardian Phone:', student.guardian_phone || student.parentsPhone || 'N/A'],
+      ['Guardian Name:', student.guardianName || student.guardian_name || student.parentsName || 'N/A'],
+      ['Guardian Phone:', student.guardianPhone || student.guardian_phone || student.parentsPhone || 'N/A'],
     ];
 
     let y = 65;
@@ -153,19 +153,19 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
                 {isEditing ? (
                   <input type="text" className="text-2xl font-black text-gray-800 border-b-2 border-blue-500 bg-transparent outline-none w-full" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Student Name" />
                 ) : (
-                  <h2 className="text-2xl font-black text-gray-800">{student.student_name || student.name || 'Unknown'}</h2>
+                  <h2 className="text-2xl font-black text-gray-800">{student.studentName || student.student_name || student.name || 'Unknown'}</h2>
                 )}
-                <p className="text-gray-500 font-medium text-sm">Class {student.class_name || student.grade} {student.section && `- Section ${student.section}`}</p>
+                <p className="text-gray-500 font-medium text-sm">Class {student.className || student.class_name || student.grade} {student.section && `- Section ${student.section}`}</p>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Admission ID</span>
-                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded" value={formData.admissionId} onChange={e => setFormData({...formData, admissionId: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.admission_id || student.admissionId || 'N/A'}</span>}
+                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded" value={formData.admissionId} onChange={e => setFormData({...formData, admissionId: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.admissionId || student.admission_id || 'N/A'}</span>}
                 </div>
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Roll Number</span>
-                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded" value={formData.rollNumber} onChange={e => setFormData({...formData, rollNumber: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.roll_number || student.rollNumber || 'N/A'}</span>}
+                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded" value={formData.rollNumber} onChange={e => setFormData({...formData, rollNumber: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.rollNumber || student.roll_number || 'N/A'}</span>}
                 </div>
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date of Birth</span>
@@ -176,7 +176,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Blood Group</span>
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FaTint className="text-red-400" /> {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded ml-2" value={formData.bloodGroup} onChange={e => setFormData({...formData, bloodGroup: e.target.value})} /> : (student.blood_group || student.bloodGroup || 'N/A')}
+                    <FaTint className="text-red-400" /> {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded ml-2" value={formData.bloodGroup} onChange={e => setFormData({...formData, bloodGroup: e.target.value})} /> : (student.bloodGroup || student.blood_group || 'N/A')}
                   </div>
                 </div>
               </div>
@@ -192,7 +192,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
                 </div>
                 <div>
                   <span className="block text-xs font-medium text-gray-500">Phone Number</span>
-                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.contact_number || student.phone || student.contactNumber || 'N/A'}</span>}
+                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.contactNumber || student.contact_number || student.phone || 'N/A'}</span>}
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -221,11 +221,11 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
               <div>
                 <span className="block text-xs font-medium text-gray-500">Guardian Name</span>
-                {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.guardianName} onChange={e => setFormData({...formData, guardianName: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.guardian_name || student.parentsName || student.guardianName || 'N/A'}</span>}
+                {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.guardianName} onChange={e => setFormData({...formData, guardianName: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.guardianName || student.guardian_name || student.parentsName || 'N/A'}</span>}
               </div>
               <div>
                 <span className="block text-xs font-medium text-gray-500">Guardian Phone</span>
-                {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.guardianPhone} onChange={e => setFormData({...formData, guardianPhone: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.guardian_phone || student.parentsPhone || 'N/A'}</span>}
+                {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.guardianPhone} onChange={e => setFormData({...formData, guardianPhone: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.guardianPhone || student.guardian_phone || student.parentsPhone || 'N/A'}</span>}
               </div>
             </div>
           </div>
@@ -244,11 +244,11 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-3 border border-gray-200 rounded-lg bg-white">
                 <span className="block text-xs font-medium text-gray-500 mb-1">MIL Subject</span>
-                <span className="text-sm font-semibold text-gray-800">{student.mil_subject || 'Not Assigned'}</span>
+                <span className="text-sm font-semibold text-gray-800">{student.milSubject || student.mil_subject || 'Not Assigned'}</span>
               </div>
               <div className="p-3 border border-gray-200 rounded-lg bg-white">
                 <span className="block text-xs font-medium text-gray-500 mb-1">Elective Subject</span>
-                <span className="text-sm font-semibold text-gray-800">{student.elective_subject || 'Not Assigned'}</span>
+                <span className="text-sm font-semibold text-gray-800">{student.electiveSubject || student.elective_subject || 'Not Assigned'}</span>
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-2 italic">* Applicable primarily for classes IX to XII.</p>

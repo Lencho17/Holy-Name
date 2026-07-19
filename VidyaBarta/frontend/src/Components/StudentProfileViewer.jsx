@@ -1,8 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
+import { FaEdit, FaSave } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import { FaUser, FaDownload, FaTimes, FaPhone, FaMapMarkerAlt, FaEnvelope, FaBirthdayCake, FaTint } from 'react-icons/fa';
 
-const StudentProfileViewer = ({ student, onClose, onEditSubjects }) => {
+const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiUrl }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    name: student.student_name || student.name || '',
+    admissionId: student.admission_id || student.admissionId || '',
+    rollNumber: student.roll_number || student.rollNumber || '',
+    dob: student.dob || '',
+    bloodGroup: student.blood_group || student.bloodGroup || '',
+    phone: student.contact_number || student.phone || student.contactNumber || '',
+    email: student.email || '',
+    address: student.address || '',
+    guardianName: student.guardian_name || student.parentsName || student.guardianName || '',
+    guardianPhone: student.guardian_phone || student.parentsPhone || ''
+  });
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${apiUrl}/students/${student._id || student.id}`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setIsEditing(false);
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error('Error saving student', err);
+      alert('Failed to save student profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
     
@@ -84,6 +117,17 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects }) => {
           <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <FaUser className="text-blue-600" /> Student Profile
           </h3>
+          <div className="flex gap-2 ml-auto mr-4">
+            {!isEditing ? (
+              <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
+                <FaEdit /> Edit Profile
+              </button>
+            ) : (
+              <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 text-sm font-bold text-white bg-green-600 px-4 py-1.5 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50">
+                <FaSave /> {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            )}
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2 transition-colors">
             <FaTimes size={20} />
           </button>
@@ -106,29 +150,33 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects }) => {
             
             <div className="flex-1 space-y-4">
               <div>
-                <h2 className="text-2xl font-black text-gray-800">{student.student_name || student.name || 'Unknown'}</h2>
+                {isEditing ? (
+                  <input type="text" className="text-2xl font-black text-gray-800 border-b-2 border-blue-500 bg-transparent outline-none w-full" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Student Name" />
+                ) : (
+                  <h2 className="text-2xl font-black text-gray-800">{student.student_name || student.name || 'Unknown'}</h2>
+                )}
                 <p className="text-gray-500 font-medium text-sm">Class {student.class_name || student.grade} {student.section && `- Section ${student.section}`}</p>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Admission ID</span>
-                  <span className="text-sm font-semibold text-gray-800">{student.admission_id || student.admissionId || 'N/A'}</span>
+                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded" value={formData.admissionId} onChange={e => setFormData({...formData, admissionId: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.admission_id || student.admissionId || 'N/A'}</span>}
                 </div>
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Roll Number</span>
-                  <span className="text-sm font-semibold text-gray-800">{student.roll_number || student.rollNumber || 'N/A'}</span>
+                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded" value={formData.rollNumber} onChange={e => setFormData({...formData, rollNumber: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.roll_number || student.rollNumber || 'N/A'}</span>}
                 </div>
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date of Birth</span>
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FaBirthdayCake className="text-gray-400" /> {student.dob || 'N/A'}
+                    <FaBirthdayCake className="text-gray-400" /> {isEditing ? <input type="date" className="w-full text-sm p-1 border rounded ml-2" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} /> : (student.dob || 'N/A')}
                   </div>
                 </div>
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Blood Group</span>
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FaTint className="text-red-400" /> {student.blood_group || student.bloodGroup || 'N/A'}
+                    <FaTint className="text-red-400" /> {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded ml-2" value={formData.bloodGroup} onChange={e => setFormData({...formData, bloodGroup: e.target.value})} /> : (student.blood_group || student.bloodGroup || 'N/A')}
                   </div>
                 </div>
               </div>
@@ -144,7 +192,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects }) => {
                 </div>
                 <div>
                   <span className="block text-xs font-medium text-gray-500">Phone Number</span>
-                  <span className="text-sm font-semibold text-gray-800">{student.contact_number || student.phone || student.contactNumber || 'N/A'}</span>
+                  {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.contact_number || student.phone || student.contactNumber || 'N/A'}</span>}
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -153,7 +201,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects }) => {
                 </div>
                 <div>
                   <span className="block text-xs font-medium text-gray-500">Email Address</span>
-                  <span className="text-sm font-semibold text-gray-800 break-all">{student.email || 'N/A'}</span>
+                  {isEditing ? <input type="email" className="w-full text-sm p-1 border rounded mt-1" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800 break-all">{student.email || 'N/A'}</span>}
                 </div>
               </div>
               <div className="flex items-start gap-3 md:col-span-2">
@@ -162,7 +210,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects }) => {
                 </div>
                 <div>
                   <span className="block text-xs font-medium text-gray-500">Residential Address</span>
-                  <span className="text-sm font-semibold text-gray-800">{student.address || 'N/A'}</span>
+                  {isEditing ? <textarea className="w-full text-sm p-1 border rounded mt-1" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.address || 'N/A'}</span>}
                 </div>
               </div>
             </div>
@@ -173,11 +221,11 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
               <div>
                 <span className="block text-xs font-medium text-gray-500">Guardian Name</span>
-                <span className="text-sm font-semibold text-gray-800">{student.guardian_name || student.parentsName || student.guardianName || 'N/A'}</span>
+                {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.guardianName} onChange={e => setFormData({...formData, guardianName: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.guardian_name || student.parentsName || student.guardianName || 'N/A'}</span>}
               </div>
               <div>
                 <span className="block text-xs font-medium text-gray-500">Guardian Phone</span>
-                <span className="text-sm font-semibold text-gray-800">{student.guardian_phone || student.parentsPhone || 'N/A'}</span>
+                {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded mt-1" value={formData.guardianPhone} onChange={e => setFormData({...formData, guardianPhone: e.target.value})} /> : <span className="text-sm font-semibold text-gray-800">{student.guardian_phone || student.parentsPhone || 'N/A'}</span>}
               </div>
             </div>
           </div>

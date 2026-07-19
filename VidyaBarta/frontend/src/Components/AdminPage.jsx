@@ -8958,6 +8958,8 @@ function AdminPage() {
                 setIsEditingSubjectsFor(viewingProfileFor);
                 setViewingProfileFor(null);
               }}
+              onUpdate={fetchStudents}
+              apiUrl={API_URL}
             />
           )}
 

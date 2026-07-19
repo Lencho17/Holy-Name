@@ -276,6 +276,12 @@ export const Staff = () => {
   const [activeTab, setActiveTab] = useState('employees');
   const [payrollData, setPayrollData] = useState([]);
   const [loadingPayroll, setLoadingPayroll] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskFormData, setTaskFormData] = useState({ employee_id: '', title: '', description: '' });
+  const [taskFilterStatus, setTaskFilterStatus] = useState('all');
+  const [taskSortDate, setTaskSortDate] = useState('newest');
   
   const [formData, setFormData] = useState({
     id: null, name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk'
@@ -311,13 +317,74 @@ export const Staff = () => {
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'employees') {
-      fetchEmployees();
-    } else {
-      fetchPayroll();
+  const fetchTasks = async () => {
+    setLoadingTasks(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/superadmin/employees/tasks`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTasks(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingTasks(false);
     }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'employees') fetchEmployees();
+    else if (activeTab === 'payroll') fetchPayroll();
+    else if (activeTab === 'tasks') fetchTasks();
   }, [activeTab]);
+
+  const handleTaskSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.post(`${API_URL}/superadmin/employees/tasks`, taskFormData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setIsTaskModalOpen(false);
+      fetchTasks();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to assign task');
+    }
+  };
+
+  const handleDownloadTasks = () => {
+    let filteredTasks = [...tasks];
+    if (taskFilterStatus !== 'all') {
+      filteredTasks = filteredTasks.filter(t => t.status === taskFilterStatus);
+    }
+    // simple sort
+    filteredTasks.sort((a, b) => {
+      if (taskSortDate === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+
+    const csvContent = [
+      ['Task ID', 'Employee Name', 'Title', 'Description', 'Status', 'Assigned At', 'Finished At'],
+      ...filteredTasks.map(t => [
+        t.id, 
+        t.employee?.name || 'Unknown', 
+        `"${t.title.replace(/"/g, '""')}"`, 
+        `"${(t.description || '').replace(/"/g, '""')}"`, 
+        t.status, 
+        new Date(t.created_at).toLocaleString(), 
+        t.finished_at ? new Date(t.finished_at).toLocaleString() : ''
+      ])
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `employee_tasks_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -409,6 +476,12 @@ export const Staff = () => {
         >
           Payroll & Timesheets
         </button>
+        <button 
+          onClick={() => { setActiveTab('tasks'); if(employees.length===0) fetchEmployees(); }} 
+          className={`py-3 px-6 font-bold text-label-lg transition-colors border-b-2 ${activeTab === 'tasks' ? 'border-primary text-primary' : 'border-transparent text-neutral hover:text-primary'}`}
+        >
+          Tasks & Assignments
+        </button>
       </div>
 
       {activeTab === 'employees' ? (
@@ -477,7 +550,7 @@ export const Staff = () => {
         </table>
       </div>
         </>
-      ) : (
+      ) : activeTab === 'payroll' ? (
         <>
           <div className="flex justify-between items-center mb-6">
             <p className="text-on-surface-variant">Current month payroll estimations based on timesheets.</p>
@@ -526,7 +599,79 @@ export const Staff = () => {
             </table>
           </div>
         </>
-      )}
+      ) : activeTab === 'tasks' ? (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <p className="text-on-surface-variant">Manage employee task assignments.</p>
+            <div className="flex gap-3">
+              <select value={taskFilterStatus} onChange={e => setTaskFilterStatus(e.target.value)} className="px-4 py-2 bg-surface border border-outline-variant rounded-xl font-medium outline-none">
+                <option value="all">All Status</option>
+                <option value="unfinished">Unfinished</option>
+                <option value="finished">Finished</option>
+              </select>
+              <select value={taskSortDate} onChange={e => setTaskSortDate(e.target.value)} className="px-4 py-2 bg-surface border border-outline-variant rounded-xl font-medium outline-none">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+              <button onClick={handleDownloadTasks} className="px-4 py-2 bg-surface-variant text-neutral rounded-xl font-bold hover:bg-outline-variant transition-colors">
+                Download Log
+              </button>
+              <button onClick={() => { setTaskFormData({ employee_id: '', title: '', description: '' }); setIsTaskModalOpen(true); }} className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors">
+                Assign Task
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-outline-variant">
+            <table className="w-full text-left">
+              <thead className="bg-surface-variant/50 text-label-md text-neutral uppercase">
+                <tr>
+                  <th className="p-4 font-bold">Employee</th>
+                  <th className="p-4 font-bold">Task</th>
+                  <th className="p-4 font-bold">Status</th>
+                  <th className="p-4 font-bold">Dates</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant">
+                {loadingTasks ? (
+                  <tr><td colSpan="4" className="p-8 text-center text-on-surface-variant"><FaSpinner className="animate-spin inline mr-2"/> Loading...</td></tr>
+                ) : tasks.length === 0 ? (
+                  <tr><td colSpan="4" className="p-8 text-center text-on-surface-variant">No tasks found.</td></tr>
+                ) : (
+                  tasks
+                    .filter(t => taskFilterStatus === 'all' || t.status === taskFilterStatus)
+                    .sort((a, b) => {
+                      if (taskSortDate === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+                      return new Date(a.created_at) - new Date(b.created_at);
+                    })
+                    .map(task => (
+                    <tr key={task.id} className="hover:bg-surface-variant/30 transition-colors">
+                      <td className="p-4">
+                        <div className="font-bold text-neutral">{task.employee?.name || 'Unknown'}</div>
+                        <div className="text-body-sm text-outline capitalize">{task.employee?.role || ''}</div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-bold text-neutral">{task.title}</div>
+                        <div className="text-body-sm text-on-surface-variant max-w-sm truncate">{task.description}</div>
+                      </td>
+                      <td className="p-4">
+                        {task.status === 'finished' ? (
+                          <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md text-xs font-bold uppercase">Finished</span>
+                        ) : (
+                          <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-md text-xs font-bold uppercase">Unfinished</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-sm text-neutral">
+                        <div>Assigned: {new Date(task.created_at).toLocaleDateString()}</div>
+                        {task.finished_at && <div className="text-emerald-600">Finished: {new Date(task.finished_at).toLocaleDateString()}</div>}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : null}
 
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-neutral/80 flex items-center justify-center p-4 z-50 animate-fadeIn">
@@ -598,6 +743,37 @@ export const Staff = () => {
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setIsBulkModalOpen(false)} className="px-4 py-2 border border-outline-variant rounded-xl font-bold text-neutral hover:bg-surface-variant">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90">Upload</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isTaskModalOpen && (
+        <div className="fixed inset-0 bg-neutral/80 flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-surface rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-title-lg font-bold text-neutral mb-6">Assign Task</h2>
+            <form onSubmit={handleTaskSubmit} className="space-y-4">
+              <div>
+                <label className="block text-label-md font-bold text-neutral mb-1">Employee</label>
+                <select required value={taskFormData.employee_id} onChange={e => setTaskFormData({...taskFormData, employee_id: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral">
+                  <option value="">Select an employee...</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-label-md font-bold text-neutral mb-1">Task Title</label>
+                <input type="text" required value={taskFormData.title} onChange={e => setTaskFormData({...taskFormData, title: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral" />
+              </div>
+              <div>
+                <label className="block text-label-md font-bold text-neutral mb-1">Description (Optional)</label>
+                <textarea rows="3" value={taskFormData.description} onChange={e => setTaskFormData({...taskFormData, description: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral"></textarea>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 border border-outline-variant rounded-xl font-bold text-neutral hover:bg-surface-variant">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90">Assign</button>
               </div>
             </form>
           </div>

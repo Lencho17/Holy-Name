@@ -23,7 +23,9 @@ const {
   updateEmployee,
   deleteEmployee,
   getEmployeeTimesheets,
-  getPayouts
+  getPayouts,
+  assignTask,
+  getAllTasks
 } = require('../controllers/vidyabartaEmployeeController');
 
 // All routes require Superadmin authentication
@@ -36,6 +38,10 @@ router.route('/')
 router.post('/bulk', upload.single('file'), bulkUploadEmployees);
 
 router.get('/payouts', getPayouts);
+
+router.route('/tasks')
+  .get(getAllTasks)
+  .post(assignTask);
 
 router.route('/:id')
   .put(updateEmployee)

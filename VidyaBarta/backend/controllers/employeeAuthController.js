@@ -255,3 +255,47 @@ exports.getPayout = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// @route   GET /api/employee-auth/tasks
+// @desc    Get employee's assigned tasks
+// @access  Private (Employee)
+exports.getTasks = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('vidyabarta_employee_tasks')
+      .select('*')
+      .eq('employee_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Get tasks error:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @route   PUT /api/employee-auth/tasks/:id/finish
+// @desc    Mark task as finished
+// @access  Private (Employee)
+exports.finishTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from('vidyabarta_employee_tasks')
+      .update({
+        status: 'finished',
+        finished_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('employee_id', req.user.id) // Ensure employee owns task
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Finish task error:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

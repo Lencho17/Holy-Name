@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 
 const employeeAuth = (req, res, next) => {
-  // Get token from header
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+  // Get token from header, query, or body (useful for sendBeacon)
+  const token = req.header('Authorization')?.replace('Bearer ', '') || req.query.token || req.body?.token;
 
   // Check if not token
   if (!token) {

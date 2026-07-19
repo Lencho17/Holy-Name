@@ -325,3 +325,51 @@ exports.getPayouts = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// @desc    Assign a task to an employee
+// @route   POST /api/superadmin/employees/tasks
+// @access  Private (Superadmin)
+exports.assignTask = async (req, res) => {
+  try {
+    const { employee_id, title, description } = req.body;
+    if (!employee_id || !title) {
+      return res.status(400).json({ message: 'Employee ID and Title are required' });
+    }
+
+    const { data, error } = await supabase
+      .from('vidyabarta_employee_tasks')
+      .insert({
+        employee_id,
+        title,
+        description,
+        status: 'unfinished'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get all tasks for all employees
+// @route   GET /api/superadmin/employees/tasks
+// @access  Private (Superadmin)
+exports.getAllTasks = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('vidyabarta_employee_tasks')
+      .select(`
+        *,
+        employee:vidyabarta_employees(name, email, role)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

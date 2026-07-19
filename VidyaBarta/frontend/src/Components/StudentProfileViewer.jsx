@@ -11,7 +11,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
     name: student.studentName || student.student_name || student.name || '',
     admissionId: student.admissionId || student.admission_id || '',
     rollNumber: student.rollNumber || student.roll_number || '',
-    dob: student.dob || '',
+    dob: student.dateOfBirth || student.date_of_birth || student.dob || '',
     bloodGroup: student.bloodGroup || student.blood_group || '',
     phone: student.contactNumber || student.contact_number || student.phone || '',
     email: student.email || '',
@@ -62,7 +62,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
       ['Admission ID:', student.admissionId || student.admission_id || 'N/A'],
       ['Roll Number:', student.rollNumber || student.roll_number || 'N/A'],
       ['Class:', `${student.className || student.class_name || student.grade || 'N/A'} - ${student.section || ''}`],
-      ['Date of Birth:', student.dob || 'N/A'],
+      ['Date of Birth:', student.dateOfBirth || student.date_of_birth || student.dob || 'N/A'],
       ['Blood Group:', student.bloodGroup || student.blood_group || 'N/A'],
       ['Gender:', student.gender || 'N/A'],
       ['Phone:', student.contactNumber || student.contact_number || student.phone || 'N/A'],
@@ -170,7 +170,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
                 <div>
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date of Birth</span>
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FaBirthdayCake className="text-gray-400" /> {isEditing ? <input type="date" className="w-full text-sm p-1 border rounded ml-2" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} /> : (student.dob || 'N/A')}
+                    <FaBirthdayCake className="text-gray-400" /> {isEditing ? <input type="date" className="w-full text-sm p-1 border rounded ml-2" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} /> : (student.dateOfBirth || student.date_of_birth || student.dob || 'N/A')}
                   </div>
                 </div>
                 <div>

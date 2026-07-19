@@ -275,7 +275,7 @@ export const Staff = () => {
   const [bulkFile, setBulkFile] = useState(null);
   
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: ''
+    name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk'
   });
 
   const fetchEmployees = async () => {
@@ -305,7 +305,7 @@ export const Staff = () => {
       });
       fetchEmployees();
       setIsAddModalOpen(false);
-      setFormData({ name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '' });
+      setFormData({ name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk' });
       alert('Employee added and welcome email sent!');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add employee');
@@ -367,7 +367,7 @@ export const Staff = () => {
         <table className="w-full text-left">
           <thead className="bg-surface-variant/50 text-label-md text-neutral uppercase">
             <tr>
-              <th className="p-4 font-bold">Name</th>
+              <th className="p-4 font-bold">Name & Role</th>
               <th className="p-4 font-bold">Email / Phone</th>
               <th className="p-4 font-bold">Payment / Salary</th>
               <th className="p-4 font-bold">Joined</th>
@@ -384,6 +384,7 @@ export const Staff = () => {
                 <tr key={emp.id} className="hover:bg-surface-variant/30 transition-colors">
                   <td className="p-4">
                     <div className="font-bold text-neutral">{emp.name}</div>
+                    <div className="text-body-sm font-medium text-primary capitalize">{emp.role || 'helpdesk'}</div>
                     <div className="text-body-sm text-outline">{emp.is_first_login ? 'Pending 1st Login' : 'Active'}</div>
                   </td>
                   <td className="p-4">
@@ -392,7 +393,7 @@ export const Staff = () => {
                   </td>
                   <td className="p-4">
                     <div className="text-body-md text-neutral capitalize">{emp.payment_type || 'N/A'}</div>
-                    <div className="text-body-sm font-bold text-emerald-600">{emp.salary_amount ? \`₹\${emp.salary_amount}\` : '-'}</div>
+                    <div className="text-body-sm font-bold text-emerald-600">{emp.salary_amount ? `₹${emp.salary_amount}` : '-'}</div>
                   </td>
                   <td className="p-4 text-body-md text-neutral">
                     {new Date(emp.created_at).toLocaleDateString()}
@@ -447,6 +448,14 @@ export const Staff = () => {
                   <label className="block text-label-md font-bold text-neutral mb-1">Salary Amount</label>
                   <input type="number" value={formData.salary_amount} onChange={e => setFormData({...formData, salary_amount: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral" />
                 </div>
+                <div>
+                  <label className="block text-label-md font-bold text-neutral mb-1">Role</label>
+                  <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral">
+                    <option value="helpdesk">Helpdesk</option>
+                    <option value="developer">Developer</option>
+                    <option value="accountant">Accountant</option>
+                  </select>
+                </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 border border-outline-variant rounded-xl font-bold text-neutral hover:bg-surface-variant">Cancel</button>
@@ -462,7 +471,7 @@ export const Staff = () => {
           <div className="bg-surface rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <h2 className="text-title-lg font-bold text-neutral mb-4">Bulk Upload Employees</h2>
             <p className="text-body-sm text-on-surface-variant mb-6">
-              Upload a CSV file with the following headers: <strong>name, email, phone, dob, address, payment_type, salary</strong>
+              Upload a CSV file with the following headers: <strong>name, email, phone, dob, address, payment_type, salary, role</strong>
             </p>
             <form onSubmit={handleBulkSubmit} className="space-y-4">
               <div>

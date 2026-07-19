@@ -30,7 +30,7 @@ const sendWelcomeEmail = async (email, name, password) => {
   `;
 
   await sendEmail({
-    from: \`"Vidyabarta Admin" <\${process.env.EMAIL_USER}>\`,
+    from: `"Vidyabarta Admin" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: 'Welcome to Vidyabarta Employee Hub - Your Credentials',
     html: emailHtml
@@ -59,7 +59,7 @@ exports.getEmployees = async (req, res) => {
 // @access  Private (Superadmin)
 exports.addEmployee = async (req, res) => {
   try {
-    const { name, email, phone, dob, address, payment_type, salary_amount } = req.body;
+    const { name, email, phone, dob, address, payment_type, salary_amount, role } = req.body;
 
     if (!name || !email) {
       return res.status(400).json({ message: 'Name and email are required' });
@@ -88,6 +88,7 @@ exports.addEmployee = async (req, res) => {
       address,
       payment_type: payment_type || null,
       salary_amount: salary_amount ? parseFloat(salary_amount) : null,
+      role: role || 'helpdesk',
       password: hashedPassword,
       is_first_login: true
     };
@@ -132,7 +133,7 @@ exports.bulkUploadEmployees = async (req, res) => {
         let errors = [];
 
         for (const row of results) {
-          const { name, email, phone, dob, address, payment_type, salary } = row;
+          const { name, email, phone, dob, address, payment_type, salary, role } = row;
           
           if (!name || !email) {
             errors.push({ email: email || 'unknown', message: 'Name and email are required' });
@@ -170,6 +171,7 @@ exports.bulkUploadEmployees = async (req, res) => {
               address,
               payment_type: ['hourly', 'weekly', 'monthly'].includes(payment_type?.toLowerCase()) ? payment_type.toLowerCase() : null,
               salary_amount: salary ? parseFloat(salary) : null,
+              role: role || 'helpdesk',
               password: hashedPassword,
               is_first_login: true
             };
@@ -193,7 +195,7 @@ exports.bulkUploadEmployees = async (req, res) => {
         }
 
         res.json({
-          message: \`Successfully added \${addedCount} employees.\`,
+          message: `Successfully added ${addedCount} employees.`,
           added: addedCount,
           errors
         });
@@ -208,7 +210,7 @@ exports.bulkUploadEmployees = async (req, res) => {
 // @access  Private (Superadmin)
 exports.updateEmployee = async (req, res) => {
   try {
-    const { name, phone, dob, address, payment_type, salary_amount } = req.body;
+    const { name, phone, dob, address, payment_type, salary_amount, role } = req.body;
 
     const updateData = {
       name,
@@ -217,6 +219,7 @@ exports.updateEmployee = async (req, res) => {
       address,
       payment_type: payment_type || null,
       salary_amount: salary_amount ? parseFloat(salary_amount) : null,
+      role: role || null,
       updated_at: new Date()
     };
 

@@ -263,9 +263,9 @@ function App() {
 
   const employeeRouter = createBrowserRouter(
     createRoutesFromElements(
-      <Route>
+      <Route errorElement={<ErrorBoundary />}>
         <Route path="/login" element={<Suspense fallback={<SuspenseFallback />}><EmployeeLogin /></Suspense>} />
-        <Route path="/" element={<Suspense fallback={<SuspenseFallback />}><EmployeeLayout /></Suspense>} errorElement={<ErrorBoundary />}>
+        <Route path="/" element={<Suspense fallback={<SuspenseFallback />}><EmployeeLayout /></Suspense>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={<SuspenseFallback />}><EmployeeDashboard /></Suspense>} />
           <Route path="setup" element={<Suspense fallback={<SuspenseFallback />}><EmployeeSetup /></Suspense>} />

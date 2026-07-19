@@ -322,7 +322,7 @@ function TeacherPortal() {
                       <tbody>
                         {students.map(s => (
                           <tr key={s.id} className="border-b border-gray-50">
-                            <td className="p-3 text-sm font-medium">{s.name} ({s.roll_number})</td>
+                            <td className="p-3 text-sm font-medium">{s.student_name || s.name} ({s.admission_id || s.roll_number})</td>
                             <td className="p-3">
                               <input 
                                 type="number" 

@@ -12,7 +12,7 @@ const generateRandomPassword = () => {
 
 // Send Welcome Email
 const sendWelcomeEmail = async (email, name, password) => {
-  const loginUrl = 'https://employeehub.vidyabarta.com/login'; // Employee Hub URL
+  const loginUrl = 'https://employee.vidyabarta.com/login'; // Employee Hub URL
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

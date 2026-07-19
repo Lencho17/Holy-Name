@@ -197,7 +197,8 @@ exports.createStudent = async (req, res) => {
       contact_number: req.body.phone || req.body.contactNumber || req.body.contact_number,
       email: req.body.email,
       address: req.body.address,
-      date_of_birth: req.body.dob || req.body.date_of_birth
+      date_of_birth: req.body.dob || req.body.date_of_birth,
+      school_id: req.user ? req.user.school_id : null
     };
 
     const { data: student, error } = await supabase

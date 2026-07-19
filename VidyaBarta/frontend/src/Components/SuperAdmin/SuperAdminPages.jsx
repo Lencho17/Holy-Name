@@ -275,7 +275,7 @@ export const Staff = () => {
   const [bulkFile, setBulkFile] = useState(null);
   
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk'
+    id: null, name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk'
   });
 
   const fetchEmployees = async () => {
@@ -300,16 +300,38 @@ export const Staff = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.post(`${API_URL}/superadmin/employees`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (formData.id) {
+        await axios.put(`${API_URL}/superadmin/employees/${formData.id}`, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert('Employee updated successfully!');
+      } else {
+        await axios.post(`${API_URL}/superadmin/employees`, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert('Employee added and welcome email sent!');
+      }
       fetchEmployees();
       setIsAddModalOpen(false);
-      setFormData({ name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk' });
-      alert('Employee added and welcome email sent!');
+      setFormData({ id: null, name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk' });
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add employee');
+      alert(err.response?.data?.message || 'Failed to save employee');
     }
+  };
+
+  const handleEdit = (emp) => {
+    setFormData({
+      id: emp.id,
+      name: emp.name || '',
+      email: emp.email || '',
+      phone: emp.phone || '',
+      dob: emp.dob || '',
+      address: emp.address || '',
+      payment_type: emp.payment_type || 'monthly',
+      salary_amount: emp.salary_amount || '',
+      role: emp.role || 'helpdesk'
+    });
+    setIsAddModalOpen(true);
   };
 
   const handleBulkSubmit = async (e) => {
@@ -357,7 +379,7 @@ export const Staff = () => {
           <button onClick={() => setIsBulkModalOpen(true)} className="px-4 py-2 bg-surface-variant text-neutral rounded-xl font-bold hover:bg-outline-variant transition-colors">
             Bulk Upload
           </button>
-          <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-colors">
+          <button onClick={() => { setFormData({ id: null, name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk' }); setIsAddModalOpen(true); }} className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-colors">
             <FaPlus /> Add Employee
           </button>
         </div>
@@ -399,9 +421,14 @@ export const Staff = () => {
                     {new Date(emp.created_at).toLocaleDateString()}
                   </td>
                   <td className="p-4">
-                    <button onClick={() => handleDelete(emp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Employee">
-                      <FaTrash />
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(emp)} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Edit Employee">
+                        <FaEdit />
+                      </button>
+                      <button onClick={() => handleDelete(emp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Employee">
+                        <FaTrash />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -413,7 +440,7 @@ export const Staff = () => {
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-neutral/80 flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-surface rounded-2xl p-6 w-full max-w-xl shadow-2xl">
-            <h2 className="text-title-lg font-bold text-neutral mb-6">Add New Employee</h2>
+            <h2 className="text-title-lg font-bold text-neutral mb-6">{formData.id ? 'Edit Employee' : 'Add New Employee'}</h2>
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -459,7 +486,7 @@ export const Staff = () => {
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 border border-outline-variant rounded-xl font-bold text-neutral hover:bg-surface-variant">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90">Save Employee</button>
+                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90">{formData.id ? 'Update Employee' : 'Save Employee'}</button>
               </div>
             </form>
           </div>

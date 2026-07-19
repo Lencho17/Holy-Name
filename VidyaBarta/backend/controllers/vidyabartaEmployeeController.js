@@ -101,10 +101,8 @@ exports.addEmployee = async (req, res) => {
 
     if (error) throw error;
 
-    // Send welcome email asynchronously
-    sendWelcomeEmail(email, name, tempPassword).catch(err => {
-      console.error('Failed to send welcome email:', err);
-    });
+    // Send welcome email
+    await sendWelcomeEmail(email, name, tempPassword);
 
     res.status(201).json({ message: 'Employee added successfully', employee: newEmployee });
   } catch (error) {

@@ -21,7 +21,6 @@ const AdminSignUp = React.lazy(() => import("./Components/AdminSignUp"));
 
 // School Components
 const SchoolHome = React.lazy(() => import("./Components/SchoolHome"));
-// const ThemeResolver = React.lazy(() => import("./ThemeResolver"));
 const About = React.lazy(() => import("./Components/About"));
 const Contact = React.lazy(() => import("./Components/Contact"));
 const Gallery = React.lazy(() => import("./Components/Gallery"));
@@ -70,7 +69,7 @@ const SuspenseFallback = () => (
   </div>
 );
 
-function DocumentHeadManager({ isSaaS, isStudentSite }) {
+function DocumentHeadManager({ isSaaS, isStudentSite, isEmployeeSite }) {
   const { schoolProfile } = useContext(SiteDataContext);
   useEffect(() => {
     let link = document.querySelector("link[rel~='icon']");
@@ -79,9 +78,11 @@ function DocumentHeadManager({ isSaaS, isStudentSite }) {
       link.rel = 'icon';
       document.getElementsByTagName('head')[0].appendChild(link);
     }
-    // In SaaS mode (e.g. Vidyabarta landing page or SuperAdmin), always use the default favicon
-    // In School mode, use the school's specific logo
-    if (isSaaS) {
+    
+    if (isEmployeeSite) {
+      link.href = '/favicon.png';
+      document.title = 'Vidyabarta Employee Hub';
+    } else if (isSaaS) {
       link.href = '/favicon.png';
       document.title = 'VidyaBarta - School Management System';
     } else if (isStudentSite) {
@@ -92,7 +93,7 @@ function DocumentHeadManager({ isSaaS, isStudentSite }) {
       link.href = schoolProfile?.logo || '/favicon.png';
       document.title = schoolProfile?.name || 'School Website';
     }
-  }, [schoolProfile, isSaaS, isStudentSite]);
+  }, [schoolProfile, isSaaS, isStudentSite, isEmployeeSite]);
   return null;
 }
 
@@ -281,7 +282,7 @@ function App() {
     <SiteDataProvider>
       <StudentAuthProvider>
         <EmployeeAuthProvider>
-          <DocumentHeadManager isSaaS={isSaaS} isStudentSite={isStudentSite} />
+          <DocumentHeadManager isSaaS={isSaaS} isStudentSite={isStudentSite} isEmployeeSite={isEmployeeSite} />
           <RouterProvider router={isEmployeeSite ? employeeRouter : (isStudentSite ? studentRouter : (isSaaS ? saasRouter : schoolRouter))} />
         </EmployeeAuthProvider>
       </StudentAuthProvider>

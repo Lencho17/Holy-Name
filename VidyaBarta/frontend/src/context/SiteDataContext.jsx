@@ -278,6 +278,11 @@ export const SiteDataProvider = ({ children }) => {
             ? localStorage.getItem('test_domain') 
             : window.location.hostname;
           
+        if (targetDomain.startsWith('employee.') || window.location.search.includes('site=employee')) {
+          setLoading(false);
+          return;
+        }
+          
         const adminToken = localStorage.getItem('adminToken');
         const staffToken = localStorage.getItem('staffToken');
         const studentToken = localStorage.getItem('studentToken');

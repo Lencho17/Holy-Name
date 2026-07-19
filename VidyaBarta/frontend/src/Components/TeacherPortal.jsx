@@ -128,7 +128,14 @@ function TeacherPortal() {
         const studs = sResData.data || sResData;
         const classStudentIds = studs.map(s => s.id);
         
-        const filteredMarks = allMarks.filter(m => classStudentIds.includes(m.student_id));
+        const filteredMarks = allMarks.filter(m => classStudentIds.includes(m.student_id)).map(m => {
+          const student = studs.find(s => s.id === m.student_id);
+          return {
+            ...m,
+            studentName: student ? (student.student_name || student.name) : 'Unknown Student',
+            admissionId: student ? (student.admission_id || student.roll_number) : ''
+          };
+        });
         setReviewMarks(filteredMarks);
       }
     } catch(err) { console.error(err); }
@@ -397,7 +404,7 @@ function TeacherPortal() {
                      <tbody>
                        {reviewMarks.map(m => (
                          <tr key={m.id} className="border-b border-gray-50">
-                           <td className="p-3 text-sm">{m.student_id}</td>
+                           <td className="p-3 text-sm font-medium">{m.studentName} <span className="text-gray-500 text-xs font-normal">({m.admissionId})</span></td>
                            <td className="p-3 text-sm font-medium">{m.subject}</td>
                            <td className="p-3 text-sm">{m.marks_obtained} / {m.max_marks}</td>
                            <td className="p-3">

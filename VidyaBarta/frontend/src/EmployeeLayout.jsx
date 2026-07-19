@@ -19,8 +19,10 @@ const EmployeeLayout = () => {
       <header className="bg-primary text-white p-4 flex justify-between items-center shadow-md">
         <div className="text-xl font-bold">Vidyabarta Employee Hub</div>
         <div className="flex gap-4 items-center">
-          <span className="font-medium text-sm hidden md:block">Welcome, {employee.name} ({employee.role})</span>
-          <button onClick={logout} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-bold transition">
+          <Link to="/dashboard" className="text-white hover:text-white/80 font-bold text-sm hidden md:block">Dashboard</Link>
+          <Link to="/payouts" className="text-white hover:text-white/80 font-bold text-sm hidden md:block">Payouts</Link>
+          <span className="font-medium text-sm hidden md:block opacity-50 border-l border-white/20 pl-4 ml-2">Welcome, {employee.name}</span>
+          <button onClick={logout} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-bold transition ml-2">
             Logout
           </button>
         </div>

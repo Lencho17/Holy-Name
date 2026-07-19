@@ -273,12 +273,16 @@ export const Staff = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
+  const [activeTab, setActiveTab] = useState('employees');
+  const [payrollData, setPayrollData] = useState([]);
+  const [loadingPayroll, setLoadingPayroll] = useState(false);
   
   const [formData, setFormData] = useState({
     id: null, name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '', role: 'helpdesk'
   });
 
   const fetchEmployees = async () => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
       const res = await axios.get(`${API_URL}/superadmin/employees`, {
@@ -292,9 +296,28 @@ export const Staff = () => {
     }
   };
 
+  const fetchPayroll = async () => {
+    setLoadingPayroll(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/superadmin/employees/payouts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPayrollData(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingPayroll(false);
+    }
+  };
+
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    if (activeTab === 'employees') {
+      fetchEmployees();
+    } else {
+      fetchPayroll();
+    }
+  }, [activeTab]);
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -373,9 +396,26 @@ export const Staff = () => {
 
   return (
     <PageWrapper title="Vidyabarta Staff">
-      <div className="flex justify-between items-center mb-6">
-        <p className="text-on-surface-variant">Manage Vidyabarta internal employees.</p>
-        <div className="flex gap-3">
+      <div className="flex border-b border-outline-variant mb-6">
+        <button 
+          onClick={() => setActiveTab('employees')} 
+          className={`py-3 px-6 font-bold text-label-lg transition-colors border-b-2 ${activeTab === 'employees' ? 'border-primary text-primary' : 'border-transparent text-neutral hover:text-primary'}`}
+        >
+          Manage Employees
+        </button>
+        <button 
+          onClick={() => setActiveTab('payroll')} 
+          className={`py-3 px-6 font-bold text-label-lg transition-colors border-b-2 ${activeTab === 'payroll' ? 'border-primary text-primary' : 'border-transparent text-neutral hover:text-primary'}`}
+        >
+          Payroll & Timesheets
+        </button>
+      </div>
+
+      {activeTab === 'employees' ? (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <p className="text-on-surface-variant">Manage Vidyabarta internal employees.</p>
+            <div className="flex gap-3">
           <button onClick={() => setIsBulkModalOpen(true)} className="px-4 py-2 bg-surface-variant text-neutral rounded-xl font-bold hover:bg-outline-variant transition-colors">
             Bulk Upload
           </button>
@@ -436,6 +476,57 @@ export const Staff = () => {
           </tbody>
         </table>
       </div>
+        </>
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <p className="text-on-surface-variant">Current month payroll estimations based on timesheets.</p>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-outline-variant">
+            <table className="w-full text-left">
+              <thead className="bg-surface-variant/50 text-label-md text-neutral uppercase">
+                <tr>
+                  <th className="p-4 font-bold">Employee</th>
+                  <th className="p-4 font-bold">Payment Type</th>
+                  <th className="p-4 font-bold">Base Salary</th>
+                  <th className="p-4 font-bold">Hours Tracked</th>
+                  <th className="p-4 font-bold">Est. Payout</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant">
+                {loadingPayroll ? (
+                  <tr><td colSpan="5" className="p-8 text-center text-on-surface-variant"><FaSpinner className="animate-spin inline mr-2"/> Loading...</td></tr>
+                ) : payrollData.length === 0 ? (
+                  <tr><td colSpan="5" className="p-8 text-center text-on-surface-variant">No payroll data found.</td></tr>
+                ) : (
+                  payrollData.map(emp => (
+                    <tr key={emp.id} className="hover:bg-surface-variant/30 transition-colors">
+                      <td className="p-4">
+                        <div className="font-bold text-neutral">{emp.name}</div>
+                        <div className="text-body-sm font-medium text-primary capitalize">{emp.role}</div>
+                      </td>
+                      <td className="p-4 capitalize text-neutral">
+                        {emp.payment_type || 'N/A'}
+                      </td>
+                      <td className="p-4 text-neutral font-medium">
+                        {emp.salary_amount ? `₹${emp.salary_amount}` : '-'}
+                      </td>
+                      <td className="p-4 text-neutral font-medium">
+                        {emp.total_hours} hrs
+                        <div className="text-[10px] text-on-surface-variant">({emp.timesheet_count} sessions)</div>
+                      </td>
+                      <td className="p-4 font-bold text-emerald-600 text-lg">
+                        ₹{emp.estimated_payout?.toFixed(2) || 0}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-neutral/80 flex items-center justify-center p-4 z-50 animate-fadeIn">

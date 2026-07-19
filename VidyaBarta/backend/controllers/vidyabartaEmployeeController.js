@@ -256,3 +256,72 @@ exports.deleteEmployee = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// @desc    Get all timesheets for a specific employee
+// @route   GET /api/superadmin/employees/:id/timesheets
+// @access  Private (Superadmin)
+exports.getEmployeeTimesheets = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('vidyabarta_employee_timesheets')
+      .select('*')
+      .eq('employee_id', req.params.id)
+      .order('clock_in', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get payroll data for all employees (current month by default)
+// @route   GET /api/superadmin/employees/payouts
+// @access  Private (Superadmin)
+exports.getPayouts = async (req, res) => {
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const { data: employees, error: empErr } = await supabase
+      .from('vidyabarta_employees')
+      .select('id, name, role, payment_type, salary_amount');
+
+    if (empErr) throw empErr;
+
+    const { data: timesheets, error: timeErr } = await supabase
+      .from('vidyabarta_employee_timesheets')
+      .select('employee_id, duration_minutes')
+      .gte('clock_in', startOfMonth)
+      .lte('clock_in', endOfMonth)
+      .eq('status', 'offline');
+
+    if (timeErr) throw timeErr;
+
+    // Aggregate payouts
+    const payrollData = employees.map(emp => {
+      const empTimesheets = timesheets.filter(t => t.employee_id === emp.id);
+      const totalMinutes = empTimesheets.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
+      const totalHours = totalMinutes / 60;
+      
+      let payout = 0;
+      if (emp.payment_type === 'hourly') {
+        payout = totalHours * (emp.salary_amount || 0);
+      } else {
+        payout = emp.salary_amount || 0;
+      }
+
+      return {
+        ...emp,
+        total_hours: totalHours.toFixed(2),
+        estimated_payout: payout,
+        timesheet_count: empTimesheets.length
+      };
+    });
+
+    res.json(payrollData);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

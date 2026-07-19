@@ -62,6 +62,7 @@ const EmployeeLayout = React.lazy(() => import("./EmployeeLayout"));
 const EmployeeLogin = React.lazy(() => import("./Components/EmployeeHub/EmployeeLogin"));
 const EmployeeSetup = React.lazy(() => import("./Components/EmployeeHub/EmployeeSetup"));
 const EmployeeDashboard = React.lazy(() => import("./Components/EmployeeHub/EmployeeDashboard"));
+const EmployeePayouts = React.lazy(() => import("./Components/EmployeeHub/EmployeePayouts"));
 
 const SuspenseFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -269,6 +270,7 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={<SuspenseFallback />}><EmployeeDashboard /></Suspense>} />
           <Route path="setup" element={<Suspense fallback={<SuspenseFallback />}><EmployeeSetup /></Suspense>} />
+          <Route path="payouts" element={<Suspense fallback={<SuspenseFallback />}><EmployeePayouts /></Suspense>} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Route>

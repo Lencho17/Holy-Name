@@ -142,6 +142,7 @@ app.use('/api/payments', apiLimiter, paymentsRoutes);
 app.use('/api/wallet', apiLimiter, walletRoutes);
 app.use('/api/domains', apiLimiter, domainsRoutes);
 app.use('/api/superadmin', apiLimiter, superadminRoutes);
+app.use('/api/superadmin/employees', apiLimiter, require('./routes/vidyabartaEmployees'));
 app.use('/api/content', apiLimiter, contentRoutes);
 app.use('/api/admissions', apiLimiter, admissionsRoutes);
 app.use('/api/students', apiLimiter, studentsRoutes);

@@ -267,7 +267,218 @@ export { default as Wallets } from './SuperAdminWallets';
 
 // Staff Management
 export const RolePermission = () => <PageWrapper title="Role & Permission"><p>Manage roles and permissions.</p></PageWrapper>;
-export const Staff = () => <PageWrapper title="Staff"><p>Manage super admin staff members.</p></PageWrapper>;
+export const Staff = () => {
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  
+  const [formData, setFormData] = useState({
+    name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: ''
+  });
+
+  const fetchEmployees = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/superadmin/employees`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setEmployees(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const handleAddSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.post(`${API_URL}/superadmin/employees`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchEmployees();
+      setIsAddModalOpen(false);
+      setFormData({ name: '', email: '', phone: '', dob: '', address: '', payment_type: 'monthly', salary_amount: '' });
+      alert('Employee added and welcome email sent!');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to add employee');
+    }
+  };
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    if (!bulkFile) return alert('Please select a CSV file');
+    
+    const formDataObj = new FormData();
+    formDataObj.append('file', bulkFile);
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.post(`${API_URL}/superadmin/employees/bulk`, formDataObj, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      alert(`Bulk upload complete: ${res.data.added} added. ${res.data.errors.length} errors.`);
+      fetchEmployees();
+      setIsBulkModalOpen(false);
+      setBulkFile(null);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to bulk upload');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this employee?')) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.delete(`${API_URL}/superadmin/employees/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchEmployees();
+    } catch (err) {
+      alert('Failed to delete employee');
+    }
+  };
+
+  return (
+    <PageWrapper title="Vidyabarta Staff">
+      <div className="flex justify-between items-center mb-6">
+        <p className="text-on-surface-variant">Manage Vidyabarta internal employees.</p>
+        <div className="flex gap-3">
+          <button onClick={() => setIsBulkModalOpen(true)} className="px-4 py-2 bg-surface-variant text-neutral rounded-xl font-bold hover:bg-outline-variant transition-colors">
+            Bulk Upload
+          </button>
+          <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 transition-colors">
+            <FaPlus /> Add Employee
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-outline-variant">
+        <table className="w-full text-left">
+          <thead className="bg-surface-variant/50 text-label-md text-neutral uppercase">
+            <tr>
+              <th className="p-4 font-bold">Name</th>
+              <th className="p-4 font-bold">Email / Phone</th>
+              <th className="p-4 font-bold">Payment / Salary</th>
+              <th className="p-4 font-bold">Joined</th>
+              <th className="p-4 font-bold">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-outline-variant">
+            {loading ? (
+              <tr><td colSpan="5" className="p-8 text-center text-on-surface-variant"><FaSpinner className="animate-spin inline mr-2"/> Loading...</td></tr>
+            ) : employees.length === 0 ? (
+              <tr><td colSpan="5" className="p-8 text-center text-on-surface-variant">No employees found.</td></tr>
+            ) : (
+              employees.map(emp => (
+                <tr key={emp.id} className="hover:bg-surface-variant/30 transition-colors">
+                  <td className="p-4">
+                    <div className="font-bold text-neutral">{emp.name}</div>
+                    <div className="text-body-sm text-outline">{emp.is_first_login ? 'Pending 1st Login' : 'Active'}</div>
+                  </td>
+                  <td className="p-4">
+                    <div className="text-body-md text-neutral">{emp.email}</div>
+                    <div className="text-body-sm text-outline">{emp.phone || '-'}</div>
+                  </td>
+                  <td className="p-4">
+                    <div className="text-body-md text-neutral capitalize">{emp.payment_type || 'N/A'}</div>
+                    <div className="text-body-sm font-bold text-emerald-600">{emp.salary_amount ? \`₹\${emp.salary_amount}\` : '-'}</div>
+                  </td>
+                  <td className="p-4 text-body-md text-neutral">
+                    {new Date(emp.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="p-4">
+                    <button onClick={() => handleDelete(emp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Employee">
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-neutral/80 flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-surface rounded-2xl p-6 w-full max-w-xl shadow-2xl">
+            <h2 className="text-title-lg font-bold text-neutral mb-6">Add New Employee</h2>
+            <form onSubmit={handleAddSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-label-md font-bold text-neutral mb-1">Name</label>
+                  <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral" />
+                </div>
+                <div>
+                  <label className="block text-label-md font-bold text-neutral mb-1">Email</label>
+                  <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral" />
+                </div>
+                <div>
+                  <label className="block text-label-md font-bold text-neutral mb-1">Phone</label>
+                  <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral" />
+                </div>
+                <div>
+                  <label className="block text-label-md font-bold text-neutral mb-1">Date of Birth</label>
+                  <input type="date" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-label-md font-bold text-neutral mb-1">Address</label>
+                  <textarea rows="2" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral"></textarea>
+                </div>
+                <div>
+                  <label className="block text-label-md font-bold text-neutral mb-1">Payment Type</label>
+                  <select value={formData.payment_type} onChange={e => setFormData({...formData, payment_type: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral">
+                    <option value="monthly">Monthly</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="hourly">Hourly</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-label-md font-bold text-neutral mb-1">Salary Amount</label>
+                  <input type="number" value={formData.salary_amount} onChange={e => setFormData({...formData, salary_amount: e.target.value})} className="w-full border border-outline-variant rounded-xl p-3 bg-surface focus:border-primary outline-none text-neutral" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 border border-outline-variant rounded-xl font-bold text-neutral hover:bg-surface-variant">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90">Save Employee</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 bg-neutral/80 flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-surface rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-title-lg font-bold text-neutral mb-4">Bulk Upload Employees</h2>
+            <p className="text-body-sm text-on-surface-variant mb-6">
+              Upload a CSV file with the following headers: <strong>name, email, phone, dob, address, payment_type, salary</strong>
+            </p>
+            <form onSubmit={handleBulkSubmit} className="space-y-4">
+              <div>
+                <input type="file" accept=".csv" required onChange={e => setBulkFile(e.target.files[0])} className="w-full border border-outline-variant rounded-xl p-3 bg-surface text-neutral" />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setIsBulkModalOpen(false)} className="px-4 py-2 border border-outline-variant rounded-xl font-bold text-neutral hover:bg-surface-variant">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-xl font-bold hover:bg-primary/90">Upload</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </PageWrapper>
+  );
+};
 
 // Web Settings
 export const WebGeneralSettings = () => {

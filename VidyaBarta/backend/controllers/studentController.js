@@ -146,6 +146,7 @@ exports.updateStudent = async (req, res) => {
       contact_number: req.body.phone || req.body.contactNumber || req.body.contact_number,
       email: req.body.email,
       address: req.body.address,
+      date_of_birth: req.body.dob || req.body.date_of_birth,
       mil_subject: req.body.mil_subject,
       elective_subject: req.body.elective_subject,
       updated_at: new Date()
@@ -195,7 +196,8 @@ exports.createStudent = async (req, res) => {
       guardian_name: req.body.parentsName || req.body.guardianName || req.body.parents_name || req.body.guardian_name,
       contact_number: req.body.phone || req.body.contactNumber || req.body.contact_number,
       email: req.body.email,
-      address: req.body.address
+      address: req.body.address,
+      date_of_birth: req.body.dob || req.body.date_of_birth
     };
 
     const { data: student, error } = await supabase

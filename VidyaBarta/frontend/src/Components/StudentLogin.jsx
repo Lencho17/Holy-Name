@@ -48,7 +48,7 @@ function StudentLogin() {
     setLoading(true);
     try {
       const { data } = await axios.post(`${API_URL}/student-auth/reset-password`, {
-        rollNumber,
+        email: rollNumber,
         schoolId
       });
       setSuccessMsg(data.message || 'Password reset instructions have been sent to your email.');

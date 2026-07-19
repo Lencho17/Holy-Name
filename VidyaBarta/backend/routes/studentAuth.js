@@ -100,17 +100,17 @@ router.post('/login', async (req, res) => {
 // @access  Public
 router.post('/reset-password', async (req, res) => {
   try {
-    const { rollNumber, schoolId } = req.body;
+    const { email, schoolId } = req.body;
 
-    if (!rollNumber || !schoolId) {
-      return res.status(400).json({ message: 'Please provide roll number and select a school' });
+    if (!email || !schoolId) {
+      return res.status(400).json({ message: 'Please provide email and select a school' });
     }
 
-    // Find student by admission_id AND school_id
+    // Find student by email AND school_id
     const { data: student, error } = await supabase
       .from('students')
       .select('id, admission_id, student_name, email, date_of_birth, school_id')
-      .eq('admission_id', rollNumber)
+      .eq('email', email)
       .eq('school_id', schoolId)
       .single();
 

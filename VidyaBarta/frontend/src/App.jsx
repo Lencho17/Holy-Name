@@ -10,6 +10,7 @@ import SchoolLayout from "./SchoolLayout";
 import "./App.css";
 import { SiteDataProvider, SiteDataContext } from "./context/SiteDataContext";
 import { StudentAuthProvider } from "./context/StudentAuthContext";
+import { EmployeeAuthProvider } from "./context/EmployeeAuthContext";
 import React, { useContext, useEffect, Suspense } from "react";
 import { FaSpinner } from "react-icons/fa";
 
@@ -55,6 +56,12 @@ const TeacherPortal = React.lazy(() => import("./Components/TeacherPortal"));
 import SuperAdminLayout from "./Components/SuperAdmin/SuperAdminLayout";
 import * as SA from "./Components/SuperAdmin/SuperAdminPages";
 import ProtectedRoute from "./Components/ProtectedRoute";
+
+// Employee Hub Components
+const EmployeeLayout = React.lazy(() => import("./EmployeeLayout"));
+const EmployeeLogin = React.lazy(() => import("./Components/EmployeeHub/EmployeeLogin"));
+const EmployeeSetup = React.lazy(() => import("./Components/EmployeeHub/EmployeeSetup"));
+const EmployeeDashboard = React.lazy(() => import("./Components/EmployeeHub/EmployeeDashboard"));
 
 const SuspenseFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -138,8 +145,9 @@ function App() {
   // We show SaaS if domain is vidyabarta.com OR www.vidyabarta.com OR (localhost without test_domain)
   // OR if we are explicitly trying to access a superadmin route
   const isPreviewSchool = urlParams.get('preview_school') === 'true';
+  const isEmployeeSite = hostname === 'employee.vidyabarta.com' || hostname.startsWith('employee.') || urlParams.get('site') === 'employee';
   const isStudentSite = hostname === 'student.vidyabarta.com' || hostname.startsWith('student.') || urlParams.get('site') === 'student';
-  const isSaaS = ((hostname === 'vidyabarta.com' || hostname === 'www.vidyabarta.com' || (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) || (isLocalhost && !hasTestDomain) || isSuperAdminPath)) && !isPreviewSchool && !isStudentSite;
+  const isSaaS = ((hostname === 'vidyabarta.com' || hostname === 'www.vidyabarta.com' || (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) || (isLocalhost && !hasTestDomain) || isSuperAdminPath)) && !isPreviewSchool && !isStudentSite && !isEmployeeSite;
 
   const saasRouter = createBrowserRouter(
     createRoutesFromElements(
@@ -253,11 +261,27 @@ function App() {
     )
   );
 
+  const employeeRouter = createBrowserRouter(
+    createRoutesFromElements(
+      <Route>
+        <Route path="/login" element={<Suspense fallback={<SuspenseFallback />}><EmployeeLogin /></Suspense>} />
+        <Route path="/" element={<Suspense fallback={<SuspenseFallback />}><EmployeeLayout /></Suspense>} errorElement={<ErrorBoundary />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={<SuspenseFallback />}><EmployeeDashboard /></Suspense>} />
+          <Route path="setup" element={<Suspense fallback={<SuspenseFallback />}><EmployeeSetup /></Suspense>} />
+        </Route>
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Route>
+    )
+  );
+
   return (
     <SiteDataProvider>
       <StudentAuthProvider>
-        <DocumentHeadManager isSaaS={isSaaS} isStudentSite={isStudentSite} />
-        <RouterProvider router={isStudentSite ? studentRouter : (isSaaS ? saasRouter : schoolRouter)} />
+        <EmployeeAuthProvider>
+          <DocumentHeadManager isSaaS={isSaaS} isStudentSite={isStudentSite} />
+          <RouterProvider router={isEmployeeSite ? employeeRouter : (isStudentSite ? studentRouter : (isSaaS ? saasRouter : schoolRouter))} />
+        </EmployeeAuthProvider>
       </StudentAuthProvider>
     </SiteDataProvider>
   );

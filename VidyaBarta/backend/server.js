@@ -141,7 +141,10 @@ app.use('/api/communication', apiLimiter, communicationRoutes);
 app.use('/api/payments', apiLimiter, paymentsRoutes);
 app.use('/api/wallet', apiLimiter, walletRoutes);
 app.use('/api/domains', apiLimiter, domainsRoutes);
+const employeeAuthRoutes = require('./routes/employeeAuth');
+
 app.use('/api/superadmin', apiLimiter, superadminRoutes);
+app.use('/api/employee-auth', apiLimiter, employeeAuthRoutes);
 app.use('/api/superadmin/employees', apiLimiter, require('./routes/vidyabartaEmployees'));
 app.use('/api/content', apiLimiter, contentRoutes);
 app.use('/api/admissions', apiLimiter, admissionsRoutes);

@@ -122,6 +122,9 @@ function AdminPage() {
   const [pendingStaff, setPendingStaff] = useState([]);
   const [students, setStudents] = useState([]);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [isAddingStudent, setIsAddingStudent] = useState(false);
+  const [newStudentForm, setNewStudentForm] = useState({ name: '', rollNumber: '', classLevel: '', section: '', parentsName: '', phone: '', email: '', address: '' });
   const [newStaffForm, setNewStaffForm] = useState({ name: '', email: '', phone: '', role: 'Teacher' });
   const [newStaffPassword, setNewStaffPassword] = useState('');
   const [isAddingStaff, setIsAddingStaff] = useState(false);
@@ -1710,12 +1713,37 @@ function AdminPage() {
         alert(data.message || 'Failed to add staff');
       }
     } catch (err) {
-      alert("An error occurred while adding staff");
+      alert(err.message || 'Failed to add staff');
     } finally {
       setIsAddingStaff(false);
     }
   };
 
+  const handleAddStudentManual = async (e) => {
+    e.preventDefault();
+    setIsAddingStudent(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newStudentForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Student added successfully!');
+        setNewStudentForm({ name: '', rollNumber: '', classLevel: '', section: '', parentsName: '', phone: '', email: '', address: '' });
+        setShowAddStudentModal(false);
+        fetchStudents();
+      } else {
+        throw new Error(data.message || 'Error adding student');
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to add student');
+    } finally {
+      setIsAddingStudent(false);
+    }
+  };
 
   const handleApproveStaff = async (staffId) => {
     if (!window.confirm("Approve this staff member?")) return;
@@ -8723,6 +8751,12 @@ function AdminPage() {
                     Total Admitted: {students.length}
                   </div>
                   <button 
+                    onClick={() => setShowAddStudentModal(true)}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-sm"
+                  >
+                    <FaPlus /> Add Student Manually
+                  </button>
+                  <button 
                     onClick={handleExportStudents}
                     disabled={isExportingStudents || students.length === 0}
                     className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -8732,6 +8766,53 @@ function AdminPage() {
                   </button>
                 </div>
               </div>
+              
+              {showAddStudentModal && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black text-gray-800">Add Student Manually</h3>
+                      <button onClick={() => setShowAddStudentModal(false)} className="text-gray-400 hover:text-gray-600">
+                        <FaTimes className="text-xl" />
+                      </button>
+                    </div>
+                    <form onSubmit={handleAddStudentManual} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Student Name</label>
+                        <input type="text" required className="w-full p-3 border rounded-xl" value={newStudentForm.name} onChange={e => setNewStudentForm({...newStudentForm, name: e.target.value})} placeholder="e.g. John Doe" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Class / Grade</label>
+                          <input type="text" required className="w-full p-3 border rounded-xl" value={newStudentForm.classLevel} onChange={e => setNewStudentForm({...newStudentForm, classLevel: e.target.value})} placeholder="e.g. 10" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Section</label>
+                          <input type="text" className="w-full p-3 border rounded-xl" value={newStudentForm.section} onChange={e => setNewStudentForm({...newStudentForm, section: e.target.value})} placeholder="e.g. A" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Admission ID / Roll No</label>
+                        <input type="text" required className="w-full p-3 border rounded-xl" value={newStudentForm.rollNumber} onChange={e => setNewStudentForm({...newStudentForm, rollNumber: e.target.value})} placeholder="e.g. 2024001" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Guardian Name</label>
+                        <input type="text" className="w-full p-3 border rounded-xl" value={newStudentForm.parentsName} onChange={e => setNewStudentForm({...newStudentForm, parentsName: e.target.value})} placeholder="Guardian Name" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Contact Number</label>
+                        <input type="tel" className="w-full p-3 border rounded-xl" value={newStudentForm.phone} onChange={e => setNewStudentForm({...newStudentForm, phone: e.target.value})} placeholder="10-digit number" />
+                      </div>
+                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <button type="button" onClick={() => setShowAddStudentModal(false)} className="px-4 py-2 font-bold text-gray-500 hover:text-gray-700">Cancel</button>
+                        <button type="submit" disabled={isAddingStudent} className="px-6 py-2 font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50">
+                          {isAddingStudent ? 'Adding...' : 'Add Student'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
 
               <div className="mb-6">
                 <BulkUpload 

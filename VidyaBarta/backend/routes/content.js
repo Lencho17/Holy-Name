@@ -150,11 +150,15 @@ router.get('/', optionalProtect, async (req, res) => {
     let schoolId = null;
 
     if (domain && !['vidyabarta.com', 'www.vidyabarta.com', 'localhost', '127.0.0.1'].includes(domain) && !domain.includes('vercel.app') && !domain.startsWith('student.')) {
+      // Clean domain of www. for flexible matching
+      const cleanDomain = domain.replace(/^www\./, '');
+      const wwwDomain = `www.${cleanDomain}`;
+      
       // Find school by subdomain or custom_domain
       const { data: school } = await supabase
         .from('schools')
         .select('id')
-        .or(`subdomain.eq.${domain},custom_domain.eq.${domain}`)
+        .or(`subdomain.eq.${cleanDomain},custom_domain.eq.${cleanDomain},custom_domain.eq.${wwwDomain}`)
         .single();
       
       if (school) {

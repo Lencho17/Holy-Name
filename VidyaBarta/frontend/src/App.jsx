@@ -73,27 +73,64 @@ const SuspenseFallback = () => (
 function DocumentHeadManager({ isSaaS, isStudentSite, isEmployeeSite }) {
   const { schoolProfile } = useContext(SiteDataContext);
   useEffect(() => {
+    // Helper to update or create a meta tag
+    const updateMetaTag = (selector, attribute, value) => {
+      let meta = document.querySelector(selector);
+      if (!meta) {
+        meta = document.createElement('meta');
+        if (selector.includes('property=')) {
+          meta.setAttribute('property', selector.match(/property="([^"]+)"/)[1]);
+        } else if (selector.includes('name=')) {
+          meta.setAttribute('name', selector.match(/name="([^"]+)"/)[1]);
+        }
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute(attribute, value);
+    };
+
     let link = document.querySelector("link[rel~='icon']");
     if (!link) {
       link = document.createElement('link');
       link.rel = 'icon';
-      document.getElementsByTagName('head')[0].appendChild(link);
+      document.head.appendChild(link);
     }
     
+    let pageTitle = 'VidyaBarta';
+    let pageDescription = 'Premium School Management System.';
+    let pageImage = '/logo.png';
+    let pageUrl = window.location.href;
+
     if (isEmployeeSite) {
       link.href = '/favicon.png';
-      document.title = 'Vidyabarta Employee Hub';
+      pageTitle = 'Vidyabarta Employee Hub';
+      pageDescription = 'Employee Management and Timesheets Portal.';
     } else if (isSaaS) {
       link.href = '/favicon.png';
-      document.title = 'VidyaBarta - School Management System';
+      pageTitle = 'VidyaBarta - School Management System';
+      pageDescription = 'VidyaBarta - Premium School Management System.';
     } else if (isStudentSite) {
       const isGlobalStudentSite = window.location.hostname === 'student.vidyabarta.com' || window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
       link.href = isGlobalStudentSite ? '/favicon.png' : (schoolProfile?.logo || '/favicon.png');
-      document.title = (schoolProfile?.name && !isGlobalStudentSite) ? `${schoolProfile.name} - Student Portal` : 'VidyaBarta Student Hub';
+      pageTitle = (schoolProfile?.name && !isGlobalStudentSite) ? `${schoolProfile.name} - Student Portal` : 'VidyaBarta Student Hub';
+      pageDescription = `Student portal for ${schoolProfile?.name || 'VidyaBarta'}`;
+      if (schoolProfile?.logo) pageImage = schoolProfile.logo;
     } else {
       link.href = schoolProfile?.logo || '/favicon.png';
-      document.title = schoolProfile?.name || 'School Website';
+      pageTitle = schoolProfile?.name || 'School Website';
+      pageDescription = schoolProfile?.punchLine || `${pageTitle} - Premium Educational Institution.`;
+      if (schoolProfile?.logo) pageImage = schoolProfile.logo;
     }
+
+    document.title = pageTitle;
+    updateMetaTag('meta[name="description"]', 'content', pageDescription);
+    updateMetaTag('meta[property="og:title"]', 'content', pageTitle);
+    updateMetaTag('meta[property="og:description"]', 'content', pageDescription);
+    updateMetaTag('meta[property="og:image"]', 'content', pageImage);
+    updateMetaTag('meta[property="og:url"]', 'content', pageUrl);
+    updateMetaTag('meta[name="twitter:title"]', 'content', pageTitle);
+    updateMetaTag('meta[name="twitter:description"]', 'content', pageDescription);
+    updateMetaTag('meta[name="twitter:image"]', 'content', pageImage);
+    
   }, [schoolProfile, isSaaS, isStudentSite, isEmployeeSite]);
   return null;
 }

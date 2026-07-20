@@ -126,20 +126,20 @@ function Layout() {
             </div>
 
             <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">
-              Holy Name <span className="text-red-500">High School</span>
+              School <span className="text-red-500">Not Found</span>
             </h1>
             
             <div className="w-12 h-1.5 bg-red-200 rounded-full mx-auto mb-8" />
 
             <p className="text-gray-500 text-lg font-medium leading-relaxed max-w-md mx-auto mb-10">
-              The content for <strong className="text-gray-800">{window.location.hostname}</strong> is currently being set up. Please check back later.
+              The domain <strong className="text-gray-800">{window.location.hostname}</strong> is not registered or is currently being set up.
             </p>
 
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => window.location.href = 'https://www.vidyabarta.com'}
               className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto"
             >
-              Go to Homepage
+              Visit VidyaBarta
             </button>
           </div>
         </div>

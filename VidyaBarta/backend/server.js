@@ -169,6 +169,9 @@ app.use('/api/saas-settings', apiLimiter, saasSettingsRoutes);
 app.use('/api/bulk-upload', apiLimiter, bulkUploadRoutes);
 app.use('/api/holidays', apiLimiter, holidayRoutes);
 
+// Dynamic Favicon Route for Googlebot
+app.use('/api/favicon', require('./routes/favicon'));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', environment: process.env.NODE_ENV || 'development', timestamp: new Date().toISOString() });

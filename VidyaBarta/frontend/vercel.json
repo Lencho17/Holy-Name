@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/favicon.png",
+      "destination": "https://holy-name-sb9t.vercel.app/api/favicon"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "https://holy-name-sb9t.vercel.app/api/favicon"
+    },
+    {
       "source": "/s/:id",
       "destination": "https://holy-name-sb9t.vercel.app/api/share/:id"
     },

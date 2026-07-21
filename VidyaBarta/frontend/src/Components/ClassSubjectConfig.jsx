@@ -299,7 +299,7 @@ const ClassSubjectConfig = ({ API_URL }) => {
                 <td className="p-4 align-top">
                   <ul className="text-xs space-y-1 text-gray-700">
                     {(cls.core_subjects || []).map((s, i) => (
-                      <li key={i}>{i+1}. {s.name} - {s.marking_system}</li>
+                      <li key={i}>{i+1}. {s.subjects?.name || s.name} - {s.subjects?.marking_system || s.marking_system || '-'}</li>
                     ))}
                   </ul>
                 </td>
@@ -310,7 +310,7 @@ const ClassSubjectConfig = ({ API_URL }) => {
                         <div className="font-bold text-gray-800 mb-1">MIL</div>
                         <ul className="space-y-1 text-gray-600 mb-1">
                           {milGroup.subjects.map((s, j) => (
-                            <li key={j}>{j+1}. {s.name} - {s.marking_system}</li>
+                            <li key={j}>{j+1}. {s.subjects?.name || s.name} - {s.subjects?.marking_system || s.marking_system || '-'}</li>
                           ))}
                         </ul>
                         <div className="font-bold text-gray-800 mt-2">Total Selectable Subjects: {milGroup.selectable_count}</div>
@@ -322,7 +322,7 @@ const ClassSubjectConfig = ({ API_URL }) => {
                         <div className="font-bold text-gray-800 mb-1">Elective</div>
                         <ul className="space-y-1 text-gray-600 mb-1">
                           {electiveGroup.subjects.map((s, j) => (
-                            <li key={j}>{j+1}. {s.name} - {s.marking_system}</li>
+                            <li key={j}>{j+1}. {s.subjects?.name || s.name} - {s.subjects?.marking_system || s.marking_system || '-'}</li>
                           ))}
                         </ul>
                         <div className="font-bold text-gray-800 mt-2">Total Selectable Subjects: {electiveGroup.selectable_count}</div>

@@ -6,6 +6,7 @@ const {
   deleteGlobalSubject,
   createClassSubjectMapping,
   getClassSubjectMappings,
+  saveClassSubjectConfig,
   deleteClassSubjectMapping,
   updateGlobalSubject,
   finalizeGlobalSubject
@@ -25,6 +26,10 @@ router.route('/global/:id/finalize')
   .patch(protect, finalizeGlobalSubject);
 
 // School specific subject mapping routes
+
+router.route('/mapping/config')
+  .post(protect, saveClassSubjectConfig);
+
 router.route('/mapping')
   .get(protect, getClassSubjectMappings)
   .post(protect, createClassSubjectMapping);

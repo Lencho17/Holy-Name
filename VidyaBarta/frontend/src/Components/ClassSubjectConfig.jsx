@@ -34,7 +34,16 @@ const ClassSubjectConfig = ({ API_URL }) => {
   }, [API_URL]);
 
   const handleEdit = (cls) => {
-    setEditData(JSON.parse(JSON.stringify(cls))); // deep copy
+    const data = JSON.parse(JSON.stringify(cls));
+    const milGroup = data.elective_groups?.find(g => g.group_name === 'MIL') || { subjects: [], selectable_count: 1 };
+    const electiveGroup = data.elective_groups?.find(g => g.group_name === 'Elective') || { subjects: [], selectable_count: 1 };
+    
+    data.mil_subjects = milGroup.subjects;
+    data.mil_selectable = milGroup.selectable_count;
+    data.elective_subjects = electiveGroup.subjects;
+    data.elective_selectable = electiveGroup.selectable_count;
+    
+    setEditData(data);
     setIsEditing(true);
   };
 
@@ -50,11 +59,18 @@ const ClassSubjectConfig = ({ API_URL }) => {
           has_semester: editData.has_semester || false,
           sections: editData.sections || '',
           core_subjects: editData.core_subjects.map(c => c.subject_id),
-          elective_groups: editData.elective_groups.map(g => ({
-            group_name: g.group_name,
-            selectable_count: g.selectable_count,
-            subjects: g.subjects.map(s => s.subject_id)
-          }))
+          elective_groups: [
+            ...(editData.mil_subjects?.length > 0 ? [{
+              group_name: 'MIL',
+              selectable_count: parseInt(editData.mil_selectable) || 1,
+              subjects: editData.mil_subjects.map(s => s.subject_id)
+            }] : []),
+            ...(editData.elective_subjects?.length > 0 ? [{
+              group_name: 'Elective',
+              selectable_count: parseInt(editData.elective_selectable) || 1,
+              subjects: editData.elective_subjects.map(s => s.subject_id)
+            }] : [])
+          ]
         })
       });
       if (res.ok) {

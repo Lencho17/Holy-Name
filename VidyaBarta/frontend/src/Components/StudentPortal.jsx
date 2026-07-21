@@ -56,9 +56,7 @@ function StudentPortal() {
         } catch(e) {}
 
         // Mocking some published results for demonstration (would normally be fetched)
-        setPublishedResults([
-          { id: '1', name: 'Mid Term Examination', published_date: new Date().toISOString(), grievance_deadline: new Date(Date.now() + 5*86400000).toISOString(), status: 'Published', marks: [{subject: 'Math', obtained: 85, max: 100}, {subject: 'Science', obtained: 92, max: 100}] }
-        ]);
+        setPublishedResults([]);
 
       } catch (error) {
         console.error("Failed to load portal data", error);

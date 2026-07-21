@@ -6,34 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 const EventsSection = () => {
   const { events: contextEvents, schoolProfile } = useContext(SiteDataContext);
-  const demoEvents = [
-    {
-      _id: 'demo-evt-1',
-      title: 'Founders Day Celebration',
-      date: 'April 5, 2026',
-      description: 'Join us as we commemorate the founding of our institution with special performances, awards ceremony, and a grand feast.',
-      image: 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?q=80&w=800&auto=format&fit=crop',
-      galleryImages: []
-    },
-    {
-      _id: 'demo-evt-2',
-      title: 'Global Leadership Summit for Students',
-      date: 'May 12, 2026',
-      description: 'A two-day summit where students will engage with industry leaders, participate in workshops, and develop essential leadership skills.',
-      image: 'https://images.unsplash.com/photo-1540317580384-e5d43616b9aa?q=80&w=800&auto=format&fit=crop',
-      galleryImages: []
-    },
-    {
-      _id: 'demo-evt-3',
-      title: 'Art & Literature Festival',
-      date: 'June 20, 2026',
-      description: 'An inspiring week dedicated to the arts, featuring guest authors, poetry slams, art exhibitions, and creative writing competitions.',
-      image: 'https://images.unsplash.com/photo-1459908676235-d5f02a50184b?q=80&w=800&auto=format&fit=crop',
-      galleryImages: []
-    }
-  ];
-
-  const events = contextEvents?.length > 0 ? contextEvents : demoEvents;
+  const events = contextEvents?.length > 0 ? contextEvents : [];
 
   const [showAll, setShowAll] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);

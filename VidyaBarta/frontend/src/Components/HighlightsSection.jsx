@@ -5,37 +5,7 @@ import { SiteDataContext } from '../context/SiteDataContext';
 
 export default function HighlightsSection() {
   const { highlights: contextHighlights, schoolProfile } = useContext(SiteDataContext);
-  const demoHighlights = [
-    {
-      _id: 'demo1',
-      title: 'Annual Science Exhibition 2026',
-      date: 'March 15, 2026',
-      category: 'Academic',
-      description: 'Students showcased innovative science projects, focusing on renewable energy and AI solutions for modern problems. The event was a huge success with over 500 visitors.',
-      image: 'https://images.unsplash.com/photo-1564069114553-7215e1ff1890?q=80&w=800&auto=format&fit=crop',
-      galleryImages: []
-    },
-    {
-      _id: 'demo2',
-      title: 'Inter-School Sports Meet Championship',
-      date: 'February 28, 2026',
-      category: 'Sports',
-      description: 'Our school lifted the championship trophy at the regional inter-school sports meet, winning gold in athletics, basketball, and swimming.',
-      image: 'https://images.unsplash.com/photo-1526676037777-05a232554f77?q=80&w=800&auto=format&fit=crop',
-      galleryImages: []
-    },
-    {
-      _id: 'demo3',
-      title: 'Annual Cultural Fest "Rhythm 2026"',
-      date: 'January 10, 2026',
-      category: 'Cultural',
-      description: 'A spectacular evening of music, dance, and drama performances by our talented students celebrating the rich cultural heritage of our country.',
-      image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop',
-      galleryImages: []
-    }
-  ];
-
-  const highlights = contextHighlights?.length > 0 ? contextHighlights : demoHighlights;
+  const highlights = contextHighlights?.length > 0 ? contextHighlights : [];
 
   const [selectedHighlight, setSelectedHighlight] = useState(null);
   const [showAll, setShowAll] = useState(false);

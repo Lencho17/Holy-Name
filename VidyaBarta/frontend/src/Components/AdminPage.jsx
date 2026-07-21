@@ -32,6 +32,7 @@ import CertificateGenerator from './CertificateGenerator';
 import CommunicationHub from './CommunicationHub';
 import WalletDashboard from './WalletDashboard';
 import DomainManager from './DomainManager';
+import ClassSubjectConfig from './ClassSubjectConfig';
 
 const SidebarItem = ({ active, onClick, icon: Icon, label, children }) => {
   const [isOpen, ReactSetIsOpen] = React.useState(false);
@@ -8796,60 +8797,7 @@ function AdminPage() {
 
 
           {activeTab === 'classSubjects' && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <FaGraduationCap className="text-blue-600" /> Class Subjects Mappings
-              </h3>
-              
-              <form onSubmit={handleMapClassSubject} className="bg-blue-50 p-6 rounded-xl border border-blue-100 mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div>
-                  <label className="block text-sm font-bold text-blue-900 mb-1">Select Class</label>
-                  <select required value={newClassSubject.class_level} onChange={e => setNewClassSubject({...newClassSubject, class_level: e.target.value})} className="w-full border-blue-200 p-2.5 rounded-lg">
-                    {['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-blue-900 mb-1">Select Subject</label>
-                  <select required value={newClassSubject.subject_id} onChange={e => setNewClassSubject({...newClassSubject, subject_id: e.target.value})} className="w-full border-blue-200 p-2.5 rounded-lg">
-                    <option value="" disabled>-- Select Subject --</option>
-                    {globalSubjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code?.replace(/^VB-?/, '')})</option>)}
-                  </select>
-                </div>
-                <button type="submit" className="bg-blue-600 text-white p-2.5 rounded-lg font-bold hover:bg-blue-700 w-full flex items-center justify-center gap-2">
-                  <FaPlus /> Map Subject to Class
-                </button>
-              </form>
-
-              <div className="overflow-x-auto border border-gray-200 rounded-xl">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-gray-600 text-sm font-bold uppercase">
-                    <tr>
-                      <th className="p-4">Class</th>
-                      <th className="p-4">Subject</th>
-                      <th className="p-4">Code</th>
-                      <th className="p-4">Type</th>
-                      <th className="p-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {classSubjects.map(map => (
-                      <tr key={map.id} className="hover:bg-gray-50">
-                        <td className="p-4 font-bold text-gray-800 bg-gray-100 w-24 text-center">{map.class_level}</td>
-                        <td className="p-4 font-semibold text-gray-800">{map.subjects?.name}</td>
-                        <td className="p-4 font-mono text-gray-500">{map.subjects?.code?.replace(/^VB-?/, '')}</td>
-                        <td className="p-4 text-sm text-gray-500">{map.subjects?.type}</td>
-                        <td className="p-4 text-right">
-                          <button onClick={() => handleDeleteClassSubject(map.id)} className="text-red-500 hover:text-red-700 p-2">
-                            <FaTrash />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {classSubjects.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-gray-400">No subjects mapped to classes yet.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <ClassSubjectConfig API_URL={API_URL} />
           )}
 
           {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}

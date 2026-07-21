@@ -40,7 +40,7 @@ exports.createGlobalSubject = async (req, res) => {
 
     const { data, error } = await supabase
       .from('subjects')
-      .insert({ name, code: generatedCode, type: type || 'Theory', class_level })
+      .insert({ name, code: generatedCode, type: type || 'Core', class_level })
       .select()
       .single();
 

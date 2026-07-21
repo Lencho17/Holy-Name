@@ -1105,7 +1105,7 @@ const AHSEC_SEBA_SUBJECTS = [
 
 export const GlobalSubjects = () => {
   const [globalSubjects, setGlobalSubjects] = useState([]);
-  const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', class_level: '', type: 'Theory' });
+  const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', class_level: '', type: 'Core' });
   const [loading, setLoading] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1145,7 +1145,7 @@ export const GlobalSubjects = () => {
         body: JSON.stringify(newGlobalSubject)
       });
       if (res.ok) {
-        setNewGlobalSubject({ name: '', class_level: '', type: 'Theory' });
+        setNewGlobalSubject({ name: '', class_level: '', type: 'Core' });
         fetchGlobalSubjects();
         alert('Global Subject Created');
       } else {
@@ -1228,9 +1228,9 @@ export const GlobalSubjects = () => {
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-1">Type</label>
           <select required value={newGlobalSubject.type} onChange={e => setNewGlobalSubject({...newGlobalSubject, type: e.target.value})} className="w-full border-gray-300 p-2.5 rounded-lg">
-            <option value="Theory">Theory</option>
-            <option value="Practical">Practical</option>
-            <option value="Both">Both</option>
+            <option value="Core">Core</option>
+            <option value="Elective">Elective</option>
+            <option value="MIL">MIL</option>
           </select>
         </div>
         <button type="submit" className="bg-primary text-white p-2.5 rounded-lg font-bold hover:bg-primary-dark w-full">Add Subject</button>

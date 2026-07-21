@@ -8650,8 +8650,8 @@ function AdminPage() {
             <SubItem active={activeTab === 'wallet'} onClick={() => { setActiveTab('wallet'); setIsSidebarOpen(false); }} label="Escrow Wallet & Payouts" />
           </SidebarItem>
 
+          <SidebarItem active={activeTab === 'classSubjects'} onClick={() => { setActiveTab('classSubjects'); setIsSidebarOpen(false); }} icon={FaBookOpen} label="Subject Selection" />
           <SidebarItem active={isAcademicsActive} icon={FaGraduationCap} label="Exams & Academics">
-            <SubItem active={activeTab === 'classSubjects'} onClick={() => { setActiveTab('classSubjects'); setIsSidebarOpen(false); }} label="Class Subjects" />
             <SubItem active={activeTab === 'timetables'} onClick={() => { setActiveTab('timetables'); setIsSidebarOpen(false); }} label="Class Timetables" />
             <SubItem active={activeTab === 'exams'} onClick={() => { setActiveTab('exams'); setIsSidebarOpen(false); }} label="Exam Management" />
             <SubItem active={activeTab === 'admitCards'} onClick={() => { setActiveTab('admitCards'); setIsSidebarOpen(false); }} label="Admit Cards & Concessions" />

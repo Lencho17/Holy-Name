@@ -131,9 +131,7 @@ function AdminPage() {
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
     const [isImportingStudent, setIsImportingStudent] = useState(false);
-  const [globalSubjects, setGlobalSubjects] = useState([]);
   const [classSubjects, setClassSubjects] = useState([]);
-  const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', code: '', type: 'Theory' });
   const [newClassSubject, setNewClassSubject] = useState({ class_level: 'I', subject_id: '' });
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
@@ -1262,84 +1260,7 @@ function AdminPage() {
     } catch (e) { console.warn('Could not fetch inquiries'); }
   };
 
-    const fetchGlobalSubjects = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/subjects/global`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setGlobalSubjects(await res.json());
-    } catch (err) {}
-  };
-  
-  const fetchClassSubjects = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/subjects/mapping`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setClassSubjects(await res.json());
-    } catch (err) {}
-  };
-  
-  const handleCreateGlobalSubject = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/subjects/global`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(newGlobalSubject)
-      });
-      if (res.ok) {
-        setNewGlobalSubject({ name: '', code: '', type: 'Theory' });
-        fetchGlobalSubjects();
-        alert('Global Subject Created');
-      } else {
-        const errorData = await res.json();
-        alert(errorData.message || 'Error creating global subject');
-      }
-    } catch (err) {
-      alert('Error creating global subject');
-    }
-  };
-  
-  const handleDeleteGlobalSubject = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this global subject?')) return;
-    try {
-      const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/subjects/global/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) fetchGlobalSubjects();
-    } catch (err) {}
-  };
-  
-  const handleMapClassSubject = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/subjects/mapping`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(newClassSubject)
-      });
-      if (res.ok) {
-        fetchClassSubjects();
-        alert('Subject mapped to class successfully');
-      } else {
-        const errorData = await res.json();
-        alert(errorData.message || 'Error mapping subject');
-      }
-    } catch (err) {
-      alert('Error mapping subject');
-    }
-  };
-  
-  const handleDeleteClassSubject = async (id) => {
-    if (!window.confirm('Are you sure you want to remove this mapping?')) return;
-    try {
-      const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/subjects/mapping/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) fetchClassSubjects();
-    } catch (err) {}
-  };
-
-  const fetchJobs = async () => {
+    const fetchJobs = async () => {
     setJobsLoading(true);
     try {
       const res = await fetch(`${API_URL}/jobs`);
@@ -1681,8 +1602,7 @@ function AdminPage() {
       if (activeTab === 'dashboard' || activeTab === 'students') fetchStudents();
       if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
       if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
-      if (activeTab === 'dashboard' || activeTab === 'globalSubjects') fetchGlobalSubjects();
-      if (activeTab === 'dashboard' || activeTab === 'classSubjects') { fetchClassSubjects(); fetchGlobalSubjects(); }
+      if (activeTab === 'dashboard' || activeTab === 'classSubjects') { fetchClassSubjects(); }
       if (activeTab === 'activity') fetchActivities();
       if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') {
         fetchAdmins();
@@ -8721,9 +8641,6 @@ function AdminPage() {
             <SubItem active={activeTab === 'holidays'} onClick={() => { setActiveTab('holidays'); setIsSidebarOpen(false); }} label="Holiday Calendar" />
             <SubItem active={activeTab === 'idCardViewer'} onClick={() => { setActiveTab('idCardViewer'); setIsSidebarOpen(false); }} label="ID Card Template Viewer" />
             <SubItem active={activeTab === 'domains'} onClick={() => { setActiveTab('domains'); setIsSidebarOpen(false); }} label="Custom Domains" />
-            {(adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
-              <SubItem active={activeTab === 'globalSubjects'} onClick={() => { setActiveTab('globalSubjects'); setIsSidebarOpen(false); }} label="Global Subjects" />
-            )}
           </SidebarItem>
         </div>
       </aside>
@@ -8830,60 +8747,6 @@ function AdminPage() {
              </div>
           )}
 
-
-          {activeTab === 'globalSubjects' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-800 mb-6">Global Subjects Management</h3>
-              
-              <form onSubmit={handleCreateGlobalSubject} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Subject Name</label>
-                  <input required type="text" value={newGlobalSubject.name} onChange={e => setNewGlobalSubject({...newGlobalSubject, name: e.target.value})} className="w-full border-gray-300 p-2.5 rounded-lg" placeholder="e.g. Mathematics" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">6-Digit Code</label>
-                  <input required type="text" maxLength={6} minLength={6} value={newGlobalSubject.code} onChange={e => setNewGlobalSubject({...newGlobalSubject, code: e.target.value.toUpperCase()})} className="w-full border-gray-300 p-2.5 rounded-lg font-mono uppercase" placeholder="e.g. MAT101" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Type</label>
-                  <select required value={newGlobalSubject.type} onChange={e => setNewGlobalSubject({...newGlobalSubject, type: e.target.value})} className="w-full border-gray-300 p-2.5 rounded-lg">
-                    <option value="Theory">Theory</option>
-                    <option value="Practical">Practical</option>
-                    <option value="Both">Both</option>
-                  </select>
-                </div>
-                <button type="submit" className="bg-indigo-600 text-white p-2.5 rounded-lg font-bold hover:bg-indigo-700 w-full">Add Subject</button>
-              </form>
-
-              <div className="overflow-x-auto border border-gray-200 rounded-xl">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-gray-600 text-sm font-bold uppercase">
-                    <tr>
-                      <th className="p-4">Subject Name</th>
-                      <th className="p-4">Code</th>
-                      <th className="p-4">Type</th>
-                      <th className="p-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {globalSubjects.map(sub => (
-                      <tr key={sub.id} className="hover:bg-gray-50">
-                        <td className="p-4 font-semibold text-gray-800">{sub.name}</td>
-                        <td className="p-4 font-mono text-indigo-600 bg-indigo-50 px-2 py-1 rounded inline-block mt-2">{sub.code}</td>
-                        <td className="p-4 text-sm text-gray-500">{sub.type}</td>
-                        <td className="p-4 text-right">
-                          <button onClick={() => handleDeleteGlobalSubject(sub.id)} className="text-red-500 hover:text-red-700 p-2">
-                            <FaTrash />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {globalSubjects.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-gray-400">No global subjects created yet.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {activeTab === 'classSubjects' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">

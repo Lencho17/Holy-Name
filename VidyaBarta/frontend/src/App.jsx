@@ -228,6 +228,7 @@ function App() {
             <Route path="revenue" element={<SA.RevenueSettlements />} />
             <Route path="wallets" element={<SA.Wallets />} />
             <Route path="domain-requests" element={<SA.DomainRequests />} />
+            <Route path="global-subjects" element={<SA.GlobalSubjects />} />
             
             <Route path="staff-management" element={<Navigate to="staff" replace />} />
             <Route path="staff-management/roles" element={<SA.RolePermission />} />

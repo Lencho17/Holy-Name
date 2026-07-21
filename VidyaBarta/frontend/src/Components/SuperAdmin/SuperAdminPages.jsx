@@ -1116,9 +1116,6 @@ export const GlobalSubjects = () => {
   };
   
   const filteredSubjects = AHSEC_SEBA_SUBJECTS.filter(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
-  if (searchTerm && !filteredSubjects.some(s => s.toLowerCase() === searchTerm.toLowerCase())) {
-    filteredSubjects.unshift(searchTerm);
-  }
 
 
   const fetchGlobalSubjects = async () => {
@@ -1215,7 +1212,7 @@ export const GlobalSubjects = () => {
                   );
                 })}
                 {filteredSubjects.length === 0 && (
-                  <li className="px-4 py-3 text-sm text-gray-500 text-center">No subjects found. Type to add custom.</li>
+                  <li className="px-4 py-3 text-sm text-gray-500 text-center">No subjects found.</li>
                 )}
               </ul>
             </div>

@@ -6,7 +6,9 @@ const {
   deleteGlobalSubject,
   createClassSubjectMapping,
   getClassSubjectMappings,
-  deleteClassSubjectMapping
+  deleteClassSubjectMapping,
+  updateGlobalSubject,
+  finalizeGlobalSubject
 } = require('../controllers/subjectController');
 const { protect, protectAnyStaff } = require('../middleware/auth');
 
@@ -16,7 +18,11 @@ router.route('/global')
   .post(protect, createGlobalSubject);
 
 router.route('/global/:id')
+  .put(protect, updateGlobalSubject)
   .delete(protect, deleteGlobalSubject);
+
+router.route('/global/:id/finalize')
+  .patch(protect, finalizeGlobalSubject);
 
 // School specific subject mapping routes
 router.route('/mapping')

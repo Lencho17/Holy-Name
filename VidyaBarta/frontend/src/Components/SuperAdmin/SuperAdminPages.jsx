@@ -1289,10 +1289,9 @@ export const GlobalSubjects = () => {
               <tr key={sub.id} className="hover:bg-surface-variant/50">
                 <td className="p-4 font-semibold text-on-surface">{sub.name}</td>
                 <td className="p-4">
-                  {sub.is_finalized ? (
-                    <span className="font-mono font-bold text-green-700 bg-green-100 px-3 py-1 rounded-full border border-green-200">{sub.code}</span>
-                  ) : (
-                    <span className="text-xs text-gray-400 font-semibold italic bg-gray-100 px-2 py-1 rounded">Draft</span>
+                  <span className="font-mono font-bold text-green-700 bg-green-100 px-3 py-1 rounded-full border border-green-200 mr-2">{sub.code}</span>
+                  {!sub.is_finalized && (
+                    <span className="text-xs text-orange-500 font-semibold italic bg-orange-100 px-2 py-1 rounded">Draft</span>
                   )}
                 </td>
                 <td className="p-4 text-sm text-on-surface-variant">{sub.marking_system}</td>
@@ -1307,9 +1306,11 @@ export const GlobalSubjects = () => {
                       </button>
                     </>
                   )}
-                  <button onClick={() => handleDeleteGlobalSubject(sub.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded ml-2 border border-red-100">
-                    <FaTrash />
-                  </button>
+                  {!sub.is_finalized && (
+                    <button onClick={() => handleDeleteGlobalSubject(sub.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded ml-2 border border-red-100">
+                      <FaTrash />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

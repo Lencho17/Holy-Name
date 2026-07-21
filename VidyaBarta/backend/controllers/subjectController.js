@@ -40,9 +40,24 @@ exports.createGlobalSubject = async (req, res) => {
       return res.status(400).json({ message: 'Name and marking system are required' });
     }
 
+    // Generate base code immediately
+    const subjectPrefix = name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
+    let baseCode = `VB-${subjectPrefix}`;
+    let finalCode = baseCode;
+    
+    // Conflict resolution auto-append logic
+    let suffix = 0;
+    while(true) {
+       const { data: existing, error: checkErr } = await supabase.from('subjects').select('id').eq('code', finalCode).maybeSingle();
+       if (checkErr) throw checkErr;
+       if (!existing) break; // Code is unique
+       suffix++;
+       finalCode = `${baseCode}-${suffix}`;
+    }
+
     const { data, error } = await supabase
       .from('subjects')
-      .insert({ name, marking_system, is_finalized: false })
+      .insert({ name, code: finalCode, marking_system, is_finalized: false })
       .select()
       .single();
 
@@ -101,24 +116,9 @@ exports.finalizeGlobalSubject = async (req, res) => {
     
     if (subject.is_finalized) return res.status(400).json({ message: 'Subject is already finalized' });
 
-    // Generate base code
-    const subjectPrefix = subject.name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
-    let baseCode = `VB-${subjectPrefix}`;
-    let finalCode = baseCode;
-    
-    // Conflict resolution auto-append logic
-    let suffix = 0;
-    while(true) {
-       const { data: existing, error: checkErr } = await supabase.from('subjects').select('id').eq('code', finalCode).maybeSingle();
-       if (checkErr) throw checkErr;
-       if (!existing) break; // Code is unique
-       suffix++;
-       finalCode = `${baseCode}-${suffix}`;
-    }
-
     const { data, error } = await supabase
       .from('subjects')
-      .update({ code: finalCode, is_finalized: true })
+      .update({ is_finalized: true })
       .eq('id', id)
       .select()
       .single();

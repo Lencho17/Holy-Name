@@ -131,6 +131,7 @@ function AdminPage() {
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
     const [isImportingStudent, setIsImportingStudent] = useState(false);
+  const [globalSubjects, setGlobalSubjects] = useState([]);
   const [classSubjects, setClassSubjects] = useState([]);
   const [newClassSubject, setNewClassSubject] = useState({ class_level: 'I', subject_id: '' });
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
@@ -1041,6 +1042,52 @@ function AdminPage() {
     } catch (e) { console.warn('Could not fetch pending staff'); }
   };
 
+  const fetchGlobalSubjects = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/subjects/global`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setGlobalSubjects(await res.json());
+    } catch (err) {}
+  };
+
+  const fetchClassSubjects = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/subjects/mapping`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setClassSubjects(await res.json());
+    } catch (err) {}
+  };
+  
+  const handleMapClassSubject = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/subjects/mapping`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newClassSubject)
+      });
+      if (res.ok) {
+        fetchClassSubjects();
+        alert('Subject mapped to class successfully');
+      } else {
+        const errorData = await res.json();
+        alert(errorData.message || 'Error mapping subject');
+      }
+    } catch (err) {
+      alert('Error mapping subject');
+    }
+  };
+  
+  const handleDeleteClassSubject = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this mapping?')) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/subjects/mapping/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) fetchClassSubjects();
+    } catch (err) {}
+  };
+
   const fetchStudents = async () => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -1602,7 +1649,7 @@ function AdminPage() {
       if (activeTab === 'dashboard' || activeTab === 'students') fetchStudents();
       if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
       if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
-      if (activeTab === 'dashboard' || activeTab === 'classSubjects') { fetchClassSubjects(); }
+      if (activeTab === 'dashboard' || activeTab === 'classSubjects') { fetchClassSubjects(); fetchGlobalSubjects(); }
       if (activeTab === 'activity') fetchActivities();
       if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') {
         fetchAdmins();

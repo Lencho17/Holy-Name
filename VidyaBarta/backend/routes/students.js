@@ -6,7 +6,10 @@ const {
   createStudent,
   updateStudent,
   deleteStudent,
-  exportStudents
+  exportStudents,
+  updateStudentStatus,
+  globalSearchStudents,
+  importStudent
 } = require('../controllers/studentController');
 const { protect, protectAnyStaff } = require('../middleware/auth');
 
@@ -15,6 +18,10 @@ router.route('/')
   .post(protect, createStudent);
 
 router.get('/export', protect, exportStudents);
+
+router.get('/global-search', protect, globalSearchStudents);
+router.put('/:id/status', protect, updateStudentStatus);
+router.post('/:id/import', protect, importStudent);
 
 router.route('/:id')
   .get(protectAnyStaff, getStudentById)

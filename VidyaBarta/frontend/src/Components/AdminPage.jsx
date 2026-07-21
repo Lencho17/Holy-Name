@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
 import { FiChevronDown, FiMenu, FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, FiDollarSign, FiUsers, FiSettings, FiMonitor } from 'react-icons/fi';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt, FaLeaf, FaUser } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt, FaLeaf, FaUser, FaTransgender } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -121,6 +121,16 @@ function AdminPage() {
   const [admins, setAdmins] = useState([]);
   const [pendingStaff, setPendingStaff] = useState([]);
   const [students, setStudents] = useState([]);
+  const [studentViewStatus, setStudentViewStatus] = useState('active');
+  const [studentSortBy, setStudentSortBy] = useState('name_asc');
+  const [studentClassFilter, setStudentClassFilter] = useState('');
+  const [studentSectionFilter, setStudentSectionFilter] = useState('');
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [showGlobalSearchModal, setShowGlobalSearchModal] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [globalSearchResults, setGlobalSearchResults] = useState([]);
+  const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
+  const [isImportingStudent, setIsImportingStudent] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [isAddingStudent, setIsAddingStudent] = useState(false);
@@ -1032,7 +1042,16 @@ function AdminPage() {
   const fetchStudents = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await fetch(`${API_URL}/students`, { headers: { Authorization: `Bearer ${token}` } });
+      const params = new URLSearchParams();
+      if (studentViewStatus) params.append('status', studentViewStatus);
+      if (studentSortBy) params.append('sortBy', studentSortBy);
+      if (studentClassFilter) params.append('class_level', studentClassFilter);
+      if (studentSectionFilter) params.append('section', studentSectionFilter);
+      if (studentSearchQuery) params.append('search', studentSearchQuery);
+      // Fetch maximum 1000 for now to handle simple pagination
+      params.append('limit', '1000');
+      
+      const res = await fetch(`${API_URL}/students?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) return handleLogout();
       if (res.ok) {
         const result = await res.json();
@@ -1040,6 +1059,85 @@ function AdminPage() {
         setStudents(mapSupabaseToLegacy(rawStudents));
       }
     } catch (e) { console.warn('Could not fetch students'); }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'students') {
+      fetchStudents();
+    }
+  }, [studentViewStatus, studentSortBy, studentClassFilter, studentSectionFilter, studentSearchQuery]);
+
+  const handleUpdateStudentStatus = async (studentId, status) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/students/${studentId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        alert(`Student status updated to ${status}`);
+        fetchStudents();
+      } else {
+        const err = await res.json();
+        alert(`Failed to update status: ${err.message}`);
+      }
+    } catch (e) {
+      alert(`Error: ${e.message}`);
+    }
+  };
+
+  const handleGlobalSearch = async (e) => {
+    e.preventDefault();
+    if (!globalSearchQuery) return;
+    setIsSearchingGlobal(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/students/global-search?pen_number=${encodeURIComponent(globalSearchQuery)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGlobalSearchResults(data || []);
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Global search failed');
+      }
+    } catch (e) {
+      console.warn(e);
+      alert('Error searching globally');
+    } finally {
+      setIsSearchingGlobal(false);
+    }
+  };
+
+  const handleImportStudent = async (studentId) => {
+    if (!window.confirm("Are you sure you want to import this student into your school?")) return;
+    setIsImportingStudent(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/students/${studentId}/import`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        alert("Student successfully imported!");
+        setShowGlobalSearchModal(false);
+        setGlobalSearchResults([]);
+        fetchStudents();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Import failed');
+      }
+    } catch (e) {
+      console.warn(e);
+      alert('Error importing student');
+    } finally {
+      setIsImportingStudent(false);
+    }
   };
 
   const fetchActivities = async () => {
@@ -8744,29 +8842,100 @@ function AdminPage() {
           )}
           {activeTab === 'students' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <h3 className="text-xl font-bold text-gray-800">Student Directory</h3>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                  <div className="text-xs text-gray-500 font-bold uppercase bg-gray-100 px-3 py-1 rounded-full whitespace-nowrap">
-                    Total Admitted: {students.length}
-                  </div>
+              {/* Header and Controls */}
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 border-b pb-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+                  <h3 className="text-xl font-bold text-gray-800">Student Directory</h3>
+                  
+                  <select 
+                    value={studentViewStatus}
+                    onChange={(e) => setStudentViewStatus(e.target.value)}
+                    className="border border-gray-300 rounded-lg p-2 font-semibold text-gray-700 bg-gray-50 focus:ring-2 focus:ring-primary outline-none"
+                  >
+                    <option value="active">Active Students</option>
+                    <option value="not_progressed">Not Progressed Students</option>
+                    <option value="dropbox">Dropbox Students</option>
+                    <option value="prev_session">Active Session (Prev Session)</option>
+                    <option value="all">All Students (Legacy)</option>
+                  </select>
+                </div>
+                
+                <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+                  <button 
+                    onClick={() => setShowGlobalSearchModal(true)}
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm whitespace-nowrap"
+                  >
+                    <FaSearch /> Global Student Search
+                  </button>
                   <button 
                     onClick={() => setShowAddStudentModal(true)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-sm"
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-sm whitespace-nowrap"
                   >
-                    <FaPlus /> Add Student Manually
+                    <FaPlus /> Add Student
                   </button>
                   <button 
                     onClick={handleExportStudents}
                     disabled={isExportingStudents || students.length === 0}
-                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-600 transition-all shadow-sm whitespace-nowrap disabled:opacity-50"
                   >
                     {isExportingStudents ? <FaSpinner className="animate-spin" /> : <FaDownload />}
-                    {isExportingStudents ? 'Exporting...' : 'Export to Excel'}
+                    Export
                   </button>
                 </div>
               </div>
-              
+
+              {/* Filters Bar */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Search Name/PEN</label>
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Search..."
+                      value={studentSearchQuery}
+                      onChange={(e) => setStudentSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Class</label>
+                  <select 
+                    value={studentClassFilter}
+                    onChange={(e) => setStudentClassFilter(e.target.value)}
+                    className="w-full p-2 border rounded-lg text-sm"
+                  >
+                    <option value="">All Classes</option>
+                    {['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Section</label>
+                  <select 
+                    value={studentSectionFilter}
+                    onChange={(e) => setStudentSectionFilter(e.target.value)}
+                    className="w-full p-2 border rounded-lg text-sm"
+                  >
+                    <option value="">All Sections</option>
+                    {['A', 'B', 'C', 'D'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Sort By</label>
+                  <select 
+                    value={studentSortBy}
+                    onChange={(e) => setStudentSortBy(e.target.value)}
+                    className="w-full p-2 border rounded-lg text-sm"
+                  >
+                    <option value="name_asc">Name (A-Z)</option>
+                    <option value="name_desc">Name (Z-A)</option>
+                    <option value="date_desc">Newest First</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Add Student Modal */}
               {showAddStudentModal && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
                   <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
@@ -8796,8 +8965,12 @@ function AdminPage() {
                         <input type="text" required className="w-full p-3 border rounded-xl" value={newStudentForm.rollNumber} onChange={e => setNewStudentForm({...newStudentForm, rollNumber: e.target.value})} placeholder="e.g. 2024001" />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Guardian Name</label>
-                        <input type="text" className="w-full p-3 border rounded-xl" value={newStudentForm.parentsName} onChange={e => setNewStudentForm({...newStudentForm, parentsName: e.target.value})} placeholder="Guardian Name" />
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Father's Name</label>
+                        <input type="text" className="w-full p-3 border rounded-xl" value={newStudentForm.fatherName || ''} onChange={e => setNewStudentForm({...newStudentForm, fatherName: e.target.value})} placeholder="Father's Name" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">Mother's Name</label>
+                        <input type="text" className="w-full p-3 border rounded-xl" value={newStudentForm.motherName || ''} onChange={e => setNewStudentForm({...newStudentForm, motherName: e.target.value})} placeholder="Mother's Name" />
                       </div>
                       <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1">Contact Number</label>
@@ -8814,133 +8987,285 @@ function AdminPage() {
                 </div>
               )}
 
-              <div className="mb-6">
-                <BulkUpload 
-                  apiUrl={API_URL} 
-                  endpoint="students" 
-                  token={localStorage.getItem('adminToken')} 
-                  entityName="Students" 
-                  onUploadSuccess={fetchStudents} 
-                />
-              </div>
+              {/* Global Search Modal */}
+              {showGlobalSearchModal && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black text-gray-800 flex items-center gap-2"><FaSearch className="text-indigo-600" /> Global Student Search</h3>
+                      <button onClick={() => { setShowGlobalSearchModal(false); setGlobalSearchResults([]); }} className="text-gray-400 hover:text-gray-600">
+                        <FaTimes className="text-xl" />
+                      </button>
+                    </div>
+                    
+                    <form onSubmit={handleGlobalSearch} className="mb-6">
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={globalSearchQuery}
+                          onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                          placeholder="Search by PEN Number or Aadhaar..."
+                          className="flex-1 p-3 border border-gray-300 rounded-xl"
+                        />
+                        <button 
+                          type="submit" 
+                          disabled={isSearchingGlobal}
+                          className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {isSearchingGlobal ? 'Searching...' : 'Search'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">Only students who have been marked as 'Dropboxed' by their previous school will appear in global search.</p>
+                    </form>
+
+                    {globalSearchResults.length > 0 ? (
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <table className="w-full text-left">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="p-3">Name</th>
+                              <th className="p-3">PEN Number</th>
+                              <th className="p-3">DOB</th>
+                              <th className="p-3">Parents</th>
+                              <th className="p-3">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {globalSearchResults.map(s => (
+                              <tr key={s.id}>
+                                <td className="p-3 font-bold text-gray-800">{s.student_name}</td>
+                                <td className="p-3 text-sm text-gray-600 font-mono">{s.pen_number || 'N/A'}</td>
+                                <td className="p-3 text-sm text-gray-600">{s.date_of_birth || 'N/A'}</td>
+                                <td className="p-3 text-sm text-gray-600">
+                                  {s.father_name && <div>F: {s.father_name}</div>}
+                                  {s.mother_name && <div>M: {s.mother_name}</div>}
+                                </td>
+                                <td className="p-3">
+                                  <button 
+                                    onClick={() => handleImportStudent(s.id)}
+                                    disabled={isImportingStudent}
+                                    className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                                  >
+                                    Import Student
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      globalSearchQuery && !isSearchingGlobal && (
+                        <div className="text-center py-8 bg-gray-50 rounded-xl text-gray-500">
+                          No dropboxed students found with this PEN.
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
 
               {students.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                   <FaUsers className="mx-auto text-gray-300 text-4xl mb-3" />
-                  <p className="text-gray-500">No admitted students found in the database.</p>
+                  <p className="text-gray-500">No students found matching the current filters.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="border-b border-gray-200 text-xs text-gray-400 font-black uppercase tracking-widest">
-                        <th className="pb-3 px-2 w-10">
-                          <input 
-                            type="checkbox" 
-                            checked={students.length > 0 && selectedStudents.length === students.length}
-                            onChange={toggleAllStudents}
-                            className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary cursor-pointer"
-                          />
-                        </th>
-                        <th className="pb-3 px-2">Name</th>
-                        <th className="pb-3">Class</th>
-                        <th className="pb-3">Gender</th>
-                        <th className="pb-3">Contact</th>
-                        <th className="pb-3">Admission Date</th>
-                        <th className="pb-3 text-right">Actions</th>
+                <div className="space-y-8">
+                  {(() => {
+                    // Summary stats table
+                    const classOrder = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+                    const stats = { total: 0, boys: 0, girls: 0, transgender: 0, classes: {} };
+                    
+                    classOrder.forEach(c => {
+                      stats.classes[c] = { boys: 0, girls: 0, transgender: 0, total: 0 };
+                    });
+
+                    students.forEach(student => {
+                      stats.total++;
+                      const gender = (student.gender || '').toLowerCase();
+                      const studentClass = (student.grade || '').toUpperCase();
+                      
+                      let isBoy = gender === 'male' || gender === 'boy';
+                      let isGirl = gender === 'female' || gender === 'girl';
+                      let isTrans = gender === 'transgender';
+
+                      if (isBoy) stats.boys++;
+                      if (isGirl) stats.girls++;
+                      if (isTrans) stats.transgender++;
+
+                      if (!stats.classes[studentClass]) {
+                        stats.classes[studentClass] = { boys: 0, girls: 0, transgender: 0, total: 0 };
+                        if (!classOrder.includes(studentClass)) {
+                          classOrder.push(studentClass);
+                        }
+                      }
+                      stats.classes[studentClass].total++;
+                      if (isBoy) stats.classes[studentClass].boys++;
+                      if (isGirl) stats.classes[studentClass].girls++;
+                      if (isTrans) stats.classes[studentClass].transgender++;
+                    });
+
+                    return (
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap items-center gap-6 bg-white p-4 border-b border-gray-100">
+                          <div className="flex items-center gap-2 font-bold text-blue-700">
+                            <FaEdit className="text-gray-700" /> Total Enrolments : {stats.total}
+                          </div>
+                          <div className="w-px h-5 bg-gray-300 hidden sm:block"></div>
+                          <div className="flex items-center gap-2 font-bold text-blue-700">
+                            <FaUser className="text-gray-700" /> Total Boys : {stats.boys}
+                          </div>
+                          <div className="w-px h-5 bg-gray-300 hidden sm:block"></div>
+                          <div className="flex items-center gap-2 font-bold text-blue-700">
+                            <FaUser className="text-gray-700" /> Total Girls : {stats.girls}
+                          </div>
+                          <div className="w-px h-5 bg-gray-300 hidden sm:block"></div>
+                          <div className="flex items-center gap-2 font-bold text-blue-700">
+                            <FaTransgender className="text-gray-700" /> Total Transgender : {stats.transgender}
+                          </div>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                          <table className="w-full text-left">
+                            <thead className="bg-[#215E8B] text-white">
+                              <tr>
+                                <th className="py-3 px-4 font-bold">Class/Grade</th>
+                                <th className="py-3 px-4 font-bold text-center">Boys</th>
+                                <th className="py-3 px-4 font-bold text-center">Girls</th>
+                                <th className="py-3 px-4 font-bold text-center">Transgender</th>
+                                <th className="py-3 px-4 font-bold text-center">Total Students</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 bg-white">
+                              {classOrder.map(className => {
+                                const classData = stats.classes[className];
+                                return (
+                                  <tr key={className} className="hover:bg-gray-50 transition-colors">
+                                    <td className="py-3 px-4 text-gray-800">{className}</td>
+                                    <td className="py-3 px-4 text-center text-gray-700">{classData.boys}</td>
+                                    <td className="py-3 px-4 text-center text-gray-700">{classData.girls}</td>
+                                    <td className="py-3 px-4 text-center text-gray-700">{classData.transgender}</td>
+                                    <td className="py-3 px-4 text-center font-bold text-gray-700">{classData.total}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <h4 className="text-lg font-bold text-gray-800 border-b pb-2 pt-4 flex justify-between items-center">
+                    Detailed Student List
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left bg-white border border-gray-200 rounded-lg">
+                    <thead className="bg-gray-50">
+                      <tr className="border-b border-gray-200 text-xs text-gray-500 font-bold uppercase tracking-wider">
+                        <th className="py-3 px-4 w-12 text-center">S.No</th>
+                        <th className="py-3 px-4">Basic Details</th>
+                        <th className="py-3 px-4">Student PEN/Class/Section</th>
+                        <th className="py-3 px-4">Parents Details</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {students.map(student => {
+                    <tbody className="divide-y divide-gray-100">
+                      {students.map((student, index) => {
                         const sId = student._id || student.id;
                         return (
-                        <tr key={sId} className={`hover:bg-gray-50/50 transition-colors ${selectedStudents.includes(sId) ? 'bg-primary/5' : ''}`}>
-                          <td className="py-4 px-2">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedStudents.includes(sId)}
-                              onChange={() => toggleStudentSelection(sId)}
-                              className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary cursor-pointer"
-                            />
+                        <tr key={sId} className="hover:bg-gray-50 transition-colors">
+                          <td className="py-4 px-4 text-center text-gray-500 font-medium">
+                            {index + 1}
                           </td>
-                          <td className="py-4 px-2">
-                             <div className="flex items-center gap-3">
-                               <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs uppercase border border-blue-100">
-                                 {student.studentName?.charAt(0)}
-                               </div>
-                               <span className="font-bold text-gray-800">{student.studentName}</span>
+                          <td className="py-4 px-4">
+                             <div className="flex flex-col gap-1">
+                               <span className="font-bold text-gray-800 text-base">{student.studentName || student.student_name}</span>
+                               <span className="text-xs text-gray-500">Gender: <span className="font-medium capitalize text-gray-700">{student.gender || 'N/A'}</span></span>
+                               <span className="text-xs text-gray-500">DOB: <span className="font-medium text-gray-700">{student.dateOfBirth || student.date_of_birth || 'N/A'}</span></span>
                              </div>
                           </td>
-                          <td className="py-4"><span className="text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded uppercase tracking-tighter">{student.grade}</span></td>
-                          <td className="py-4 text-sm text-gray-600 capitalize">{student.gender}</td>
-                          <td className="py-4 font-mono text-gray-500 text-xs">{student.contactNumber}</td>
-                          <td className="py-4 text-xs text-gray-400">{new Date(student.createdAt).toLocaleDateString()}</td>
-                          <td className="py-4 text-right flex justify-end gap-3">
-                             <button 
-                               onClick={() => setViewingProfileFor(student)}
-                               className="text-primary hover:text-blue-600 transition-colors inline-flex items-center"
-                               title="View Profile"
-                             >
-                               <FaUser size={14} />
-                             </button>
-                             <button 
-                               onClick={() => setViewingIdCardFor(student)}
-                               className="text-blue-400 hover:text-blue-600 transition-colors inline-flex items-center"
-                               title="View ID Card"
-                             >
-                               <FaIdBadge size={14} />
-                             </button>
-                             <button 
-                               onClick={async () => {
-                                 if(window.confirm(`Remove ${student.studentName} from student directory?`)) {
-                                   try {
-                                      const token = localStorage.getItem('adminToken');
-                                      const res = await axios.delete(`${API_URL}/students/${student._id}`, {
-                                        headers: { Authorization: `Bearer ${token}` }
-                                      });
-                                      if(res.data.message) {
-                                        setStudents(students.filter(s => s._id !== student._id));
-                                        alert("Student removed successfully.");
-                                      }
-                                   } catch(err) {
-                                     alert("Failed to delete student: " + err.message);
+                          <td className="py-4 px-4">
+                             <div className="flex flex-col gap-1">
+                               <span className="text-xs text-gray-500">PEN: <span className="font-bold text-indigo-600">{student.penNumber || student.pen_number || 'N/A'}</span></span>
+                               <span className="text-xs text-gray-500">Class: <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{student.grade}</span></span>
+                               <span className="text-xs text-gray-500">Section: <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{student.section || 'N/A'}</span></span>
+                             </div>
+                          </td>
+                          <td className="py-4 px-4">
+                             <div className="flex flex-col gap-1">
+                               <span className="text-xs text-gray-500">Father's Name: <span className="font-medium text-gray-700">{student.fatherName || student.father_name || 'N/A'}</span></span>
+                               <span className="text-xs text-gray-500">Mother's Name: <span className="font-medium text-gray-700">{student.motherName || student.mother_name || 'N/A'}</span></span>
+                               {(!student.fatherName && !student.motherName && student.guardianName) && (
+                                 <span className="text-xs text-gray-500">Guardian: <span className="font-medium text-gray-700">{student.guardianName}</span></span>
+                               )}
+                             </div>
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                             <div className="flex flex-col items-end gap-2">
+                               <div className="flex gap-2">
+                                 <button 
+                                   onClick={() => setViewingProfileFor(student)}
+                                   className="text-blue-500 hover:text-blue-700 transition-colors p-1"
+                                   title="View Profile"
+                                 >
+                                   <FaUser size={16} />
+                                 </button>
+                                 <button 
+                                   onClick={() => setViewingIdCardFor(student)}
+                                   className="text-indigo-400 hover:text-indigo-600 transition-colors p-1"
+                                   title="View ID Card"
+                                 >
+                                   <FaIdBadge size={16} />
+                                 </button>
+                               </div>
+                               
+                               <select
+                                 value={student.enrollment_status || 'active'}
+                                 onChange={(e) => handleUpdateStudentStatus(sId, e.target.value)}
+                                 className="text-xs border border-gray-300 rounded p-1 font-medium mt-1 w-32"
+                               >
+                                 <option value="active">Mark Active</option>
+                                 <option value="not_progressed">Not Progressed</option>
+                                 <option value="dropbox">Move to Dropbox</option>
+                                 <option value="prev_session">Prev Session</option>
+                               </select>
+
+                               <button 
+                                 onClick={async () => {
+                                   if(window.confirm(`Permanently delete ${student.studentName || student.student_name} from database?`)) {
+                                     try {
+                                        const token = localStorage.getItem('adminToken');
+                                        const res = await fetch(`${API_URL}/students/${sId}`, {
+                                          method: 'DELETE',
+                                          headers: { Authorization: `Bearer ${token}` }
+                                        });
+                                        if(res.ok) {
+                                          setStudents(students.filter(s => (s._id || s.id) !== sId));
+                                          alert("Student deleted permanently.");
+                                        }
+                                     } catch(err) {
+                                       alert("Failed to delete student: " + err.message);
+                                     }
                                    }
-                                 }
-                               }} 
-                               className="text-red-400 hover:text-red-600 transition-colors inline-flex items-center"
-                             >
-                               <FaTrash size={12} />
-                             </button>
+                                 }} 
+                                 className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors mt-1 flex items-center gap-1"
+                               >
+                                 <FaTrash size={10} /> Delete
+                               </button>
+                             </div>
                           </td>
                         </tr>
                       )})}
                     </tbody>
                   </table>
-                </div>
-              )}
-              {appTotalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                  <button 
-                    onClick={() => setAppPage(p => Math.max(1, p - 1))}
-                    disabled={appPage === 1}
-                    className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm font-medium text-gray-500">
-                    Page <span className="text-gray-900">{appPage}</span> of <span className="text-gray-900">{appTotalPages}</span>
-                  </span>
-                  <button 
-                    onClick={() => setAppPage(p => Math.min(appTotalPages, p + 1))}
-                    disabled={appPage === appTotalPages}
-                    className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                  </button>
+                  </div>
                 </div>
               )}
             </div>
           )}
+
 
           {viewingIdCardFor && (
             <IDCardViewer 

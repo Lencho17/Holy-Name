@@ -9,27 +9,46 @@ exports.getStudents = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
     const search = req.query.search;
+    const status = req.query.status;
+    const section = req.query.section;
+    const sortBy = req.query.sortBy || 'name_asc';
 
     let query = supabase
       .from('students')
       .select('*', { count: 'exact' });
 
+    if (req.user && req.user.school_id) {
+      query = query.eq('school_id', req.user.school_id);
+    }
+
+    if (status && status !== 'all') {
+      query = query.eq('enrollment_status', status);
+    } else if (!status) {
+      // Default to active for backward compatibility
+      query = query.eq('enrollment_status', 'active');
+    }
+
     if (search) {
-      query = query.or(`student_name.ilike.%${search}%,admission_id.ilike.%${search}%,guardian_name.ilike.%${search}%,email.ilike.%${search}%,contact_number.ilike.%${search}%`);
+      query = query.or(`student_name.ilike.%${search}%,admission_id.ilike.%${search}%,guardian_name.ilike.%${search}%,email.ilike.%${search}%,contact_number.ilike.%${search}%,pen_number.ilike.%${search}%`);
     }
     
     if (req.query.class_level) {
-      let gradeQuery = req.query.class_level;
-      if (req.query.section) {
-        gradeQuery += ` ${req.query.section}`;
-      }
-      // some records might have "4A" or "4 A"
-      // to be safe, we could use ilike or eq, let's try exact match first
-      query = query.or(`grade.eq.${req.query.class_level},grade.ilike.${req.query.class_level} ${req.query.section},grade.ilike.${req.query.class_level}${req.query.section}`);
+      query = query.eq('grade', req.query.class_level);
+    }
+    
+    if (section) {
+      query = query.eq('section', section);
+    }
+
+    if (sortBy === 'name_asc') {
+      query = query.order('student_name', { ascending: true });
+    } else if (sortBy === 'name_desc') {
+      query = query.order('student_name', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
     }
 
     const { data: students, count, error } = await query
-      .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
@@ -141,14 +160,18 @@ exports.updateStudent = async (req, res) => {
     const updateData = {
       student_name: req.body.name || req.body.studentName || req.body.student_name,
       admission_id: req.body.rollNumber || req.body.roll_number || req.body.admissionId || req.body.admission_id,
-      grade: req.body.grade || (req.body.classLevel ? req.body.classLevel + (req.body.section ? ' ' + req.body.section : '') : undefined),
+      grade: req.body.grade || req.body.classLevel,
+      section: req.body.section,
       guardian_name: req.body.parentsName || req.body.guardianName || req.body.parents_name || req.body.guardian_name,
+      father_name: req.body.father_name || req.body.fatherName,
+      mother_name: req.body.mother_name || req.body.motherName,
       contact_number: req.body.phone || req.body.contactNumber || req.body.contact_number,
       email: req.body.email,
       address: req.body.address,
       date_of_birth: req.body.dob || req.body.date_of_birth,
       mil_subject: req.body.mil_subject,
       elective_subject: req.body.elective_subject,
+      enrollment_status: req.body.enrollment_status,
       updated_at: new Date()
     };
 
@@ -192,13 +215,17 @@ exports.createStudent = async (req, res) => {
     const studentData = {
       student_name: req.body.name || req.body.studentName || req.body.student_name,
       admission_id: req.body.rollNumber || req.body.roll_number || req.body.admissionId || req.body.admission_id,
-      grade: req.body.grade || (req.body.classLevel ? req.body.classLevel + (req.body.section ? ' ' + req.body.section : '') : null),
+      grade: req.body.grade || req.body.classLevel,
+      section: req.body.section,
       guardian_name: req.body.parentsName || req.body.guardianName || req.body.parents_name || req.body.guardian_name,
+      father_name: req.body.father_name || req.body.fatherName,
+      mother_name: req.body.mother_name || req.body.motherName,
       contact_number: req.body.phone || req.body.contactNumber || req.body.contact_number,
       email: req.body.email,
       address: req.body.address,
       date_of_birth: req.body.dob || req.body.date_of_birth,
-      school_id: req.user ? req.user.school_id : null
+      school_id: req.user ? req.user.school_id : null,
+      enrollment_status: 'active'
     };
 
     const { data: student, error } = await supabase
@@ -209,6 +236,99 @@ exports.createStudent = async (req, res) => {
 
     if (error) throw error;
     res.status(201).json(student);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Update student enrollment status
+// @route   PUT /api/students/:id/status
+// @access  Private (Admin)
+exports.updateStudentStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['active', 'not_progressed', 'dropbox', 'prev_session'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const { data: student, error } = await supabase
+      .from('students')
+      .update({ enrollment_status: status, updated_at: new Date() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error || !student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+    res.json(student);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Search for a dropbox student globally by PEN or Aadhaar
+// @route   GET /api/students/global-search
+// @access  Private (Admin)
+exports.globalSearchStudents = async (req, res) => {
+  try {
+    const { pen_number } = req.query;
+    if (!pen_number) {
+      return res.status(400).json({ message: 'Search parameter (pen_number) is required' });
+    }
+
+    // Search globally across all schools, but ONLY if they are dropboxed
+    const { data: students, error } = await supabase
+      .from('students')
+      .select('id, student_name, grade, section, father_name, mother_name, guardian_name, date_of_birth, gender, pen_number, school_id')
+      .eq('enrollment_status', 'dropbox')
+      .eq('pen_number', pen_number);
+
+    if (error) throw error;
+
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Import a dropboxed student into current school
+// @route   POST /api/students/:id/import
+// @access  Private (Admin)
+exports.importStudent = async (req, res) => {
+  try {
+    if (!req.user || !req.user.school_id) {
+      return res.status(403).json({ message: 'School ID required for import' });
+    }
+
+    // First ensure the student is currently dropboxed
+    const { data: studentCheck, error: checkError } = await supabase
+      .from('students')
+      .select('id, enrollment_status')
+      .eq('id', req.params.id)
+      .single();
+
+    if (checkError || !studentCheck) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    if (studentCheck.enrollment_status !== 'dropbox') {
+      return res.status(400).json({ message: 'Only dropboxed students can be imported' });
+    }
+
+    const { data: student, error } = await supabase
+      .from('students')
+      .update({ 
+        school_id: req.user.school_id, 
+        enrollment_status: 'active',
+        updated_at: new Date()
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ message: 'Student successfully imported', student });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

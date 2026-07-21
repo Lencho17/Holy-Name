@@ -167,7 +167,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                     {marks.map((m, idx) => (
                       <tr key={idx} className="border-t border-gray-200">
                         <td className="p-3 font-mono">{m.student_id}</td>
-                        <td className="p-3">{m.subject}</td>
+                        <td className="p-3">{m.subject?.replace(/^VB/, '')}</td>
                         <td className="p-3">
                           <input type="number" value={m.marks_obtained} onChange={(e) => {
                             const newMarks = [...marks];

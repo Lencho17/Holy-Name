@@ -22,24 +22,25 @@ exports.getGlobalSubjects = async (req, res) => {
 // @access  Private (Superadmin)
 exports.createGlobalSubject = async (req, res) => {
   try {
-    const { name, code, type } = req.body;
+    const { name, class_level, type } = req.body;
     
     // Superadmin check
     if (req.user && req.user.role !== 'superadmin' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Only superadmin can create global subjects' });
     }
 
-    if (!name || !code) {
-      return res.status(400).json({ message: 'Name and 6-digit code are required' });
+    if (!name || !class_level) {
+      return res.status(400).json({ message: 'Name and class level are required' });
     }
 
-    if (code.length !== 6) {
-      return res.status(400).json({ message: 'Code must be exactly 6 alphanumeric characters' });
-    }
+    // Auto-generate code: VB + First 4 letters (or less) of name + - + class_level
+    // e.g., Mathematics, Class V -> VBMATH-V
+    const subjectPrefix = name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
+    const generatedCode = `VB${subjectPrefix}-${class_level.toUpperCase()}`;
 
     const { data, error } = await supabase
       .from('subjects')
-      .insert({ name, code: code.toUpperCase(), type: type || 'Theory' })
+      .insert({ name, code: generatedCode, type: type || 'Theory', class_level })
       .select()
       .single();
 

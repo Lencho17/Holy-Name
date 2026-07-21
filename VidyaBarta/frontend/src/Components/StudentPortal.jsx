@@ -315,7 +315,7 @@ function StudentPortal() {
                             <td className="py-4 pl-2">
                               <p className="text-sm font-bold text-gray-800">{grade.exams?.exam_name || 'N/A'}</p>
                             </td>
-                            <td className="py-4 text-sm text-gray-600 font-medium">{grade.subject}</td>
+                            <td className="py-4 text-sm text-gray-600 font-medium">{grade.subject?.replace(/^VB/, '')}</td>
                             <td className="py-4 text-sm text-gray-800 font-bold">{grade.marks_obtained} <span className="text-gray-400 font-normal">/ {grade.total_marks}</span></td>
                             <td className="py-4 text-sm font-bold text-indigo-600">{grade.grade || '-'}</td>
                             <td className="py-4 pr-2 text-right">
@@ -513,7 +513,7 @@ function StudentPortal() {
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {pr.marks.map((m, i) => (
                               <div key={i} className="bg-white p-2 rounded border border-gray-100 text-center">
-                                <div className="text-xs text-gray-500 font-bold">{m.subject}</div>
+                                <div className="text-xs text-gray-500 font-bold">{m.subject?.replace(/^VB/, '')}</div>
                                 <div className="text-sm font-black text-gray-800">{m.obtained}/{m.max}</div>
                               </div>
                             ))}
@@ -530,7 +530,7 @@ function StudentPortal() {
                          {myGrievances.map(g => (
                            <div key={g.id} className="bg-orange-50/30 p-4 border border-orange-100 rounded-xl">
                              <div className="flex justify-between mb-2">
-                               <span className="font-bold text-gray-800">{g.exam?.name} - {g.subject}</span>
+                               <span className="font-bold text-gray-800">{g.exam?.name} - {g.subject?.replace(/^VB/, '')}</span>
                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${g.status === 'Resolved' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{g.status}</span>
                              </div>
                              <p className="text-sm text-gray-600"><strong>Complaint:</strong> {g.complaint}</p>
@@ -648,7 +648,7 @@ function StudentPortal() {
                           {grades.length > 0 ? grades.map((grade, idx) => (
                             <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4 text-sm text-gray-500 font-mono">SBJ-{idx+1}01</td>
-                              <td className="px-6 py-4 text-sm font-bold text-gray-900">{grade.subject}</td>
+                              <td className="px-6 py-4 text-sm font-bold text-gray-900">{grade.subject?.replace(/^VB/, '')}</td>
                               <td className="px-6 py-4 text-center text-sm text-gray-500">{grade.exams?.exam_name || 'N/A'}</td>
                               <td className="px-6 py-4 text-center">
                                 <div className="flex flex-col items-center justify-center">

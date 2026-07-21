@@ -1085,7 +1085,7 @@ export { DomainRequests } from './DomainRequests';
 
 export const GlobalSubjects = () => {
   const [globalSubjects, setGlobalSubjects] = useState([]);
-  const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', code: '', type: 'Theory' });
+  const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', class_level: '', type: 'Theory' });
   const [loading, setLoading] = useState(true);
 
   const fetchGlobalSubjects = async () => {
@@ -1115,7 +1115,7 @@ export const GlobalSubjects = () => {
         body: JSON.stringify(newGlobalSubject)
       });
       if (res.ok) {
-        setNewGlobalSubject({ name: '', code: '', type: 'Theory' });
+        setNewGlobalSubject({ name: '', class_level: '', type: 'Theory' });
         fetchGlobalSubjects();
         alert('Global Subject Created');
       } else {
@@ -1141,11 +1141,25 @@ export const GlobalSubjects = () => {
       <form onSubmit={handleCreateGlobalSubject} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-1">Subject Name</label>
-          <input required type="text" value={newGlobalSubject.name} onChange={e => setNewGlobalSubject({...newGlobalSubject, name: e.target.value})} className="w-full border-gray-300 p-2.5 rounded-lg" placeholder="e.g. Mathematics" />
+          <input required type="text" list="subject-list" value={newGlobalSubject.name} onChange={e => setNewGlobalSubject({...newGlobalSubject, name: e.target.value})} className="w-full border-gray-300 p-2.5 rounded-lg" placeholder="e.g. Mathematics" />
+          <datalist id="subject-list">
+            <option value="Mathematics" />
+            <option value="Science" />
+            <option value="English" />
+            <option value="Social Studies" />
+            <option value="Hindi" />
+            <option value="Computer Science" />
+            <option value="Physical Education" />
+            <option value="Art" />
+            <option value="Music" />
+          </datalist>
         </div>
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1">6-Digit Code</label>
-          <input required type="text" maxLength={6} minLength={6} value={newGlobalSubject.code} onChange={e => setNewGlobalSubject({...newGlobalSubject, code: e.target.value.toUpperCase()})} className="w-full border-gray-300 p-2.5 rounded-lg font-mono uppercase" placeholder="e.g. MAT101" />
+          <label className="block text-sm font-bold text-gray-700 mb-1">Class Level</label>
+          <select required value={newGlobalSubject.class_level} onChange={e => setNewGlobalSubject({...newGlobalSubject, class_level: e.target.value})} className="w-full border-gray-300 p-2.5 rounded-lg">
+            <option value="" disabled>Select Class</option>
+            {['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-1">Type</label>
@@ -1163,6 +1177,7 @@ export const GlobalSubjects = () => {
           <thead className="bg-surface-variant text-on-surface-variant text-sm font-bold uppercase">
             <tr>
               <th className="p-4">Subject Name</th>
+              <th className="p-4">Class</th>
               <th className="p-4">Code</th>
               <th className="p-4">Type</th>
               <th className="p-4 text-right">Actions</th>
@@ -1172,6 +1187,7 @@ export const GlobalSubjects = () => {
             {globalSubjects.map(sub => (
               <tr key={sub.id} className="hover:bg-surface-variant/50">
                 <td className="p-4 font-semibold text-on-surface">{sub.name}</td>
+                <td className="p-4 text-sm font-bold text-gray-600">{sub.class_level || 'N/A'}</td>
                 <td className="p-4"><span className="font-mono text-primary bg-primary/10 px-2 py-1 rounded inline-block">{sub.code}</span></td>
                 <td className="p-4 text-sm text-on-surface-variant">{sub.type}</td>
                 <td className="p-4 text-right">

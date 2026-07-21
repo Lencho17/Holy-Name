@@ -170,7 +170,7 @@ exports.createClassSubjectMapping = async (req, res) => {
     const { data, error } = await supabase
       .from('school_subjects')
       .insert({ school_id, class_level, subject_id })
-      .select('*, subjects(name, code, marking_system)')
+      .select('*, subjects(name, code, type)')
       .single();
 
     if (error) {
@@ -211,7 +211,7 @@ exports.getClassSubjectMappings = async (req, res) => {
     // 3. Fetch subjects mapping
     const { data: subjects, error: subjError } = await supabase
       .from('school_subjects')
-      .select('id, class_level, subject_id, is_core, elective_group_id, subjects(name, code, marking_system)')
+      .select('id, class_level, subject_id, is_core, elective_group_id, subjects(name, code, type)')
       .eq('school_id', school_id);
     if (subjError) throw subjError;
 

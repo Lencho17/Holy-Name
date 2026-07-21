@@ -1133,6 +1133,13 @@ export const GlobalSubjects = () => {
     fetchGlobalSubjects();
   }, [sortBy, filterBy]);
 
+
+  const generatePreviewCode = (name) => {
+    if (!name) return '';
+    const p = name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
+    return p ? `VB-${p}` : '';
+  };
+
   const handleCreateGlobalSubject = async (e) => {
     e.preventDefault();
     try {
@@ -1208,7 +1215,10 @@ export const GlobalSubjects = () => {
       {isEditing && editSubject ? (
         <form onSubmit={handleUpdateDraft} className="bg-blue-50 p-6 rounded-xl border border-blue-200 mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Subject Name</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1 flex justify-between">
+              Subject Name
+              {editSubject.name && <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">Code: {generatePreviewCode(editSubject.name)}</span>}
+            </label>
             <input 
               type="text" required autoFocus
               placeholder="e.g. Mathematics"
@@ -1232,7 +1242,10 @@ export const GlobalSubjects = () => {
       ) : (
         <form onSubmit={handleCreateGlobalSubject} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Subject Name</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1 flex justify-between">
+              Subject Name
+              {newGlobalSubject.name && <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">Code: {generatePreviewCode(newGlobalSubject.name)}</span>}
+            </label>
             <input 
               type="text" required 
               placeholder="e.g. Mathematics"

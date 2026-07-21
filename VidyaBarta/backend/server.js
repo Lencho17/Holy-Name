@@ -41,6 +41,7 @@ const superadminRoutes = require('./routes/superadmin');
 const studentAuthRoutes = require('./routes/studentAuth');
 const studentPortalRoutes = require('./routes/studentPortal');
 const assignmentsRoutes = require('./routes/assignments');
+const subjectsRoutes = require('./routes/subjects');
 const grievancesRoutes = require('./routes/grievances');
 
 const app = express();
@@ -149,6 +150,7 @@ app.use('/api/superadmin/employees', apiLimiter, require('./routes/vidyabartaEmp
 app.use('/api/content', apiLimiter, contentRoutes);
 app.use('/api/admissions', apiLimiter, admissionsRoutes);
 app.use('/api/students', apiLimiter, studentsRoutes);
+app.use('/api/subjects', apiLimiter, subjectsRoutes);
 app.use('/api/student-auth', apiLimiter, studentAuthRoutes);
 app.use('/api/student-portal', apiLimiter, studentPortalRoutes);
 app.use('/api/assignments', apiLimiter, assignmentsRoutes);

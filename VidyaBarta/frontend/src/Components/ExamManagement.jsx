@@ -9,7 +9,7 @@ const ExamManagement = ({ apiUrl, token }) => {
   
   const [newExam, setNewExam] = useState({
     name: '',
-    class_level: '9',
+    class_level: '',
     type: 'Offline'
   });
 
@@ -39,7 +39,7 @@ const ExamManagement = ({ apiUrl, token }) => {
       await axios.post(`${apiUrl}/exams`, newExam, { headers: { Authorization: `Bearer ${token}` } });
       alert('Exam created successfully');
       setShowCreate(false);
-      setNewExam({ name: '', class_level: '9', type: 'Offline' });
+      setNewExam({ name: '', class_level: '', type: 'Offline' });
       fetchExams();
     } catch (err) {
       alert('Failed to create exam');
@@ -107,7 +107,10 @@ const ExamManagement = ({ apiUrl, token }) => {
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Class Level</label>
-            <input required type="text" value={newExam.class_level} onChange={e => setNewExam({...newExam, class_level: e.target.value})} className="w-full border-gray-200 p-2.5 rounded-lg" placeholder="e.g. 10" />
+            <select required value={newExam.class_level} onChange={e => setNewExam({...newExam, class_level: e.target.value})} className="w-full border-gray-200 p-2.5 rounded-lg">
+              <option value="" disabled>Select Class</option>
+              {['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Type</label>

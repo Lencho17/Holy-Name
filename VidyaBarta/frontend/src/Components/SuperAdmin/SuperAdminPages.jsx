@@ -29,6 +29,7 @@ export const Dashboard = () => {
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
 
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -148,6 +149,7 @@ export { ManageSchools as Schools };
 export const Packages = () => {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ id: null, name: '', features: {} });
 
@@ -270,6 +272,7 @@ export const RolePermission = () => <PageWrapper title="Role & Permission"><p>Ma
 export const Staff = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
@@ -787,6 +790,7 @@ export const Staff = () => {
 export const WebGeneralSettings = () => {
   const [settings, setSettings] = useState({ contact_email: '', contact_phone: '', contact_address: '' });
   const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -850,6 +854,7 @@ export const WebGeneralSettings = () => {
 export const FeatureSections = () => {
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ id: null, icon: 'FiMonitor', title: '', description: '', order_index: 0 });
 
@@ -968,6 +973,7 @@ export const FeatureSections = () => {
 export const Faqs = () => {
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ id: null, question: '', answer: '', order_index: 0 });
 
@@ -1083,10 +1089,37 @@ export { default as StudentPortalSettings } from './StudentPortalSettings';
 export { default as ManagePricing } from './ManagePricing';
 export { DomainRequests } from './DomainRequests';
 
+const AHSEC_SEBA_SUBJECTS = [
+  "Accountancy", "Advanced Mathematics", "Alternative English", "Anthropology", "Arabic",
+  "Art", "Artificial Intelligence", "Assamese", "Bengali", "Bihu", "Biology", "Biotechnology",
+  "Bodo", "Bookkeeping", "Business Studies", "Chemistry", "Classical Languages",
+  "Commercial Mathematics and Statistics", "Computer Science", "Computer Science & Application",
+  "Dance", "Economic Geography", "Economics", "Education", "English", "Entrepreneurship Development",
+  "Finance", "Financial Literacy", "Fine Art", "Garo", "General Studies", "Geography", "Geology",
+  "Hindi", "History", "Hmar", "Home Science", "Information Technology", "Khasi", "Logic & Philosophy",
+  "Manipuri", "Mathematics", "Mizo", "Modern Indian Languages", "Music", "Nepali", "Persian",
+  "Physical Education", "Physics", "Political Science", "Psychology", "Salesmanship & Advertising",
+  "Sanskrit", "Science", "Sign Language", "Social Science", "Sociology", "Statistics", "Swadesh Adhyayan",
+  "Urdu"
+];
+
 export const GlobalSubjects = () => {
   const [globalSubjects, setGlobalSubjects] = useState([]);
   const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', class_level: '', type: 'Theory' });
   const [loading, setLoading] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const generateSubjectPrefix = (name) => {
+    const p = name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
+    return p ? `VB-${p}` : '';
+  };
+  
+  const filteredSubjects = AHSEC_SEBA_SUBJECTS.filter(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+  if (searchTerm && !filteredSubjects.some(s => s.toLowerCase() === searchTerm.toLowerCase())) {
+    filteredSubjects.unshift(searchTerm);
+  }
+
 
   const fetchGlobalSubjects = async () => {
     try {
@@ -1139,20 +1172,54 @@ export const GlobalSubjects = () => {
   return (
     <PageWrapper title="Global Subjects">
       <form onSubmit={handleCreateGlobalSubject} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-        <div>
+        <div className="relative">
           <label className="block text-sm font-bold text-gray-700 mb-1">Subject Name</label>
-          <input required type="text" list="subject-list" value={newGlobalSubject.name} onChange={e => setNewGlobalSubject({...newGlobalSubject, name: e.target.value})} className="w-full border-gray-300 p-2.5 rounded-lg" placeholder="e.g. Mathematics" />
-          <datalist id="subject-list">
-            <option value="Mathematics" />
-            <option value="Science" />
-            <option value="English" />
-            <option value="Social Studies" />
-            <option value="Hindi" />
-            <option value="Computer Science" />
-            <option value="Physical Education" />
-            <option value="Art" />
-            <option value="Music" />
-          </datalist>
+          <div 
+            className="w-full border border-gray-300 p-2.5 rounded-lg bg-white cursor-pointer flex justify-between items-center"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+          >
+            <span className={newGlobalSubject.name ? 'text-gray-900' : 'text-gray-400'}>
+              {newGlobalSubject.name ? `${newGlobalSubject.name} (${generateSubjectPrefix(newGlobalSubject.name)})` : 'Select or type subject...'}
+            </span>
+            <span className="text-gray-500 text-xs">▼</span>
+          </div>
+          
+          {dropdownOpen && (
+            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              <div className="p-2 sticky top-0 bg-white border-b border-gray-100">
+                <input 
+                  type="text" 
+                  autoFocus
+                  placeholder="Search subjects..." 
+                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:border-primary text-sm"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <ul className="py-1">
+                {filteredSubjects.map((sub, idx) => {
+                  const prefix = generateSubjectPrefix(sub);
+                  return (
+                    <li 
+                      key={idx}
+                      className="px-4 py-2 hover:bg-primary/10 cursor-pointer flex justify-between items-center text-sm"
+                      onClick={() => {
+                        setNewGlobalSubject({...newGlobalSubject, name: sub});
+                        setDropdownOpen(false);
+                        setSearchTerm('');
+                      }}
+                    >
+                      <span className="font-medium text-gray-800">{sub}</span>
+                      {prefix && <span className="text-xs font-mono bg-gray-100 text-gray-500 px-2 py-1 rounded">{prefix}</span>}
+                    </li>
+                  );
+                })}
+                {filteredSubjects.length === 0 && (
+                  <li className="px-4 py-3 text-sm text-gray-500 text-center">No subjects found. Type to add custom.</li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-1">Class Level</label>

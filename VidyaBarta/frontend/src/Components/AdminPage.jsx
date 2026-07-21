@@ -8809,10 +8809,10 @@ function AdminPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-blue-900 mb-1">Select Global Subject</label>
+                  <label className="block text-sm font-bold text-blue-900 mb-1">Select Subject</label>
                   <select required value={newClassSubject.subject_id} onChange={e => setNewClassSubject({...newClassSubject, subject_id: e.target.value})} className="w-full border-blue-200 p-2.5 rounded-lg">
                     <option value="" disabled>-- Select Subject --</option>
-                    {globalSubjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code?.replace(/^VB/, '')})</option>)}
+                    {globalSubjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code?.replace(/^VB-?/, '')})</option>)}
                   </select>
                 </div>
                 <button type="submit" className="bg-blue-600 text-white p-2.5 rounded-lg font-bold hover:bg-blue-700 w-full flex items-center justify-center gap-2">
@@ -8836,7 +8836,7 @@ function AdminPage() {
                       <tr key={map.id} className="hover:bg-gray-50">
                         <td className="p-4 font-bold text-gray-800 bg-gray-100 w-24 text-center">{map.class_level}</td>
                         <td className="p-4 font-semibold text-gray-800">{map.subjects?.name}</td>
-                        <td className="p-4 font-mono text-gray-500">{map.subjects?.code?.replace(/^VB/, '')}</td>
+                        <td className="p-4 font-mono text-gray-500">{map.subjects?.code?.replace(/^VB-?/, '')}</td>
                         <td className="p-4 text-sm text-gray-500">{map.subjects?.type}</td>
                         <td className="p-4 text-right">
                           <button onClick={() => handleDeleteClassSubject(map.id)} className="text-red-500 hover:text-red-700 p-2">

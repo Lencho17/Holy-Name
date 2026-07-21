@@ -36,7 +36,7 @@ exports.createGlobalSubject = async (req, res) => {
     // Auto-generate code: VB + First 4 letters (or less) of name + - + class_level
     // e.g., Mathematics, Class V -> VBMATH-V
     const subjectPrefix = name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
-    const generatedCode = `VB${subjectPrefix}-${class_level.toUpperCase()}`;
+    const generatedCode = `VB-${subjectPrefix}-${class_level.toUpperCase()}`;
 
     const { data, error } = await supabase
       .from('subjects')

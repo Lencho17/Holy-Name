@@ -111,7 +111,7 @@ const ResultsPortal = ({ apiUrl, token }) => {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <div className="font-bold text-gray-800">Student: {g.student?.name} ({g.student?.roll_number})</div>
-                  <div className="text-xs text-gray-500">Exam: {g.exam?.name} | Subject: {g.subject?.replace(/^VB/, '')} | Status: <span className={g.status === 'Resolved' ? 'text-green-600' : 'text-orange-600'}>{g.status}</span></div>
+                  <div className="text-xs text-gray-500">Exam: {g.exam?.name} | Subject: {g.subject?.replace(/^VB-?/, '')} | Status: <span className={g.status === 'Resolved' ? 'text-green-600' : 'text-orange-600'}>{g.status}</span></div>
                 </div>
                 <div className="text-xs text-gray-400">{new Date(g.created_at).toLocaleDateString()}</div>
               </div>

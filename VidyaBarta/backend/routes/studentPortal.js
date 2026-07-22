@@ -3,6 +3,20 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { protectStudent } = require('../middleware/auth');
 
+function parseStudentClass(student) {
+  let classLevel = student.grade;
+  let section = student.section || 'A';
+  
+  if (classLevel && classLevel.includes(' ')) {
+    const parts = classLevel.split(' ');
+    classLevel = parts[0];
+    section = parts[1];
+  }
+  
+  return { classLevel, section };
+}
+
+
 // @route   GET /api/student-portal/grades
 // @desc    Get grades for the logged in student
 // @access  Private (Student)
@@ -139,11 +153,12 @@ router.get('/transactions', protectStudent, async (req, res) => {
 router.get('/timetable', protectStudent, async (req, res) => {
   try {
     const student = req.student;
+    const parsed = parseStudentClass(student);
     const { data: timetable, error } = await supabase
       .from('class_timetable')
       .select('*, staff:staff_id(name)')
-      .eq('class_level', student.grade)
-      .eq('section', student.section || 'A')
+      .eq('class_level', parsed.classLevel)
+      .eq('section', parsed.section)
       .eq('is_published', true)
       .order('day_of_week', { ascending: true })
       .order('period_number', { ascending: true });

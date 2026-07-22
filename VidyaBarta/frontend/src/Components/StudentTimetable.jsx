@@ -17,6 +17,18 @@ const StudentTimetable = () => {
   const [periodColumns, setPeriodColumns] = useState([]);
   const [gridData, setGridData] = useState([]);
 
+  const getParsedClass = () => {
+    let grade = student.grade || '';
+    let sec = student.section || 'A';
+    if (grade.includes(' ')) {
+      const parts = grade.split(' ');
+      grade = parts[0];
+      sec = parts[1];
+    }
+    return { grade, sec };
+  };
+  const { grade, sec } = getParsedClass();
+
   useEffect(() => {
     if (token) fetchTimetable();
   }, [token]);
@@ -73,7 +85,7 @@ const StudentTimetable = () => {
     
     const doc = new jsPDF('landscape');
     doc.setFontSize(18);
-    doc.text(`${student.name} - Class ${student.grade} (${student.section || 'A'}) Timetable`, 14, 20);
+    doc.text(`${student.name} - Class ${grade} (${sec}) Timetable`, 14, 20);
     
     const head = [['Day', ...Array.from({length: maxPeriod}, (_, i) => `Period ${i+1}`)]];
     const body = days.map(day => {
@@ -99,7 +111,7 @@ const StudentTimetable = () => {
       headStyles: { fillColor: [79, 70, 229] } // indigo-600
     });
 
-    doc.save(`Timetable_${student.grade}_${student.section || 'A'}.pdf`);
+    doc.save(`Timetable_${grade}_${sec}.pdf`);
   };
 
   if (loading) {
@@ -118,7 +130,7 @@ const StudentTimetable = () => {
           <FaCalendarAlt className="text-3xl text-indigo-500" />
         </div>
         <h3 className="text-xl font-bold text-gray-800 mb-2">No Timetable Published Yet</h3>
-        <p className="text-gray-500">Your school administrator hasn't published the timetable for Class {student.grade} - {student.section || 'A'} yet. Please check back later!</p>
+        <p className="text-gray-500">Your school administrator hasn't published the timetable for Class {grade} - {sec} yet. Please check back later!</p>
       </div>
     );
   }
@@ -132,7 +144,7 @@ const StudentTimetable = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">My Class Timetable</h2>
-            <p className="text-sm text-gray-500 mt-1">Class {student.grade} ({student.section || 'A'})</p>
+            <p className="text-sm text-gray-500 mt-1">Class {grade} ({sec})</p>
           </div>
         </div>
         <button 

@@ -206,7 +206,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         let existing = grouped.find(g => g.subject === item.subject);
         if (existing) {
           existing.is_divided = true;
-          existing.papers.push({ name: item.sub_subject || '', start_time: item.start_time || '', end_time: item.end_time || '' });
+          existing.papers.push({ name: item.sub_subject || '', exam_date: item.exam_date || '', start_time: item.start_time || '', end_time: item.end_time || '' });
         } else {
           grouped.push({
             subject: item.subject,
@@ -215,9 +215,8 @@ const ExamManagement = ({ apiUrl, token }) => {
             has_practical: item.has_practical || false,
             theory_marks: item.theory_marks || '',
             practical_marks: item.practical_marks || '',
-            exam_date: item.exam_date || '', // Date is now at the group level
             is_divided: !!item.sub_subject,
-            papers: [{ name: item.sub_subject || '', start_time: item.start_time || '', end_time: item.end_time || '' }]
+            papers: [{ name: item.sub_subject || '', exam_date: item.exam_date || '', start_time: item.start_time || '', end_time: item.end_time || '' }]
           });
         }
       });
@@ -235,9 +234,8 @@ const ExamManagement = ({ apiUrl, token }) => {
       has_practical: false,
       theory_marks: '',
       practical_marks: '',
-      exam_date: '',
       is_divided: false,
-      papers: [{ name: '', start_time: '', end_time: '' }]
+      papers: [{ name: '', exam_date: '', start_time: '', end_time: '' }]
     }]);
   };
 
@@ -256,7 +254,7 @@ const ExamManagement = ({ apiUrl, token }) => {
             theory_marks: g.theory_marks,
             practical_marks: g.practical_marks,
             sub_subject: g.is_divided ? p.name : '',
-            exam_date: g.exam_date, // Use group level date
+            exam_date: p.exam_date,
             start_time: p.start_time,
             end_time: p.end_time,
             room_number: '' // Omitted from UI for now, kept for schema
@@ -395,12 +393,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                   </div>
                 </div>
                 
-                <div className="mb-6">
-                  <label className="block text-xs font-bold text-gray-600 mb-2">Date</label>
-                  <input type="date" value={group.exam_date} onChange={e => {
-                    const newTt = [...timetableData]; newTt[idx].exam_date = e.target.value; setTimetableData(newTt);
-                  }} className="w-full md:w-1/3 border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500" />
-                </div>
+
 
                 {/* Toggles */}
                 <div className="flex flex-wrap gap-6 items-center mb-6">
@@ -438,7 +431,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                 {/* Papers List */}
                 <div className="space-y-4">
                   {group.papers.map((paper, pIdx) => (
-                    <div key={pIdx} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end relative bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div key={pIdx} className={}>
                       {group.is_divided && (
                         <div>
                           <label className="block text-xs font-bold text-gray-600 mb-1">Paper Name</label>
@@ -447,7 +440,13 @@ const ExamManagement = ({ apiUrl, token }) => {
                           }} className="w-full border border-gray-300 p-2 rounded text-sm bg-white" placeholder="e.g. Theory" />
                         </div>
                       )}
-                      <div className={group.is_divided ? "" : "md:col-span-1"}>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Date</label>
+                        <input type="date" value={paper.exam_date} onChange={e => {
+                          const newTt = [...timetableData]; newTt[idx].papers[pIdx].exam_date = e.target.value; setTimetableData(newTt);
+                        }} className="w-full border border-gray-300 p-2 rounded text-sm bg-white" />
+                      </div>
+                      <div>
                         <label className="block text-xs font-bold text-gray-600 mb-1">Start Time</label>
                         <input type="time" value={paper.start_time} onChange={e => {
                           const newTt = [...timetableData]; newTt[idx].papers[pIdx].start_time = e.target.value; setTimetableData(newTt);
@@ -464,7 +463,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                           <div className="flex items-center justify-center gap-1 mb-1">
                             <button onClick={() => {
                               const newTt = [...timetableData];
-                              newTt[idx].papers.splice(pIdx + 1, 0, { name: `Paper ${newTt[idx].papers.length + 1}`, start_time: '', end_time: '' });
+                              newTt[idx].papers.splice(pIdx + 1, 0, { name: `Paper ${newTt[idx].papers.length + 1}`, exam_date: '', start_time: '', end_time: '' });
                               setTimetableData(newTt);
                             }} className="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 w-8 h-8 rounded text-sm font-bold flex items-center justify-center mt-4" title="Add Division">+</button>
                             {group.papers.length > 1 && (

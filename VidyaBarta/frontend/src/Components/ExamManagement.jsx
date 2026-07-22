@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaPlus, FaTrash, FaCheckCircle, FaCalendarAlt, FaArrowLeft, FaDownload, FaSpinner } from 'react-icons/fa';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const ExamManagement = ({ apiUrl, token }) => {
   const [exams, setExams] = useState([]);
@@ -106,7 +106,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         ]);
       });
       
-      doc.autoTable({
+      autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
         startY: 30,
@@ -155,7 +155,7 @@ const ExamManagement = ({ apiUrl, token }) => {
             ]);
           });
           
-          doc.autoTable({
+          autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
             startY: 30,

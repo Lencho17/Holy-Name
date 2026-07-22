@@ -219,6 +219,10 @@ function StudentPortal() {
             <div className="flex justify-center py-20">
                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             </div>
+          ) : activeTab === 'timetable' ? (
+            <div className="animate-fade-in">
+              <StudentTimetable />
+            </div>
           ) : activeTab === 'dashboard' ? (
             <>
               {/* UDISE Form Banner */}

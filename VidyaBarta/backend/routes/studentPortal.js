@@ -93,7 +93,13 @@ router.get('/courses', protectStudent, async (req, res) => {
       classTeacher = assignmentData.staff.name;
     }
     
-    // 2. Get Unique Subjects and their Teachers from Timetable
+    // 2. Get Subjects configured by admin for this class
+    const { data: configuredSubjects } = await supabase
+      .from('school_subjects')
+      .select('subjects(name)')
+      .in('class_level', [parsed.classLevel, getRoman(parsed.classLevel)]);
+      
+    // 3. Get Unique Subjects and their Teachers from Timetable
     const { data: timetableData } = await supabase
       .from('class_timetable')
       .select('subject, staff:staff_id(name)')
@@ -102,12 +108,21 @@ router.get('/courses', protectStudent, async (req, res) => {
       .eq('is_published', true);
       
     const subjectsMap = new Map();
+    
+    // First, populate all configured subjects with "Not Assigned"
+    if (configuredSubjects) {
+      configuredSubjects.forEach(entry => {
+        if (entry.subjects && entry.subjects.name) {
+          subjectsMap.set(entry.subjects.name, 'Not Assigned');
+        }
+      });
+    }
+
+    // Then, overlay teachers from timetable
     if (timetableData) {
       timetableData.forEach(entry => {
         if (entry.subject && entry.subject !== 'Recess') {
-          if (!subjectsMap.has(entry.subject)) {
-            subjectsMap.set(entry.subject, entry.staff ? entry.staff.name : 'Not Assigned');
-          }
+          subjectsMap.set(entry.subject, entry.staff ? entry.staff.name : 'Not Assigned');
         }
       });
     }

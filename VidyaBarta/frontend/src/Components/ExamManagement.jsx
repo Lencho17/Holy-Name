@@ -20,8 +20,11 @@ const ExamManagement = ({ apiUrl, token }) => {
 
   // Create Modal State
   const [showCreate, setShowCreate] = useState(false);
+  const [showBulkDownload, setShowBulkDownload] = useState(false);
+  const [bulkExamName, setBulkExamName] = useState('');
   const [newExam, setNewExam] = useState({ name: '', type: 'Offline', class_levels: [] });
   const allClasses = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  const uniqueExamNames = [...new Set(exams.map(e => e.name))];
 
   const fetchExamsAndStatus = async () => {
     try {
@@ -113,6 +116,62 @@ const ExamManagement = ({ apiUrl, token }) => {
     } catch (error) {
       console.error(error);
       alert("Failed to download PDF");
+    }
+  };
+
+  const downloadBulkPDF = async (e) => {
+    e.preventDefault();
+    if (!bulkExamName) return alert('Select an exam');
+    const examClasses = exams.filter(ex => ex.name === bulkExamName);
+    if (examClasses.length === 0) return;
+    
+    try {
+      const doc = new jsPDF();
+      let hasData = false;
+      
+      for (let i = 0; i < examClasses.length; i++) {
+        const cls = examClasses[i];
+        const { data: ttData } = await axios.get(`${apiUrl}/exams/${cls.id}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
+        
+        if (ttData && ttData.length > 0) {
+          if (hasData) doc.addPage();
+          hasData = true;
+          doc.setFontSize(18);
+          doc.text(`Exam Timetable: ${cls.name} - Class ${cls.class_level}`, 14, 22);
+          
+          const tableColumn = ["Date", "Time", "Subject", "Total Marks", "Pass Marks", "Room"];
+          const tableRows = [];
+          
+          ttData.forEach(row => {
+            const subjectName = `${row.subject} ${row.sub_subject ? `(${row.sub_subject})` : ''} ${row.has_practical ? '(Th+Pr)' : ''}`;
+            const timeStr = `${row.start_time?.substring(0,5) || '--:--'} - ${row.end_time?.substring(0,5) || '--:--'}`;
+            tableRows.push([
+              row.exam_date || '-',
+              timeStr,
+              subjectName,
+              row.total_marks || (row.theory_marks + row.practical_marks),
+              row.passing_marks || '-',
+              row.room_number || '-'
+            ]);
+          });
+          
+          doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 30,
+          });
+        }
+      }
+      
+      if (hasData) {
+        doc.save(`Bulk_Timetable_${bulkExamName}.pdf`);
+        setShowBulkDownload(false);
+      } else {
+        alert('No timetables found for this exam group.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Failed to download bulk PDF");
     }
   };
 
@@ -224,9 +283,14 @@ const ExamManagement = ({ apiUrl, token }) => {
         <>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-black text-gray-800">Exam Management</h2>
-            <button onClick={() => setShowCreate(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-indigo-700 transition flex items-center gap-2 text-sm shadow-sm">
-              <FaPlus /> Create Exam
-            </button>
+            <div className="flex gap-4">
+              <button onClick={() => setShowBulkDownload(true)} className="bg-[#ed8936] text-white px-5 py-2.5 rounded-lg font-bold hover:bg-orange-500 transition flex items-center gap-2 text-sm shadow-sm">
+                <FaDownload /> Bulk Download
+              </button>
+              <button onClick={() => setShowCreate(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-indigo-700 transition flex items-center gap-2 text-sm shadow-sm">
+                <FaPlus /> Create Exam
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
@@ -430,6 +494,28 @@ const ExamManagement = ({ apiUrl, token }) => {
         </div>
       )}
 
+
+      {/* BULK DOWNLOAD MODAL */}
+      {showBulkDownload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl relative">
+            <button onClick={() => setShowBulkDownload(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <h2 className="text-xl font-bold mb-4">Bulk Download Timetables</h2>
+            <form onSubmit={downloadBulkPDF}>
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Select Exam Group</label>
+                <select required value={bulkExamName} onChange={e => setBulkExamName(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded outline-none focus:ring-1 focus:ring-indigo-500">
+                  <option value="">-- Select Exam --</option>
+                  {uniqueExamNames.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
+              </div>
+              <button type="submit" className="w-full bg-[#ed8936] text-white p-3 rounded font-bold hover:bg-orange-500 transition flex items-center justify-center gap-2">
+                <FaDownload /> Download PDFs
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* CREATE EXAM MODAL */}
       {showCreate && (

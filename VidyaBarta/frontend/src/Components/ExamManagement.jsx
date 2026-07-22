@@ -87,7 +87,7 @@ const ExamManagement = ({ apiUrl, token }) => {
       if (clsConfig) {
         subs = [...(clsConfig.core_subjects || []), ...((clsConfig.elective_groups || []).flatMap(g => g.subjects || []))];
       }
-      setAvailableSubjects(subs.map(s => (typeof s === 'string' ? s : (s.name || s.subject_name))).filter(Boolean));
+      setAvailableSubjects(subs.map(s => (typeof s === 'string' ? s : (s.subjects?.name || s.name || s.subject_name))).filter(Boolean));
     } catch (err) {
       console.error(err);
     }

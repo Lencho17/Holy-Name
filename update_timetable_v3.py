@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import sys
+
+file_path = '/home/zerosync/Documents/Holy-Name/VidyaBarta/frontend/src/Components/TimetableManager.jsx'
+
+content = """import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaCalendarAlt, FaSpinner, FaSave, FaPlus, FaClock, FaTrash, FaExclamationTriangle, FaFilePdf, FaUpload } from 'react-icons/fa';
 import { FiEdit2, FiX } from 'react-icons/fi';
@@ -253,10 +257,8 @@ const TimetableManager = ({ apiUrl, token }) => {
         const entry = clsTimetable.find(t => t.day_of_week === day && t.period_number === i);
         if (entry) {
           const teacherName = teachers.find(tchr => tchr.id === entry.staff_id)?.name || '';
-          const time = entry.start_time ? `
-(${entry.start_time.substring(0,5)} - ${entry.end_time?.substring(0,5) || ''})` : '';
-          row.push(`${entry.subject || '-'}
-${teacherName}${time}`);
+          const time = entry.start_time ? `\n(${entry.start_time.substring(0,5)} - ${entry.end_time?.substring(0,5) || ''})` : '';
+          row.push(`${entry.subject || '-'}\n${teacherName}${time}`);
         } else {
           row.push('-');
         }
@@ -546,3 +548,8 @@ ${teacherName}${time}`);
 };
 
 export default TimetableManager;
+"""
+
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print("Updated TimetableManager.jsx successfully.")

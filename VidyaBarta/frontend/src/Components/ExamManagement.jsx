@@ -22,7 +22,12 @@ const ExamManagement = ({ apiUrl, token }) => {
   const [showCreate, setShowCreate] = useState(false);
   const [showBulkDownload, setShowBulkDownload] = useState(false);
   const [bulkExamName, setBulkExamName] = useState('');
-  const [newExam, setNewExam] = useState({ name: '', type: 'Offline', class_levels: [] });
+  const [newExam, setNewExam] = useState({
+    name: '',
+    class_levels: [],
+    type: 'Offline',
+    isPractical: false
+  });
   const allClasses = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
   const uniqueExamNames = [...new Set(exams.map(e => e.name))];
 
@@ -58,9 +63,20 @@ const ExamManagement = ({ apiUrl, token }) => {
     e.preventDefault();
     if (newExam.class_levels.length === 0) return alert('Select at least one class');
     try {
-      await axios.post(`${apiUrl}/exams`, newExam, { headers: { Authorization: `Bearer ${token}` } });
+      const finalName = newExam.isPractical && !newExam.name.includes('(Practical)')
+          ? `${newExam.name.trim()} (Practical)`
+          : newExam.name.trim();
+
+      const promises = newExam.class_levels.map(cls => 
+        axios.post(`${apiUrl}/exams`, {
+          name: finalName,
+          class_level: cls,
+          type: newExam.type
+        }, { headers: { Authorization: `Bearer ${token}` } })
+      );
+      await Promise.all(promises);
       setShowCreate(false);
-      setNewExam({ name: '', type: 'Offline', class_levels: [] });
+      setNewExam({ name: '', class_levels: [], type: 'Offline', isPractical: false });
       fetchExamsAndStatus();
     } catch (error) {
       console.error(error);
@@ -542,8 +558,25 @@ const ExamManagement = ({ apiUrl, token }) => {
                   <option value="Online">Online</option>
                 </select>
               </div>
+              <div className="mb-4">
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-gray-700">
+                  <input type="checkbox" checked={newExam.isPractical} onChange={e => setNewExam({...newExam, isPractical: e.target.checked})} className="rounded text-[#20c997] focus:ring-[#20c997] w-4 h-4" />
+                  Is Practical Exam? (Appends "(Practical)" to name)
+                </label>
+              </div>
               <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 mb-2">Select Classes</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-bold text-gray-700">Select Classes</label>
+                  <button type="button" onClick={() => {
+                    if(newExam.class_levels.length === allClasses.length) {
+                      setNewExam({...newExam, class_levels: []});
+                    } else {
+                      setNewExam({...newExam, class_levels: [...allClasses]});
+                    }
+                  }} className="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-2 py-1 rounded border border-indigo-200">
+                    {newExam.class_levels.length === allClasses.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   {allClasses.map(c => (
                     <label key={c} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer hover:bg-gray-100">

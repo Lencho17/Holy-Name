@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaPlus, FaSave, FaSpinner, FaTrash, FaTable, FaEdit, FaDownload, FaCheckCircle, FaSearch, FaSortAmountDown, FaChevronDown } from 'react-icons/fa';
+import { FaPlus, FaSave, FaSpinner, FaTrash, FaTable, FaEdit, FaDownload, FaCheckCircle, FaSearch, FaSortAmountDown, FaChevronDown, FaBars } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -8,6 +8,7 @@ const ExamManagement = ({ apiUrl, token }) => {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
   const [showClassDropdown, setShowClassDropdown] = useState(false);
   const [newExam, setNewExam] = useState({ name: '', type: 'Offline', class_levels: [] });
   const [selectedExamGroup, setSelectedExamGroup] = useState(null); // The selected exam name group
@@ -252,7 +253,12 @@ const ExamManagement = ({ apiUrl, token }) => {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-black text-gray-800">Exam Management</h2>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowSidebar(!showSidebar)} className="text-gray-500 hover:text-gray-800 bg-gray-100 p-2 rounded-lg transition-colors" title="Toggle Sidebar">
+            <FaBars size={18} />
+          </button>
+          <h2 className="text-2xl font-black text-gray-800">Exam Management</h2>
+        </div>
         <button onClick={() => setShowCreate(!showCreate)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
           <FaPlus /> Create Exam
         </button>
@@ -318,6 +324,7 @@ const ExamManagement = ({ apiUrl, token }) => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {showSidebar && (
         <div className="lg:col-span-1 border-r pr-6">
           <h3 className="font-bold text-gray-700 mb-4">Exams List</h3>
           <div className="flex gap-2 mb-4">
@@ -364,8 +371,9 @@ const ExamManagement = ({ apiUrl, token }) => {
             ))}
           </div>
         </div>
+        )}
 
-        <div className="lg:col-span-3">
+        <div className={showSidebar ? "lg:col-span-3" : "lg:col-span-4"}>
           {selectedClassExam ? (
             <div>
               <div className="flex justify-between items-center mb-6 border-b pb-4">

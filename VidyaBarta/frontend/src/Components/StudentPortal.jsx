@@ -45,7 +45,40 @@ function StudentPortal() {
           axios.get(`${API_URL}/student-portal/upcoming-exams`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
         
-        setGrades(Array.isArray(gradesRes.data) ? gradesRes.data : []);
+        const gradesData = Array.isArray(gradesRes.data) ? gradesRes.data : [];
+        const uniqueExamIds = [...new Set(gradesData.map(g => g.exam_id))];
+        const timetables = {};
+        await Promise.all(uniqueExamIds.map(async (eid) => {
+          try {
+            const ttRes = await axios.get(`${API_URL}/exams/${eid}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
+            timetables[eid] = ttRes.data;
+          } catch(e) {}
+        }));
+
+        const enrichedGrades = gradesData.map(g => {
+          const tt = (timetables[g.exam_id] || []).find(t => t.subject === g.subject);
+          let passed = false;
+          let totalObtained = parseInt(g.marks_obtained) || 0;
+          
+          if (tt) {
+             if (tt.has_practical) {
+               totalObtained += parseInt(g.practical_marks_obtained) || 0;
+               const thPass = tt.theory_passing_marks || 0;
+               const prPass = tt.practical_passing_marks || 0;
+               passed = (parseInt(g.marks_obtained) || 0) >= thPass && (parseInt(g.practical_marks_obtained) || 0) >= prPass;
+             } else {
+               const passMark = tt.passing_marks || 30;
+               passed = totalObtained >= passMark;
+             }
+          } else {
+             // Fallback
+             passed = totalObtained >= 30;
+          }
+          
+          return { ...g, timetable: tt, passed, totalObtained };
+        });
+        
+        setGrades(enrichedGrades);
         setNotices(Array.isArray(noticesRes.data) ? noticesRes.data : []);
         setCourses(Array.isArray(coursesRes.data) ? coursesRes.data : []);
         setAssignments(Array.isArray(assignmentsRes.data) ? assignmentsRes.data : []);
@@ -696,11 +729,26 @@ function StudentPortal() {
                               <td className="px-6 py-4 text-center text-sm text-gray-500">{grade.exams?.exam_name || 'N/A'}</td>
                               <td className="px-6 py-4 text-center">
                                 <div className="flex flex-col items-center justify-center">
-                                  <span className="font-bold text-indigo-600 text-lg leading-none">{grade.marks_obtained}</span>
-                                  <span className="text-[10px] text-gray-400 font-bold mt-1">GRADE: {grade.grade || '-'}</span>
+                                  {grade.timetable?.has_practical ? (
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      Th: <span className="font-bold text-gray-800">{grade.marks_obtained}</span>/{grade.timetable.theory_marks} | 
+                                      Pr: <span className="font-bold text-gray-800">{grade.practical_marks_obtained || 0}</span>/{grade.timetable.practical_marks}
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      Max: {grade.timetable?.total_marks || grade.max_marks || 100}
+                                    </div>
+                                  )}
+                                  <span className="font-bold text-indigo-600 text-lg leading-none">{grade.totalObtained}</span>
                                 </div>
                               </td>
-                              <td className="px-6 py-4 text-sm text-gray-500 italic">Passed with distinction</td>
+                              <td className="px-6 py-4 text-sm text-gray-500 italic">
+                                {grade.passed ? (
+                                   <span className="text-green-600 font-bold">Passed</span>
+                                ) : (
+                                   <span className="text-red-500 font-bold">Failed</span>
+                                )}
+                              </td>
                               <td className="px-6 py-4 text-right">
                                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200">
                                   PUBLISHED

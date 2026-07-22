@@ -32,20 +32,20 @@ function parseStudentClass(student) {
 // @access  Private (Student)
 router.get('/grades', protectStudent, async (req, res) => {
   try {
-    // Assuming we fetch from exam_results or subject_marks
-    // Using exam_results as the likely table based on Supabase schema
+    // Fetch from marks table where exam is published
     const { data: grades, error } = await supabase
-      .from('exam_results')
+      .from('marks')
       .select('*, exams(*)')
-      .eq('student_id', req.student.id)
-      .eq('withheld', false);
+      .eq('student_id', req.student.id);
 
-    if (error && error.code !== '42P01') { 
-      // Ignore table not found if it's not setup yet
+    if (error) { 
       console.error('Supabase query error:', error);
     }
     
-    res.json(grades || []);
+    // Filter only published exams
+    const publishedGrades = (grades || []).filter(g => g.exams?.workflow_status === 'Published');
+    
+    res.json(publishedGrades);
   } catch (error) {
     console.error('Error fetching grades:', error);
     res.status(500).json({ message: 'Server error' });

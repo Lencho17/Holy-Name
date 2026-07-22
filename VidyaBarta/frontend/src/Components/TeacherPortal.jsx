@@ -17,7 +17,8 @@ function TeacherPortal() {
   const [selectedExam, setSelectedExam] = useState('');
   const [exams, setExams] = useState([]);
   const [students, setStudents] = useState([]);
-  const [marksGrid, setMarksGrid] = useState({}); // { studentId: { obtained, max } }
+  const [marksGrid, setMarksGrid] = useState({}); // { studentId: { obtained, practical_obtained, max } }
+  const [subjectConfig, setSubjectConfig] = useState(null);
 
   // Review State
   const [reviewMarks, setReviewMarks] = useState([]);
@@ -101,6 +102,24 @@ function TeacherPortal() {
       }
       setStudents(studs);
 
+      // Fetch timetable config for this subject
+      const ttRes = await fetch(`${API_URL}/exams/${selectedExam}/timetable`, { headers: { 'Authorization': `Bearer ${token}` } });
+      let hasPractical = false;
+      let theoryMax = 100;
+      let practicalMax = 0;
+      if (ttRes.ok) {
+        const ttData = await ttRes.json();
+        const config = ttData.find(t => t.subject === selectedSubject);
+        if (config) {
+          setSubjectConfig(config);
+          hasPractical = config.has_practical;
+          theoryMax = config.theory_marks || 100;
+          practicalMax = config.practical_marks || 0;
+        } else {
+          setSubjectConfig(null);
+        }
+      }
+
       // Fetch marks
       const mRes = await fetch(`${API_URL}/exams/${selectedExam}/marks`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (mRes.ok) {
@@ -108,7 +127,11 @@ function TeacherPortal() {
         const initialGrid = {};
         studs.forEach(s => {
           const mark = marksData.find(m => m.student_id === s.id && m.subject === selectedSubject);
-          initialGrid[s.id] = { obtained: mark ? mark.marks_obtained : '', max: mark ? mark.max_marks : 100 };
+          initialGrid[s.id] = { 
+            obtained: mark ? mark.marks_obtained : '', 
+            practical_obtained: mark ? (mark.practical_marks_obtained || '') : '', 
+            max: hasPractical ? theoryMax : (mark ? mark.max_marks : 100)
+          };
         });
         setMarksGrid(initialGrid);
       }
@@ -148,6 +171,7 @@ function TeacherPortal() {
         student_id: sId,
         subject: selectedSubject,
         marks_obtained: marksGrid[sId].obtained,
+        practical_marks_obtained: subjectConfig?.has_practical ? marksGrid[sId].practical_obtained : null,
         max_marks: marksGrid[sId].max
       }));
 
@@ -322,7 +346,15 @@ function TeacherPortal() {
                       <thead>
                         <tr className="bg-gray-50 border-y border-gray-100">
                           <th className="p-3 text-sm text-gray-600">Student ID</th>
-                          <th className="p-3 text-sm text-gray-600">Marks Obtained</th>
+                          {subjectConfig?.has_practical ? (
+                            <>
+                              <th className="p-3 text-sm text-gray-600">Theory Marks</th>
+                              <th className="p-3 text-sm text-gray-600">Practical Marks</th>
+                            </>
+                          ) : (
+                            <th className="p-3 text-sm text-gray-600">Marks Obtained</th>
+                          )}
+                          <th className="p-3 text-sm text-gray-600">Total Scored</th>
                           <th className="p-3 text-sm text-gray-600">Max Marks</th>
                         </tr>
                       </thead>
@@ -330,19 +362,46 @@ function TeacherPortal() {
                         {students.map(s => (
                           <tr key={s.id} className="border-b border-gray-50">
                             <td className="p-3 text-sm font-medium">{s.student_name || s.name} ({s.admission_id || s.roll_number})</td>
-                            <td className="p-3">
-                              <input 
-                                type="number" 
-                                className="border p-2 rounded w-24 outline-none focus:border-blue-500"
-                                value={marksGrid[s.id]?.obtained || ''}
-                                onChange={e => setMarksGrid({...marksGrid, [s.id]: { ...marksGrid[s.id], obtained: e.target.value }})}
-                              />
+                            {subjectConfig?.has_practical ? (
+                              <>
+                                <td className="p-3">
+                                  <input 
+                                    type="number" 
+                                    className="border p-2 rounded w-20 outline-none focus:border-blue-500"
+                                    value={marksGrid[s.id]?.obtained || ''}
+                                    placeholder={`/${subjectConfig.theory_marks}`}
+                                    onChange={e => setMarksGrid({...marksGrid, [s.id]: { ...marksGrid[s.id], obtained: e.target.value }})}
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <input 
+                                    type="number" 
+                                    className="border p-2 rounded w-20 outline-none focus:border-blue-500"
+                                    value={marksGrid[s.id]?.practical_obtained || ''}
+                                    placeholder={`/${subjectConfig.practical_marks}`}
+                                    onChange={e => setMarksGrid({...marksGrid, [s.id]: { ...marksGrid[s.id], practical_obtained: e.target.value }})}
+                                  />
+                                </td>
+                              </>
+                            ) : (
+                              <td className="p-3">
+                                <input 
+                                  type="number" 
+                                  className="border p-2 rounded w-24 outline-none focus:border-blue-500"
+                                  value={marksGrid[s.id]?.obtained || ''}
+                                  onChange={e => setMarksGrid({...marksGrid, [s.id]: { ...marksGrid[s.id], obtained: e.target.value }})}
+                                />
+                              </td>
+                            )}
+                            <td className="p-3 font-bold text-gray-700">
+                                { (parseFloat(marksGrid[s.id]?.obtained) || 0) + (subjectConfig?.has_practical ? (parseFloat(marksGrid[s.id]?.practical_obtained) || 0) : 0) }
                             </td>
                             <td className="p-3">
                               <input 
                                 type="number" 
-                                className="border p-2 rounded w-24 outline-none"
-                                value={marksGrid[s.id]?.max || 100}
+                                className="border p-2 rounded w-24 outline-none bg-gray-50"
+                                value={subjectConfig ? subjectConfig.total_marks : (marksGrid[s.id]?.max || 100)}
+                                readOnly={!!subjectConfig}
                                 onChange={e => setMarksGrid({...marksGrid, [s.id]: { ...marksGrid[s.id], max: e.target.value }})}
                               />
                             </td>

@@ -225,7 +225,9 @@ const ExamManagement = ({ apiUrl, token }) => {
             passing_marks: item.passing_marks || 30,
             has_practical: item.has_practical || false,
             theory_marks: item.theory_marks || '',
+            theory_passing_marks: item.theory_passing_marks || '',
             practical_marks: item.practical_marks || '',
+            practical_passing_marks: item.practical_passing_marks || '',
             exam_date: item.exam_date || '', 
             start_time: item.start_time || '',
             end_time: item.end_time || '',
@@ -247,7 +249,9 @@ const ExamManagement = ({ apiUrl, token }) => {
       passing_marks: 30,
       has_practical: false,
       theory_marks: '',
+      theory_passing_marks: '',
       practical_marks: '',
+      practical_passing_marks: '',
       exam_date: '',
       start_time: '',
       end_time: '',
@@ -268,8 +272,10 @@ const ExamManagement = ({ apiUrl, token }) => {
             total_marks: g.is_divided ? (parseInt(p.marks) || 0) : g.total_marks,
             passing_marks: g.is_divided ? Math.round(((parseInt(p.marks) || 0) / g.total_marks) * g.passing_marks) : g.passing_marks,
             has_practical: g.has_practical,
-            theory_marks: g.theory_marks,
-            practical_marks: g.practical_marks,
+            theory_marks: g.theory_marks || null,
+            theory_passing_marks: g.theory_passing_marks || null,
+            practical_marks: g.practical_marks || null,
+            practical_passing_marks: g.practical_passing_marks || null,
             sub_subject: g.is_divided ? p.name : '',
             exam_date: g.exam_date,
             start_time: g.start_time,
@@ -454,14 +460,25 @@ const ExamManagement = ({ apiUrl, token }) => {
 
                 {/* Practical Marks Split */}
                 {group.has_practical && (
-                  <div className="flex items-center gap-4 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <label className="text-xs font-bold text-gray-600">Marks Split:</label>
-                    <input type="number" value={group.theory_marks || ''} onChange={e => {
-                      const newTt = [...timetableData]; newTt[idx].theory_marks = parseInt(e.target.value); setTimetableData(newTt);
-                    }} className="border-gray-300 border p-2 rounded text-xs w-24 bg-white" placeholder="Theory" title="Theory" />
-                    <input type="number" value={group.practical_marks || ''} onChange={e => {
-                      const newTt = [...timetableData]; newTt[idx].practical_marks = parseInt(e.target.value); setTimetableData(newTt);
-                    }} className="border-gray-300 border p-2 rounded text-xs w-24 bg-white" placeholder="Prac" title="Practical" />
+                  <div className="flex flex-col gap-3 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-4">
+                      <label className="text-xs font-bold text-gray-600 w-24">Marks Split:</label>
+                      <input type="number" value={group.theory_marks || ''} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].theory_marks = parseInt(e.target.value) || ''; setTimetableData(newTt);
+                      }} className="border-gray-300 border p-2 rounded text-xs w-24 bg-white" placeholder="Theory" title="Theory" />
+                      <input type="number" value={group.practical_marks || ''} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].practical_marks = parseInt(e.target.value) || ''; setTimetableData(newTt);
+                      }} className="border-gray-300 border p-2 rounded text-xs w-24 bg-white" placeholder="Prac" title="Practical" />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <label className="text-xs font-bold text-gray-600 w-24">Passing Marks:</label>
+                      <input type="number" value={group.theory_passing_marks || ''} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].theory_passing_marks = parseInt(e.target.value) || ''; setTimetableData(newTt);
+                      }} className="border-gray-300 border p-2 rounded text-xs w-24 bg-white" placeholder="Th. Pass" title="Theory Passing" />
+                      <input type="number" value={group.practical_passing_marks || ''} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].practical_passing_marks = parseInt(e.target.value) || ''; setTimetableData(newTt);
+                      }} className="border-gray-300 border p-2 rounded text-xs w-24 bg-white" placeholder="Pr. Pass" title="Practical Passing" />
+                    </div>
                   </div>
                 )}
 

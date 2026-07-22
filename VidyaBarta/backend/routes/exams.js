@@ -324,7 +324,9 @@ router.post('/:id/timetable', protect, async (req, res) => {
         passing_marks: t.passing_marks || 30,
         has_practical: t.has_practical || false,
         theory_marks: t.theory_marks || null,
+        theory_passing_marks: t.theory_passing_marks || null,
         practical_marks: t.practical_marks || null,
+        practical_passing_marks: t.practical_passing_marks || null,
         room_number: t.room_number || null,
         is_finalized: t.is_finalized || false
       }));

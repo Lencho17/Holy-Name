@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaPlus, FaTrash, FaCheckCircle, FaCalendarAlt, FaArrowLeft, FaDownload, FaSpinner } from 'react-icons/fa';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const ExamManagement = ({ apiUrl, token }) => {
   const [exams, setExams] = useState([]);
@@ -64,9 +66,54 @@ const ExamManagement = ({ apiUrl, token }) => {
   };
 
   const handleDeleteExam = async (examId) => {
-    if (!window.confirm('Are you sure you want to delete this exam?')) return;
-    alert('Currently, deleting a single class exam record requires a dedicated backend route. For now, it is hidden from UI.');
-    setExams(exams.filter(e => e.id !== examId));
+    if (!window.confirm('Are you sure you want to delete this exam? This cannot be undone.')) return;
+    try {
+      await axios.delete(`${apiUrl}/exams/${examId}`, { headers: { Authorization: `Bearer ${token}` } });
+      setExams(exams.filter(e => e.id !== examId));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete exam');
+    }
+  };
+
+  const downloadClassPDF = async (examRecord) => {
+    try {
+      const { data: ttData } = await axios.get(`${apiUrl}/exams/${examRecord.id}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!ttData || ttData.length === 0) {
+        alert('No timetable created yet to download.');
+        return;
+      }
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text(`Exam Timetable: ${examRecord.name} - Class ${examRecord.class_level}`, 14, 22);
+      
+      const tableColumn = ["Date", "Time", "Subject", "Total Marks", "Pass Marks", "Room"];
+      const tableRows = [];
+      
+      ttData.forEach(row => {
+        const subjectName = `${row.subject} ${row.sub_subject ? `(${row.sub_subject})` : ''} ${row.has_practical ? '(Th+Pr)' : ''}`;
+        const timeStr = `${row.start_time?.substring(0,5) || '--:--'} - ${row.end_time?.substring(0,5) || '--:--'}`;
+        tableRows.push([
+          row.exam_date || '-',
+          timeStr,
+          subjectName,
+          row.total_marks || (row.theory_marks + row.practical_marks),
+          row.passing_marks || '-',
+          row.room_number || '-'
+        ]);
+      });
+      
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 30,
+      });
+      
+      doc.save(`Timetable_${examRecord.name}_Class_${examRecord.class_level}.pdf`);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to download PDF");
+    }
   };
 
   const openTimetable = async (examRecord) => {
@@ -100,7 +147,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         let existing = grouped.find(g => g.subject === item.subject);
         if (existing) {
           existing.is_divided = true;
-          existing.papers.push({ name: item.sub_subject || '', start_time: item.start_time || '', end_time: item.end_time || '', exam_date: item.exam_date || '' });
+          existing.papers.push({ name: item.sub_subject || '', start_time: item.start_time || '', end_time: item.end_time || '' });
         } else {
           grouped.push({
             subject: item.subject,
@@ -109,8 +156,9 @@ const ExamManagement = ({ apiUrl, token }) => {
             has_practical: item.has_practical || false,
             theory_marks: item.theory_marks || '',
             practical_marks: item.practical_marks || '',
+            exam_date: item.exam_date || '', // Date is now at the group level
             is_divided: !!item.sub_subject,
-            papers: [{ name: item.sub_subject || '', start_time: item.start_time || '', end_time: item.end_time || '', exam_date: item.exam_date || '' }]
+            papers: [{ name: item.sub_subject || '', start_time: item.start_time || '', end_time: item.end_time || '' }]
           });
         }
       });
@@ -128,8 +176,9 @@ const ExamManagement = ({ apiUrl, token }) => {
       has_practical: false,
       theory_marks: '',
       practical_marks: '',
+      exam_date: '',
       is_divided: false,
-      papers: [{ name: '', start_time: '', end_time: '', exam_date: '' }]
+      papers: [{ name: '', start_time: '', end_time: '' }]
     }]);
   };
 
@@ -148,7 +197,7 @@ const ExamManagement = ({ apiUrl, token }) => {
             theory_marks: g.theory_marks,
             practical_marks: g.practical_marks,
             sub_subject: g.is_divided ? p.name : '',
-            exam_date: p.exam_date,
+            exam_date: g.exam_date, // Use group level date
             start_time: p.start_time,
             end_time: p.end_time,
             room_number: '' // Omitted from UI for now, kept for schema
@@ -214,6 +263,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => openTimetable(exam)} className="bg-[#46a5f7] text-white w-8 h-8 rounded-full hover:bg-blue-500 transition-colors flex items-center justify-center shadow-sm" title="Manage Timetable"><FaCalendarAlt size={12} /></button>
                         <button className="bg-[#20c997] text-white w-8 h-8 rounded-full hover:bg-teal-500 transition-colors flex items-center justify-center shadow-sm" title="Publish Result"><FaCheckCircle size={12} /></button>
+                        <button onClick={() => downloadClassPDF(exam)} className="bg-[#ed8936] text-white w-8 h-8 rounded-full hover:bg-orange-500 transition-colors flex items-center justify-center shadow-sm" title="Download Timetable PDF"><FaDownload size={12} /></button>
                         <button onClick={() => handleDeleteExam(exam.id)} className="bg-[#4a5568] text-white w-8 h-8 rounded-full hover:bg-gray-700 transition-colors flex items-center justify-center shadow-sm" title="Delete"><FaTrash size={12} /></button>
                       </div>
                     </td>
@@ -257,8 +307,8 @@ const ExamManagement = ({ apiUrl, token }) => {
                   ×
                 </button>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 pr-12">
-                  <div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 pr-12">
+                  <div className="md:col-span-2">
                     <label className="block text-xs font-bold text-gray-600 mb-2">Subject</label>
                     <select value={group.subject} onChange={e => {
                       const newTt = [...timetableData]; newTt[idx].subject = e.target.value; setTimetableData(newTt);
@@ -279,6 +329,13 @@ const ExamManagement = ({ apiUrl, token }) => {
                       const newTt = [...timetableData]; newTt[idx].passing_marks = parseInt(e.target.value); setTimetableData(newTt);
                     }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Passing Marks" />
                   </div>
+                </div>
+                
+                <div className="mb-6">
+                  <label className="block text-xs font-bold text-gray-600 mb-2">Date</label>
+                  <input type="date" value={group.exam_date} onChange={e => {
+                    const newTt = [...timetableData]; newTt[idx].exam_date = e.target.value; setTimetableData(newTt);
+                  }} className="w-full md:w-1/3 border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500" />
                 </div>
 
                 {/* Toggles */}
@@ -317,7 +374,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                 {/* Papers List */}
                 <div className="space-y-4">
                   {group.papers.map((paper, pIdx) => (
-                    <div key={pIdx} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end relative bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div key={pIdx} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end relative bg-gray-50 p-4 rounded-lg border border-gray-200">
                       {group.is_divided && (
                         <div>
                           <label className="block text-xs font-bold text-gray-600 mb-1">Paper Name</label>
@@ -327,12 +384,6 @@ const ExamManagement = ({ apiUrl, token }) => {
                         </div>
                       )}
                       <div className={group.is_divided ? "" : "md:col-span-1"}>
-                        <label className="block text-xs font-bold text-gray-600 mb-1">Date</label>
-                        <input type="date" value={paper.exam_date} onChange={e => {
-                          const newTt = [...timetableData]; newTt[idx].papers[pIdx].exam_date = e.target.value; setTimetableData(newTt);
-                        }} className="w-full border border-gray-300 p-2 rounded text-sm bg-white" />
-                      </div>
-                      <div>
                         <label className="block text-xs font-bold text-gray-600 mb-1">Start Time</label>
                         <input type="time" value={paper.start_time} onChange={e => {
                           const newTt = [...timetableData]; newTt[idx].papers[pIdx].start_time = e.target.value; setTimetableData(newTt);
@@ -349,7 +400,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                           <div className="flex items-center justify-center gap-1 mb-1">
                             <button onClick={() => {
                               const newTt = [...timetableData];
-                              newTt[idx].papers.splice(pIdx + 1, 0, { name: `Paper ${newTt[idx].papers.length + 1}`, start_time: '', end_time: '', exam_date: '' });
+                              newTt[idx].papers.splice(pIdx + 1, 0, { name: `Paper ${newTt[idx].papers.length + 1}`, start_time: '', end_time: '' });
                               setTimetableData(newTt);
                             }} className="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 w-8 h-8 rounded text-sm font-bold flex items-center justify-center mt-4" title="Add Division">+</button>
                             {group.papers.length > 1 && (

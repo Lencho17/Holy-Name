@@ -7,13 +7,13 @@ const FeeConfiguration = ({ apiUrl, token }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const classes = [
-    'Nursery', 'KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 
+    'Nursery', 'KG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 
     '11 - Science', '11 - Arts', '11 - Commerce', 
     '12 - Science', '12 - Arts', '12 - Commerce'
   ];
 
   const [formData, setFormData] = useState({
-    class_level: '1',
+    class_level: 'I',
     base_tuition_fee: '',
     admission_fee: '',
     subject_fees: {}
@@ -24,7 +24,7 @@ const FeeConfiguration = ({ apiUrl, token }) => {
       setLoading(true);
       const res = await axios.get(`${apiUrl}/fees/structures`, { headers: { Authorization: `Bearer ${token}` } });
       setStructures(res.data || []);
-      populateForm('1', res.data || []);
+      populateForm('I', res.data || []);
     } catch (err) {
       console.error(err);
     } finally {

@@ -343,7 +343,7 @@ function Appointment() {
                       </div>
                       <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">Number of Persons <span className="text-red-500">*</span></label>
-                        <input type="number" name="persons_count" value={formData.persons_count} onChange={handleChange} min="1" max="2" required
+                        <input type="number" name="persons_count" value={formData.persons_count} onChange={handleChange} min="I" max="II" required
                           className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                         <p className="text-xs text-gray-400 mt-1">Max 2 persons per appointment</p>
                       </div>

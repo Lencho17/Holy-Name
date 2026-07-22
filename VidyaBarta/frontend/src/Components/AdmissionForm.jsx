@@ -1106,7 +1106,7 @@ function AdmissionForm() {
                         {submitting ? (
                           <>
                             <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <circle className="opacity-25" cx="XII" cy="XII" r="X" stroke="currentColor" strokeWidth="IV"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                             {uploadProgress || 'Processing...'}
@@ -1295,7 +1295,7 @@ function AdmissionForm() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="md:col-span-2">
                           <label className="block text-gray-700 font-medium mb-2">Residential Address *</label>
-                          <textarea name="address" required rows="3" className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none uppercase" placeholder="ENTER RESIDENTIAL ADDRESS"></textarea>
+                          <textarea name="address" required rows="III" className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none uppercase" placeholder="ENTER RESIDENTIAL ADDRESS"></textarea>
                         </div>
                         <div>
                           <label className="block text-gray-700 font-medium mb-2">Post Office (PO) *</label>
@@ -1510,7 +1510,7 @@ function AdmissionForm() {
                                   <option value="3RD DIVISION">3RD DIVISION (30%+)</option>
                                 </select>
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg>
+                                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="III" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
                               </div>
                             </div>
@@ -1663,7 +1663,7 @@ function AdmissionForm() {
                         {submitting ? (
                           <>
                             <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <circle className="opacity-25" cx="XII" cy="XII" r="X" stroke="currentColor" strokeWidth="IV"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                             {paymentEnabled && admissionFee > 0 ? 'Redirecting to Payment...' : 'Submitting Application...'}
@@ -1861,7 +1861,7 @@ function AdmissionForm() {
               >
                 {statusLoading ? (
                   <svg className="animate-spin h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <circle className="opacity-25" cx="XII" cy="XII" r="X" stroke="currentColor" strokeWidth="IV"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 ) : 'Check Status'}

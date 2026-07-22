@@ -1244,13 +1244,13 @@ function AdminPage() {
               <tbody className="divide-y divide-gray-50">
                 {activitiesLoading && activities.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="py-20 text-center">
+                    <td colSpan="V" className="py-20 text-center">
                       <FaSpinner className="animate-spin text-4xl text-primary/30 mx-auto" />
                     </td>
                   </tr>
                 ) : activities.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="py-20 text-center text-gray-400 italic">
+                    <td colSpan="V" className="py-20 text-center text-gray-400 italic">
                       No activity records found.
                     </td>
                   </tr>
@@ -2657,7 +2657,7 @@ function AdminPage() {
         <select value={newHighlight.category} onChange={e => setNewHighlight({...newHighlight, category: e.target.value})} className="p-2 border rounded-lg">
           <option>Academic</option><option>Sports</option><option>Cultural</option>
         </select>
-        <textarea placeholder="Description" value={newHighlight.description} onChange={e => setNewHighlight({...newHighlight, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="2"></textarea>
+        <textarea placeholder="Description" value={newHighlight.description} onChange={e => setNewHighlight({...newHighlight, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="II"></textarea>
         {editingHighlightId && newHighlight.galleryImages?.length > 0 && (
           <div className="md:col-span-2 p-4 bg-white border rounded-xl shadow-sm">
             <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center"><FaImage className="mr-2 text-primary"/> Existing Photos Preview</h4>
@@ -2945,7 +2945,7 @@ function AdminPage() {
             <p className="text-red-500 text-xs mt-1">Warning: Only the first 10 photos will be uploaded.</p>
           )}
         </div>
-        <textarea placeholder="Event Description" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="3"></textarea>
+        <textarea placeholder="Event Description" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} className="p-2 border rounded-lg md:col-span-2" rows="III"></textarea>
         {editingEventId && newEvent.galleryImages?.length > 0 && (
           <div className="md:col-span-2 p-4 bg-white border rounded-xl shadow-sm">
             <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center"><FaImage className="mr-2 text-primary"/> Existing Photos Preview</h4>
@@ -3712,7 +3712,7 @@ function AdminPage() {
                 {wordCount} / 400 words {isOverLimit && '(Limit exceeded)'}
               </span>
             </div>
-            <textarea disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.message : principal.message} onChange={e => handlePrincipalChange('message', e.target.value)} className={`w-full p-2 border rounded-lg font-sans text-sm disabled:bg-gray-200 disabled:text-gray-500:text-gray-400 ${isOverLimit ? 'border-red-500 focus:ring-red-200' : ''}`} rows="10"></textarea>
+            <textarea disabled={!isEditingPrincipal} value={isEditingPrincipal ? editPrincipal.message : principal.message} onChange={e => handlePrincipalChange('message', e.target.value)} className={`w-full p-2 border rounded-lg font-sans text-sm disabled:bg-gray-200 disabled:text-gray-500:text-gray-400 ${isOverLimit ? 'border-red-500 focus:ring-red-200' : ''}`} rows="X"></textarea>
           </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Closing Quote (Optional)</label>
@@ -4038,7 +4038,7 @@ function AdminPage() {
               </tr>
             ))}
             {(!alumni || alumni.length === 0) && (
-              <tr><td colSpan="6" className="p-6 text-center text-gray-500">No alumni records found.</td></tr>
+              <tr><td colSpan="VI" className="p-6 text-center text-gray-500">No alumni records found.</td></tr>
             )}
           </tbody>
         </table>
@@ -4116,7 +4116,7 @@ function AdminPage() {
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Short Message / Achievement</label>
-          <textarea value={excellenceForm.message} onChange={e => setExcellenceForm({...excellenceForm, message: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" rows="2" placeholder="Describe their journey or achievement..."></textarea>
+          <textarea value={excellenceForm.message} onChange={e => setExcellenceForm({...excellenceForm, message: e.target.value})} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary/20 bg-white" rows="II" placeholder="Describe their journey or achievement..."></textarea>
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Photo *</label>
@@ -4170,7 +4170,7 @@ function AdminPage() {
               </tr>
             ))}
             {(!centerOfExcellence || centerOfExcellence.length === 0) && (
-              <tr><td colSpan="5" className="p-6 text-center text-gray-500">No notable alumni found.</td></tr>
+              <tr><td colSpan="V" className="p-6 text-center text-gray-500">No notable alumni found.</td></tr>
             )}
           </tbody>
         </table>
@@ -4385,7 +4385,7 @@ function AdminPage() {
               <React.Fragment key={admin._id}>
                 {editingAdminId === admin._id ? (
                   <tr className="bg-blue-50/50">
-                    <td colSpan="4" className="py-4 px-6 border-b border-blue-100">
+                    <td colSpan="IV" className="py-4 px-6 border-b border-blue-100">
                       <div className="flex flex-col md:flex-row gap-4 items-end">
                         <div className="flex-1">
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Name</label>
@@ -4583,7 +4583,7 @@ function AdminPage() {
           <tbody>
             {activities.length === 0 && !activitiesLoading ? (
               <tr>
-                <td colSpan="7" className="py-20 text-center">
+                <td colSpan="VII" className="py-20 text-center">
                   <div className="flex flex-col items-center gap-4 text-gray-300">
                     <FaClipboardList size={48} className="opacity-20" />
                     <p className="font-black text-sm uppercase tracking-widest">No activity logs found</p>
@@ -4707,7 +4707,7 @@ function AdminPage() {
                   {/* Expanded Detail Panel */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan="7" className="px-0 pb-2">
+                      <td colSpan="VII" className="px-0 pb-2">
                         <div className="bg-gray-50 mx-2 rounded-b-[1.5rem] border border-t-0 border-gray-100 p-8 animate-in fade-in slide-in-from-top-2 duration-300">
                           <div className="flex items-center gap-3 mb-6">
                             <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
@@ -5409,13 +5409,13 @@ function AdminPage() {
               <tbody className="text-sm">
                 {fetchingProspectus ? (
                   <tr>
-                    <td colSpan="5" className="p-8 text-center text-gray-500">
+                    <td colSpan="V" className="p-8 text-center text-gray-500">
                       <FaSpinner className="animate-spin inline mr-2" /> Loading leads...
                     </td>
                   </tr>
                 ) : prospectusLeads.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="p-8 text-center text-gray-500 font-medium">No prospectus leads found.</td>
+                    <td colSpan="V" className="p-8 text-center text-gray-500 font-medium">No prospectus leads found.</td>
                   </tr>
                 ) : (
                   prospectusLeads.map((lead) => (
@@ -6650,7 +6650,7 @@ function AdminPage() {
                 onChange={(e) => handleProfileChange('whyUsText', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
                 placeholder="e.g. Because at our school, we foster curiosity..."
-                rows="3"
+                rows="III"
               />
               <p className="text-xs text-gray-500 mt-1">This text appears under the "Why Our School?" section on the homepage.</p>
             </div>
@@ -7407,7 +7407,7 @@ function AdminPage() {
                 <textarea 
                   value={(localCareerPage.eligibility || []).join('\n')}
                   onChange={(e) => setLocalCareerPage({...localCareerPage, eligibility: e.target.value.split('\n')})}
-                  rows="5"
+                  rows="V"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
                   placeholder="Enter eligibility rules, one per line"
                 />
@@ -7417,7 +7417,7 @@ function AdminPage() {
                 <textarea 
                   value={(localCareerPage.qualification || []).join('\n')}
                   onChange={(e) => setLocalCareerPage({...localCareerPage, qualification: e.target.value.split('\n')})}
-                  rows="5"
+                  rows="V"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
                   placeholder="Enter qualifications required, one per line"
                 />
@@ -7427,7 +7427,7 @@ function AdminPage() {
                 <textarea 
                   value={(localCareerPage.documents || []).join('\n')}
                   onChange={(e) => setLocalCareerPage({...localCareerPage, documents: e.target.value.split('\n')})}
-                  rows="5"
+                  rows="V"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
                   placeholder="Enter documents needed, one per line"
                 />
@@ -7437,7 +7437,7 @@ function AdminPage() {
                 <textarea 
                   value={(localCareerPage.online_process || []).join('\n')}
                   onChange={(e) => setLocalCareerPage({...localCareerPage, online_process: e.target.value.split('\n')})}
-                  rows="5"
+                  rows="V"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
                   placeholder="Enter online process steps, one per line"
                 />
@@ -7447,7 +7447,7 @@ function AdminPage() {
                 <textarea 
                   value={(localCareerPage.offline_process || []).join('\n')}
                   onChange={(e) => setLocalCareerPage({...localCareerPage, offline_process: e.target.value.split('\n')})}
-                  rows="5"
+                  rows="V"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
                   placeholder="Enter offline process steps, one per line"
                 />
@@ -10144,7 +10144,7 @@ function AdminPage() {
                     {isDownloadingPDF ? (
                       <span className="flex items-center gap-2">
                         <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <circle className="opacity-25" cx="XII" cy="XII" r="X" stroke="currentColor" strokeWidth="IV"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         <span>Generating...</span>
@@ -10293,7 +10293,7 @@ function AdminPage() {
                       <textarea 
                         value={trackingForm.adminMessage}
                         onChange={(e) => setTrackingForm({...trackingForm, adminMessage: e.target.value})}
-                        rows="2"
+                        rows="II"
                         className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
                         placeholder="Add custom notes against the Reference ID (Candidate can view this in tracking console)..."
                       />
@@ -10359,7 +10359,7 @@ function AdminPage() {
                           <textarea 
                             value={trackingForm.letterNotes}
                             onChange={(e) => setTrackingForm({...trackingForm, letterNotes: e.target.value})}
-                            rows="2"
+                            rows="II"
                             className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-medium"
                             placeholder="e.g. Subject to medical fitness and document verification..."
                           />
@@ -10442,7 +10442,7 @@ function AdminPage() {
                     {isDownloadingPDF ? (
                       <span className="flex items-center gap-2">
                         <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <circle className="opacity-25" cx="XII" cy="XII" r="X" stroke="currentColor" strokeWidth="IV"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         <span>Generating...</span>

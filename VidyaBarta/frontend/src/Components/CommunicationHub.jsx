@@ -80,7 +80,7 @@ const CommunicationHub = ({ apiUrl, token }) => {
               <textarea 
                 value={message} 
                 onChange={e => setMessage(e.target.value)} 
-                rows="6" 
+                rows="VI" 
                 className="w-full border-gray-200 p-4 rounded-xl shadow-sm resize-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                 placeholder={`Dear Parents,\n\nThis is to inform you that...`}
               />

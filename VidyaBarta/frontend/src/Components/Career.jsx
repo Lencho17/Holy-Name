@@ -839,7 +839,7 @@ function Career() {
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Address *</label>
-                  <textarea required name="address" value={offlineData.address} onChange={handleOfflineInputChange} rows="2" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-primary outline-none transition-all uppercase" />
+                  <textarea required name="address" value={offlineData.address} onChange={handleOfflineInputChange} rows="II" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-primary outline-none transition-all uppercase" />
                 </div>
               </div>
 

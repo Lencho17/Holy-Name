@@ -94,7 +94,7 @@ const AdminAnnouncements = () => {
                 <label className="block text-sm font-bold text-gray-700 mb-1">Message</label>
                 <textarea 
                   required
-                  rows="4"
+                  rows="IV"
                   placeholder="Type your message here..."
                   className="w-full p-3 border rounded-xl bg-gray-50"
                   value={form.message}

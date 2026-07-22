@@ -836,7 +836,7 @@ function JobApplicationForm() {
                 </div>
                 <div className="space-y-1.5 text-left">
                   <label className="block text-gray-700 font-medium mb-1 text-xs uppercase tracking-wider">Full Address *</label>
-                  <textarea required name="address" value={formData.address} onChange={handleInputChange} rows="3" className="w-full px-6 py-4 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-bold text-lg bg-white transition-all uppercase min-h-[100px]"></textarea>
+                  <textarea required name="address" value={formData.address} onChange={handleInputChange} rows="III" className="w-full px-6 py-4 rounded-2xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-bold text-lg bg-white transition-all uppercase min-h-[100px]"></textarea>
                 </div>
               </section>
 

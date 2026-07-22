@@ -3,6 +3,25 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const supabase = require('../config/supabase');
 
+
+// @desc    Get all timetables for the school (used for clash detection)
+// @route   GET /api/timetables/all
+// @access  Private
+router.get('/all', protect, async (req, res) => {
+  try {
+    // Note: If you have a school_id, you'd filter by it here
+    const { data, error } = await supabase
+      .from('class_timetable')
+      .select('*');
+      
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 // @desc    Get timetable for a specific class & section
 // @route   GET /api/timetables/:class_level/:section
 // @access  Private

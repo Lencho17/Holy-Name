@@ -206,7 +206,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         let existing = grouped.find(g => g.subject === item.subject);
         if (existing) {
           existing.is_divided = true;
-          existing.papers.push({ name: item.sub_subject || '' });
+          existing.papers.push({ name: item.sub_subject || '', marks: item.total_marks || '' });
         } else {
           grouped.push({
             subject: item.subject,
@@ -219,7 +219,7 @@ const ExamManagement = ({ apiUrl, token }) => {
             start_time: item.start_time || '',
             end_time: item.end_time || '',
             is_divided: !!item.sub_subject,
-            papers: [{ name: item.sub_subject || '' }]
+            papers: [{ name: item.sub_subject || '', marks: item.total_marks || '' }]
           });
         }
       });
@@ -241,7 +241,7 @@ const ExamManagement = ({ apiUrl, token }) => {
       start_time: '',
       end_time: '',
       is_divided: false,
-      papers: [{ name: '' }]
+      papers: [{ name: '', marks: '' }]
     }]);
   };
 
@@ -254,8 +254,8 @@ const ExamManagement = ({ apiUrl, token }) => {
           flatData.push({
             class_level: selectedClassExam.class_level,
             subject: g.subject,
-            total_marks: g.total_marks,
-            passing_marks: g.passing_marks,
+            total_marks: g.is_divided ? (parseInt(p.marks) || 0) : g.total_marks,
+            passing_marks: g.is_divided ? Math.round(((parseInt(p.marks) || 0) / g.total_marks) * g.passing_marks) : g.passing_marks,
             has_practical: g.has_practical,
             theory_marks: g.theory_marks,
             practical_marks: g.practical_marks,
@@ -464,10 +464,16 @@ const ExamManagement = ({ apiUrl, token }) => {
                             const newTt = [...timetableData]; newTt[idx].papers[pIdx].name = e.target.value; setTimetableData(newTt);
                           }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white" placeholder="e.g. Physics" />
                         </div>
+                        <div className="w-24">
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Marks</label>
+                          <input type="number" value={paper.marks || ''} onChange={e => {
+                            const newTt = [...timetableData]; newTt[idx].papers[pIdx].marks = e.target.value; setTimetableData(newTt);
+                          }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white" placeholder="e.g. 50" />
+                        </div>
                         <div className="flex items-center justify-center gap-2 mb-1">
                           <button onClick={() => {
                             const newTt = [...timetableData];
-                            newTt[idx].papers.splice(pIdx + 1, 0, { name: `Paper ${newTt[idx].papers.length + 1}` });
+                            newTt[idx].papers.splice(pIdx + 1, 0, { name: `Paper ${newTt[idx].papers.length + 1}`, marks: '' });
                             setTimetableData(newTt);
                           }} className="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 w-9 h-9 rounded flex items-center justify-center font-bold" title="Add Division">+</button>
                           {group.papers.length > 1 && (

@@ -13,6 +13,8 @@ router.get('/', protectAnyStaff, async (req, res) => {
       query = query.eq('school_id', school_id);
     }
     
+    query = query.order('id', { ascending: false });
+    
     const { data: exams, error } = await query;
       
     if (error) throw error;

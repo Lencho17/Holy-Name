@@ -25,8 +25,7 @@ const ExamManagement = ({ apiUrl, token }) => {
   const [newExam, setNewExam] = useState({
     name: '',
     class_levels: [],
-    type: 'Offline',
-    isPractical: false
+    type: 'Offline'
   });
   const allClasses = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
   const uniqueExamNames = [...new Set(exams.map(e => e.name))];
@@ -63,20 +62,16 @@ const ExamManagement = ({ apiUrl, token }) => {
     e.preventDefault();
     if (newExam.class_levels.length === 0) return alert('Select at least one class');
     try {
-      const finalName = newExam.isPractical && !newExam.name.includes('(Practical)')
-          ? `${newExam.name.trim()} (Practical)`
-          : newExam.name.trim();
-
       const promises = newExam.class_levels.map(cls => 
         axios.post(`${apiUrl}/exams`, {
-          name: finalName,
+          name: newExam.name.trim(),
           class_level: cls,
           type: newExam.type
         }, { headers: { Authorization: `Bearer ${token}` } })
       );
       await Promise.all(promises);
       setShowCreate(false);
-      setNewExam({ name: '', class_levels: [], type: 'Offline', isPractical: false });
+      setNewExam({ name: '', class_levels: [], type: 'Offline' });
       fetchExamsAndStatus();
     } catch (error) {
       console.error(error);
@@ -558,12 +553,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                   <option value="Online">Online</option>
                 </select>
               </div>
-              <div className="mb-4">
-                <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-gray-700">
-                  <input type="checkbox" checked={newExam.isPractical} onChange={e => setNewExam({...newExam, isPractical: e.target.checked})} className="rounded text-[#20c997] focus:ring-[#20c997] w-4 h-4" />
-                  Is Practical Exam? (Appends "(Practical)" to name)
-                </label>
-              </div>
+
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-sm font-bold text-gray-700">Select Classes</label>

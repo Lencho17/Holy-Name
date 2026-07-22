@@ -447,8 +447,9 @@ function StudentPortal() {
                           <tr className="text-gray-400 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
                             <th className="px-4 py-3">Date</th>
                             <th className="px-4 py-3">Exam Name</th>
-                            <th className="px-4 py-3">Class/Section</th>
-                            <th className="px-4 py-3 text-right">Actions</th>
+                            <th className="px-4 py-3">Subject</th>
+                            <th className="px-4 py-3">Time</th>
+                            <th className="px-4 py-3 text-right">Room</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -456,9 +457,15 @@ function StudentPortal() {
                             <tr key={idx} className="hover:bg-gray-50 transition-colors">
                               <td className="px-4 py-3 text-sm text-gray-600 font-medium whitespace-nowrap">{new Date(exam.exam_date).toLocaleDateString()}</td>
                               <td className="px-4 py-3 text-sm text-gray-900 font-bold">{exam.exam_name}</td>
-                              <td className="px-4 py-3 text-sm text-gray-500">Class {exam.class_id}</td>
-                              <td className="px-4 py-3 text-right">
-                                <button className="text-blue-600 font-semibold text-sm hover:text-blue-800">Syllabus</button>
+                              <td className="px-4 py-3 text-sm text-gray-500">
+                                {exam.subject} {exam.sub_subject ? `(${exam.sub_subject})` : ''}
+                                {exam.has_practical && <span className="block text-xs text-indigo-400">Theory + Practical</span>}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                                {exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - {exam.end_time ? exam.end_time.substring(0,5) : '--:--'}
+                              </td>
+                              <td className="px-4 py-3 text-sm font-semibold text-gray-600 text-right">
+                                {exam.room_number || '-'}
                               </td>
                             </tr>
                           )) : (

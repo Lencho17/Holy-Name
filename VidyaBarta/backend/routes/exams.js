@@ -26,17 +26,22 @@ router.get('/', protectAnyStaff, async (req, res) => {
 // Create a new exam (admin only, attaches school_id)
 router.post('/', protect, async (req, res) => {
   try {
-    const { name, type, class_level, start_date, end_date } = req.body;
+    const { name, type, class_levels, class_level, start_date, end_date } = req.body;
     const { school_id } = req.user;
     
-    const { data: exam, error } = await supabase
+    const classes = class_levels || [class_level];
+    
+    const inserts = classes.map(c => ({
+      name, type, class_level: c, start_date, end_date, school_id
+    }));
+    
+    const { data: exams, error } = await supabase
       .from('exams')
-      .insert([{ name, type, class_level, start_date, end_date, school_id }])
-      .select()
-      .single();
+      .insert(inserts)
+      .select();
 
     if (error) throw error;
-    res.status(201).json(exam);
+    res.status(201).json(exams);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message || 'Server Error', details: err });
@@ -76,19 +81,28 @@ router.post('/:id/marks/subject-teacher', protectAnyStaff, async (req, res) => {
 
     // We process each mark
     for (let mark of marks) {
-      const { data: existingMark } = await supabase
+      // Build the query to find existing mark
+      let query = supabase
         .from('marks')
         .select('*')
         .eq('exam_id', req.params.id)
         .eq('student_id', mark.student_id)
-        .eq('subject', mark.subject)
-        .maybeSingle();
+        .eq('subject', mark.subject);
+        
+      if (mark.sub_subject) {
+        query = query.eq('sub_subject', mark.sub_subject);
+      } else {
+        query = query.is('sub_subject', null);
+      }
+      
+      const { data: existingMark } = await query.maybeSingle();
         
       if (existingMark) {
         // Only update if not finalized
         if (existingMark.status !== 'finalized') {
            await supabase.from('marks').update({
              marks_obtained: mark.marks_obtained,
+             practical_marks_obtained: mark.practical_marks_obtained || null,
              max_marks: mark.max_marks,
              status: 'submitted_by_subject_teacher'
            }).eq('id', existingMark.id);
@@ -99,7 +113,9 @@ router.post('/:id/marks/subject-teacher', protectAnyStaff, async (req, res) => {
           exam_name,
           student_id: mark.student_id,
           subject: mark.subject,
+          sub_subject: mark.sub_subject || null,
           marks_obtained: mark.marks_obtained,
+          practical_marks_obtained: mark.practical_marks_obtained || null,
           max_marks: mark.max_marks,
           staff_id,
           status: 'submitted_by_subject_teacher'
@@ -223,6 +239,62 @@ router.post('/:id/finalize', protect, async (req, res) => {
     await supabase.from('marks').update({ status: 'finalized' }).eq('exam_id', req.params.id);
 
     res.json({ message: 'Results finalized successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+
+// Get exam timetable
+router.get('/:id/timetable', protectAnyStaff, async (req, res) => {
+  try {
+    const { data: timetable, error } = await supabase
+      .from('exam_timetable')
+      .select('*')
+      .eq('exam_id', req.params.id)
+      .order('exam_date', { ascending: true });
+      
+    if (error) throw error;
+    res.json(timetable || []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// Save exam timetable (Bulk)
+router.post('/:id/timetable', protect, async (req, res) => {
+  try {
+    const { timetableData } = req.body;
+    const { school_id } = req.user;
+    
+    // First, delete existing timetable for this exam
+    await supabase.from('exam_timetable').delete().eq('exam_id', req.params.id);
+    
+    if (timetableData && timetableData.length > 0) {
+      const inserts = timetableData.map(t => ({
+        exam_id: req.params.id,
+        school_id,
+        class_level: t.class_level,
+        subject: t.subject,
+        sub_subject: t.sub_subject || null,
+        exam_date: t.exam_date || null,
+        start_time: t.start_time || null,
+        end_time: t.end_time || null,
+        total_marks: t.total_marks || 100,
+        passing_marks: t.passing_marks || 30,
+        has_practical: t.has_practical || false,
+        theory_marks: t.theory_marks || null,
+        practical_marks: t.practical_marks || null,
+        room_number: t.room_number || null
+      }));
+      
+      const { error } = await supabase.from('exam_timetable').insert(inserts);
+      if (error) throw error;
+    }
+    
+    res.json({ message: 'Timetable saved successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server Error' });

@@ -239,9 +239,13 @@ router.get('/timetable', protectStudent, async (req, res) => {
 // @access  Private (Student)
 router.get('/upcoming-exams', protectStudent, async (req, res) => {
   try {
+    const student = req.student;
+    const parsed = parseStudentClass(student);
+    
     const { data: upcomingExams, error } = await supabase
-      .from('exams')
-      .select('*')
+      .from('exam_timetable')
+      .select('*, exams(name)')
+      .in('class_level', [parsed.classLevel, getRoman(parsed.classLevel)])
       .gte('exam_date', new Date().toISOString().split('T')[0])
       .order('exam_date', { ascending: true });
       
@@ -249,7 +253,13 @@ router.get('/upcoming-exams', protectStudent, async (req, res) => {
       console.error('Supabase query error:', error);
     }
     
-    res.json(upcomingExams || []);
+    // Format the response for the frontend
+    const formattedExams = (upcomingExams || []).map(et => ({
+      ...et,
+      exam_name: et.exams ? et.exams.name : 'Unknown Exam'
+    }));
+    
+    res.json(formattedExams);
   } catch (error) {
     console.error('Error fetching upcoming exams:', error);
     res.status(500).json({ message: 'Server error' });

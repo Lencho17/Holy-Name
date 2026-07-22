@@ -64,7 +64,8 @@ const { protectStudent } = require('../middleware/auth');
 
 router.post('/submit', protectStudent, async (req, res) => {
   try {
-    const { school_id, student_id } = req.student;
+    const school_id = req.student.school_id;
+    const student_id = req.student.id;
     const { exam_id, subject, complaint } = req.body;
 
     // Check if exam allows grievance (is published and within 7 day window)
@@ -107,13 +108,13 @@ router.post('/submit', protectStudent, async (req, res) => {
 // Student fetching their own grievances
 router.get('/my-grievances', protectStudent, async (req, res) => {
   try {
-    const { student_id } = req.student;
+    const student_id = req.student.id;
     const { data, error } = await supabase
       .from('result_grievances')
       .select('*, exam:exams(name)')
       .eq('student_id', student_id)
       .order('created_at', { ascending: false });
-      
+
     if (error) throw error;
     res.json(data);
   } catch (error) {

@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import sys
+
+file_path = '/home/zerosync/Documents/Holy-Name/VidyaBarta/frontend/src/Components/TimetableManager.jsx'
+
+content = """import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaCalendarAlt, FaSpinner, FaSave, FaPlus, FaClock, FaTrash } from 'react-icons/fa';
 import { FiEdit2, FiX } from 'react-icons/fi';
@@ -360,3 +364,8 @@ const TimetableManager = ({ apiUrl, token }) => {
 };
 
 export default TimetableManager;
+"""
+
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print("Updated TimetableManager.jsx successfully.")

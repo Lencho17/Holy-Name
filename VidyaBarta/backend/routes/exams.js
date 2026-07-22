@@ -48,6 +48,24 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
+// Delete an exam group (all classes with the same name)
+router.delete('/group/:name', protect, async (req, res) => {
+  try {
+    const { school_id } = req.user;
+    const { error } = await supabase
+      .from('exams')
+      .delete()
+      .eq('name', req.params.name)
+      .eq('school_id', school_id);
+
+    if (error) throw error;
+    res.json({ message: 'Exam group deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 // Get marks for an exam
 router.get('/:id/marks', protectAnyStaff, async (req, res) => {
   try {

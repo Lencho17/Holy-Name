@@ -173,6 +173,21 @@ const ExamManagement = ({ apiUrl, token }) => {
     doc.save(`Timetable_Class_${className}.pdf`);
   };
 
+  const handleDeleteExamGroup = async (examName) => {
+    if (!window.confirm(`Are you sure you want to delete the exam group: ${examName}? This action cannot be undone.`)) return;
+    try {
+      await axios.delete(`${apiUrl}/exams/group/${examName}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (selectedExamGroup === examName) {
+        setSelectedExamGroup(null);
+        setSelectedClassExam(null);
+      }
+      fetchExams();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete exam group');
+    }
+  };
+
   const downloadBulkPDF = async (examName, classesArray) => {
     const doc = new jsPDF();
     
@@ -305,7 +320,8 @@ const ExamManagement = ({ apiUrl, token }) => {
                   <span className="text-xs bg-gray-200 px-2 py-1 rounded-md whitespace-nowrap">{classesArray.length} Classes</span>
                 </div>
                 {selectedExamGroup === examName && (
-                  <div className="bg-gray-50 p-2 border-b flex justify-end">
+                  <div className="bg-gray-50 p-2 border-b flex justify-between items-center">
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteExamGroup(examName); }} className="text-xs font-bold text-red-500 hover:text-red-700 flex items-center gap-1"><FaTrash /> Delete Group</button>
                     <button onClick={(e) => { e.stopPropagation(); downloadBulkPDF(examName, classesArray); }} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><FaDownload /> Bulk PDF</button>
                   </div>
                 )}

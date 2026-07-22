@@ -77,15 +77,50 @@ router.get('/notices', protectStudent, async (req, res) => {
 // @access  Private (Student)
 router.get('/courses', protectStudent, async (req, res) => {
   try {
-    const { data: courses, error } = await supabase
-      .from('subjects')
-      .select('*');
+    const student = req.student;
+    const parsed = parseStudentClass(student);
+    
+    // 1. Get Class Teacher
+    let classTeacher = 'Not Assigned';
+    const { data: assignmentData } = await supabase
+      .from('class_assignments')
+      .select('class_teacher_id, staff:class_teacher_id(name)')
+      .in('class_name', [parsed.classLevel, getRoman(parsed.classLevel)])
+      .eq('section', parsed.section)
+      .single();
       
-    if (error && error.code !== '42P01') {
-      console.error('Supabase query error:', error);
+    if (assignmentData && assignmentData.staff) {
+      classTeacher = assignmentData.staff.name;
     }
     
-    res.json(courses || []);
+    // 2. Get Unique Subjects and their Teachers from Timetable
+    const { data: timetableData } = await supabase
+      .from('class_timetable')
+      .select('subject, staff:staff_id(name)')
+      .in('class_level', [parsed.classLevel, getRoman(parsed.classLevel)])
+      .eq('section', parsed.section)
+      .eq('is_published', true);
+      
+    const subjectsMap = new Map();
+    if (timetableData) {
+      timetableData.forEach(entry => {
+        if (entry.subject && entry.subject !== 'Recess') {
+          if (!subjectsMap.has(entry.subject)) {
+            subjectsMap.set(entry.subject, entry.staff ? entry.staff.name : 'Not Assigned');
+          }
+        }
+      });
+    }
+    
+    const subjectsList = Array.from(subjectsMap, ([name, teacher]) => ({ name, teacher }));
+    
+    res.json({
+      currentClass: parsed.classLevel,
+      section: parsed.section,
+      session: '2024-2025',
+      classTeacher,
+      subjects: subjectsList
+    });
   } catch (error) {
     console.error('Error fetching courses:', error);
     res.status(500).json({ message: 'Server error' });

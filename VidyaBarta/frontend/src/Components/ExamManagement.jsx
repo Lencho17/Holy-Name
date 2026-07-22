@@ -81,7 +81,8 @@ const ExamManagement = ({ apiUrl, token }) => {
     // Fetch configured subjects for this class
     try {
       const { data: config } = await axios.get(`${apiUrl}/subjects/mapping`, { headers: { Authorization: `Bearer ${token}` } });
-      const clsConfig = config.find(c => c.class_level === examRecord.class_level);
+      const cleanClassLevel = (lvl) => typeof lvl === 'string' ? lvl.replace(/Class /g, '').trim() : lvl;
+      const clsConfig = config.find(c => cleanClassLevel(c.class_level) === cleanClassLevel(examRecord.class_level));
       let subs = [];
       if (clsConfig) {
         subs = [...(clsConfig.core_subjects || []), ...((clsConfig.elective_groups || []).flatMap(g => g.subjects || []))];
@@ -430,9 +431,20 @@ const ExamManagement = ({ apiUrl, token }) => {
                             <span className="text-sm font-bold text-gray-700">Divide Subject (Sub-Subject)</span>
                           </label>
                           {row.sub_subject !== '' && (
-                            <input type="text" value={row.sub_subject} onChange={e => {
-                              const newTt = [...timetableData]; newTt[idx].sub_subject = e.target.value; setTimetableData(newTt);
-                            }} className="w-full border-gray-200 p-2 rounded-lg text-sm mt-1" placeholder="e.g. Physics, Theory Part 1" />
+                            <div className="flex gap-1 mt-1">
+                              <input type="text" value={row.sub_subject} onChange={e => {
+                                const newTt = [...timetableData]; newTt[idx].sub_subject = e.target.value; setTimetableData(newTt);
+                              }} className="flex-1 border-gray-200 p-2 rounded-lg text-sm" placeholder="e.g. Physics, Theory Part 1" />
+                              <button type="button" onClick={() => {
+                                const newTt = [...timetableData];
+                                newTt.splice(idx + 1, 0, { ...row, sub_subject: 'Paper 2', start_time: '', end_time: '', exam_date: '' });
+                                setTimetableData(newTt);
+                              }} className="px-3 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 font-bold text-lg leading-none flex items-center justify-center" title="Add another sub-subject">+</button>
+                              <button type="button" onClick={() => {
+                                const newTt = timetableData.filter((_, i) => i !== idx);
+                                setTimetableData(newTt);
+                              }} className="px-3 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold text-lg leading-none flex items-center justify-center" title="Remove this sub-subject">-</button>
+                            </div>
                           )}
                         </div>
 
@@ -446,14 +458,20 @@ const ExamManagement = ({ apiUrl, token }) => {
                           </label>
                           <div className="flex gap-2 mt-1">
                             {row.has_practical ? (
-                              <>
+                              <div className="grid grid-cols-4 gap-1 w-full">
+                                <input type="number" value={row.total_marks || ''} onChange={e => {
+                                  const newTt = [...timetableData]; newTt[idx].total_marks = parseInt(e.target.value); setTimetableData(newTt);
+                                }} className="border-gray-200 p-2 rounded-lg text-xs" placeholder="Total" title="Total Marks" />
                                 <input type="number" value={row.theory_marks || ''} onChange={e => {
                                   const newTt = [...timetableData]; newTt[idx].theory_marks = parseInt(e.target.value); setTimetableData(newTt);
-                                }} className="w-1/2 border-gray-200 p-2 rounded-lg text-sm" placeholder="Theory Max" />
+                                }} className="border-gray-200 p-2 rounded-lg text-xs" placeholder="Theory" title="Theory Marks" />
                                 <input type="number" value={row.practical_marks || ''} onChange={e => {
                                   const newTt = [...timetableData]; newTt[idx].practical_marks = parseInt(e.target.value); setTimetableData(newTt);
-                                }} className="w-1/2 border-gray-200 p-2 rounded-lg text-sm" placeholder="Prac. Max" />
-                              </>
+                                }} className="border-gray-200 p-2 rounded-lg text-xs" placeholder="Prac." title="Practical Marks" />
+                                <input type="number" value={row.passing_marks || ''} onChange={e => {
+                                  const newTt = [...timetableData]; newTt[idx].passing_marks = parseInt(e.target.value); setTimetableData(newTt);
+                                }} className="border-gray-200 p-2 rounded-lg text-xs" placeholder="Pass" title="Passing Marks" />
+                              </div>
                             ) : (
                               <>
                                 <input type="number" value={row.total_marks || ''} onChange={e => {

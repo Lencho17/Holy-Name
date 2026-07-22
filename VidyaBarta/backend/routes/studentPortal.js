@@ -132,6 +132,33 @@ router.get('/transactions', protectStudent, async (req, res) => {
   }
 });
 
+
+// @route   GET /api/student-portal/timetable
+// @desc    Get student's class timetable
+// @access  Private (Student)
+router.get('/timetable', protectStudent, async (req, res) => {
+  try {
+    const student = req.student;
+    const { data: timetable, error } = await supabase
+      .from('class_timetable')
+      .select('*, staff:staff_id(name)')
+      .eq('class_level', student.grade)
+      .eq('section', student.section || 'A')
+      .eq('is_published', true)
+      .order('day_of_week', { ascending: true })
+      .order('period_number', { ascending: true });
+
+    if (error && error.code !== '42P01') {
+      console.error('Supabase query error:', error);
+    }
+    
+    res.json(timetable || []);
+  } catch (error) {
+    console.error('Error fetching timetable:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   GET /api/student-portal/upcoming-exams
 // @desc    Get upcoming scheduled exams
 // @access  Private (Student)

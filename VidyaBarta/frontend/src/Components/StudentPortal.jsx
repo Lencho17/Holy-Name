@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { SiteDataContext } from '../context/SiteDataContext';
 import { StudentAuthContext } from '../context/StudentAuthContext';
+import StudentTimetable from './StudentTimetable';
 
 function StudentPortal() {
   const { API_URL, schoolProfile } = useContext(SiteDataContext);
@@ -142,6 +143,7 @@ function StudentPortal() {
               { id: 'courses', icon: 'menu_book', label: 'Courses' },
               { id: 'fees', icon: 'payments', label: 'Fees' },
               { id: 'notices', icon: 'notifications', label: 'Notices' },
+              { id: 'timetable', icon: 'calendar_month', label: 'Timetable' },
               { id: 'exams', icon: 'quiz', label: 'Results' }
             ].map(item => (
               <a 

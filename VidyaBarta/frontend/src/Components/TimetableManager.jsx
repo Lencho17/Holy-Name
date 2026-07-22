@@ -3,7 +3,7 @@ import axios from 'axios';
 import { FaCalendarAlt, FaSpinner, FaSave, FaPlus, FaClock, FaTrash, FaExclamationTriangle, FaFilePdf, FaUpload } from 'react-icons/fa';
 import { FiEdit2, FiX } from 'react-icons/fi';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const TimetableManager = ({ apiUrl, token }) => {
   const [classesData, setClassesData] = useState([]);
@@ -264,7 +264,7 @@ ${teacherName}${time}`);
       return row;
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       head,
       body,
       startY: 30,

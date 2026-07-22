@@ -431,7 +431,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                 {/* Papers List */}
                 <div className="space-y-4">
                   {group.papers.map((paper, pIdx) => (
-                    <div key={pIdx} className={}>
+                    <div key={pIdx} className={`grid grid-cols-1 gap-4 items-end relative bg-gray-50 p-4 rounded-lg border border-gray-200 ${group.is_divided ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
                       {group.is_divided && (
                         <div>
                           <label className="block text-xs font-bold text-gray-600 mb-1">Paper Name</label>

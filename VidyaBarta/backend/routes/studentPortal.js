@@ -3,6 +3,16 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { protectStudent } = require('../middleware/auth');
 
+
+function getRoman(numStr) {
+  const map = {
+    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+    '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+    '11': 'XI', '12': 'XII'
+  };
+  return map[numStr] || numStr;
+}
+
 function parseStudentClass(student) {
   let classLevel = student.grade;
   let section = student.section || 'A';
@@ -157,7 +167,7 @@ router.get('/timetable', protectStudent, async (req, res) => {
     const { data: timetable, error } = await supabase
       .from('class_timetable')
       .select('*, staff:staff_id(name)')
-      .eq('class_level', parsed.classLevel)
+      .in('class_level', [parsed.classLevel, getRoman(parsed.classLevel)])
       .eq('section', parsed.section)
       .eq('is_published', true)
       .order('day_of_week', { ascending: true })

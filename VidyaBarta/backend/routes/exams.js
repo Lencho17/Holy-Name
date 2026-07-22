@@ -287,7 +287,8 @@ router.post('/:id/timetable', protect, async (req, res) => {
         has_practical: t.has_practical || false,
         theory_marks: t.theory_marks || null,
         practical_marks: t.practical_marks || null,
-        room_number: t.room_number || null
+        room_number: t.room_number || null,
+        is_finalized: t.is_finalized || false
       }));
       
       const { error } = await supabase.from('exam_timetable').insert(inserts);
@@ -295,6 +296,24 @@ router.post('/:id/timetable', protect, async (req, res) => {
     }
     
     res.json({ message: 'Timetable saved successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// Finalize exam timetable for a specific class
+router.put('/:id/timetable/finalize', protect, async (req, res) => {
+  try {
+    const { class_level } = req.body;
+    const { error } = await supabase
+      .from('exam_timetable')
+      .update({ is_finalized: true })
+      .eq('exam_id', req.params.id)
+      .eq('class_level', class_level);
+
+    if (error) throw error;
+    res.json({ message: 'Timetable finalized' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server Error' });

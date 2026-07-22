@@ -246,6 +246,7 @@ router.get('/upcoming-exams', protectStudent, async (req, res) => {
       .from('exam_timetable')
       .select('*, exams(name)')
       .in('class_level', [parsed.classLevel, getRoman(parsed.classLevel)])
+      .eq('is_finalized', true)
       .gte('exam_date', new Date().toISOString().split('T')[0])
       .order('exam_date', { ascending: true });
       

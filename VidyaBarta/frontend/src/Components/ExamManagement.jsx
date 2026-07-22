@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaPlus, FaSave, FaSpinner, FaTrash, FaTable, FaEdit } from 'react-icons/fa';
+import { FaPlus, FaSave, FaSpinner, FaTrash, FaTable, FaEdit, FaDownload, FaCheckCircle, FaSearch, FaSortAmountDown } from 'react-icons/fa';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const ExamManagement = ({ apiUrl, token }) => {
   const [exams, setExams] = useState([]);
@@ -9,6 +11,10 @@ const ExamManagement = ({ apiUrl, token }) => {
   const [newExam, setNewExam] = useState({ name: '', type: 'Offline', class_levels: [] });
   const [selectedExamGroup, setSelectedExamGroup] = useState(null); // The selected exam name group
   const [selectedClassExam, setSelectedClassExam] = useState(null); // The specific exam record for a class
+  
+  // Filter & Sort
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
   
   // Timetable State
   const [timetableTab, setTimetableTab] = useState('marks'); // 'marks' or 'timetable'
@@ -38,8 +44,16 @@ const ExamManagement = ({ apiUrl, token }) => {
     fetchExams();
   }, [apiUrl, token]);
 
-  // Group exams by name
-  const groupedExams = exams.reduce((acc, exam) => {
+  // Filter, Sort, and Group
+  const filteredExams = exams.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.type.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  const sortedExams = [...filteredExams].sort((a, b) => {
+    const dateA = new Date(a.created_at || a.start_date || 0);
+    const dateB = new Date(b.created_at || b.start_date || 0);
+    return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+  });
+  
+  const groupedExams = sortedExams.reduce((acc, exam) => {
     if (!acc[exam.name]) acc[exam.name] = [];
     acc[exam.name].push(exam);
     return acc;
@@ -114,6 +128,108 @@ const ExamManagement = ({ apiUrl, token }) => {
     setSavingTimetable(false);
   };
 
+
+  const handleFinalizeTimetable = async () => {
+    if(!window.confirm('Are you sure? This will lock the timetable and publish it to students.')) return;
+    setSavingTimetable(true);
+    try {
+      await axios.put(`${apiUrl}/exams/${selectedClassExam.id}/timetable/finalize`, { class_level: selectedClassExam.class_level }, { headers: { Authorization: `Bearer ${token}` } });
+      alert('Timetable Finalized!');
+      handleSelectExamClass(selectedClassExam); // Refresh
+    } catch (err) {
+      console.error(err);
+      alert('Failed to finalize');
+    }
+    setSavingTimetable(false);
+  };
+
+  const downloadClassPDF = (className, ttData) => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text(`Exam Timetable: ${selectedClassExam?.name || 'Exam'} - Class ${className}`, 14, 22);
+    
+    const tableColumn = ["Date", "Time", "Subject", "Total Marks", "Pass Marks", "Room"];
+    const tableRows = [];
+    
+    ttData.forEach(row => {
+      const subjectName = `${row.subject} ${row.sub_subject ? `(${row.sub_subject})` : ''} ${row.has_practical ? '(Th+Pr)' : ''}`;
+      const timeStr = `${row.start_time?.substring(0,5) || '--:--'} - ${row.end_time?.substring(0,5) || '--:--'}`;
+      tableRows.push([
+        row.exam_date,
+        timeStr,
+        subjectName,
+        row.total_marks || (row.theory_marks + row.practical_marks),
+        row.passing_marks || '-',
+        row.room_number || '-'
+      ]);
+    });
+    
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+    });
+    
+    doc.save(`Timetable_Class_${className}.pdf`);
+  };
+
+  const downloadBulkPDF = async (examName, classesArray) => {
+    const doc = new jsPDF();
+    
+    for (let i = 0; i < classesArray.length; i++) {
+      const cls = classesArray[i];
+      try {
+        const { data: tt } = await axios.get(`${apiUrl}/exams/${cls.id}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
+        if(tt && tt.length > 0) {
+            if (i > 0) doc.addPage();
+            doc.setFontSize(18);
+            doc.text(`Exam Timetable: ${examName} - Class ${cls.class_level}`, 14, 22);
+            
+            const tableColumn = ["Date", "Time", "Subject", "Total Marks", "Room"];
+            const tableRows = tt.map(row => [
+              row.exam_date,
+              `${row.start_time?.substring(0,5) || '--:--'} - ${row.end_time?.substring(0,5) || '--:--'}`,
+              `${row.subject} ${row.sub_subject ? `(${row.sub_subject})` : ''}`,
+              row.total_marks || (row.theory_marks + row.practical_marks),
+              row.room_number || '-'
+            ]);
+            
+            doc.autoTable({
+              head: [tableColumn],
+              body: tableRows,
+              startY: 30,
+            });
+        }
+      } catch(e) {}
+    }
+    
+    doc.save(`Bulk_Timetable_${examName}.pdf`);
+  };
+
+  const calculateStudentStatus = (studentId) => {
+    let allPassed = true;
+    let totalObtained = 0;
+    let totalMax = 0;
+    
+    if(timetableData.length === 0) return { status: 'N/A', class: 'text-gray-500' };
+
+    for(let col of timetableData) {
+      const markKey = `${studentId}_${col.subject}_${col.sub_subject || 'main'}`;
+      const m = marks[markKey];
+      if(!m) return { status: 'Pending', class: 'text-orange-500' };
+      
+      const obtained = (parseFloat(m.marks_obtained) || 0) + (parseFloat(m.practical_marks_obtained) || 0);
+      const pass = col.passing_marks || 30; // default pass mark
+      totalObtained += obtained;
+      totalMax += col.total_marks || (col.theory_marks + col.practical_marks);
+      
+      if(obtained < pass) allPassed = false;
+    }
+    
+    if(allPassed) return { status: 'Promoted', class: 'text-green-600 font-bold' };
+    return { status: 'Needs Improvement', class: 'text-red-500 font-bold' };
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-500"><FaSpinner className="animate-spin inline mr-2" /> Loading exams...</div>;
 
   return (
@@ -168,6 +284,15 @@ const ExamManagement = ({ apiUrl, token }) => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1 border-r pr-6">
           <h3 className="font-bold text-gray-700 mb-4">Exams List</h3>
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <FaSearch className="absolute left-3 top-3 text-gray-400" />
+              <input type="text" placeholder="Search exams..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm" />
+            </div>
+            <button onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')} className="px-3 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center justify-center" title="Sort">
+              <FaSortAmountDown className={`transition-transform ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
           <div className="space-y-4">
             {Object.keys(groupedExams).length === 0 ? <p className="text-sm text-gray-400 text-center">No exams created.</p> : null}
             {Object.entries(groupedExams).map(([examName, classesArray]) => (
@@ -176,9 +301,14 @@ const ExamManagement = ({ apiUrl, token }) => {
                   className="bg-gray-100 p-3 font-bold text-gray-800 cursor-pointer flex justify-between items-center"
                   onClick={() => setSelectedExamGroup(selectedExamGroup === examName ? null : examName)}
                 >
-                  {examName}
-                  <span className="text-xs bg-gray-200 px-2 py-1 rounded-md">{classesArray.length} Classes</span>
+                  <div className="truncate pr-2">{examName}</div>
+                  <span className="text-xs bg-gray-200 px-2 py-1 rounded-md whitespace-nowrap">{classesArray.length} Classes</span>
                 </div>
+                {selectedExamGroup === examName && (
+                  <div className="bg-gray-50 p-2 border-b flex justify-end">
+                    <button onClick={(e) => { e.stopPropagation(); downloadBulkPDF(examName, classesArray); }} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><FaDownload /> Bulk PDF</button>
+                  </div>
+                )}
                 {selectedExamGroup === examName && (
                   <div className="divide-y divide-gray-100 bg-white">
                     {classesArray.map(examRecord => (
@@ -306,9 +436,19 @@ const ExamManagement = ({ apiUrl, token }) => {
                   
                   <div className="flex justify-between items-center mt-6">
                     <button onClick={addTimetableRow} className="text-indigo-600 font-bold text-sm flex items-center gap-1 hover:underline"><FaPlus /> Add New Data</button>
-                    <button onClick={handleSaveTimetable} disabled={savingTimetable} className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-indigo-700 flex items-center gap-2">
-                      {savingTimetable ? <FaSpinner className="animate-spin" /> : <FaSave />} Save Timetable
-                    </button>
+                    <div className="flex gap-3">
+                      {timetableData.length > 0 && !timetableData[0]?.is_finalized && (
+                        <button onClick={handleFinalizeTimetable} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-orange-600 flex items-center gap-2 text-sm">
+                          <FaCheckCircle /> Finalize
+                        </button>
+                      )}
+                      <button onClick={() => downloadClassPDF(selectedClassExam.class_level, timetableData)} className="bg-gray-800 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-gray-900 flex items-center gap-2 text-sm">
+                        <FaDownload /> PDF
+                      </button>
+                      <button onClick={handleSaveTimetable} disabled={savingTimetable || (timetableData.length > 0 && timetableData[0]?.is_finalized)} className={`${timetableData.length > 0 && timetableData[0]?.is_finalized ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2`}>
+                        {savingTimetable ? <FaSpinner className="animate-spin" /> : <FaSave />} Save Timetable
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -341,6 +481,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                           <tr>
                             <th className="p-3 border-b border-r">Student ID</th>
                             <th className="p-3 border-b border-r">Student Name</th>
+                            <th className="p-3 border-b border-r">Status</th>
                             {timetableData.map((col, idx) => (
                               <th key={idx} className="p-3 border-b border-r text-center" colSpan={col.has_practical ? 2 : 1}>
                                 {col.subject} {col.sub_subject ? `(${col.sub_subject})` : ''}
@@ -351,6 +492,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                             ))}
                           </tr>
                           <tr>
+                            <th className="p-2 border-b border-r"></th>
                             <th className="p-2 border-b border-r"></th>
                             <th className="p-2 border-b border-r"></th>
                             {timetableData.map((col, idx) => col.has_practical ? (
@@ -372,6 +514,12 @@ const ExamManagement = ({ apiUrl, token }) => {
                             <tr key={student.id} className="hover:bg-gray-50">
                               <td className="p-3 border-b border-r font-medium">{student.admission_no}</td>
                               <td className="p-3 border-b border-r font-bold">{student.name}</td>
+                              <td className="p-3 border-b border-r">
+                                {(() => {
+                                  const stat = calculateStudentStatus(student.id);
+                                  return <span className={`text-xs px-2 py-1 rounded bg-gray-100 ${stat.class}`}>{stat.status}</span>;
+                                })()}
+                              </td>
                               {timetableData.map((col, idx) => {
                                 const markKey = `${student.id}_${col.subject}_${col.sub_subject || 'main'}`;
                                 const markRecord = marks[markKey] || { student_id: student.id, subject: col.subject, sub_subject: col.sub_subject };

@@ -5,6 +5,8 @@ import { SiteDataContext } from '../context/SiteDataContext';
 import { StudentAuthContext } from '../context/StudentAuthContext';
 import StudentTimetable from './StudentTimetable';
 import StudentCourses from './StudentCourses';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 function StudentPortal() {
   const { API_URL, schoolProfile } = useContext(SiteDataContext);
@@ -439,7 +441,33 @@ function StudentPortal() {
                   <div className={`${glassCard} overflow-hidden flex flex-col`}>
                     <div className="p-6 border-b border-gray-100 bg-white/40 flex justify-between items-center">
                       <h3 className="text-lg font-bold text-gray-900">Upcoming Schedule</h3>
-                      <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{upcomingExams.length} Exams Remaining</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{upcomingExams.length} Exams Remaining</span>
+                        <button onClick={() => {
+                          const doc = new jsPDF();
+                          doc.setFontSize(18);
+                          doc.text(`My Exam Timetable - Class ${student.grade || student.class_id}`, 14, 22);
+                          
+                          const tableColumn = ["Date", "Exam Name", "Subject", "Time", "Room"];
+                          const tableRows = upcomingExams.map(exam => [
+                            new Date(exam.exam_date).toLocaleDateString(),
+                            exam.exam_name,
+                            `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
+                            `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`,
+                            exam.room_number || '-'
+                          ]);
+                          
+                          doc.autoTable({
+                            head: [tableColumn],
+                            body: tableRows,
+                            startY: 30,
+                          });
+                          
+                          doc.save(`My_Timetable.pdf`);
+                        }} className="text-sm font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-indigo-700 transition-colors">
+                          <FaDownload /> Download PDF
+                        </button>
+                      </div>
                     </div>
                     <div className="overflow-x-auto p-4">
                       <table className="w-full text-left border-collapse">

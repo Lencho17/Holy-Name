@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaPlus, FaSave, FaSpinner, FaTrash, FaTable, FaEdit, FaDownload, FaCheckCircle, FaSearch, FaSortAmountDown } from 'react-icons/fa';
+import { FaPlus, FaSave, FaSpinner, FaTrash, FaTable, FaEdit, FaDownload, FaCheckCircle, FaSearch, FaSortAmountDown, FaChevronDown } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -8,6 +8,7 @@ const ExamManagement = ({ apiUrl, token }) => {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showClassDropdown, setShowClassDropdown] = useState(false);
   const [newExam, setNewExam] = useState({ name: '', type: 'Offline', class_levels: [] });
   const [selectedExamGroup, setSelectedExamGroup] = useState(null); // The selected exam name group
   const [selectedClassExam, setSelectedClassExam] = useState(null); // The specific exam record for a class
@@ -269,25 +270,44 @@ const ExamManagement = ({ apiUrl, token }) => {
             </select>
           </div>
           <div className="md:col-span-3">
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1 flex justify-between">
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">
               Select Classes
-              <button type="button" onClick={() => setNewExam({...newExam, class_levels: newExam.class_levels.length === allClasses.length ? [] : allClasses})} className="text-indigo-600 hover:underline">Select All</button>
             </label>
-            <div className="grid grid-cols-4 md:grid-cols-6 gap-2 bg-white p-3 rounded-lg border border-gray-200">
-              {allClasses.map(c => (
-                <label key={c} className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={newExam.class_levels.includes(c)}
-                    onChange={(e) => {
-                      if (e.target.checked) setNewExam({...newExam, class_levels: [...newExam.class_levels, c]});
-                      else setNewExam({...newExam, class_levels: newExam.class_levels.filter(cl => cl !== c)});
-                    }}
-                    className="rounded text-indigo-600"
-                  />
-                  Class {c}
-                </label>
-              ))}
+            <div className="relative">
+              <div 
+                className="w-full border border-gray-200 bg-white p-2.5 rounded-lg flex justify-between items-center cursor-pointer"
+                onClick={() => setShowClassDropdown(!showClassDropdown)}
+              >
+                <span className="text-sm text-gray-700">
+                  {newExam.class_levels.length === 0 ? 'Select Classes...' : `${newExam.class_levels.length} Classes Selected`}
+                </span>
+                <FaChevronDown className="text-gray-400" />
+              </div>
+              
+              {showClassDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="p-2 border-b flex justify-between items-center bg-gray-50">
+                    <span className="text-xs font-bold text-gray-600">Classes</span>
+                    <button type="button" onClick={() => setNewExam({...newExam, class_levels: newExam.class_levels.length === allClasses.length ? [] : allClasses})} className="text-xs text-indigo-600 hover:underline font-bold">Select All</button>
+                  </div>
+                  <div className="p-2 grid grid-cols-2 gap-2">
+                    {allClasses.map(c => (
+                      <label key={c} className="flex items-center gap-2 text-sm font-medium cursor-pointer p-1 hover:bg-gray-50 rounded">
+                        <input 
+                          type="checkbox" 
+                          checked={newExam.class_levels.includes(c)}
+                          onChange={(e) => {
+                            if (e.target.checked) setNewExam({...newExam, class_levels: [...newExam.class_levels, c]});
+                            else setNewExam({...newExam, class_levels: newExam.class_levels.filter(cl => cl !== c)});
+                          }}
+                          className="rounded text-indigo-600"
+                        />
+                        Class {c}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="mt-4 flex justify-end">
               <button type="submit" className="bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700">Save Exam Config</button>

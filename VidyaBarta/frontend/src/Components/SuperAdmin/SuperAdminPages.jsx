@@ -1105,7 +1105,7 @@ const AHSEC_SEBA_SUBJECTS = [
 
 export const GlobalSubjects = () => {
   const [globalSubjects, setGlobalSubjects] = useState([]);
-  const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', marking_system: 'Marking', is_grammar: false });
+  const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', marking_system: 'Marking' });
   const [loading, setLoading] = useState(true);
   
   // Filtering and Sorting state
@@ -1134,10 +1134,10 @@ export const GlobalSubjects = () => {
   }, [sortBy, filterBy]);
 
 
-  const generatePreviewCode = (name, isGrammar) => {
+  const generatePreviewCode = (name) => {
     if (!name) return '';
     const p = name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
-    return p ? `VB-${p}${isGrammar ? '-GRM' : ''}` : '';
+    return p ? `VB-${p}` : '';
   };
 
   const handleCreateGlobalSubject = async (e) => {
@@ -1217,7 +1217,7 @@ export const GlobalSubjects = () => {
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1 flex justify-between">
               Subject Name
-              {editSubject.name && <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">Code: {generatePreviewCode(editSubject.name, false)}</span>}
+              {editSubject.name && <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">Code: {generatePreviewCode(editSubject.name)}</span>}
             </label>
             <input 
               type="text" required autoFocus
@@ -1240,11 +1240,11 @@ export const GlobalSubjects = () => {
           </div>
         </form>
       ) : (
-        <form onSubmit={handleCreateGlobalSubject} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <form onSubmit={handleCreateGlobalSubject} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1 flex justify-between">
               Subject Name
-              {newGlobalSubject.name && <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">Code: {generatePreviewCode(newGlobalSubject.name, newGlobalSubject.is_grammar)}</span>}
+              {newGlobalSubject.name && <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">Code: {generatePreviewCode(newGlobalSubject.name)}</span>}
             </label>
             <input 
               type="text" required 
@@ -1260,18 +1260,6 @@ export const GlobalSubjects = () => {
               <option value="Marking">Marking</option>
               <option value="Grade">Grade</option>
             </select>
-          </div>
-          <div className="flex flex-col justify-end pb-2">
-            <label className="flex items-center cursor-pointer">
-              <div className="relative">
-                <input type="checkbox" className="sr-only" checked={newGlobalSubject.is_grammar} onChange={e => setNewGlobalSubject({...newGlobalSubject, is_grammar: e.target.checked})} />
-                <div className={`block w-10 h-6 rounded-full transition ${newGlobalSubject.is_grammar ? 'bg-primary' : 'bg-gray-300'}`}></div>
-                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition ${newGlobalSubject.is_grammar ? 'transform translate-x-4' : ''}`}></div>
-              </div>
-              <div className="ml-3 text-sm font-bold text-gray-700">
-                Grammar Subject
-              </div>
-            </label>
           </div>
           <button type="submit" className="bg-primary text-white p-2.5 rounded-lg font-bold hover:bg-primary-dark w-full">Add Subject (Draft)</button>
         </form>

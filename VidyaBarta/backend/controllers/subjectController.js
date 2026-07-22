@@ -30,24 +30,19 @@ exports.getGlobalSubjects = async (req, res) => {
 // @access  Private (Superadmin)
 exports.createGlobalSubject = async (req, res) => {
   try {
-    const { name: originalName, marking_system, is_grammar } = req.body;
+    const { name, marking_system } = req.body;
     
     if (req.user && req.user.role !== 'superadmin' && req.user.role !== 'developer') {
       return res.status(403).json({ message: 'Only superadmin can create global subjects' });
     }
 
-    if (!originalName || !marking_system) {
+    if (!name || !marking_system) {
       return res.status(400).json({ message: 'Name and marking system are required' });
     }
 
-    const name = is_grammar ? `${originalName} (Grammar)` : originalName;
-
     // Generate base code immediately
-    const subjectPrefix = originalName.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
+    const subjectPrefix = name.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
     let baseCode = `VB-${subjectPrefix}`;
-    if (is_grammar) {
-        baseCode += '-GRM';
-    }
     let finalCode = baseCode;
     
     // Conflict resolution auto-append logic

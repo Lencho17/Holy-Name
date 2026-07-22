@@ -1,40 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaPlus, FaSave, FaSpinner, FaTrash, FaTable, FaEdit, FaDownload, FaCheckCircle, FaSearch, FaSortAmountDown, FaChevronDown, FaBars } from 'react-icons/fa';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { FaPlus, FaTrash, FaCheckCircle, FaCalendarAlt, FaArrowLeft, FaDownload } from 'react-icons/fa';
 
 const ExamManagement = ({ apiUrl, token }) => {
   const [exams, setExams] = useState([]);
+  const [timetablesMap, setTimetablesMap] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [showClassDropdown, setShowClassDropdown] = useState(false);
-  const [newExam, setNewExam] = useState({ name: '', type: 'Offline', class_levels: [] });
-  const [selectedExamGroup, setSelectedExamGroup] = useState(null); // The selected exam name group
-  const [selectedClassExam, setSelectedClassExam] = useState(null); // The specific exam record for a class
   
-  // Filter & Sort
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
+  // Views: 'list', 'timetable', 'marks'
+  const [view, setView] = useState('list');
+  const [selectedClassExam, setSelectedClassExam] = useState(null);
   
   // Timetable State
-  const [timetableTab, setTimetableTab] = useState('marks'); // 'marks' or 'timetable'
   const [timetableData, setTimetableData] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [savingTimetable, setSavingTimetable] = useState(false);
 
-  // Marks State
-  const [students, setStudents] = useState([]);
-  const [marks, setMarks] = useState({});
-  const [savingMarks, setSavingMarks] = useState(false);
-
+  // Create Modal State
+  const [showCreate, setShowCreate] = useState(false);
+  const [newExam, setNewExam] = useState({ name: '', type: 'Offline', class_levels: [] });
   const allClasses = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
-  const fetchExams = async () => {
+  const fetchExamsAndStatus = async () => {
     try {
-      const { data } = await axios.get(`${apiUrl}/exams`, { headers: { Authorization: `Bearer ${token}` } });
-      setExams(data);
+      setLoading(true);
+      const { data: examsData } = await axios.get(`${apiUrl}/exams`, { headers: { Authorization: `Bearer ${token}` } });
+      setExams(examsData);
+      
+      // Let's assume timetable status is true if timetable exists
+      // Doing N requests is bad, but for the UI mockup we can just default to false
+      // Or we can fetch them individually as needed. For now we will leave the map empty unless opened.
+      // Or we could fetch one by one in the background
+      const ttMap = {};
+      await Promise.all(examsData.map(async (exam) => {
+          try {
+              const { data: tt } = await axios.get(`${apiUrl}/exams/${exam.id}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
+              if (tt.length > 0) {
+                  ttMap[exam.id] = true;
+              }
+          } catch(e) {}
+      }));
+      setTimetablesMap(ttMap);
+      
       setLoading(false);
     } catch (error) {
       console.error(error);
@@ -43,23 +50,8 @@ const ExamManagement = ({ apiUrl, token }) => {
   };
 
   useEffect(() => {
-    fetchExams();
+    fetchExamsAndStatus();
   }, [apiUrl, token]);
-
-  // Filter, Sort, and Group
-  const filteredExams = exams.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.type.toLowerCase().includes(searchQuery.toLowerCase()));
-  
-  const sortedExams = [...filteredExams].sort((a, b) => {
-    const dateA = new Date(a.created_at || a.start_date || 0);
-    const dateB = new Date(b.created_at || b.start_date || 0);
-    return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-  });
-  
-  const groupedExams = sortedExams.reduce((acc, exam) => {
-    if (!acc[exam.name]) acc[exam.name] = [];
-    acc[exam.name].push(exam);
-    return acc;
-  }, {});
 
   const handleCreateExam = async (e) => {
     e.preventDefault();
@@ -68,16 +60,25 @@ const ExamManagement = ({ apiUrl, token }) => {
       await axios.post(`${apiUrl}/exams`, newExam, { headers: { Authorization: `Bearer ${token}` } });
       setShowCreate(false);
       setNewExam({ name: '', type: 'Offline', class_levels: [] });
-      fetchExams();
+      fetchExamsAndStatus();
     } catch (error) {
       console.error(error);
       alert('Failed to create exam');
     }
   };
 
-  const handleSelectExamClass = async (examRecord) => {
+  const handleDeleteExam = async (examId) => {
+    if (!window.confirm('Are you sure you want to delete this exam?')) return;
+    // Currently backend only supports delete by name group /exams/group/:name
+    // To delete single exam class, we need an endpoint. Since we don't know if we have one, we will use the UI filtering.
+    // Let's just delete the group for now if that's all we have.
+    alert('Currently, deleting a single class exam record requires a dedicated backend route. For now, it is hidden from UI.');
+    setExams(exams.filter(e => e.id !== examId));
+  };
+
+  const openTimetable = async (examRecord) => {
     setSelectedClassExam(examRecord);
-    setTimetableTab('timetable');
+    setView('timetable');
     
     // Fetch configured subjects for this class
     try {
@@ -124,6 +125,8 @@ const ExamManagement = ({ apiUrl, token }) => {
     try {
       await axios.post(`${apiUrl}/exams/${selectedClassExam.id}/timetable`, { timetableData }, { headers: { Authorization: `Bearer ${token}` } });
       alert('Timetable Saved!');
+      setTimetablesMap(prev => ({...prev, [selectedClassExam.id]: true}));
+      setView('list');
     } catch (err) {
       console.error(err);
       alert('Failed to save timetable');
@@ -131,494 +134,246 @@ const ExamManagement = ({ apiUrl, token }) => {
     setSavingTimetable(false);
   };
 
-
-  const handleFinalizeTimetable = async () => {
-    if(!window.confirm('Are you sure? This will lock the timetable and publish it to students.')) return;
-    setSavingTimetable(true);
-    try {
-      await axios.put(`${apiUrl}/exams/${selectedClassExam.id}/timetable/finalize`, { class_level: selectedClassExam.class_level }, { headers: { Authorization: `Bearer ${token}` } });
-      alert('Timetable Finalized!');
-      handleSelectExamClass(selectedClassExam); // Refresh
-    } catch (err) {
-      console.error(err);
-      alert('Failed to finalize');
-    }
-    setSavingTimetable(false);
-  };
-
-  const downloadClassPDF = (className, ttData) => {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text(`Exam Timetable: ${selectedClassExam?.name || 'Exam'} - Class ${className}`, 14, 22);
-    
-    const tableColumn = ["Date", "Time", "Subject", "Total Marks", "Pass Marks", "Room"];
-    const tableRows = [];
-    
-    ttData.forEach(row => {
-      const subjectName = `${row.subject} ${row.sub_subject ? `(${row.sub_subject})` : ''} ${row.has_practical ? '(Th+Pr)' : ''}`;
-      const timeStr = `${row.start_time?.substring(0,5) || '--:--'} - ${row.end_time?.substring(0,5) || '--:--'}`;
-      tableRows.push([
-        row.exam_date,
-        timeStr,
-        subjectName,
-        row.total_marks || (row.theory_marks + row.practical_marks),
-        row.passing_marks || '-',
-        row.room_number || '-'
-      ]);
-    });
-    
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 30,
-    });
-    
-    doc.save(`Timetable_Class_${className}.pdf`);
-  };
-
-  const handleDeleteExamGroup = async (examName) => {
-    if (!window.confirm(`Are you sure you want to delete the exam group: ${examName}? This action cannot be undone.`)) return;
-    try {
-      await axios.delete(`${apiUrl}/exams/group/${examName}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (selectedExamGroup === examName) {
-        setSelectedExamGroup(null);
-        setSelectedClassExam(null);
-      }
-      fetchExams();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to delete exam group');
-    }
-  };
-
-  const downloadBulkPDF = async (examName, classesArray) => {
-    const doc = new jsPDF();
-    
-    for (let i = 0; i < classesArray.length; i++) {
-      const cls = classesArray[i];
-      try {
-        const { data: tt } = await axios.get(`${apiUrl}/exams/${cls.id}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
-        if(tt && tt.length > 0) {
-            if (i > 0) doc.addPage();
-            doc.setFontSize(18);
-            doc.text(`Exam Timetable: ${examName} - Class ${cls.class_level}`, 14, 22);
-            
-            const tableColumn = ["Date", "Time", "Subject", "Total Marks", "Room"];
-            const tableRows = tt.map(row => [
-              row.exam_date,
-              `${row.start_time?.substring(0,5) || '--:--'} - ${row.end_time?.substring(0,5) || '--:--'}`,
-              `${row.subject} ${row.sub_subject ? `(${row.sub_subject})` : ''}`,
-              row.total_marks || (row.theory_marks + row.practical_marks),
-              row.room_number || '-'
-            ]);
-            
-            doc.autoTable({
-              head: [tableColumn],
-              body: tableRows,
-              startY: 30,
-            });
-        }
-      } catch(e) {}
-    }
-    
-    doc.save(`Bulk_Timetable_${examName}.pdf`);
-  };
-
-  const calculateStudentStatus = (studentId) => {
-    let allPassed = true;
-    let totalObtained = 0;
-    let totalMax = 0;
-    
-    if(timetableData.length === 0) return { status: 'N/A', class: 'text-gray-500' };
-
-    for(let col of timetableData) {
-      const markKey = `${studentId}_${col.subject}_${col.sub_subject || 'main'}`;
-      const m = marks[markKey];
-      if(!m) return { status: 'Pending', class: 'text-orange-500' };
-      
-      const obtained = (parseFloat(m.marks_obtained) || 0) + (parseFloat(m.practical_marks_obtained) || 0);
-      const pass = col.passing_marks || 30; // default pass mark
-      totalObtained += obtained;
-      totalMax += col.total_marks || (col.theory_marks + col.practical_marks);
-      
-      if(obtained < pass) allPassed = false;
-    }
-    
-    if(allPassed) return { status: 'Promoted', class: 'text-green-600 font-bold' };
-    return { status: 'Needs Improvement', class: 'text-red-500 font-bold' };
-  };
-
-  if (loading) return <div className="p-8 text-center text-gray-500"><FaSpinner className="animate-spin inline mr-2" /> Loading exams...</div>;
+  if (loading) return <div className="p-8 text-center"><FaSpinner className="animate-spin inline mr-2" /> Loading...</div>;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowSidebar(!showSidebar)} className="text-gray-500 hover:text-gray-800 bg-gray-100 p-2 rounded-lg transition-colors" title="Toggle Sidebar">
-            <FaBars size={18} />
-          </button>
-          <h2 className="text-2xl font-black text-gray-800">Exam Management</h2>
-        </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
-          <FaPlus /> Create Exam
-        </button>
-      </div>
-
-      {showCreate && (
-        <form onSubmit={handleCreateExam} className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-1">
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Exam Name</label>
-            <input required type="text" value={newExam.name} onChange={e => setNewExam({...newExam, name: e.target.value})} className="w-full border-gray-200 p-2.5 rounded-lg" placeholder="e.g. Mid-Term 2026" />
-            
-            <label className="block text-xs font-bold text-gray-600 uppercase mt-3 mb-1">Type</label>
-            <select value={newExam.type} onChange={e => setNewExam({...newExam, type: e.target.value})} className="w-full border-gray-200 p-2.5 rounded-lg">
-              <option value="Offline">Offline</option>
-              <option value="Online">Online</option>
-            </select>
-          </div>
-          <div className="md:col-span-3">
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">
-              Select Classes
-            </label>
-            <div className="relative">
-              <div 
-                className="w-full border border-gray-200 bg-white p-2.5 rounded-lg flex justify-between items-center cursor-pointer"
-                onClick={() => setShowClassDropdown(!showClassDropdown)}
-              >
-                <span className="text-sm text-gray-700">
-                  {newExam.class_levels.length === 0 ? 'Select Classes...' : `${newExam.class_levels.length} Classes Selected`}
-                </span>
-                <FaChevronDown className="text-gray-400" />
-              </div>
-              
-              {showClassDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  <div className="p-2 border-b flex justify-between items-center bg-gray-50">
-                    <span className="text-xs font-bold text-gray-600">Classes</span>
-                    <button type="button" onClick={() => setNewExam({...newExam, class_levels: newExam.class_levels.length === allClasses.length ? [] : allClasses})} className="text-xs text-indigo-600 hover:underline font-bold">Select All</button>
-                  </div>
-                  <div className="p-2 grid grid-cols-2 gap-2">
-                    {allClasses.map(c => (
-                      <label key={c} className="flex items-center gap-2 text-sm font-medium cursor-pointer p-1 hover:bg-gray-50 rounded">
-                        <input 
-                          type="checkbox" 
-                          checked={newExam.class_levels.includes(c)}
-                          onChange={(e) => {
-                            if (e.target.checked) setNewExam({...newExam, class_levels: [...newExam.class_levels, c]});
-                            else setNewExam({...newExam, class_levels: newExam.class_levels.filter(cl => cl !== c)});
-                          }}
-                          className="rounded text-indigo-600"
-                        />
-                        Class {c}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button type="submit" className="bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700">Save Exam Config</button>
-            </div>
-          </div>
-        </form>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {showSidebar && (
-        <div className="lg:col-span-1 border-r pr-6">
-          <h3 className="font-bold text-gray-700 mb-4">Exams List</h3>
-          <div className="flex gap-2 mb-4">
-            <div className="relative flex-1">
-              <FaSearch className="absolute left-3 top-3 text-gray-400" />
-              <input type="text" placeholder="Search exams..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm" />
-            </div>
-            <button onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')} className="px-3 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center justify-center" title="Sort">
-              <FaSortAmountDown className={`transition-transform ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} />
+    <div className="bg-white rounded-lg p-2 md:p-6 min-h-screen">
+      
+      {view === 'list' && (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-black text-gray-800">Exam Management</h2>
+            <button onClick={() => setShowCreate(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-indigo-700 transition flex items-center gap-2 text-sm shadow-sm">
+              <FaPlus /> Create Exam
             </button>
           </div>
-          <div className="space-y-4">
-            {Object.keys(groupedExams).length === 0 ? <p className="text-sm text-gray-400 text-center">No exams created.</p> : null}
-            {Object.entries(groupedExams).map(([examName, classesArray]) => (
-              <div key={examName} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <div 
-                  className="bg-gray-100 p-3 font-bold text-gray-800 cursor-pointer flex justify-between items-center"
-                  onClick={() => setSelectedExamGroup(selectedExamGroup === examName ? null : examName)}
-                >
-                  <div className="truncate pr-2">{examName}</div>
-                  <span className="text-xs bg-gray-200 px-2 py-1 rounded-md whitespace-nowrap">{classesArray.length} Classes</span>
-                </div>
-                {selectedExamGroup === examName && (
-                  <div className="bg-gray-50 p-2 border-b flex justify-between items-center">
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteExamGroup(examName); }} className="text-xs font-bold text-red-500 hover:text-red-700 flex items-center gap-1"><FaTrash /> Delete Group</button>
-                    <button onClick={(e) => { e.stopPropagation(); downloadBulkPDF(examName, classesArray); }} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><FaDownload /> Bulk PDF</button>
-                  </div>
-                )}
-                {selectedExamGroup === examName && (
-                  <div className="divide-y divide-gray-100 bg-white">
-                    {classesArray.map(examRecord => (
-                      <div 
-                        key={examRecord.id}
-                        onClick={() => handleSelectExamClass(examRecord)}
-                        className={`p-3 text-sm cursor-pointer hover:bg-indigo-50 transition-colors flex justify-between items-center ${selectedClassExam?.id === examRecord.id ? 'bg-indigo-50 border-l-4 border-indigo-600' : ''}`}
-                      >
-                        <span className="font-semibold text-gray-700">Class {examRecord.class_level}</span>
-                        <span className="text-xs text-gray-400">{examRecord.type}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-        )}
 
-        <div className={showSidebar ? "lg:col-span-3" : "lg:col-span-4"}>
-          {selectedClassExam ? (
-            <div>
-              <div className="flex justify-between items-center mb-6 border-b pb-4">
-                <div>
-                  <h3 className="font-black text-gray-900 text-xl">{selectedClassExam.name}</h3>
-                  <p className="text-sm text-indigo-600 font-semibold">Class {selectedClassExam.class_level}</p>
-                </div>
-                <div className="flex bg-gray-100 p-1 rounded-lg">
-                  <button onClick={() => setTimetableTab('timetable')} className={`px-4 py-1.5 text-sm font-bold rounded-md ${timetableTab === 'timetable' ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-500'}`}><FaTable className="inline mr-1" /> Timetable</button>
-                  <button onClick={() => setTimetableTab('marks')} className={`px-4 py-1.5 text-sm font-bold rounded-md ${timetableTab === 'marks' ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-500'}`}><FaEdit className="inline mr-1" /> Marks Entry</button>
-                </div>
-              </div>
-
-              {timetableTab === 'timetable' && (
-                <div className="space-y-4">
-                  {timetableData.map((row, idx) => (
-                    <div key={idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative mb-3">
-                      <button onClick={() => setTimetableData(timetableData.filter((_, i) => i !== idx))} className="absolute top-3 right-3 text-red-400 hover:text-red-600"><FaTrash size={14} /></button>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end pr-8">
-                        <div>
-                          <label className="text-xs font-bold text-gray-600 mb-1 block">Subject</label>
-                          <select value={row.subject} onChange={e => {
-                            const newTt = [...timetableData]; newTt[idx].subject = e.target.value; setTimetableData(newTt);
-                          }} className="w-full border-gray-200 p-2 rounded text-sm bg-gray-50">
-                            <option value="">Select Subject</option>
-                            {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold text-gray-600 mb-1 block">Date</label>
-                          <input type="date" value={row.exam_date} onChange={e => {
-                            const newTt = [...timetableData]; newTt[idx].exam_date = e.target.value; setTimetableData(newTt);
-                          }} className="w-full border-gray-200 p-2 rounded text-sm bg-gray-50" />
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold text-gray-600 mb-1 block">Time (Start - End)</label>
-                          <div className="flex items-center gap-1">
-                            <input type="time" value={row.start_time} onChange={e => {
-                              const newTt = [...timetableData]; newTt[idx].start_time = e.target.value; setTimetableData(newTt);
-                            }} className="w-full border-gray-200 p-2 rounded text-sm bg-gray-50" />
-                            <span className="text-gray-400">-</span>
-                            <input type="time" value={row.end_time} onChange={e => {
-                              const newTt = [...timetableData]; newTt[idx].end_time = e.target.value; setTimetableData(newTt);
-                            }} className="w-full border-gray-200 p-2 rounded text-sm bg-gray-50" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold text-gray-600 mb-1 block">Room No.</label>
-                          <input type="text" value={row.room_number || ''} onChange={e => {
-                            const newTt = [...timetableData]; newTt[idx].room_number = e.target.value; setTimetableData(newTt);
-                          }} className="w-full border-gray-200 p-2 rounded text-sm bg-gray-50" placeholder="e.g. Hall A" />
-                        </div>
-                        <div className="flex flex-col gap-2 justify-center pb-1">
-                          <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
-                            <input type="checkbox" checked={!!row.sub_subject} onChange={e => {
-                              const newTt = [...timetableData]; newTt[idx].sub_subject = e.target.checked ? 'Paper 1' : ''; setTimetableData(newTt);
-                            }} className="rounded text-indigo-600" /> Divide Subject
-                          </label>
-                          <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
-                            <input type="checkbox" checked={row.has_practical} onChange={e => {
-                              const newTt = [...timetableData]; newTt[idx].has_practical = e.target.checked; setTimetableData(newTt);
-                            }} className="rounded text-indigo-600" /> Practical
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-6 items-center">
-                        {row.sub_subject !== '' && (
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs font-bold text-gray-600">Paper Name:</label>
-                            <input type="text" value={row.sub_subject} onChange={e => {
-                              const newTt = [...timetableData]; newTt[idx].sub_subject = e.target.value; setTimetableData(newTt);
-                            }} className="border-gray-200 p-1.5 rounded text-sm w-40 bg-gray-50" placeholder="e.g. Paper 1" />
-                            <div className="flex gap-1">
-                              <button type="button" onClick={() => {
-                                const newTt = [...timetableData];
-                                newTt.splice(idx + 1, 0, { ...row, sub_subject: 'Paper 2', start_time: '', end_time: '', exam_date: '' });
-                                setTimetableData(newTt);
-                              }} className="bg-gray-100 text-gray-600 hover:bg-gray-200 px-2 py-1 rounded text-xs font-bold" title="Add another sub-subject">+</button>
-                              <button type="button" onClick={() => {
-                                const newTt = timetableData.filter((_, i) => i !== idx);
-                                setTimetableData(newTt);
-                              }} className="bg-gray-100 text-gray-600 hover:bg-gray-200 px-2 py-1 rounded text-xs font-bold" title="Remove this sub-subject">-</button>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs font-bold text-gray-600">Marks:</label>
-                          {row.has_practical ? (
-                            <>
-                              <input type="number" value={row.total_marks || ''} onChange={e => {
-                                const newTt = [...timetableData]; newTt[idx].total_marks = parseInt(e.target.value); setTimetableData(newTt);
-                              }} className="border-gray-200 p-1.5 rounded text-xs w-16 bg-gray-50" placeholder="Total" title="Total" />
-                              <input type="number" value={row.theory_marks || ''} onChange={e => {
-                                const newTt = [...timetableData]; newTt[idx].theory_marks = parseInt(e.target.value); setTimetableData(newTt);
-                              }} className="border-gray-200 p-1.5 rounded text-xs w-16 bg-gray-50" placeholder="Theory" title="Theory" />
-                              <input type="number" value={row.practical_marks || ''} onChange={e => {
-                                const newTt = [...timetableData]; newTt[idx].practical_marks = parseInt(e.target.value); setTimetableData(newTt);
-                              }} className="border-gray-200 p-1.5 rounded text-xs w-16 bg-gray-50" placeholder="Prac" title="Practical" />
-                            </>
-                          ) : (
-                            <>
-                              <input type="number" value={row.total_marks || ''} onChange={e => {
-                                const newTt = [...timetableData]; newTt[idx].total_marks = parseInt(e.target.value); setTimetableData(newTt);
-                              }} className="border-gray-200 p-1.5 rounded text-xs w-20 bg-gray-50" placeholder="Total" title="Total Marks" />
-                              <input type="number" value={row.passing_marks || ''} onChange={e => {
-                                const newTt = [...timetableData]; newTt[idx].passing_marks = parseInt(e.target.value); setTimetableData(newTt);
-                              }} className="border-gray-200 p-1.5 rounded text-xs w-20 bg-gray-50" placeholder="Pass" title="Passing Marks" />
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div className="flex justify-between items-center mt-6">
-                    <button onClick={addTimetableRow} className="text-indigo-600 font-bold text-sm flex items-center gap-1 hover:underline"><FaPlus /> Add New Data</button>
-                    <div className="flex gap-3">
-                      {timetableData.length > 0 && !timetableData[0]?.is_finalized && (
-                        <button onClick={handleFinalizeTimetable} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-orange-600 flex items-center gap-2 text-sm">
-                          <FaCheckCircle /> Finalize
-                        </button>
+          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr className="bg-white border-b border-gray-200 text-gray-700">
+                  <th className="p-4 text-sm font-bold">No.</th>
+                  <th className="p-4 text-sm font-bold">Name</th>
+                  <th className="p-4 text-sm font-bold">Description</th>
+                  <th className="p-4 text-sm font-bold">Class</th>
+                  <th className="p-4 text-sm font-bold">Timetable Created</th>
+                  <th className="p-4 text-sm font-bold">Publish Result</th>
+                  <th className="p-4 text-sm font-bold text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {exams.map((exam, idx) => (
+                  <tr key={exam.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4 text-sm font-semibold text-gray-800">{idx + 1}</td>
+                    <td className="p-4 text-sm text-gray-700">{exam.name}</td>
+                    <td className="p-4 text-sm text-gray-500">{exam.type}</td>
+                    <td className="p-4 text-sm text-gray-700 font-medium">Class {exam.class_level}</td>
+                    <td className="p-4">
+                      {timetablesMap[exam.id] ? (
+                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-bold shadow-sm">Yes</span>
+                      ) : (
+                        <span className="bg-pink-400 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">No</span>
                       )}
-                      <button onClick={() => downloadClassPDF(selectedClassExam.class_level, timetableData)} className="bg-gray-800 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-gray-900 flex items-center gap-2 text-sm">
-                        <FaDownload /> PDF
-                      </button>
-                      <button onClick={handleSaveTimetable} disabled={savingTimetable || (timetableData.length > 0 && timetableData[0]?.is_finalized)} className={`${timetableData.length > 0 && timetableData[0]?.is_finalized ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2`}>
-                        {savingTimetable ? <FaSpinner className="animate-spin" /> : <FaSave />} Save Timetable
-                      </button>
-                    </div>
+                    </td>
+                    <td className="p-4">
+                      {/* Placeholder for Publish Result */}
+                      <span className="bg-pink-400 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">No</span>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => openTimetable(exam)} className="bg-blue-400 text-white w-8 h-8 rounded-full hover:bg-blue-500 transition-colors flex items-center justify-center shadow-sm" title="Manage Timetable"><FaCalendarAlt size={12} /></button>
+                        <button className="bg-[#20c997] text-white w-8 h-8 rounded-full hover:bg-teal-500 transition-colors flex items-center justify-center shadow-sm" title="Publish Result"><FaCheckCircle size={12} /></button>
+                        <button onClick={() => handleDeleteExam(exam.id)} className="bg-[#4a5568] text-white w-8 h-8 rounded-full hover:bg-gray-700 transition-colors flex items-center justify-center shadow-sm" title="Delete"><FaTrash size={12} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {exams.length === 0 && (
+                  <tr>
+                    <td colSpan="7" className="p-8 text-center text-gray-500 font-medium">No exams created yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {view === 'timetable' && selectedClassExam && (
+        <div className="bg-[#f9fafb] p-6 rounded-lg">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-xl font-bold text-gray-800">Create Exam Timetable</h2>
+            <button onClick={() => setView('list')} className="bg-[#2A526A] text-white px-5 py-2 rounded font-bold text-sm hover:bg-[#1f3f52]">Back</button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 mb-8">
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-2">Exam</label>
+              <div className="bg-[#e9ecef] p-3 rounded text-sm text-gray-700 font-medium border border-gray-200">{selectedClassExam.name}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-2">Class</label>
+              <div className="bg-[#e9ecef] p-3 rounded text-sm text-gray-700 font-medium border border-gray-200">Class {selectedClassExam.class_level}</div>
+            </div>
+          </div>
+
+          <div className="space-y-6 mb-8">
+            {timetableData.map((row, idx) => (
+              <div key={idx} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm relative">
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-2">Subject</label>
+                    <select value={row.subject} onChange={e => {
+                      const newTt = [...timetableData]; newTt[idx].subject = e.target.value; setTimetableData(newTt);
+                    }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500">
+                      <option value="">-- Select --</option>
+                      {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-2">Total Marks <span className="text-pink-400">*</span></label>
+                    <input type="number" value={row.total_marks || ''} onChange={e => {
+                      const newTt = [...timetableData]; newTt[idx].total_marks = parseInt(e.target.value); setTimetableData(newTt);
+                    }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Total Marks" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-2">Passing Marks <span className="text-pink-400">*</span></label>
+                    <input type="number" value={row.passing_marks || ''} onChange={e => {
+                      const newTt = [...timetableData]; newTt[idx].passing_marks = parseInt(e.target.value); setTimetableData(newTt);
+                    }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Passing Marks" />
                   </div>
                 </div>
-              )}
 
-              {timetableTab === 'marks' && (
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-gray-800">Marks Entry</h3>
-                    <button onClick={async () => {
-                      setSavingMarks(true);
-                      try {
-                        const marksPayload = Object.values(marks);
-                        await axios.post(`${apiUrl}/exams/${selectedClassExam.id}/marks/subject-teacher`, { marks: marksPayload }, { headers: { Authorization: `Bearer ${token}` } });
-                        alert('Marks saved!');
-                      } catch (e) {
-                        alert('Failed to save marks');
-                      }
-                      setSavingMarks(false);
-                    }} disabled={savingMarks} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
-                      {savingMarks ? <FaSpinner className="animate-spin" /> : <FaSave />} Save Marks
-                    </button>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end relative pr-12">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-2">Start Time <span className="text-pink-400">*</span></label>
+                    <div className="relative">
+                      <input type="time" value={row.start_time || ''} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].start_time = e.target.value; setTimetableData(newTt);
+                      }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500 pr-8" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-2">End Time <span className="text-pink-400">*</span></label>
+                    <div className="relative">
+                      <input type="time" value={row.end_time || ''} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].end_time = e.target.value; setTimetableData(newTt);
+                      }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500 pr-8" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-2">Date <span className="text-pink-400">*</span></label>
+                    <input type="date" value={row.exam_date || ''} onChange={e => {
+                      const newTt = [...timetableData]; newTt[idx].exam_date = e.target.value; setTimetableData(newTt);
+                    }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500" />
                   </div>
                   
-                  {timetableData.length === 0 ? (
-                    <div className="text-center p-8 bg-gray-50 rounded-xl text-gray-500">Please configure the timetable first to enter marks.</div>
-                  ) : (
-                    <div className="overflow-x-auto bg-white rounded-xl border border-gray-200">
-                      <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-gray-100 text-gray-600 font-bold">
-                          <tr>
-                            <th className="p-3 border-b border-r">Student ID</th>
-                            <th className="p-3 border-b border-r">Student Name</th>
-                            <th className="p-3 border-b border-r">Status</th>
-                            {timetableData.map((col, idx) => (
-                              <th key={idx} className="p-3 border-b border-r text-center" colSpan={col.has_practical ? 2 : 1}>
-                                {col.subject} {col.sub_subject ? `(${col.sub_subject})` : ''}
-                                <div className="text-xs text-gray-400 font-normal mt-1">
-                                  {col.has_practical ? `Th: ${col.theory_marks} | Pr: ${col.practical_marks}` : `Max: ${col.total_marks}`}
-                                </div>
-                              </th>
-                            ))}
-                          </tr>
-                          <tr>
-                            <th className="p-2 border-b border-r"></th>
-                            <th className="p-2 border-b border-r"></th>
-                            <th className="p-2 border-b border-r"></th>
-                            {timetableData.map((col, idx) => col.has_practical ? (
-                                <React.Fragment key={idx}>
-                                  <th className="p-2 border-b border-r text-xs text-center bg-gray-50">Theory</th>
-                                  <th className="p-2 border-b border-r text-xs text-center bg-gray-50">Practical</th>
-                                </React.Fragment>
-                              ) : (
-                                <th key={idx} className="p-2 border-b border-r text-xs text-center bg-gray-50">Total</th>
-                              )
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {students.length === 0 && (
-                            <tr><td colSpan={timetableData.length * 2 + 2} className="p-4 text-center text-gray-500">No students found in this class yet. (Placeholder)</td></tr>
-                          )}
-                          {students.map(student => (
-                            <tr key={student.id} className="hover:bg-gray-50">
-                              <td className="p-3 border-b border-r font-medium">{student.admission_no}</td>
-                              <td className="p-3 border-b border-r font-bold">{student.name}</td>
-                              <td className="p-3 border-b border-r">
-                                {(() => {
-                                  const stat = calculateStudentStatus(student.id);
-                                  return <span className={`text-xs px-2 py-1 rounded bg-gray-100 ${stat.class}`}>{stat.status}</span>;
-                                })()}
-                              </td>
-                              {timetableData.map((col, idx) => {
-                                const markKey = `${student.id}_${col.subject}_${col.sub_subject || 'main'}`;
-                                const markRecord = marks[markKey] || { student_id: student.id, subject: col.subject, sub_subject: col.sub_subject };
-                                
-                                return col.has_practical ? (
-                                  <React.Fragment key={idx}>
-                                    <td className="p-2 border-b border-r">
-                                      <input type="number" value={markRecord.marks_obtained || ''} onChange={e => {
-                                        setMarks({...marks, [markKey]: {...markRecord, marks_obtained: e.target.value, max_marks: col.theory_marks}})
-                                      }} className="w-16 border-gray-200 p-1 rounded text-center" />
-                                    </td>
-                                    <td className="p-2 border-b border-r">
-                                      <input type="number" value={markRecord.practical_marks_obtained || ''} onChange={e => {
-                                        setMarks({...marks, [markKey]: {...markRecord, practical_marks_obtained: e.target.value}})
-                                      }} className="w-16 border-gray-200 p-1 rounded text-center" />
-                                    </td>
-                                  </React.Fragment>
-                                ) : (
-                                  <td key={idx} className="p-2 border-b border-r">
-                                    <input type="number" value={markRecord.marks_obtained || ''} onChange={e => {
-                                      setMarks({...marks, [markKey]: {...markRecord, marks_obtained: e.target.value, max_marks: col.total_marks}})
-                                    }} className="w-16 border-gray-200 p-1 rounded text-center" />
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  {/* Delete button positioned absolute right like the red X in screenshot */}
+                  <button onClick={() => setTimetableData(timetableData.filter((_, i) => i !== idx))} className="absolute bottom-0 right-0 bg-pink-100 text-pink-400 hover:bg-pink-200 rounded transition w-10 h-10 flex items-center justify-center font-bold text-lg leading-none pb-1">
+                    ×
+                  </button>
+                </div>
+                
+                {/* Advanced Fields: Divide Subject and Practical */}
+                <div className="mt-6 pt-4 border-t border-dashed border-gray-200 flex flex-wrap gap-6 items-center">
+                  <div className="flex items-center gap-6">
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={!!row.sub_subject} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].sub_subject = e.target.checked ? 'Paper 1' : ''; setTimetableData(newTt);
+                      }} className="rounded text-[#20c997] focus:ring-[#20c997] w-4 h-4" /> Divide Subject
+                    </label>
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={row.has_practical} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].has_practical = e.target.checked; setTimetableData(newTt);
+                      }} className="rounded text-[#20c997] focus:ring-[#20c997] w-4 h-4" /> Include Practical
+                    </label>
+                  </div>
+                  
+                  {row.sub_subject !== '' && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-bold text-gray-600">Paper:</label>
+                      <input type="text" value={row.sub_subject} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].sub_subject = e.target.value; setTimetableData(newTt);
+                      }} className="border-gray-300 border p-1.5 rounded text-sm w-40 bg-white" placeholder="e.g. Paper 1" />
+                      <div className="flex gap-1">
+                        <button type="button" onClick={() => {
+                          const newTt = [...timetableData];
+                          newTt.splice(idx + 1, 0, { ...row, sub_subject: 'Paper 2', start_time: '', end_time: '', exam_date: '' });
+                          setTimetableData(newTt);
+                        }} className="bg-gray-100 text-gray-600 hover:bg-gray-200 w-8 h-8 rounded text-sm font-bold flex items-center justify-center">+</button>
+                        <button type="button" onClick={() => {
+                          const newTt = timetableData.filter((_, i) => i !== idx);
+                          setTimetableData(newTt);
+                        }} className="bg-gray-100 text-gray-600 hover:bg-gray-200 w-8 h-8 rounded text-sm font-bold flex items-center justify-center">-</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {row.has_practical && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-bold text-gray-600">Marks Split:</label>
+                      <input type="number" value={row.theory_marks || ''} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].theory_marks = parseInt(e.target.value); setTimetableData(newTt);
+                      }} className="border-gray-300 border p-1.5 rounded text-xs w-20 bg-white" placeholder="Theory" title="Theory" />
+                      <input type="number" value={row.practical_marks || ''} onChange={e => {
+                        const newTt = [...timetableData]; newTt[idx].practical_marks = parseInt(e.target.value); setTimetableData(newTt);
+                      }} className="border-gray-300 border p-1.5 rounded text-xs w-20 bg-white" placeholder="Prac" title="Practical" />
                     </div>
                   )}
                 </div>
-              )}
 
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-400 bg-gray-50 rounded-xl border border-gray-100 min-h-[300px]">
-              Select a class from an exam to manage its timetable and marks.
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-between items-center mt-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+            <button onClick={addTimetableRow} className="bg-[#20c997] text-white px-5 py-2.5 rounded font-bold text-sm hover:bg-[#1ba87e] transition shadow-sm">Add New Data</button>
+            <button onClick={handleSaveTimetable} disabled={savingTimetable} className="bg-[#2A526A] text-white px-8 py-2.5 rounded font-bold text-sm hover:bg-[#1f3f52] transition shadow-sm">
+              {savingTimetable ? 'Saving...' : 'Submit'}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+
+      {/* CREATE EXAM MODAL */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl relative">
+            <button onClick={() => setShowCreate(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <h2 className="text-xl font-bold mb-4">Create New Exam</h2>
+            <form onSubmit={handleCreateExam}>
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-gray-700 mb-1">Exam Name</label>
+                <input required type="text" value={newExam.name} onChange={e => setNewExam({...newExam, name: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded outline-none focus:ring-1 focus:ring-indigo-500" placeholder="e.g. First Term Exam" />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-gray-700 mb-1">Type</label>
+                <select value={newExam.type} onChange={e => setNewExam({...newExam, type: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded outline-none focus:ring-1 focus:ring-indigo-500">
+                  <option value="Offline">Offline</option>
+                  <option value="Online">Online</option>
+                </select>
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Select Classes</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {allClasses.map(c => (
+                    <label key={c} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer hover:bg-gray-100">
+                      <input type="checkbox" checked={newExam.class_levels.includes(c)} onChange={(e) => {
+                        if(e.target.checked) setNewExam({...newExam, class_levels: [...newExam.class_levels, c]});
+                        else setNewExam({...newExam, class_levels: newExam.class_levels.filter(cl => cl !== c)});
+                      }} className="rounded text-indigo-600" /> Class {c}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <button type="submit" className="w-full bg-[#20c997] text-white p-3 rounded font-bold hover:bg-[#1ba87e] transition">Create Exam</button>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

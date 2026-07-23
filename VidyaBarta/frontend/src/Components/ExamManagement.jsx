@@ -41,7 +41,7 @@ const ExamManagement = ({ apiUrl, token }) => {
           try {
               const { data: tt } = await axios.get(`${apiUrl}/exams/${exam.id}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
               if (tt.length > 0) {
-                  ttMap[exam.id] = true;
+                  ttMap[exam.id] = { created: true, finalized: tt[0].is_finalized || false };
               }
           } catch(e) {}
       }));
@@ -87,6 +87,18 @@ const ExamManagement = ({ apiUrl, token }) => {
     } catch (err) {
       console.error(err);
       alert('Failed to delete exam');
+    }
+  };
+
+  const handleFinalizeTimetable = async (examId) => {
+    if (!window.confirm('Are you sure you want to finalize this exam timetable? This will lock it and prevent further edits.')) return;
+    try {
+      await axios.put(`${apiUrl}/exams/${examId}/timetable/finalize`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      setTimetablesMap(prev => ({ ...prev, [examId]: { ...prev[examId], finalized: true } }));
+      alert('Exam timetable finalized successfully.');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to finalize exam timetable');
     }
   };
 
@@ -286,7 +298,7 @@ const ExamManagement = ({ apiUrl, token }) => {
       });
       await axios.post(`${apiUrl}/exams/${selectedClassExam.id}/timetable`, { timetableData: flatData }, { headers: { Authorization: `Bearer ${token}` } });
       alert('Timetable Saved!');
-      setTimetablesMap(prev => ({...prev, [selectedClassExam.id]: true}));
+      setTimetablesMap(prev => ({...prev, [selectedClassExam.id]: { created: true, finalized: false }}));
       setView('list');
     } catch (err) {
       console.error(err);
@@ -335,21 +347,31 @@ const ExamManagement = ({ apiUrl, token }) => {
                     <td className="p-4 text-sm text-gray-500">{exam.type}</td>
                     <td className="p-4 text-sm text-gray-700 font-medium">Class {exam.class_level}</td>
                     <td className="p-4">
-                      {timetablesMap[exam.id] ? (
+                      {timetablesMap[exam.id]?.created ? (
                         <span className="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-bold shadow-sm">Yes</span>
                       ) : (
                         <span className="bg-pink-400 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">No</span>
                       )}
                     </td>
                     <td className="p-4">
-                      <span className="bg-pink-400 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">No</span>
+                      {timetablesMap[exam.id]?.finalized ? (
+                        <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-xs font-bold shadow-sm">Yes</span>
+                      ) : (
+                        <span className="bg-pink-400 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">No</span>
+                      )}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => openTimetable(exam)} className="bg-[#46a5f7] text-white w-8 h-8 rounded-full hover:bg-blue-500 transition-colors flex items-center justify-center shadow-sm" title="Manage Timetable"><FaCalendarAlt size={12} /></button>
-                        <button className="bg-[#20c997] text-white w-8 h-8 rounded-full hover:bg-teal-500 transition-colors flex items-center justify-center shadow-sm" title="Finalize Exam Timetable"><FaCheckCircle size={12} /></button>
+                        {!timetablesMap[exam.id]?.finalized && (
+                          <button onClick={() => openTimetable(exam)} className="bg-[#46a5f7] text-white w-8 h-8 rounded-full hover:bg-blue-500 transition-colors flex items-center justify-center shadow-sm" title="Manage Timetable"><FaCalendarAlt size={12} /></button>
+                        )}
+                        {timetablesMap[exam.id]?.created && !timetablesMap[exam.id]?.finalized && (
+                          <button onClick={() => handleFinalizeTimetable(exam.id)} className="bg-[#20c997] text-white w-8 h-8 rounded-full hover:bg-teal-500 transition-colors flex items-center justify-center shadow-sm" title="Finalize Exam Timetable"><FaCheckCircle size={12} /></button>
+                        )}
                         <button onClick={() => downloadClassPDF(exam)} className="bg-[#ed8936] text-white w-8 h-8 rounded-full hover:bg-orange-500 transition-colors flex items-center justify-center shadow-sm" title="Download Timetable PDF"><FaDownload size={12} /></button>
-                        <button onClick={() => handleDeleteExam(exam.id)} className="bg-[#4a5568] text-white w-8 h-8 rounded-full hover:bg-gray-700 transition-colors flex items-center justify-center shadow-sm" title="Delete"><FaTrash size={12} /></button>
+                        {!timetablesMap[exam.id]?.finalized && (
+                          <button onClick={() => handleDeleteExam(exam.id)} className="bg-[#4a5568] text-white w-8 h-8 rounded-full hover:bg-gray-700 transition-colors flex items-center justify-center shadow-sm" title="Delete"><FaTrash size={12} /></button>
+                        )}
                       </div>
                     </td>
                   </tr>

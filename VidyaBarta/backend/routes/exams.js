@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, protectAnyStaff } = require('../middleware/auth');
+const { protect, protectAnyStaff, protectAnyUser } = require('../middleware/auth');
 const supabase = require('../config/supabase');
 
 // Get all exams (scoped by school_id)
@@ -285,7 +285,7 @@ router.post('/:id/finalize', protect, async (req, res) => {
 
 
 // Get exam timetable
-router.get('/:id/timetable', protectAnyStaff, async (req, res) => {
+router.get('/:id/timetable', protectAnyUser, async (req, res) => {
   try {
     const { data: timetable, error } = await supabase
       .from('exam_timetable')

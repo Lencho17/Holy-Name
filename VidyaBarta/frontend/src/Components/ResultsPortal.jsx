@@ -40,7 +40,7 @@ const ResultsPortal = ({ apiUrl, token }) => {
       const mRes = await axios.get(`${apiUrl}/exams/${exam.id}/marks`, { headers: { Authorization: `Bearer ${token}` } });
       const marks = mRes.data;
       
-      const tRes = await axios.get(`${apiUrl}/exams/${exam.id}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
+      const tRes = await axios.get(`${apiUrl}/exams/${exam.id}/timetable?_t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } });
       const timetable = tRes.data;
       
       const parts = (exam.class_level || '').split(' ');

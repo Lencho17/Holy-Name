@@ -6,7 +6,7 @@ import { StudentAuthContext } from '../context/StudentAuthContext';
 import StudentTimetable from './StudentTimetable';
 import StudentCourses from './StudentCourses';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { FaDownload } from 'react-icons/fa';
 
 function StudentPortal() {
@@ -52,7 +52,7 @@ function StudentPortal() {
         const timetables = {};
         await Promise.all(uniqueExamIds.map(async (eid) => {
           try {
-            const ttRes = await axios.get(`${API_URL}/exams/${eid}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
+            const ttRes = await axios.get(`${API_URL}/exams/${eid}/timetable?_t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } });
             timetables[eid] = ttRes.data;
           } catch(e) {}
         }));
@@ -318,10 +318,10 @@ function StudentPortal() {
                         `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`
                       ]);
                       
-                      doc.autoTable({
+                      autoTable(doc, {
                         head: [tableColumn],
                         body: tableRows,
-                        startY: 30,
+                        startY: 40,
                       });
                       
                       doc.save(`My_Timetable.pdf`);
@@ -599,7 +599,7 @@ function StudentPortal() {
                             `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`
                           ]);
                           
-                          doc.autoTable({
+                          autoTable(doc, {
                             head: [tableColumn],
                             body: tableRows,
                             startY: 30,

@@ -12,7 +12,7 @@ router.get('/', protect, async (req, res) => {
       .select(`
         *,
         exam:exams (id, name, class_level),
-        student:students (id, name, roll_number)
+        student:students (id, student_name, admission_id)
       `)
       .order('created_at', { ascending: false });
     

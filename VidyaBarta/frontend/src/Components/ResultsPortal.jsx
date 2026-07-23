@@ -210,7 +210,7 @@ const ResultsPortal = ({ apiUrl, token }) => {
             <div key={g.id} className="bg-white p-4 rounded-xl shadow-sm border border-orange-200">
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <div className="font-bold text-gray-800">Student: {g.student?.name} ({g.student?.roll_number})</div>
+                  <div className="font-bold text-gray-800">Student: {g.student?.student_name || g.student?.name} ({g.student?.admission_id || g.student?.roll_number})</div>
                   <div className="text-xs text-gray-500">Exam: {g.exam?.name} | Subject: {g.subject?.replace(/^VB-?/, '')} | Status: <span className={g.status === 'Resolved' ? 'text-green-600' : 'text-orange-600'}>{g.status}</span></div>
                 </div>
                 <div className="text-xs text-gray-400">{new Date(g.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>

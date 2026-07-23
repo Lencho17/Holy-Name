@@ -55,9 +55,9 @@ function TeacherPortal() {
           const data = await res.json();
           // Filter assignments for this teacher
           const myAssignments = data.filter(a => {
-            const staffId = staffData.id || staffData._id;
-            return a.class_teacher_id === staffId || 
-            (a.subject_teachers && a.subject_teachers.some(st => st.teacher_id === staffId));
+            const staffId = String(staffData.id || staffData._id);
+            return String(a.class_teacher_id) === staffId || 
+            (a.subject_teachers && a.subject_teachers.some(st => String(st.teacher_id) === staffId));
           });
           setAssignments(myAssignments);
         }
@@ -308,8 +308,8 @@ function TeacherPortal() {
                   >
                     <option value="">-- Select Class --</option>
                     {assignments.filter(a => {
-                      const staffId = staffData.id || staffData._id;
-                      return a.class_teacher_id === staffId || a.subject_teachers?.some(st => st.teacher_id === staffId);
+                      const staffId = String(staffData.id || staffData._id);
+                      return String(a.class_teacher_id) === staffId || a.subject_teachers?.some(st => String(st.teacher_id) === staffId);
                     }).map(a => (
                       <option key={a.id} value={a.id}>{a.class_name} {a.section}</option>
                     ))}
@@ -322,8 +322,8 @@ function TeacherPortal() {
                   >
                     <option value="">-- Select Subject --</option>
                     {selectedAssignment?.subject_teachers?.filter(st => {
-                      const staffId = staffData.id || staffData._id;
-                      return selectedAssignment.class_teacher_id === staffId || st.teacher_id === staffId;
+                      const staffId = String(staffData.id || staffData._id);
+                      return String(selectedAssignment.class_teacher_id) === staffId || String(st.teacher_id) === staffId;
                     }).map(st => (
                       <option key={st.subject} value={st.subject}>{st.subject}</option>
                     ))}
@@ -438,7 +438,7 @@ function TeacherPortal() {
                     onChange={(e) => setSelectedAssignment(assignments.find(a => a.id === e.target.value))}
                   >
                     <option value="">-- Select Your Assigned Class --</option>
-                    {assignments.filter(a => a.class_teacher_id === staffData.id).map(a => (
+                    {assignments.filter(a => String(a.class_teacher_id) === String(staffData.id || staffData._id)).map(a => (
                       <option key={a.id} value={a.id}>{a.class_name} {a.section}</option>
                     ))}
                   </select>

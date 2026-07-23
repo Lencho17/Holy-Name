@@ -90,11 +90,11 @@ const ExamManagement = ({ apiUrl, token }) => {
     }
   };
 
-  const handleFinalizeTimetable = async (examId) => {
+  const handleFinalizeTimetable = async (exam) => {
     if (!window.confirm('Are you sure you want to finalize this exam timetable? This will lock it and prevent further edits.')) return;
     try {
-      await axios.put(`${apiUrl}/exams/${examId}/timetable/finalize`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      setTimetablesMap(prev => ({ ...prev, [examId]: { ...prev[examId], finalized: true } }));
+      await axios.put(`${apiUrl}/exams/${exam.id}/timetable/finalize`, { class_level: exam.class_level }, { headers: { Authorization: `Bearer ${token}` } });
+      setTimetablesMap(prev => ({ ...prev, [exam.id]: { ...prev[exam.id], finalized: true } }));
       alert('Exam timetable finalized successfully.');
     } catch (error) {
       console.error(error);
@@ -365,8 +365,8 @@ const ExamManagement = ({ apiUrl, token }) => {
                         {!timetablesMap[exam.id]?.finalized && (
                           <button onClick={() => openTimetable(exam)} className="bg-[#46a5f7] text-white w-8 h-8 rounded-full hover:bg-blue-500 transition-colors flex items-center justify-center shadow-sm" title="Manage Timetable"><FaCalendarAlt size={12} /></button>
                         )}
-                        {timetablesMap[exam.id]?.created && !timetablesMap[exam.id]?.finalized && (
-                          <button onClick={() => handleFinalizeTimetable(exam.id)} className="bg-[#20c997] text-white w-8 h-8 rounded-full hover:bg-teal-500 transition-colors flex items-center justify-center shadow-sm" title="Finalize Exam Timetable"><FaCheckCircle size={12} /></button>
+                        {!timetablesMap[exam.id]?.finalized && timetablesMap[exam.id]?.created && (
+                          <button onClick={() => handleFinalizeTimetable(exam)} className="bg-[#20c997] text-white w-8 h-8 rounded-full hover:bg-teal-500 transition-colors flex items-center justify-center shadow-sm" title="Finalize Exam Timetable"><FaCheckCircle size={12} /></button>
                         )}
                         <button onClick={() => downloadClassPDF(exam)} className="bg-[#ed8936] text-white w-8 h-8 rounded-full hover:bg-orange-500 transition-colors flex items-center justify-center shadow-sm" title="Download Timetable PDF"><FaDownload size={12} /></button>
                         {!timetablesMap[exam.id]?.finalized && (

@@ -29,6 +29,7 @@ function StudentPortal() {
   const [myGrievances, setMyGrievances] = useState([]);
   const [showGrievanceForm, setShowGrievanceForm] = useState(false);
   const [grievanceForm, setGrievanceForm] = useState({ exam_id: '', subject: '', complaint: '' });
+  const [expandedMenu, setExpandedMenu] = useState('timetable_group');
 
   useEffect(() => {
     if (!token) return;
@@ -187,7 +188,14 @@ function StudentPortal() {
             ].map(item => (
               <div key={item.id}>
                 <a 
-                  onClick={() => { if(!item.subItems) { setActiveTab(item.id); setIsSidebarOpen(false); } }}
+                  onClick={() => { 
+                    if(!item.subItems) { 
+                      setActiveTab(item.id); 
+                      setIsSidebarOpen(false); 
+                    } else {
+                      setExpandedMenu(prev => prev === item.id ? '' : item.id);
+                    }
+                  }}
                   className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-all cursor-pointer font-medium text-sm
                     ${(!item.subItems && activeTab === item.id) || (item.subItems && item.subItems.some(s => s.id === activeTab))
                       ? 'bg-blue-50 text-blue-700 font-semibold' 
@@ -198,12 +206,12 @@ function StudentPortal() {
                     <span>{item.label}</span>
                   </div>
                   {item.subItems && (
-                    <span className="material-symbols-outlined text-[18px]">
+                    <span className={`material-symbols-outlined text-[18px] transition-transform ${expandedMenu === item.id ? 'rotate-180' : ''}`}>
                       expand_more
                     </span>
                   )}
                 </a>
-                {item.subItems && (
+                {item.subItems && expandedMenu === item.id && (
                   <div className="ml-9 mt-1 flex flex-col gap-1">
                     {item.subItems.map(sub => (
                       <a 

@@ -44,7 +44,13 @@ exports.getStudents = async (req, res) => {
       
       query = query.or(`grade.in.(${combinedIn}),and(grade.in.(${gradeIn}),section.eq.${section})`);
     } else if (classLevel) {
-      query = query.in('grade', getEquivalentClasses(classLevel));
+      const classLevelVariants = getEquivalentClasses(classLevel);
+      const orConditions = [];
+      classLevelVariants.forEach(v => {
+        orConditions.push(`grade.eq."${v}"`);
+        orConditions.push(`grade.ilike."${v} %"`);
+      });
+      query = query.or(orConditions.join(','));
     } else if (section) {
       query = query.eq('section', section);
     }

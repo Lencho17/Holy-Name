@@ -309,7 +309,7 @@ function TeacherPortal() {
                     <option value="">-- Select Class --</option>
                     {assignments.filter(a => {
                       const staffId = staffData.id || staffData._id;
-                      return a.subject_teachers?.some(st => st.teacher_id === staffId);
+                      return a.class_teacher_id === staffId || a.subject_teachers?.some(st => st.teacher_id === staffId);
                     }).map(a => (
                       <option key={a.id} value={a.id}>{a.class_name} {a.section}</option>
                     ))}
@@ -323,7 +323,7 @@ function TeacherPortal() {
                     <option value="">-- Select Subject --</option>
                     {selectedAssignment?.subject_teachers?.filter(st => {
                       const staffId = staffData.id || staffData._id;
-                      return st.teacher_id === staffId;
+                      return selectedAssignment.class_teacher_id === staffId || st.teacher_id === staffId;
                     }).map(st => (
                       <option key={st.subject} value={st.subject}>{st.subject}</option>
                     ))}

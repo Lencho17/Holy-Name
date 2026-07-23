@@ -33,11 +33,19 @@ exports.getStudents = async (req, res) => {
       query = query.or(`student_name.ilike.%${search}%,admission_id.ilike.%${search}%,guardian_name.ilike.%${search}%,email.ilike.%${search}%,contact_number.ilike.%${search}%,pen_number.ilike.%${search}%`);
     }
     
-    if (req.query.class_level) {
-      query = query.in('grade', getEquivalentClasses(req.query.class_level));
-    }
+    const classLevel = req.query.class_level;
     
-    if (section) {
+    if (classLevel && section) {
+      const classLevelVariants = getEquivalentClasses(classLevel);
+      const combinedVariants = classLevelVariants.map(v => `${v} ${section}`);
+      
+      const gradeIn = classLevelVariants.map(v => `"${v}"`).join(',');
+      const combinedIn = combinedVariants.map(v => `"${v}"`).join(',');
+      
+      query = query.or(`grade.in.(${combinedIn}),and(grade.in.(${gradeIn}),section.eq.${section})`);
+    } else if (classLevel) {
+      query = query.in('grade', getEquivalentClasses(classLevel));
+    } else if (section) {
       query = query.eq('section', section);
     }
 

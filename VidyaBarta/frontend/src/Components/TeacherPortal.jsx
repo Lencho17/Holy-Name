@@ -156,7 +156,8 @@ function TeacherPortal() {
           return {
             ...m,
             studentName: student ? (student.student_name || student.name) : 'Unknown Student',
-            admissionId: student ? (student.admission_id || student.roll_number) : ''
+            admissionId: student ? (student.admission_id || student.roll_number) : '',
+            section: student ? student.section : ''
           };
         });
         setReviewMarks(filteredMarks);
@@ -352,6 +353,7 @@ function TeacherPortal() {
                       <thead>
                         <tr className="bg-gray-50 border-y border-gray-100">
                           <th className="p-3 text-sm text-gray-600">Student ID</th>
+                          <th className="p-3 text-sm text-gray-600">Section</th>
                           {subjectConfig?.has_practical ? (
                             <>
                               <th className="p-3 text-sm text-gray-600">Theory Marks</th>
@@ -368,6 +370,7 @@ function TeacherPortal() {
                         {students.map(s => (
                           <tr key={s.id} className="border-b border-gray-50">
                             <td className="p-3 text-sm font-medium">{s.student_name || s.name} ({s.admission_id || s.roll_number})</td>
+                            <td className="p-3 text-sm">{s.section || selectedAssignment?.section || '-'}</td>
                             {subjectConfig?.has_practical ? (
                               <>
                                 <td className="p-3">
@@ -466,6 +469,7 @@ function TeacherPortal() {
                      <thead>
                        <tr className="bg-gray-50 border-y border-gray-100">
                          <th className="p-3 text-sm text-gray-600">Student</th>
+                         <th className="p-3 text-sm text-gray-600">Section</th>
                          <th className="p-3 text-sm text-gray-600">Subject</th>
                          <th className="p-3 text-sm text-gray-600">Original Mark</th>
                          <th className="p-3 text-sm text-gray-600">Modify Mark</th>
@@ -476,6 +480,7 @@ function TeacherPortal() {
                        {reviewMarks.map(m => (
                          <tr key={m.id} className="border-b border-gray-50">
                            <td className="p-3 text-sm font-medium">{m.studentName} <span className="text-gray-500 text-xs font-normal">({m.admissionId})</span></td>
+                           <td className="p-3 text-sm">{m.section || selectedAssignment?.section || '-'}</td>
                            <td className="p-3 text-sm font-medium">{m.subject}</td>
                            <td className="p-3 text-sm">{m.marks_obtained} / {m.max_marks}</td>
                            <td className="p-3">

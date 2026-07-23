@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { getEquivalentClasses } = require('../utils/classMapping');
 
 // @desc    Get all students with search and pagination
 // @route   GET /api/students
@@ -33,7 +34,7 @@ exports.getStudents = async (req, res) => {
     }
     
     if (req.query.class_level) {
-      query = query.eq('grade', req.query.class_level);
+      query = query.in('grade', getEquivalentClasses(req.query.class_level));
     }
     
     if (section) {

@@ -93,7 +93,7 @@ router.get('/my-dues', async (req, res) => {
     // Verify student
     const { data: student, error } = await supabase
       .from('students')
-      .select('id, student_name')
+      .select('id, student_name, school_id')
       .eq('admission_id', admissionId)
       .eq('contact_number', contactNumber)
       .maybeSingle();
@@ -102,8 +102,24 @@ router.get('/my-dues', async (req, res) => {
       return res.status(404).json({ message: 'Student not found with provided credentials' });
     }
 
+    const fee_record_id = `TRIMESTER-${trimester}`;
+
+    // Check if already paid
+    const { data: tx, error: txError } = await supabase
+      .from('transactions')
+      .select('status')
+      .eq('student_id', student.id)
+      .eq('fee_record_id', fee_record_id)
+      .in('status', ['Success', 'completed'])
+      .maybeSingle();
+
     const feeDetails = await calculateStudentFee(student.id, parseInt(trimester) || 1, isNewAdmission === 'true');
     feeDetails.student_name = student.student_name;
+    feeDetails.fee_record_id = fee_record_id;
+    feeDetails.school_id = student.school_id;
+    feeDetails.student_id = student.id;
+    feeDetails.isPaid = !!tx;
+    
     res.json(feeDetails);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

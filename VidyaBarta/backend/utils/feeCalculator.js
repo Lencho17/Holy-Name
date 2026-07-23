@@ -61,6 +61,7 @@ async function calculateStudentFee(studentId, trimester = 1, isNewAdmission = fa
     }
 
     // Apply Dynamic Subject Fees
+    const subjectFees = feeStructure.subject_fees || {};
     const mil = student.mil_subject ? student.mil_subject.toUpperCase() : null;
     const elective = student.elective_subject ? student.elective_subject.toUpperCase() : null;
     const selectedSubjects = Array.isArray(student.selected_subjects) 

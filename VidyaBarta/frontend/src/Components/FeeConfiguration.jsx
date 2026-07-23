@@ -4,8 +4,10 @@ import { FaMoneyCheckAlt, FaSave, FaSpinner } from 'react-icons/fa';
 
 const FeeConfiguration = ({ apiUrl, token }) => {
   const [structures, setStructures] = useState([]);
+  const [classesSubjects, setClassesSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
   const classes = [
     'Nursery', 'KG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 
     '11 - Science', '11 - Arts', '11 - Commerce', 
@@ -24,12 +26,38 @@ const FeeConfiguration = ({ apiUrl, token }) => {
       setLoading(true);
       const res = await axios.get(`${apiUrl}/fees/structures`, { headers: { Authorization: `Bearer ${token}` } });
       setStructures(res.data || []);
+      
+      try {
+        const subRes = await axios.get(`${apiUrl}/subjects/mapping`, { headers: { Authorization: `Bearer ${token}` } });
+        setClassesSubjects(subRes.data || []);
+      } catch (subErr) {
+        console.error("Error fetching class subjects:", subErr);
+      }
+      
       populateForm('I', res.data || []);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const availableSubjectsForSelectedClass = () => {
+    const cls = classesSubjects.find(c => c.class_level === formData.class_level);
+    if (!cls) return [];
+    
+    let subjects = [];
+    (cls.core_subjects || []).forEach(s => {
+      if (s.subjects?.name) subjects.push(s.subjects.name);
+    });
+    
+    (cls.elective_groups || []).forEach(g => {
+        (g.subjects || []).forEach(s => {
+          if (s.subjects?.name) subjects.push(s.subjects.name);
+        });
+    });
+    
+    return Array.from(new Set(subjects)).filter(s => s && !formData.subject_fees[s]);
   };
 
   useEffect(() => {
@@ -130,21 +158,34 @@ const FeeConfiguration = ({ apiUrl, token }) => {
           <div className="bg-purple-50/50 p-5 rounded-xl border border-purple-100">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-purple-800">Subject Specific Fees</h3>
-              <button 
-                type="button" 
-                onClick={() => {
-                  const subject = window.prompt("Enter subject name (e.g. Computer Science, Physics Practical):");
-                  if (subject && subject.trim()) {
-                    const trimmed = subject.trim();
-                    if (!formData.subject_fees[trimmed]) {
-                      setFormData({...formData, subject_fees: {...formData.subject_fees, [trimmed]: ''}});
-                    }
-                  }
-                }}
-                className="text-xs bg-purple-200 text-purple-800 px-3 py-1 rounded-lg font-bold hover:bg-purple-300"
-              >
-                + Add Subject
-              </button>
+              {showSubjectDropdown ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    className="text-xs border border-purple-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-purple-500"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setFormData({...formData, subject_fees: {...formData.subject_fees, [e.target.value]: ''}});
+                        setShowSubjectDropdown(false);
+                      }
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select a subject...</option>
+                    {availableSubjectsForSelectedClass().map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => setShowSubjectDropdown(false)} className="text-red-500 hover:text-red-700 text-lg leading-none font-bold">&times;</button>
+                </div>
+              ) : (
+                <button 
+                  type="button" 
+                  onClick={() => setShowSubjectDropdown(true)}
+                  className="text-xs bg-purple-200 text-purple-800 px-3 py-1 rounded-lg font-bold hover:bg-purple-300"
+                >
+                  + Add Subject
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4 h-64 overflow-y-auto pr-2">
               {Object.keys(formData.subject_fees).map(subject => (

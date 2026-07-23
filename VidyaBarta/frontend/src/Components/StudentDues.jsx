@@ -131,13 +131,20 @@ const StudentDues = () => {
               <span className="text-lg font-black text-gray-800">Total Due Amount</span>
               <span className="text-2xl font-black text-green-600">₹{duesData.total.toFixed(2)}</span>
             </div>
+            
+            {duesData.isPaid && (
+              <div className="mt-6 p-4 bg-green-50 text-green-800 rounded-xl font-bold flex justify-center items-center gap-2 border border-green-200">
+                <FaCheckCircle className="text-xl" />
+                Fees Paid for this Trimester
+              </div>
+            )}
           </div>
 
           <div className="flex gap-4">
             <button onClick={() => setDuesData(null)} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200">
               Back
             </button>
-            {duesData.total > 0 && (
+            {duesData.total > 0 && !duesData.isPaid && (
               <button onClick={handlePay} disabled={paying} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50">
                 {paying ? <FaSpinner className="animate-spin" /> : <FaRupeeSign />} Pay with UPI / SBI Epay
               </button>

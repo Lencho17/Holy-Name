@@ -7,6 +7,7 @@ import StudentTimetable from './StudentTimetable';
 import StudentCourses from './StudentCourses';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { FaDownload } from 'react-icons/fa';
 
 function StudentPortal() {
   const { API_URL, schoolProfile } = useContext(SiteDataContext);

@@ -111,7 +111,7 @@ function Complaints() {
     doc.setFont("helvetica", "bold");
     doc.text(`Tracking No: ${inquiry.trackingNumber}`, 15, 65);
     doc.setFont("helvetica", "normal");
-    doc.text(`Date: ${new Date(inquiry.createdAt).toLocaleDateString()}`, pageWidth - 15, 65, { align: "right" });
+    doc.text(`Date: ${new Date(inquiry.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}`, pageWidth - 15, 65, { align: "right" });
     
     // Data Table
     const tableData = [
@@ -476,7 +476,7 @@ function Complaints() {
                 </div>
                 <div>
                   <span className="text-gray-400 font-bold uppercase text-xs">Submitted On</span>
-                  <p className="text-gray-800 font-medium">{new Date(trackingResult.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  <p className="text-gray-800 font-medium">{new Date(trackingResult.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-')}</p>
                 </div>
               </div>
               {trackingResult.adminReply && (
@@ -484,7 +484,7 @@ function Complaints() {
                   <p className="text-xs text-emerald-600 font-bold uppercase mb-1">School's Response</p>
                   <p className="text-sm text-emerald-800 whitespace-pre-wrap">{trackingResult.adminReply}</p>
                   {trackingResult.repliedAt && (
-                    <p className="text-xs text-emerald-500 mt-2">{new Date(trackingResult.repliedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <p className="text-xs text-emerald-500 mt-2">{new Date(trackingResult.repliedAt).toLocaleDateString('en-GB').replace(/\//g, '-')}</p>
                   )}
                 </div>
               )}

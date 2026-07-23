@@ -109,7 +109,7 @@ const HolidaySettings = ({ apiUrl, token }) => {
             <div key={h.id} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm">
               <div>
                 <div className="font-bold text-sm text-gray-800">{h.name}</div>
-                <div className="text-xs text-gray-500">{new Date(h.holiday_date).toLocaleDateString()} {h.description && `- ${h.description}`}</div>
+                <div className="text-xs text-gray-500">{new Date(h.holiday_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} {h.description && `- ${h.description}`}</div>
               </div>
               <button 
                 onClick={() => handleDelete(h.id)}

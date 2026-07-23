@@ -87,7 +87,7 @@ const SchoolAdminsManager = ({ apiUrl, token }) => {
               <tr key={admin.id} className="hover:bg-gray-50/50 transition-colors">
                 <td className="p-4">
                   <div className="font-bold text-gray-800">{admin.first_name} {admin.last_name}</div>
-                  <div className="text-xs text-gray-500 mt-1">Added: {new Date(admin.created_at).toLocaleDateString()}</div>
+                  <div className="text-xs text-gray-500 mt-1">Added: {new Date(admin.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>
                 </td>
                 <td className="p-4">
                   <div className="text-sm font-medium text-gray-700">{admin.email}</div>

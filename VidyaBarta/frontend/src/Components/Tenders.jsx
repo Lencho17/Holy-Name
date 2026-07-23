@@ -17,7 +17,7 @@ function Tenders() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           title: tender.title, 
-          desc: `${tender.tenderNumber} — ${tender.category}. Closing on ${new Date(tender.closingDate).toLocaleDateString()} at ${schoolProfile?.name || "Our School"}`, 
+          desc: `${tender.tenderNumber} — ${tender.category}. Closing on ${new Date(tender.closingDate).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} at ${schoolProfile?.name || "Our School"}`, 
           image: schoolProfile?.pageHeroImages?.tenders || "", 
           page: '/tenders' 
         }),
@@ -212,11 +212,11 @@ function Tenders() {
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
                             <div className="space-y-1">
                               <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Published</p>
-                              <p className="text-xs font-black text-[#181445]">{new Date(tender.publishDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                              <p className="text-xs font-black text-[#181445]">{new Date(tender.publishDate).toLocaleDateString('en-GB').replace(/\//g, '-')}</p>
                             </div>
                             <div className="space-y-1">
                               <p className="text-[9px] font-black text-[#d4af37] uppercase tracking-widest">Submission Deadline</p>
-                              <p className="text-xs font-black text-rose-600">{new Date(tender.closingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                              <p className="text-xs font-black text-rose-600">{new Date(tender.closingDate).toLocaleDateString('en-GB').replace(/\//g, '-')}</p>
                             </div>
                           </div>
 

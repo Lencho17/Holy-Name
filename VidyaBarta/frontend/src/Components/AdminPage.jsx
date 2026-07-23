@@ -2072,7 +2072,7 @@ function AdminPage() {
       id: app.referenceNumber || app._id.slice(-6).toUpperCase(),
       name: app.studentName,
       grade: app.gradeApplied,
-      date: new Date(app.createdAt).toLocaleDateString(),
+      date: new Date(app.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-'),
       status: app.status === 'accepted' ? 'Approved' : app.status === 'rejected' ? 'Rejected' : 'Pending',
       originalApp: app
     }));
@@ -2203,7 +2203,7 @@ function AdminPage() {
         updates.highlights = [
           {
             title: newGalleryItem.title,
-            date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
             image: newItems[0]?.src || '',
             description: newGalleryItem.description,
             category: 'Campus Life',
@@ -2217,7 +2217,7 @@ function AdminPage() {
         updates.events = [
           {
             title: newGalleryItem.title,
-            date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
             image: newItems[0]?.src || '',
             description: newGalleryItem.description,
             galleryImages: newItems.map(item => item.src)
@@ -3251,7 +3251,7 @@ function AdminPage() {
         ...newNotice,
         pdfLink: data.url, // raw GitHub URL
         size: `${(file.size / 1024).toFixed(0)} KB`,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
       });
       alert('PDF uploaded successfully! Click Publish Notice to save.');
     } catch (err) {
@@ -4681,7 +4681,7 @@ function AdminPage() {
                     <td className="bg-white/50 py-5 border-y border-gray-100 group-hover:bg-white transition-all">
                       <div className="flex flex-col">
                         <span className="text-xs font-bold text-gray-700">
-                          {new Date(log.created_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {new Date(log.created_at).toLocaleDateString('en-GB').replace(/\//g, '-')}
                         </span>
                         <span className="text-[10px] text-gray-400 font-medium">
                           {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -4834,7 +4834,7 @@ function AdminPage() {
                                 <div className="flex justify-between items-center">
                                   <span className="text-[10px] font-bold text-gray-400 uppercase">Date</span>
                                   <span className="text-xs font-bold text-gray-800">
-                                    {new Date(log.created_at).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                                    {new Date(log.created_at).toLocaleDateString('en-GB').replace(/\//g, '-')}
                                   </span>
                                 </div>
                                 <div className="w-full h-px bg-gray-50" />
@@ -5990,7 +5990,7 @@ function AdminPage() {
                     <td className="py-5">
                       <div className="flex items-center gap-2 text-gray-500">
                          <FaClock size={10} className="text-gray-300" />
-                         <span className="text-xs font-medium">{new Date(app.createdAt).toLocaleDateString()}</span>
+                         <span className="text-xs font-medium">{new Date(app.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</span>
                       </div>
                     </td>
                     <td className="py-5">
@@ -8040,7 +8040,7 @@ function AdminPage() {
                           </td>
                           <td className="py-5">
                             <div className={`text-sm font-bold ${isExpired ? 'text-red-500' : 'text-gray-700'}`}>
-                              {new Date(tender.closingDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {new Date(tender.closingDate).toLocaleDateString('en-GB').replace(/\//g, '-')}
                             </div>
                             {isExpired && <div className="text-[10px] font-black text-red-400 uppercase tracking-tighter">Deadline Passed</div>}
                           </td>
@@ -8104,7 +8104,7 @@ function AdminPage() {
                         <td className="py-5 px-2">
                           <div className="text-xs font-black text-emerald-600 mb-0.5">{app.referenceNumber}</div>
                           <div className="text-[10px] font-bold text-gray-400 leading-tight truncate max-w-[150px]">For: {app.tenderId?.title || 'Unknown'}</div>
-                          <div className="text-[10px] text-gray-300 mt-1">{new Date(app.createdAt).toLocaleDateString()}</div>
+                          <div className="text-[10px] text-gray-300 mt-1">{new Date(app.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>
                         </td>
                         <td className="py-5">
                           <div className="font-bold text-gray-800 leading-tight uppercase text-xs">{app.companyName}</div>
@@ -9504,7 +9504,7 @@ function AdminPage() {
                              <div>{inquiry.phone || '-'}</div>
                              <div className="text-gray-400 break-all">{inquiry.email || '-'}</div>
                           </td>
-                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(inquiry.createdAt).toLocaleDateString()}</td>
+                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(inquiry.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</td>
                           <td className="py-4 text-sm text-gray-600 max-w-xs align-top">
                              <div className="truncate font-bold text-gray-800 mb-1">{inquiry.subject || 'No Subject'}</div>
                              <div className="text-xs text-gray-600 line-clamp-2 leading-relaxed whitespace-pre-wrap">{inquiry.message}</div>
@@ -9741,8 +9741,8 @@ function AdminPage() {
                             {apt.adminRemark && <div className="text-emerald-600 mt-1 bg-emerald-50 px-2 py-0.5 rounded text-[10px] border border-emerald-100 line-clamp-1"><strong>Remark:</strong> {apt.adminRemark}</div>}
                           </td>
                           <td className="py-4 align-top text-xs text-gray-400">
-                            {new Date(apt.createdAt).toLocaleDateString()}
-                            {apt.appointmentDate && <div className="text-primary font-bold mt-0.5">For: {new Date(apt.appointmentDate).toLocaleDateString()}</div>}
+                            {new Date(apt.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
+                            {apt.appointmentDate && <div className="text-primary font-bold mt-0.5">For: {new Date(apt.appointmentDate).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>}
                           </td>
                           <td className="py-4 text-right align-top whitespace-nowrap">
                             <button onClick={() => setAppointmentModal({ open: true, apt, status: apt.status, remark: apt.adminRemark || '' })}
@@ -9865,7 +9865,7 @@ function AdminPage() {
                              <div>{req.phone || '-'}</div>
                              <div className="text-gray-400 break-all">{req.email || '-'}</div>
                           </td>
-                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(req.createdAt).toLocaleDateString()}</td>
+                          <td className="py-4 text-xs text-gray-400 align-top">{new Date(req.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</td>
                           <td className="py-4 text-right align-top whitespace-nowrap">
                              <button 
                                onClick={() => handleApproveAdmin(req._id)} 
@@ -9942,7 +9942,7 @@ function AdminPage() {
                             <div className="text-sm font-medium text-gray-700">{req.phone}</div>
                           </td>
                           <td className="py-4">
-                            <div className="text-sm font-medium text-gray-700">{new Date(req.created_at).toLocaleDateString()}</div>
+                            <div className="text-sm font-medium text-gray-700">{new Date(req.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>
                           </td>
                           <td className="py-4 text-right">
                             <button

@@ -48,7 +48,7 @@ const AdmitCardPanel = ({ apiUrl, token }) => {
               <div>
                 <div className="font-bold text-gray-800">Student ID: {c.student_id}</div>
                 <div className="text-sm text-gray-600">
-                  Requesting {c.type === 'concession' ? `₹${c.discount_amount} Discount` : `Time Extension until ${new Date(c.extension_date).toLocaleDateString()}`}
+                  Requesting {c.type === 'concession' ? `₹${c.discount_amount} Discount` : `Time Extension until ${new Date(c.extension_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}`}
                 </div>
                 {c.document_url && (
                   <a href={c.document_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">View Principal's Written Order</a>

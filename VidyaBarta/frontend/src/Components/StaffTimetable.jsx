@@ -108,7 +108,7 @@ const StaffTimetable = () => {
                     {examDuties.map((duty, idx) => (
                       <tr key={idx} className="hover:bg-gray-50 transition-colors">
                         <td className="p-4 text-sm font-bold text-gray-800">
-                          {new Date(duty.exam_date).toLocaleDateString()}
+                          {new Date(duty.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                         </td>
                         <td className="p-4 text-sm text-gray-700">
                           {duty.start_time?.slice(0,5)} - {duty.end_time?.slice(0,5)}

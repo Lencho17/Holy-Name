@@ -134,7 +134,7 @@ function AdmissionCheckout() {
 
     doc.setFontSize(11);
     doc.text(`Reference No: ${refNum}`, 15, 60);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 140, 60);
+    doc.text(`Date: ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}`, 140, 60);
     doc.text(`Student Name: ${admissionData?.student_name || admissionData?.studentName || 'N/A'}`, 15, 70);
     doc.text(`Class: ${admissionData?.grade_applied || admissionData?.gradeApplied || 'N/A'}`, 140, 70);
 

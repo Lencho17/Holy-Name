@@ -158,7 +158,7 @@ export const RevenueSettlements = () => {
                     <tbody className="divide-y divide-gray-50">
                       {transactions.map(t => (
                         <tr key={t.id} className="hover:bg-gray-50">
-                          <td className="py-4 text-gray-600">{new Date(t.created_at).toLocaleDateString()}</td>
+                          <td className="py-4 text-gray-600">{new Date(t.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</td>
                           <td className="py-4 font-bold text-gray-800">{t.schools?.name}</td>
                           <td className="py-4 text-gray-700">₹{parseFloat(t.gross_amount).toFixed(2)}</td>
                           <td className="py-4 font-bold text-blue-600">

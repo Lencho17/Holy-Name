@@ -72,7 +72,7 @@ const AdminStaffRequests = () => {
                 {requests.map((req, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4 text-sm font-medium text-gray-800 whitespace-nowrap">
-                      {new Date(req.created_at).toLocaleDateString()}
+                      {new Date(req.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                     </td>
                     <td className="p-4">
                       <p className="font-bold text-gray-800">{req.staff?.name || 'Unknown'}</p>

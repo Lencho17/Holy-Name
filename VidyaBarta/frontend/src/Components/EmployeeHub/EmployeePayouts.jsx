@@ -79,7 +79,7 @@ const EmployeePayouts = () => {
                 {timesheets.map((sheet) => (
                   <tr key={sheet.id} className="hover:bg-surface-variant/50 transition-colors">
                     <td className="p-4 font-medium text-neutral">
-                      {new Date(sheet.clock_in).toLocaleDateString()}
+                      {new Date(sheet.clock_in).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                     </td>
                     <td className="p-4 text-on-surface-variant">
                       {new Date(sheet.clock_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}

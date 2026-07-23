@@ -311,7 +311,7 @@ function StudentPortal() {
                       
                       const tableColumn = ["Date", "Exam Name", "Subject", "Time", "Room"];
                       const tableRows = upcomingExams.map(exam => [
-                        new Date(exam.exam_date).toLocaleDateString(),
+                        new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-'),
                         exam.exam_name,
                         `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
                         `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`,
@@ -433,7 +433,7 @@ function StudentPortal() {
                       <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow relative overflow-hidden group">
                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${getBorderColorForNotice(idx).replace('border-', 'bg-')}`}></div>
                         <p className="text-xs font-semibold text-gray-500 mb-1">
-                          {new Date(notice.date || notice.created_at).toLocaleDateString()}
+                          {new Date(notice.date || notice.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                         </p>
                         <p className="text-sm text-gray-800 font-bold leading-tight group-hover:text-indigo-700 transition-colors">{notice.title}</p>
                       </div>
@@ -516,7 +516,7 @@ function StudentPortal() {
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{notice.title}</h3>
                       <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-3 py-1 rounded-full border border-gray-200">
-                        {new Date(notice.date || notice.created_at).toLocaleDateString()}
+                        {new Date(notice.date || notice.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                       </span>
                     </div>
                     {notice.description && <p className="text-sm text-gray-600 mt-2 leading-relaxed">{notice.description}</p>}
@@ -565,7 +565,7 @@ function StudentPortal() {
                           <div className="flex flex-wrap justify-center md:justify-start gap-6 mt-4">
                             <div className="flex items-center gap-2">
                               <span className="material-symbols-outlined text-indigo-200">calendar_month</span>
-                              <p className="text-sm font-medium">{new Date(upcomingExams[0].exam_date).toLocaleDateString()}</p>
+                              <p className="text-sm font-medium">{new Date(upcomingExams[0].exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</p>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="material-symbols-outlined text-indigo-200">schedule</span>
@@ -598,7 +598,7 @@ function StudentPortal() {
                           
                           const tableColumn = ["Date", "Exam Name", "Subject", "Time", "Room"];
                           const tableRows = upcomingExams.map(exam => [
-                            new Date(exam.exam_date).toLocaleDateString(),
+                            new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-'),
                             exam.exam_name,
                             `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
                             `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`,
@@ -631,7 +631,7 @@ function StudentPortal() {
                         <tbody className="divide-y divide-gray-50">
                           {upcomingExams.length > 0 ? upcomingExams.map((exam, idx) => (
                             <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-sm text-gray-600 font-medium whitespace-nowrap">{new Date(exam.exam_date).toLocaleDateString()}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600 font-medium whitespace-nowrap">{new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</td>
                               <td className="px-4 py-3 text-sm text-gray-900 font-bold">{exam.exam_name}</td>
                               <td className="px-4 py-3 text-sm text-gray-500">
                                 {exam.subject} {exam.sub_subject ? `(${exam.sub_subject})` : ''}
@@ -698,7 +698,7 @@ function StudentPortal() {
                           <div className="flex justify-between items-center mb-4">
                             <div>
                               <h4 className="font-bold text-gray-800">{pr.name}</h4>
-                              <p className="text-xs text-gray-500">Published: {new Date(pr.published_date).toLocaleDateString()}</p>
+                              <p className="text-xs text-gray-500">Published: {new Date(pr.published_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</p>
                             </div>
                             <button className="text-blue-600 text-sm font-bold bg-blue-50 px-3 py-1.5 rounded-lg">Download SVG Card</button>
                           </div>

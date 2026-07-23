@@ -106,7 +106,7 @@ function Career() {
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 15, 65);
+    doc.text(`Date: ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}`, 15, 65);
     doc.text(`Ref Number: ${record.referenceNumber}`, 15, 70);
 
     doc.setFont("helvetica", "bold");
@@ -727,7 +727,7 @@ function Career() {
                       <div className="flex justify-between"><span className="text-gray-400">Interview Status:</span><span className="font-bold capitalize">{trackResult.interviewStatus}</span></div>
                     )}
                     {trackResult.interviewResultDate && (
-                      <div className="flex justify-between"><span className="text-gray-400">Result Date:</span><span className="font-bold">{new Date(trackResult.interviewResultDate).toLocaleDateString()}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-400">Result Date:</span><span className="font-bold">{new Date(trackResult.interviewResultDate).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</span></div>
                     )}
                   </div>
 

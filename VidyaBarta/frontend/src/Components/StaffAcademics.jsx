@@ -135,7 +135,7 @@ const StaffAcademics = () => {
                       <div key={a.id} className="p-4 border rounded-xl flex justify-between items-center bg-white shadow-sm hover:shadow-md transition-shadow">
                         <div>
                           <p className="font-bold text-gray-800">{a.title} <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-md ml-2">{a.subject}</span></p>
-                          <p className="text-sm text-gray-500 mt-1">Class {a.class_level} {a.section} | Due: {new Date(a.deadline).toLocaleDateString()}</p>
+                          <p className="text-sm text-gray-500 mt-1">Class {a.class_level} {a.section} | Due: {new Date(a.deadline).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</p>
                           <p className="text-sm text-gray-700 mt-2">{a.description}</p>
                         </div>
                         {a.file_url && (

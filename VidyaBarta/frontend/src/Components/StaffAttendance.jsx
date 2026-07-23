@@ -120,7 +120,7 @@ const StaffAttendance = () => {
               <tbody className="divide-y divide-gray-100">
                 {history.map((record, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4 font-medium text-gray-800">{new Date(record.date).toLocaleDateString()}</td>
+                    <td className="p-4 font-medium text-gray-800">{new Date(record.date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</td>
                     <td className="p-4">
                       <span className="px-2 py-1 text-xs font-bold bg-green-100 text-green-700 rounded-md">
                         {record.status}

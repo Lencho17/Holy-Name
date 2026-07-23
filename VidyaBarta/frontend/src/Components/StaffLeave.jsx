@@ -158,7 +158,7 @@ const StaffLeave = ({ staffData: initialStaffData }) => {
                 {leaves.map((leave, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="p-4 font-medium text-gray-800 whitespace-nowrap">
-                      {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
+                      {new Date(leave.start_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} - {new Date(leave.end_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                     </td>
                     <td className="p-4 text-gray-600 font-bold">{leave.leave_type}</td>
                     <td className="p-4 text-sm text-gray-600 max-w-xs truncate">{leave.reason}</td>

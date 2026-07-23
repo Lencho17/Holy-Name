@@ -219,7 +219,7 @@ const SuperAdminWallets = () => {
                     </span>
                   </td>
                   <td className="p-4 text-right text-sm text-gray-400 font-medium">
-                    {w.last_updated ? new Date(w.last_updated).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    {w.last_updated ? new Date(w.last_updated).toLocaleDateString('en-GB').replace(/\//g, '-') : '—'}
                   </td>
                 </tr>
               )) : (
@@ -250,7 +250,7 @@ const SuperAdminWallets = () => {
                   <div>
                     <p className="font-bold text-gray-800">{p.schools?.name || 'Unknown School'}</p>
                     <p className="text-xs text-gray-500 font-medium mt-0.5">
-                      Requested {new Date(p.requested_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      Requested {new Date(p.requested_at).toLocaleDateString('en-GB').replace(/\//g, '-') + ' ' + new Date(entry?.created_at || new Date()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
@@ -327,7 +327,7 @@ const SuperAdminWallets = () => {
               {payouts.length > 0 ? payouts.map(p => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                   <td className="p-4 text-sm text-gray-600 font-medium">
-                    {new Date(p.requested_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {new Date(p.requested_at).toLocaleDateString('en-GB').replace(/\//g, '-')}
                   </td>
                   <td className="p-4 font-bold text-gray-800 text-sm">{p.schools?.name || '—'}</td>
                   <td className="p-4">

@@ -170,7 +170,7 @@ function JobApplicationForm() {
 
     doc.setFontSize(7);
     doc.setTextColor(160, 160, 160);
-    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, cx, 47, { align: "center" });
+    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} at ${new Date().toLocaleTimeString('en-IN')}`, cx, 47, { align: "center" });
 
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.5);

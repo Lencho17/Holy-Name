@@ -127,7 +127,7 @@ export const Dashboard = () => {
                     {school.status || 'Unknown'}
                   </span>
                   <span className="text-[10px] text-outline font-medium">
-                    {school.createdAt ? new Date(school.createdAt).toLocaleDateString() : 'N/A'}
+                    {school.createdAt ? new Date(school.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-') : 'N/A'}
                   </span>
                 </div>
               </div>
@@ -534,7 +534,7 @@ export const Staff = () => {
                     <div className="text-body-sm font-bold text-emerald-600">{emp.salary_amount ? `₹${emp.salary_amount}` : '-'}</div>
                   </td>
                   <td className="p-4 text-body-md text-neutral">
-                    {new Date(emp.created_at).toLocaleDateString()}
+                    {new Date(emp.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                   </td>
                   <td className="p-4">
                     <div className="flex gap-2">
@@ -664,8 +664,8 @@ export const Staff = () => {
                         )}
                       </td>
                       <td className="p-4 text-sm text-neutral">
-                        <div>Assigned: {new Date(task.created_at).toLocaleDateString()}</div>
-                        {task.finished_at && <div className="text-emerald-600">Finished: {new Date(task.finished_at).toLocaleDateString()}</div>}
+                        <div>Assigned: {new Date(task.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>
+                        {task.finished_at && <div className="text-emerald-600">Finished: {new Date(task.finished_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>}
                       </td>
                     </tr>
                   ))

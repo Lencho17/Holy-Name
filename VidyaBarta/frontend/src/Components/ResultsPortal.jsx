@@ -113,7 +113,7 @@ const ResultsPortal = ({ apiUrl, token }) => {
                   <div className="font-bold text-gray-800">Student: {g.student?.name} ({g.student?.roll_number})</div>
                   <div className="text-xs text-gray-500">Exam: {g.exam?.name} | Subject: {g.subject?.replace(/^VB-?/, '')} | Status: <span className={g.status === 'Resolved' ? 'text-green-600' : 'text-orange-600'}>{g.status}</span></div>
                 </div>
-                <div className="text-xs text-gray-400">{new Date(g.created_at).toLocaleDateString()}</div>
+                <div className="text-xs text-gray-400">{new Date(g.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>
               </div>
               <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded mb-3">
                 <strong>Complaint:</strong> {g.complaint}

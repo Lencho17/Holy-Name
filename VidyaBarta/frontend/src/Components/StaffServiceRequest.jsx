@@ -121,7 +121,7 @@ const StaffServiceRequest = () => {
                 {requests.map((req, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
                     <td className="p-4 font-medium text-gray-800 whitespace-nowrap">
-                      {new Date(req.created_at).toLocaleDateString()}
+                      {new Date(req.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                     </td>
                     <td className="p-4 font-bold text-gray-800">{req.request_type}</td>
                     <td className="p-4 text-sm text-gray-600 max-w-xs truncate">{req.details}</td>

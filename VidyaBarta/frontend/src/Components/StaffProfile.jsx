@@ -200,7 +200,7 @@ const StaffProfile = () => {
             {editMode ? (
               <input type="date" name="dob" value={formData.dob || ''} onChange={handleChange} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
             ) : (
-              <p className="font-medium text-gray-900">{profile.dob ? new Date(profile.dob).toLocaleDateString() : 'Not provided'}</p>
+              <p className="font-medium text-gray-900">{profile.dob ? new Date(profile.dob).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-') : 'Not provided'}</p>
             )}
           </div>
 
@@ -275,7 +275,7 @@ const StaffProfile = () => {
             {editMode ? (
               <input type="date" name="date_of_joining" value={formData.date_of_joining || ''} onChange={handleChange} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
             ) : (
-              <p className="font-medium text-gray-900">{profile.date_of_joining ? new Date(profile.date_of_joining).toLocaleDateString() : 'Not provided'}</p>
+              <p className="font-medium text-gray-900">{profile.date_of_joining ? new Date(profile.date_of_joining).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-') : 'Not provided'}</p>
             )}
           </div>
           <div>

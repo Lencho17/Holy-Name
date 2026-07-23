@@ -175,7 +175,7 @@ const WalletDashboard = ({ apiUrl, token }) => {
                       <p className="font-bold text-gray-800 text-sm">{entry.description || (entry.type === 'credit' ? 'Funds credited' : 'Funds debited')}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                          {new Date(entry.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(entry.created_at).toLocaleDateString('en-GB').replace(/\//g, '-') + ' ' + new Date(entry?.created_at || new Date()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         {entry.reference_type && (
                           <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
@@ -224,7 +224,7 @@ const WalletDashboard = ({ apiUrl, token }) => {
               {data.payouts.length > 0 ? data.payouts.map(p => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                   <td className="p-4 text-sm font-medium text-gray-700">
-                    {new Date(p.requested_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(p.requested_at).toLocaleDateString('en-GB').replace(/\//g, '-') + ' ' + new Date(p?.requested_at || new Date()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                   </td>
                   <td className="p-4 font-bold text-gray-800 flex items-center">
                     <FaRupeeSign className="text-xs text-gray-500 mr-1" /> {Number(p.amount).toLocaleString('en-IN')}

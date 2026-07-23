@@ -551,8 +551,8 @@ function Appointment() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div><span className="text-gray-400 font-bold uppercase text-xs">Category</span><p className="text-gray-800 font-medium">{trackResult.category}</p></div>
                   <div><span className="text-gray-400 font-bold uppercase text-xs">Purpose</span><p className="text-gray-800 font-medium">{trackResult.purpose}</p></div>
-                  <div><span className="text-gray-400 font-bold uppercase text-xs">Booked On</span><p className="text-gray-800 font-medium">{new Date(trackResult.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
-                  <div><span className="text-gray-400 font-bold uppercase text-xs">Appointment Date</span><p className="text-gray-800 font-medium">{trackResult.appointmentDate ? new Date(trackResult.appointmentDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}</p></div>
+                  <div><span className="text-gray-400 font-bold uppercase text-xs">Booked On</span><p className="text-gray-800 font-medium">{new Date(trackResult.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-')}</p></div>
+                  <div><span className="text-gray-400 font-bold uppercase text-xs">Appointment Date</span><p className="text-gray-800 font-medium">{trackResult.appointmentDate ? new Date(trackResult.appointmentDate).toLocaleDateString('en-GB').replace(/\//g, '-') : 'N/A'}</p></div>
                   <div><span className="text-gray-400 font-bold uppercase text-xs">Time Slot</span><p className="text-gray-800 font-medium">{trackResult.timeSlot || 'N/A'}</p></div>
                 </div>
 
@@ -588,7 +588,7 @@ function Appointment() {
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold text-gray-500 uppercase">Date of Issue</p>
-                <p className="text-lg font-bold">{new Date().toLocaleDateString('en-IN')}</p>
+                <p className="text-lg font-bold">{new Date().toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</p>
               </div>
             </div>
 
@@ -597,7 +597,7 @@ function Appointment() {
               <div className="grid grid-cols-2 gap-y-4 text-lg">
                 <div><span className="font-bold text-gray-600">Name:</span> {trackResult.name}</div>
                 <div><span className="font-bold text-gray-600">Category:</span> {trackResult.category}</div>
-                <div><span className="font-bold text-gray-600">Date of Meeting:</span> {trackResult.appointmentDate ? new Date(trackResult.appointmentDate).toLocaleDateString('en-IN') : 'N/A'}</div>
+                <div><span className="font-bold text-gray-600">Date of Meeting:</span> {trackResult.appointmentDate ? new Date(trackResult.appointmentDate).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-') : 'N/A'}</div>
                 <div><span className="font-bold text-gray-600">Time of Meeting:</span> {trackResult.timeSlot || 'N/A'}</div>
                 <div className="col-span-2"><span className="font-bold text-gray-600">Purpose of Visit:</span> {trackResult.purpose}</div>
                 {trackResult.category === 'Parent' && (

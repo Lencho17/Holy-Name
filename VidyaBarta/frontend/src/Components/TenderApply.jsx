@@ -75,7 +75,7 @@ function TenderApply() {
     
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
-    doc.text(`Official Bid Receipt Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, 115, 32, { align: "center" });
+    doc.text(`Official Bid Receipt Generated on ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} at ${new Date().toLocaleTimeString('en-IN')}`, 115, 32, { align: "center" });
 
     // Separator line
     doc.setDrawColor(200, 200, 200);
@@ -366,7 +366,7 @@ function TenderApply() {
                   {tender.category}
                 </div>
                 <div className="px-3 py-1.5 md:px-4 md:py-2 bg-amber-500 rounded-xl shadow-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest text-primary">
-                  {new Date(tender.closingDate).toLocaleDateString()}
+                  {new Date(tender.closingDate).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                 </div>
               </div>
             </div>

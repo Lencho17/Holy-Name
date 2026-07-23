@@ -120,7 +120,7 @@ const FeeManagement = ({ apiUrl, token }) => {
                   <tbody className="divide-y divide-gray-50">
                     {transactions.map(t => (
                       <tr key={t.id} className="hover:bg-gray-50">
-                        <td className="py-4 text-gray-600">{new Date(t.created_at).toLocaleDateString()}</td>
+                        <td className="py-4 text-gray-600">{new Date(t.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</td>
                         <td className="py-4 font-bold text-gray-800">{t.students?.student_name} <span className="text-xs text-gray-400 font-normal ml-1">(Class {t.students?.grade})</span></td>
                         <td className="py-4 text-gray-700">₹{parseFloat(t.gross_amount).toFixed(2)}</td>
                         <td className="py-4 text-red-500">-₹{(parseFloat(t.platform_fee_amount) + parseFloat(t.transaction_fee_amount)).toFixed(2)}</td>

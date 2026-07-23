@@ -133,7 +133,7 @@ const SeatArrangement = ({ apiUrl, token }) => {
                       <strong>Staff:</strong> {duty.staff_id}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {new Date(duty.exam_date).toLocaleDateString()} • {duty.start_time} - {duty.end_time} • {duty.venue}
+                      {new Date(duty.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} • {duty.start_time} - {duty.end_time} • {duty.venue}
                     </div>
                   </div>
                   <button onClick={() => handleDelete(duty.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">

@@ -215,7 +215,7 @@ const AdminStaffAssignments = () => {
                   {examDuties.map(e => (
                     <tr key={e.id} className="hover:bg-gray-50">
                       <td className="p-3 text-sm font-bold">{e.staff?.name}</td>
-                      <td className="p-3 text-sm">{new Date(e.exam_date).toLocaleDateString()} | {e.start_time} - {e.end_time}</td>
+                      <td className="p-3 text-sm">{new Date(e.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} | {e.start_time} - {e.end_time}</td>
                       <td className="p-3 text-sm">Room: {e.room_no} | {e.role}</td>
                       <td className="p-3 text-right">
                         <button onClick={() => deleteExam(e.id)} className="text-red-500 hover:text-red-700"><FaTrash/></button>

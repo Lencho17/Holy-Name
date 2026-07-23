@@ -144,7 +144,7 @@ const EmployeeDashboard = () => {
             </div>
             <div>
               <p className="text-sm font-bold text-on-surface-variant uppercase tracking-wider">Date of Birth</p>
-              <p className="text-lg text-neutral font-medium">{employee.dob ? new Date(employee.dob).toLocaleDateString() : 'Not Provided'}</p>
+              <p className="text-lg text-neutral font-medium">{employee.dob ? new Date(employee.dob).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-') : 'Not Provided'}</p>
             </div>
             <div>
               <p className="text-sm font-bold text-on-surface-variant uppercase tracking-wider">Address</p>

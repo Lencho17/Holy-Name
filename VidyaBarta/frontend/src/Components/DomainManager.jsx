@@ -223,7 +223,7 @@ const DomainManager = ({ apiUrl, token }) => {
                   <div className="flex justify-between items-center">
                     <div>
                       <h4 className="font-bold text-gray-800 font-mono text-lg">{d.domain_name}</h4>
-                      <p className="text-xs font-bold text-gray-400 mt-1">Purchased on {new Date(d.purchased_at).toLocaleDateString()}</p>
+                      <p className="text-xs font-bold text-gray-400 mt-1">Purchased on {new Date(d.purchased_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</p>
                     </div>
                     <div className="text-right">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${

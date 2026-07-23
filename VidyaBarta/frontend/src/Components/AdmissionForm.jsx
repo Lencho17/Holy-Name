@@ -524,7 +524,7 @@ function AdmissionForm() {
       const fullData = { ...payload };
       fullData.referenceNumber = res.data.referenceNumber;
       fullData.selectedSubjects = [...selectedSubjects];
-      fullData.dateOfApplication = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+      fullData.dateOfApplication = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
       
       // Redirect to checkout page directly
       navigate(`/admission/checkout/${res.data.referenceNumber || res.data.reference_number}`);
@@ -615,7 +615,7 @@ function AdmissionForm() {
     
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
-    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}`, 105, 32, { align: "center" });
+    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} at ${new Date().toLocaleTimeString('en-IN')}`, 105, 32, { align: "center" });
 
     // Subtle Separator
     doc.setDrawColor(220, 220, 220);
@@ -1952,7 +1952,7 @@ function AdmissionForm() {
                         <div className="w-11 h-11 bg-white rounded-xl shadow-sm flex items-center justify-center text-primary text-lg mr-4 flex-shrink-0"><FaCalendarAlt /></div>
                         <div className="min-w-0">
                           <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Submitted On</p>
-                          <p className="text-lg font-bold text-gray-800">{new Date(statusData.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                          <p className="text-lg font-bold text-gray-800">{new Date(statusData.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-')}</p>
                         </div>
                       </div>
                     </div>

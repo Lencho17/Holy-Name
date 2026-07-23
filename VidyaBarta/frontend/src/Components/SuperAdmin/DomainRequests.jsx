@@ -115,7 +115,7 @@ export const DomainRequests = () => {
                     {req.status === 'Active' ? <FaCheckCircle /> : req.status === 'Rejected' ? <FaTimes /> : <FaSpinner className="animate-spin" />} {req.status}
                   </span>
                   <span className="text-xs font-medium text-on-surface-variant">
-                    {new Date(req.purchased_at).toLocaleDateString()}
+                    {new Date(req.purchased_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
                   </span>
                 </div>
                 

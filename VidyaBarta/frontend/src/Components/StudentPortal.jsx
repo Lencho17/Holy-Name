@@ -94,8 +94,25 @@ function StudentPortal() {
           if(gRes.data && Array.isArray(gRes.data)) setMyGrievances(gRes.data);
         } catch(e) {}
 
-        // Mocking some published results for demonstration (would normally be fetched)
-        setPublishedResults([]);
+        // Group enrichedGrades into publishedResults
+        const resultsMap = {};
+        enrichedGrades.forEach(g => {
+          if (!resultsMap[g.exam_id]) {
+             resultsMap[g.exam_id] = {
+               id: g.exam_id,
+               name: g.exams?.name || 'Unknown Exam',
+               published_date: g.exams?.published_date || g.created_at,
+               marks: []
+             };
+          }
+          resultsMap[g.exam_id].marks.push({
+             subject: g.subject,
+             obtained: g.totalObtained,
+             max: g.timetable ? g.timetable.max_marks : (g.max_marks || 100)
+          });
+        });
+        
+        setPublishedResults(Object.values(resultsMap).sort((a,b) => new Date(b.published_date) - new Date(a.published_date)));
 
       } catch (error) {
         console.error("Failed to load portal data", error);

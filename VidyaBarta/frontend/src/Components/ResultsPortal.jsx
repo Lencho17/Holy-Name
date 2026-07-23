@@ -6,6 +6,9 @@ const ResultsPortal = ({ apiUrl, token }) => {
   const [exams, setExams] = useState([]);
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedExam, setExpandedExam] = useState(null);
+  const [examDetails, setExamDetails] = useState({ marks: [], students: [], timetable: [], aggregated: [] });
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -25,6 +28,58 @@ const ResultsPortal = ({ apiUrl, token }) => {
   useEffect(() => {
     fetchData();
   }, [apiUrl, token]);
+
+  const toggleExam = async (exam) => {
+    if (expandedExam === exam.id) {
+      setExpandedExam(null);
+      return;
+    }
+    setExpandedExam(exam.id);
+    setLoadingDetails(true);
+    try {
+      const mRes = await axios.get(`${apiUrl}/exams/${exam.id}/marks`, { headers: { Authorization: `Bearer ${token}` } });
+      const marks = mRes.data;
+      
+      const tRes = await axios.get(`${apiUrl}/exams/${exam.id}/timetable`, { headers: { Authorization: `Bearer ${token}` } });
+      const timetable = tRes.data;
+      
+      const parts = (exam.class_level || '').split(' ');
+      let url = `${apiUrl}/students?class_level=${parts[0]}`;
+      if (parts[1]) url += `&section=${parts[1]}`;
+      const sRes = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+      const students = sRes.data.data || sRes.data;
+      
+      const studentMap = {};
+      students.forEach(s => {
+        studentMap[s.id] = { student: s, totalObtained: 0, totalMax: 0, subjectsPassed: 0, subjectsCount: 0 };
+      });
+      
+      marks.forEach(m => {
+        if (!studentMap[m.student_id]) return;
+        const entry = studentMap[m.student_id];
+        entry.totalObtained += (parseFloat(m.marks_obtained) || 0) + (parseFloat(m.practical_marks_obtained) || 0);
+        entry.totalMax += (parseFloat(m.max_marks) || 0);
+        entry.subjectsCount += 1;
+        
+        const tt = timetable.find(t => t.subject === m.subject);
+        const passingMarks = tt ? (parseFloat(tt.passing_marks) || 40) : 40;
+        const subTotal = (parseFloat(m.marks_obtained) || 0) + (parseFloat(m.practical_marks_obtained) || 0);
+        if (subTotal >= passingMarks) entry.subjectsPassed += 1;
+      });
+      
+      const aggregated = Object.values(studentMap).map(e => ({
+        ...e,
+        percentage: e.totalMax > 0 ? ((e.totalObtained / e.totalMax) * 100).toFixed(1) : 0
+      })).filter(e => e.subjectsCount > 0);
+      
+      setExamDetails({ marks, students, timetable, aggregated });
+    } catch (e) {
+      console.error(e);
+      alert('Failed to load exam details');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
 
   const handlePublish = async (id) => {
     if(!window.confirm('Publish results? Students will see their marks and have 7 days to raise grievances.')) return;
@@ -61,14 +116,18 @@ const ResultsPortal = ({ apiUrl, token }) => {
       <div className="bg-teal-50/50 rounded-xl p-5 border border-teal-100">
         <h3 className="font-bold text-teal-800 mb-4">Generate Marksheets for Exams</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {exams.map(exam => (
-            <div key={exam.id} className="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center">
-              <div>
-                <div className="font-bold text-gray-800">{exam.name}</div>
-                <div className="text-xs text-gray-500">Class {exam.class_level} • Status: {exam.workflow_status || 'Draft'}</div>
-              </div>
-              <div className="flex gap-2">
+            <div key={exam.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
+              <div 
+                className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition"
+                onClick={() => toggleExam(exam)}
+              >
+                <div>
+                  <div className="font-bold text-gray-800">{exam.name}</div>
+                  <div className="text-xs text-gray-500">Class {exam.class_level} • Status: {exam.workflow_status || 'Draft'}</div>
+                </div>
+                <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                 {exam.workflow_status === 'ClassReview' && (
                   <button onClick={() => handlePublish(exam.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700">
                     Publish Results
@@ -94,6 +153,47 @@ const ResultsPortal = ({ apiUrl, token }) => {
                   <span className="text-sm text-gray-400 italic">Waiting on Teachers</span>
                 )}
               </div>
+                </div>
+              {expandedExam === exam.id && (
+                <div className="border-t p-4 bg-gray-50">
+                  {loadingDetails ? (
+                    <div className="text-center text-sm text-gray-500 py-4"><FaSpinner className="animate-spin inline mr-2" /> Loading student data...</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left bg-white rounded border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-100 border-b">
+                            <th className="p-2 text-xs font-bold text-gray-700">Student Name</th>
+                            <th className="p-2 text-xs font-bold text-gray-700">Total Marks</th>
+                            <th className="p-2 text-xs font-bold text-gray-700">Percentage</th>
+                            <th className="p-2 text-xs font-bold text-gray-700">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {examDetails.aggregated.length === 0 ? (
+                            <tr><td colSpan="4" className="p-4 text-center text-sm text-gray-500">No marks entry found.</td></tr>
+                          ) : (
+                            examDetails.aggregated.map(row => (
+                              <tr key={row.student.id} className="border-b last:border-0 hover:bg-gray-50">
+                                <td className="p-2 text-sm">{row.student.student_name || row.student.name} <span className="text-gray-400 text-xs">({row.student.admission_id || row.student.roll_number})</span></td>
+                                <td className="p-2 text-sm font-medium">{row.totalObtained} / {row.totalMax}</td>
+                                <td className="p-2 text-sm">{row.percentage}%</td>
+                                <td className="p-2 text-sm">
+                                  {row.subjectsPassed === row.subjectsCount ? (
+                                    <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs border border-green-100">Passed ({row.subjectsPassed}/{row.subjectsCount})</span>
+                                  ) : (
+                                    <span className="text-orange-600 font-bold bg-orange-50 px-2 py-1 rounded text-xs border border-orange-100">Passed {row.subjectsPassed}/{row.subjectsCount} Subjects</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {exams.length === 0 && (

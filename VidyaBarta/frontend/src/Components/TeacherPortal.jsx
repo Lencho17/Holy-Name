@@ -22,6 +22,7 @@ function TeacherPortal() {
 
   // Review State
   const [reviewMarks, setReviewMarks] = useState([]);
+  const [reviewSummary, setReviewSummary] = useState([]);
   const [modifications, setModifications] = useState({}); // { markId: { newMark, reason } }
 
   // Authentication
@@ -144,6 +145,10 @@ function TeacherPortal() {
       const mRes = await fetch(`${API_URL}/exams/${selectedExam}/marks`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (mRes.ok) {
         const allMarks = await mRes.json();
+        
+        const tRes = await fetch(`${API_URL}/exams/${selectedExam}/timetable`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const timetable = tRes.ok ? await tRes.json() : [];
+        
         // We only want to review marks for the assigned class. We need student info to filter by class.
         // Assuming backend handles class filtering or we do it here:
         const sRes = await fetch(`${API_URL}/students?class_level=${selectedAssignment.class_name}&section=${selectedAssignment.section}`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -161,6 +166,31 @@ function TeacherPortal() {
           };
         });
         setReviewMarks(filteredMarks);
+        
+        // Build review summary
+        const studentMap = {};
+        studs.forEach(s => {
+          studentMap[s.id] = { student: s, totalObtained: 0, totalMax: 0, subjectsPassed: 0, subjectsCount: 0 };
+        });
+        
+        filteredMarks.forEach(m => {
+          if (!studentMap[m.student_id]) return;
+          const entry = studentMap[m.student_id];
+          entry.totalObtained += (parseFloat(m.marks_obtained) || 0) + (parseFloat(m.practical_marks_obtained) || 0);
+          entry.totalMax += (parseFloat(m.max_marks) || 0);
+          entry.subjectsCount += 1;
+          
+          const tt = timetable.find(t => t.subject === m.subject);
+          const passingMarks = tt ? (parseFloat(tt.passing_marks) || 40) : 40;
+          const subTotal = (parseFloat(m.marks_obtained) || 0) + (parseFloat(m.practical_marks_obtained) || 0);
+          if (subTotal >= passingMarks) entry.subjectsPassed += 1;
+        });
+        
+        const aggregated = Object.values(studentMap).map(e => ({
+          ...e,
+          percentage: e.totalMax > 0 ? ((e.totalObtained / e.totalMax) * 100).toFixed(1) : 0
+        })).filter(e => e.subjectsCount > 0);
+        setReviewSummary(aggregated);
       }
     } catch(err) { console.error(err); }
   };
@@ -463,8 +493,43 @@ function TeacherPortal() {
                   </select>
                 </div>
 
+                {reviewSummary.length > 0 && (
+                  <div className="mb-8 border rounded-lg bg-white overflow-hidden shadow-sm">
+                    <div className="bg-gray-50 p-3 border-b font-bold text-gray-700">Class Performance Summary</div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left bg-white">
+                        <thead>
+                          <tr className="bg-gray-50 border-b">
+                            <th className="p-2 text-xs font-bold text-gray-600">Student Name</th>
+                            <th className="p-2 text-xs font-bold text-gray-600">Total Marks</th>
+                            <th className="p-2 text-xs font-bold text-gray-600">Percentage</th>
+                            <th className="p-2 text-xs font-bold text-gray-600">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reviewSummary.map(row => (
+                            <tr key={row.student.id} className="border-b last:border-0 hover:bg-gray-50">
+                              <td className="p-2 text-sm">{row.student.student_name || row.student.name} <span className="text-gray-400 text-xs">({row.student.admission_id || row.student.roll_number})</span></td>
+                              <td className="p-2 text-sm font-medium">{row.totalObtained} / {row.totalMax}</td>
+                              <td className="p-2 text-sm">{row.percentage}%</td>
+                              <td className="p-2 text-sm">
+                                {row.subjectsPassed === row.subjectsCount ? (
+                                  <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs border border-green-100">Passed ({row.subjectsPassed}/{row.subjectsCount})</span>
+                                ) : (
+                                  <span className="text-orange-600 font-bold bg-orange-50 px-2 py-1 rounded text-xs border border-orange-100">Passed {row.subjectsPassed}/{row.subjectsCount} Subjects</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                
                 {reviewMarks.length > 0 && (
                    <div className="overflow-x-auto">
+                   <h3 className="font-bold text-gray-700 mb-3">Detailed Subject Marks</h3>
                    <table className="w-full text-left border-collapse">
                      <thead>
                        <tr className="bg-gray-50 border-y border-gray-100">

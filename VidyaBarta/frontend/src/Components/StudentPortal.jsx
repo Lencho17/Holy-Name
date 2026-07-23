@@ -179,20 +179,47 @@ function StudentPortal() {
               { id: 'courses', icon: 'menu_book', label: 'Courses' },
               { id: 'fees', icon: 'payments', label: 'Fees' },
               { id: 'notices', icon: 'notifications', label: 'Notices' },
-              { id: 'timetable', icon: 'calendar_month', label: 'Timetable' },
+              { id: 'timetable_group', icon: 'calendar_month', label: 'Timetable', subItems: [
+                { id: 'timetable', label: 'Class Timetable' },
+                { id: 'exam_timetable', label: 'Exam Time Table' }
+              ]},
               { id: 'exams', icon: 'quiz', label: 'Results' }
             ].map(item => (
-              <a 
-                key={item.id}
-                onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all cursor-pointer font-medium text-sm
-                  ${activeTab === item.id 
-                    ? 'bg-blue-50 text-blue-700 font-semibold' 
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
-              >
-                <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-                <span>{item.label}</span>
-              </a>
+              <div key={item.id}>
+                <a 
+                  onClick={() => { if(!item.subItems) { setActiveTab(item.id); setIsSidebarOpen(false); } }}
+                  className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-all cursor-pointer font-medium text-sm
+                    ${(!item.subItems && activeTab === item.id) || (item.subItems && item.subItems.some(s => s.id === activeTab))
+                      ? 'bg-blue-50 text-blue-700 font-semibold' 
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </div>
+                  {item.subItems && (
+                    <span className="material-symbols-outlined text-[18px]">
+                      expand_more
+                    </span>
+                  )}
+                </a>
+                {item.subItems && (
+                  <div className="ml-9 mt-1 flex flex-col gap-1">
+                    {item.subItems.map(sub => (
+                      <a 
+                        key={sub.id}
+                        onClick={() => { setActiveTab(sub.id); setIsSidebarOpen(false); }}
+                        className={`block px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer
+                          ${activeTab === sub.id 
+                            ? 'text-blue-700 font-semibold bg-blue-50/50' 
+                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+                      >
+                        {sub.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
             
             <a 
@@ -260,6 +287,86 @@ function StudentPortal() {
           ) : activeTab === 'timetable' ? (
             <div className="animate-fade-in">
               <StudentTimetable />
+            </div>
+          ) : activeTab === 'exam_timetable' ? (
+            <div className="animate-fade-in">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">My Exam Time Table</h2>
+              <div className={`${glassCard} overflow-hidden flex flex-col`}>
+                <div className="p-6 border-b border-gray-100 bg-white/40 flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-gray-900">Upcoming Schedule</h3>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{upcomingExams.length} Exams Remaining</span>
+                    <button onClick={() => {
+                      const doc = new jsPDF();
+                      doc.setFontSize(18);
+                      doc.text(`My Exam Timetable - Class ${student.grade || student.class_id}`, 14, 22);
+                      
+                      const tableColumn = ["Date", "Exam Name", "Subject", "Time", "Room"];
+                      const tableRows = upcomingExams.map(exam => [
+                        new Date(exam.exam_date).toLocaleDateString(),
+                        exam.exam_name,
+                        `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
+                        `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`,
+                        exam.room_number || '-'
+                      ]);
+                      
+                      doc.autoTable({
+                        head: [tableColumn],
+                        body: tableRows,
+                        startY: 30,
+                      });
+                      
+                      doc.save(`My_Timetable.pdf`);
+                    }} className="text-sm font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-indigo-700 transition-colors">
+                      <span className="material-symbols-outlined text-[18px]">download</span>
+                      Download PDF
+                    </button>
+                  </div>
+                </div>
+                <div className="p-0 overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-gray-50/80 border-b border-gray-100">
+                        <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Exam Name</th>
+                        <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Subject</th>
+                        <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Time</th>
+                        <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Room</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {upcomingExams.map(exam => (
+                        <tr key={exam.id} className="hover:bg-gray-50/50 transition-colors group">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex flex-col items-center justify-center border border-indigo-100/50">
+                                <span className="text-[10px] font-bold text-indigo-600 uppercase leading-none">{new Date(exam.exam_date).toLocaleDateString('en-US', { month: 'short' })}</span>
+                                <span className="text-sm font-black text-indigo-900 leading-tight">{new Date(exam.exam_date).getDate()}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4 font-bold text-gray-900 text-sm">{exam.exam_name}</td>
+                          <td className="p-4 font-bold text-gray-900 text-sm">
+                            {exam.subject}
+                            {exam.sub_subject && <span className="ml-1 text-xs text-gray-500 font-medium">({exam.sub_subject})</span>}
+                          </td>
+                          <td className="p-4 text-sm font-medium text-gray-600">
+                            {exam.start_time ? exam.start_time.substring(0, 5) : '--:--'} - {exam.end_time ? exam.end_time.substring(0, 5) : '--:--'}
+                          </td>
+                          <td className="p-4 text-sm font-bold text-gray-700">{exam.room_number || '-'}</td>
+                        </tr>
+                      ))}
+                      {upcomingExams.length === 0 && (
+                        <tr>
+                          <td colSpan="5" className="p-8 text-center text-gray-500 font-medium bg-gray-50/50">
+                            No upcoming exams scheduled at the moment.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           ) : activeTab === 'dashboard' ? (
             <>

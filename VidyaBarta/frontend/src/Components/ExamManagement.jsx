@@ -323,7 +323,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                   <th className="p-4 text-sm font-bold">Description</th>
                   <th className="p-4 text-sm font-bold">Class</th>
                   <th className="p-4 text-sm font-bold">Timetable Created</th>
-                  <th className="p-4 text-sm font-bold">Publish Result</th>
+                  <th className="p-4 text-sm font-bold">Finalize Exam Timetable</th>
                   <th className="p-4 text-sm font-bold text-center">Action</th>
                 </tr>
               </thead>
@@ -347,7 +347,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => openTimetable(exam)} className="bg-[#46a5f7] text-white w-8 h-8 rounded-full hover:bg-blue-500 transition-colors flex items-center justify-center shadow-sm" title="Manage Timetable"><FaCalendarAlt size={12} /></button>
-                        <button className="bg-[#20c997] text-white w-8 h-8 rounded-full hover:bg-teal-500 transition-colors flex items-center justify-center shadow-sm" title="Publish Result"><FaCheckCircle size={12} /></button>
+                        <button className="bg-[#20c997] text-white w-8 h-8 rounded-full hover:bg-teal-500 transition-colors flex items-center justify-center shadow-sm" title="Finalize Exam Timetable"><FaCheckCircle size={12} /></button>
                         <button onClick={() => downloadClassPDF(exam)} className="bg-[#ed8936] text-white w-8 h-8 rounded-full hover:bg-orange-500 transition-colors flex items-center justify-center shadow-sm" title="Download Timetable PDF"><FaDownload size={12} /></button>
                         <button onClick={() => handleDeleteExam(exam.id)} className="bg-[#4a5568] text-white w-8 h-8 rounded-full hover:bg-gray-700 transition-colors flex items-center justify-center shadow-sm" title="Delete"><FaTrash size={12} /></button>
                       </div>

@@ -309,13 +309,12 @@ function StudentPortal() {
                       doc.setFontSize(18);
                       doc.text(`My Exam Timetable - Class ${student.grade || student.class_id}`, 14, 22);
                       
-                      const tableColumn = ["Date", "Exam Name", "Subject", "Time", "Room"];
+                      const tableColumn = ["Date", "Exam Name", "Subject", "Time"];
                       const tableRows = upcomingExams.map(exam => [
-                        new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-'),
+                        new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-'),
                         exam.exam_name,
                         `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
-                        `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`,
-                        exam.room_number || '-'
+                        `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`
                       ]);
                       
                       doc.autoTable({
@@ -339,7 +338,6 @@ function StudentPortal() {
                         <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Exam Name</th>
                         <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Subject</th>
                         <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Time</th>
-                        <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Room</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
@@ -358,12 +356,11 @@ function StudentPortal() {
                           <td className="p-4 text-sm font-medium text-gray-600">
                             {exam.start_time ? exam.start_time.substring(0, 5) : '--:--'} - {exam.end_time ? exam.end_time.substring(0, 5) : '--:--'}
                           </td>
-                          <td className="p-4 text-sm font-bold text-gray-700">{exam.room_number || '-'}</td>
                         </tr>
                       ))}
                       {upcomingExams.length === 0 && (
                         <tr>
-                          <td colSpan="5" className="p-8 text-center text-gray-500 font-medium bg-gray-50/50">
+                          <td colSpan="4" className="p-8 text-center text-gray-500 font-medium bg-gray-50/50">
                             No upcoming exams scheduled at the moment.
                           </td>
                         </tr>
@@ -593,13 +590,12 @@ function StudentPortal() {
                           doc.setFontSize(18);
                           doc.text(`My Exam Timetable - Class ${student.grade || student.class_id}`, 14, 22);
                           
-                          const tableColumn = ["Date", "Exam Name", "Subject", "Time", "Room"];
+                          const tableColumn = ["Date", "Exam Name", "Subject", "Time"];
                           const tableRows = upcomingExams.map(exam => [
-                            new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-'),
+                            new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-'),
                             exam.exam_name,
                             `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
-                            `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`,
-                            exam.room_number || '-'
+                            `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`
                           ]);
                           
                           doc.autoTable({
@@ -622,7 +618,6 @@ function StudentPortal() {
                             <th className="px-4 py-3">Exam Name</th>
                             <th className="px-4 py-3">Subject</th>
                             <th className="px-4 py-3">Time</th>
-                            <th className="px-4 py-3 text-right">Room</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -636,9 +631,6 @@ function StudentPortal() {
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                                 {exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - {exam.end_time ? exam.end_time.substring(0,5) : '--:--'}
-                              </td>
-                              <td className="px-4 py-3 text-sm font-semibold text-gray-600 text-right">
-                                {exam.room_number || '-'}
                               </td>
                             </tr>
                           )) : (

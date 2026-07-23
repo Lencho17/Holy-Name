@@ -7,7 +7,7 @@ const supabase = require('../config/supabase');
 router.get('/', protectAnyStaff, async (req, res) => {
   try {
     const { school_id } = req.user;
-    let query = supabase.from('exams').select('*');
+    let query = supabase.from('exams').select('*, exam_timetable(is_finalized)');
     
     if (school_id) {
       query = query.eq('school_id', school_id);

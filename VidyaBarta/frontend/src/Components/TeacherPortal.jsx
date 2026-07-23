@@ -332,9 +332,15 @@ function TeacherPortal() {
                   <select 
                     className="p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                     onChange={(e) => setSelectedExam(e.target.value)}
+                    disabled={!selectedAssignment}
                   >
                     <option value="">-- Select Exam --</option>
-                    {exams.map(e => (
+                    {exams.filter(e => {
+                      if (!selectedAssignment) return false;
+                      const matchesClass = String(e.class_level) === String(selectedAssignment.class_name);
+                      const isFinalized = e.exam_timetable && e.exam_timetable.some(t => t.is_finalized);
+                      return matchesClass && isFinalized;
+                    }).map(e => (
                       <option key={e.id} value={e.id}>{e.name}</option>
                     ))}
                   </select>
@@ -440,9 +446,15 @@ function TeacherPortal() {
                   <select 
                     className="p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                     onChange={(e) => setSelectedExam(e.target.value)}
+                    disabled={!selectedAssignment}
                   >
                     <option value="">-- Select Exam --</option>
-                    {exams.map(e => (
+                    {exams.filter(e => {
+                      if (!selectedAssignment) return false;
+                      const matchesClass = String(e.class_level) === String(selectedAssignment.class_name);
+                      const isFinalized = e.exam_timetable && e.exam_timetable.some(t => t.is_finalized);
+                      return matchesClass && isFinalized;
+                    }).map(e => (
                       <option key={e.id} value={e.id}>{e.name}</option>
                     ))}
                   </select>

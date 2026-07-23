@@ -346,12 +346,9 @@ function StudentPortal() {
                       {upcomingExams.map(exam => (
                         <tr key={exam.id} className="hover:bg-gray-50/50 transition-colors group">
                           <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex flex-col items-center justify-center border border-indigo-100/50">
-                                <span className="text-[10px] font-bold text-indigo-600 uppercase leading-none">{new Date(exam.exam_date).toLocaleDateString('en-US', { month: 'short' })}</span>
-                                <span className="text-sm font-black text-indigo-900 leading-tight">{new Date(exam.exam_date).getDate()}</span>
-                              </div>
-                            </div>
+                              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                {new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-')}
+                              </span>
                           </td>
                           <td className="p-4 font-bold text-gray-900 text-sm">{exam.exam_name}</td>
                           <td className="p-4 font-bold text-gray-900 text-sm">

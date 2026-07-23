@@ -5,6 +5,7 @@ import { SiteDataContext } from '../context/SiteDataContext';
 import { StudentAuthContext } from '../context/StudentAuthContext';
 import StudentTimetable from './StudentTimetable';
 import StudentCourses from './StudentCourses';
+import StudentDues from './StudentDues';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FaDownload } from 'react-icons/fa';
@@ -891,6 +892,10 @@ function StudentPortal() {
                   </div>
                 </div>
               </div>
+            </div>
+          ) : activeTab === 'fees' ? (
+            <div className="animate-fade-in">
+              <StudentDues />
             </div>
           ) : (
             <div className="flex items-center justify-center h-[60vh]">

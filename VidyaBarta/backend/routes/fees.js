@@ -85,21 +85,47 @@ router.put('/bank-details', protect, async (req, res) => {
 // @access  Public (Student)
 router.get('/my-dues', async (req, res) => {
   try {
-    const { admissionId, contactNumber, trimester, isNewAdmission } = req.query;
-    if (!admissionId || !contactNumber) {
-      return res.status(400).json({ message: 'Admission ID and Contact Number are required' });
+    const { trimester, isNewAdmission, admissionId, contactNumber } = req.query;
+    let studentId, studentName, schoolId;
+
+    // Check for auth header
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const { data: stu } = await supabase.from('students').select('id, student_name, school_id').eq('id', decoded.id).single();
+        if (stu) {
+          studentId = stu.id;
+          studentName = stu.student_name;
+          schoolId = stu.school_id;
+        }
+      } catch (e) {
+        // Fallback to query
+      }
     }
 
-    // Verify student
-    const { data: student, error } = await supabase
-      .from('students')
-      .select('id, student_name, school_id')
-      .eq('admission_id', admissionId)
-      .eq('contact_number', contactNumber)
-      .maybeSingle();
+    if (!studentId) {
+      if (!admissionId || !contactNumber) {
+        return res.status(400).json({ message: 'Admission ID and Contact Number are required' });
+      }
 
-    if (error || !student) {
-      return res.status(404).json({ message: 'Student not found with provided credentials' });
+      // Verify student
+      const { data: student, error } = await supabase
+        .from('students')
+        .select('id, student_name, school_id')
+        .eq('admission_id', admissionId)
+        .eq('contact_number', contactNumber)
+        .maybeSingle();
+
+      if (error || !student) {
+        return res.status(404).json({ message: 'Student not found with provided credentials' });
+      }
+
+      studentId = student.id;
+      studentName = student.student_name;
+      schoolId = student.school_id;
     }
 
     const fee_record_id = `TRIMESTER-${trimester}`;
@@ -108,16 +134,16 @@ router.get('/my-dues', async (req, res) => {
     const { data: tx, error: txError } = await supabase
       .from('transactions')
       .select('status')
-      .eq('student_id', student.id)
+      .eq('student_id', studentId)
       .eq('fee_record_id', fee_record_id)
       .in('status', ['Success', 'completed'])
       .maybeSingle();
 
-    const feeDetails = await calculateStudentFee(student.id, parseInt(trimester) || 1, isNewAdmission === 'true');
-    feeDetails.student_name = student.student_name;
+    const feeDetails = await calculateStudentFee(studentId, parseInt(trimester) || 1, isNewAdmission === 'true');
+    feeDetails.student_name = studentName;
     feeDetails.fee_record_id = fee_record_id;
-    feeDetails.school_id = student.school_id;
-    feeDetails.student_id = student.id;
+    feeDetails.school_id = schoolId;
+    feeDetails.student_id = studentId;
     feeDetails.isPaid = !!tx;
     
     res.json(feeDetails);

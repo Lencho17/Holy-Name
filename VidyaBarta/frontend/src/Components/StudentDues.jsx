@@ -13,13 +13,15 @@ const StudentDues = () => {
   const [error, setError] = useState(null);
   const [checkoutData, setCheckoutData] = useState(null);
 
-  const fetchDues = async (e) => {
-    e.preventDefault();
+  const fetchDues = async (e, overrideTrimester = formData.trimester) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError(null);
     try {
+      const token = localStorage.getItem('studentToken');
       const res = await axios.get(`${API_URL}/fees/my-dues`, {
-        params: formData
+        params: { ...formData, trimester: overrideTrimester },
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       setDuesData(res.data);
     } catch (err) {
@@ -29,6 +31,13 @@ const StudentDues = () => {
       setLoading(false);
     }
   };
+
+  React.useEffect(() => {
+    const token = localStorage.getItem('studentToken');
+    if (token) {
+      fetchDues();
+    }
+  }, []);
 
   const handlePay = async () => {
     setPaying(true);
@@ -71,14 +80,18 @@ const StudentDues = () => {
       {!duesData ? (
         <form onSubmit={fetchDues} className="max-w-xl">
           <div className="space-y-4 mb-6">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Admission ID</label>
-              <input required type="text" value={formData.admissionId} onChange={e => setFormData({...formData, admissionId: e.target.value})} className="w-full border-gray-300 border p-3 rounded-xl focus:ring-2 focus:ring-green-500" placeholder="e.g. ADM-2026-001" />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Registered Mobile Number</label>
-              <input required type="text" value={formData.contactNumber} onChange={e => setFormData({...formData, contactNumber: e.target.value})} className="w-full border-gray-300 border p-3 rounded-xl focus:ring-2 focus:ring-green-500" placeholder="10-digit mobile number" />
-            </div>
+            {!localStorage.getItem('studentToken') && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Admission ID</label>
+                  <input required type="text" value={formData.admissionId} onChange={e => setFormData({...formData, admissionId: e.target.value})} className="w-full border-gray-300 border p-3 rounded-xl focus:ring-2 focus:ring-green-500" placeholder="e.g. ADM-2026-001" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Registered Mobile Number</label>
+                  <input required type="text" value={formData.contactNumber} onChange={e => setFormData({...formData, contactNumber: e.target.value})} className="w-full border-gray-300 border p-3 rounded-xl focus:ring-2 focus:ring-green-500" placeholder="10-digit mobile number" />
+                </div>
+              </>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Trimester</label>

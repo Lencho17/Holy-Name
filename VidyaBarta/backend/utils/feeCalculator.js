@@ -11,7 +11,7 @@ async function calculateStudentFee(studentId, trimester = 1, isNewAdmission = fa
     // 1. Fetch student details
     const { data: student, error: studentError } = await supabase
       .from('students')
-      .select('*, schools!inner(id, platform_fee, transaction_fee)')
+      .select('*')
       .eq('id', studentId)
       .single();
 
@@ -19,7 +19,19 @@ async function calculateStudentFee(studentId, trimester = 1, isNewAdmission = fa
       throw new Error('Student not found');
     }
 
-    const schoolId = student.schools.id;
+    // Fetch school separately since there may not be an explicit FK constraint
+    const { data: school, error: schoolError } = await supabase
+      .from('schools')
+      .select('id, platform_fee, transaction_fee')
+      .eq('id', student.school_id)
+      .single();
+
+    if (schoolError || !school) {
+      throw new Error('School not found');
+    }
+
+    const schoolId = school.id;
+    student.schools = school;
     let classLevel = student.grade; // grade is typically the class level e.g., '11', '9'
     
     if (['11', '12'].includes(classLevel) && student.stream) {

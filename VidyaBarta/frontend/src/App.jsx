@@ -297,6 +297,7 @@ function App() {
           <Route path="student-udise-form" element={<Suspense fallback={<SuspenseFallback />}><UdiseStudentForm /></Suspense>} />
           <Route path="login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
           <Route path="student-login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
+          <Route path="admission/checkout/:refNum" element={<Suspense fallback={<SuspenseFallback />}><AdmissionCheckout /></Suspense>} />
         </Route>
       </Route>
     )

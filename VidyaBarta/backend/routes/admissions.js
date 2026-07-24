@@ -357,7 +357,7 @@ router.get('/export', protect, async (req, res) => {
 // GET /api/admissions/status — public, check application status
 router.get('/status', async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, school_id } = req.query;
     if (!q) return res.status(400).json({ message: 'Query parameter required' });
 
     const { data: application, error } = await supabase
@@ -373,13 +373,24 @@ router.get('/status', async (req, res) => {
     // Fetch dynamic admission fee and Q1 fee from fee_structures
     let admissionFee = null;
     let q1Fee = 0;
-    if (application.school_id && application.grade_applied) {
-      const classLevel = application.grade_applied.replace(/class\s+/i, '').trim();
+    
+    let targetSchoolId = application.school_id || school_id;
+
+    if (targetSchoolId && application.grade_applied) {
+      let classLevel = application.grade_applied.replace(/class\s+/i, '').trim().toUpperCase();
+      
+      const romanToArabic = { 'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8', 'IX': '9', 'X': '10', 'XI': '11', 'XII': '12' };
+      const arabicToRoman = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X', '11': 'XI', '12': 'XII' };
+      
+      let altClassLevel = classLevel;
+      if (romanToArabic[classLevel]) altClassLevel = romanToArabic[classLevel];
+      else if (arabicToRoman[classLevel]) altClassLevel = arabicToRoman[classLevel];
+
       const { data: feeStructure } = await supabase
         .from('fee_structures')
         .select('admission_fee, base_tuition_fee')
-        .eq('school_id', application.school_id)
-        .eq('class_level', classLevel)
+        .eq('school_id', targetSchoolId)
+        .or(`class_level.eq.${classLevel},class_level.eq.${altClassLevel}`)
         .maybeSingle();
       
       if (feeStructure) {

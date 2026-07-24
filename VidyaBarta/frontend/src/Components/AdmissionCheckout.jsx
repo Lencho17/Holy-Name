@@ -27,7 +27,8 @@ function AdmissionCheckout() {
 
   useEffect(() => {
     if (refNum) {
-      axios.get(`${apiBase}/admissions/status?q=${refNum}`)
+      const schoolIdQuery = schoolProfile?.id ? `&school_id=${schoolProfile.id}` : '';
+      axios.get(`${apiBase}/admissions/status?q=${refNum}${schoolIdQuery}`)
         .then(res => {
           const data = res.data.data || res.data;
           setAdmissionData(data);

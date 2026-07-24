@@ -52,6 +52,20 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Date of Birth not registered. Please contact your administrator.' });
     }
 
+    // Check Readmission Inactive Logic
+    if (student.enrollment_status !== 'inactive' && !student.admission_fee_paid && student.readmission_deadline) {
+      const deadlineDate = new Date(student.readmission_deadline);
+      const currentDate = new Date();
+      // If deadline has passed (start of the day after deadline)
+      if (currentDate > new Date(deadlineDate.getTime() + 24 * 60 * 60 * 1000)) {
+        await supabase
+          .from('students')
+          .update({ enrollment_status: 'inactive' })
+          .eq('id', student.id);
+        student.enrollment_status = 'inactive';
+      }
+    }
+
     // Check password against date of birth (support YYYY-MM-DD or DDMMYYYY)
     const dobParts = student.date_of_birth.split('-');
     const dobFormatted = dobParts.length === 3 ? `${dobParts[2]}${dobParts[1]}${dobParts[0]}` : null;
@@ -98,7 +112,9 @@ router.post('/login', async (req, res) => {
             email: student.email,
             school_id: student.school_id,
             admissionFeePaid: student.admission_fee_paid || false,
-            readmissionDeadline: student.readmission_deadline || null
+            readmissionDeadline: student.readmission_deadline || null,
+            readmissionVerified: student.readmission_verified || false,
+            status: student.enrollment_status
           }
         });
       }
@@ -211,7 +227,9 @@ router.get('/profile', protectStudent, (req, res) => {
       email: studentProfile.email,
       school_id: studentProfile.school_id,
       admissionFeePaid: studentProfile.admission_fee_paid || false,
-      readmissionDeadline: studentProfile.readmission_deadline || null
+      readmissionDeadline: studentProfile.readmission_deadline || null,
+      readmissionVerified: studentProfile.readmission_verified || false,
+      status: studentProfile.enrollment_status
     } 
   });
 });

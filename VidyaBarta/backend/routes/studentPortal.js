@@ -267,4 +267,37 @@ router.get('/upcoming-exams', protectStudent, async (req, res) => {
   }
 });
 
+// @route   PUT /api/student-portal/verify-readmission
+// @desc    Update student details and mark readmission as verified
+// @access  Private (Student)
+router.put('/verify-readmission', protectStudent, async (req, res) => {
+  try {
+    const { contact_number, email, address, guardian_name, blood_group } = req.body;
+
+    const { data, error } = await supabase
+      .from('students')
+      .update({
+        contact_number,
+        email,
+        address,
+        guardian_name,
+        blood_group,
+        readmission_verified: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.student.id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ message: 'Failed to verify readmission', error: error.message });
+    }
+
+    res.json({ message: 'Readmission verified successfully', student: data });
+  } catch (error) {
+    console.error('Error verifying readmission:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

@@ -8,7 +8,8 @@ import StudentCourses from './StudentCourses';
 import StudentDues from './StudentDues';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FaDownload } from 'react-icons/fa';
+import { FaDownload, FaExclamationTriangle } from 'react-icons/fa';
+import ReadmissionVerification from './ReadmissionVerification';
 
 function StudentPortal() {
   const { API_URL, schoolProfile } = useContext(SiteDataContext);
@@ -139,6 +140,30 @@ function StudentPortal() {
     return <Navigate to="/login" replace />;
   }
 
+  // Enforce Inactive Status
+  if (student.status === 'inactive') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white max-w-md w-full rounded-3xl shadow-xl overflow-hidden border border-gray-100 text-center p-8">
+          <FaExclamationTriangle className="text-red-500 text-6xl mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Account Inactive</h1>
+          <p className="text-gray-500 mb-6">Your readmission deadline has passed, and your account has been marked as inactive. Please contact your school administrator to resolve this.</p>
+          <button onClick={() => { logout(); navigate('/login'); }} className="bg-gray-900 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-gray-800 transition-colors">
+            Return to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Enforce Readmission Verification Form
+  if (!student.admissionFeePaid && student.readmissionDeadline && !student.readmissionVerified) {
+    return <ReadmissionVerification />;
+  }
+
+  // After verification, force payment
+  const mustPayReadmission = !student.admissionFeePaid && student.readmissionDeadline && student.readmissionVerified;
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -197,19 +222,20 @@ function StudentPortal() {
           </div>
           <nav className="flex flex-col gap-1.5">
             {[
-              { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
-              { id: 'courses', icon: 'menu_book', label: 'Courses' },
+              { id: 'dashboard', icon: 'dashboard', label: 'Dashboard', disabled: mustPayReadmission },
+              { id: 'courses', icon: 'menu_book', label: 'Courses', disabled: mustPayReadmission },
               { id: 'fees', icon: 'payments', label: 'Fees' },
-              { id: 'notices', icon: 'notifications', label: 'Notices' },
-              { id: 'timetable_group', icon: 'calendar_month', label: 'Timetable', subItems: [
+              { id: 'notices', icon: 'notifications', label: 'Notices', disabled: mustPayReadmission },
+              { id: 'timetable_group', icon: 'calendar_month', label: 'Timetable', disabled: mustPayReadmission, subItems: [
                 { id: 'timetable', label: 'Class Timetable' },
                 { id: 'exam_timetable', label: 'Exam Time Table' }
               ]},
-              { id: 'exams', icon: 'quiz', label: 'Results' }
+              { id: 'exams', icon: 'quiz', label: 'Results', disabled: mustPayReadmission }
             ].map(item => (
               <div key={item.id}>
                 <a 
                   onClick={() => { 
+                    if(item.disabled) return;
                     if(!item.subItems) { 
                       setActiveTab(item.id); 
                       setIsSidebarOpen(false); 
@@ -218,9 +244,10 @@ function StudentPortal() {
                     }
                   }}
                   className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-all cursor-pointer font-medium text-sm
-                    ${(!item.subItems && activeTab === item.id) || (item.subItems && item.subItems.some(s => s.id === activeTab))
+                    ${item.disabled ? 'text-gray-400 cursor-not-allowed opacity-60' : 
+                    ((!item.subItems && activeTab === item.id) || (item.subItems && item.subItems.some(s => s.id === activeTab))
                       ? 'bg-blue-50 text-blue-700 font-semibold' 
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')}`}
                 >
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
@@ -361,6 +388,16 @@ function StudentPortal() {
         )}
 
         <main className="p-8 max-w-[1440px] w-full mx-auto flex-1">
+          {mustPayReadmission && activeTab !== 'fees' ? (
+            <div className="bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded mb-6 flex items-start gap-3">
+              <span className="material-symbols-outlined mt-1 flex-shrink-0">warning</span>
+              <div>
+                <h3 className="font-bold">Payment Required</h3>
+                <p className="text-sm">You have verified your readmission details. Please navigate to the <b>Fees</b> tab to pay your readmission fees and fully unlock your portal.</p>
+              </div>
+            </div>
+          ) : null}
+
           {loading ? (
             <div className="flex justify-center py-20">
                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -681,7 +718,7 @@ function StudentPortal() {
                           
                           doc.save(`My_Timetable.pdf`);
                         }} className="text-sm font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-indigo-700 transition-colors">
-                          <FaDownload /> Download PDF
+                          <span className="material-symbols-outlined">download</span> Download PDF
                         </button>
                       </div>
                     </div>

@@ -78,7 +78,7 @@ function AdmissionCheckout() {
 
   const ADMISSION_FEE = admissionData?.dynamic_admission_fee !== undefined && admissionData?.dynamic_admission_fee !== null 
     ? Number(admissionData.dynamic_admission_fee) 
-    : (admissionFee !== undefined && admissionFee !== null ? Number(admissionFee) : 500);
+    : 0;
   
   const Q1_FEE = admissionData?.dynamic_q1_fee ? Number(admissionData.dynamic_q1_fee) : 0;
 
@@ -239,6 +239,13 @@ function AdmissionCheckout() {
         tableData.push([slNo++, item.name, "Optional", `₹${Number(item.price) || 0}`]);
       });
     }
+    const footArr = [
+      ['', '', 'New Admission Fee', `₹${ADMISSION_FEE}`]
+    ];
+    if (Q1_FEE > 0) footArr.push(['', '', 'Quarter 1 Tuition Fee', `₹${Q1_FEE}`]);
+    footArr.push(['', '', 'Compulsory Total', `₹${getCompulsoryTotal()}`]);
+    footArr.push(['', '', 'Optional Total', `₹${getOptionalTotal()}`]);
+    footArr.push(['', '', 'GRAND TOTAL', `₹${getTotal()}`]);
 
     autoTable(doc, {
       startY: 80,
@@ -252,13 +259,7 @@ function AdmissionCheckout() {
         2: { cellWidth: 35 },
         3: { cellWidth: 30, halign: 'right' }
       },
-      foot: [
-        ['', '', 'Admission Fee', `₹${ADMISSION_FEE}`],
-        ['', '', 'Quarter 1 Tuition Fee', `₹${Q1_FEE}`],
-        ['', '', 'Compulsory Total', `₹${getCompulsoryTotal()}`],
-        ['', '', 'Optional Total', `₹${getOptionalTotal()}`],
-        ['', '', 'GRAND TOTAL', `₹${getTotal()}`],
-      ],
+      foot: footArr,
       footStyles: { fillColor: [240, 240, 240], textColor: [0,0,0], fontStyle: 'bold', fontSize: 10 },
       margin: { left: 15, right: 15 },
     });
@@ -536,8 +537,8 @@ function AdmissionCheckout() {
                   <h3 className="text-xl font-black mb-6">Order Summary</h3>
                   
                   <div className="space-y-4 mb-8">
-                    <div className="flex justify-between items-center text-white/80">
-                      <span>Admission Fee</span>
+                    <div className="flex justify-between items-center text-white/80 pb-3 border-b border-white/20">
+                      <span>New Admission Fee</span>
                       <span className="font-bold text-white">₹{ADMISSION_FEE}</span>
                     </div>
                     {Q1_FEE > 0 && (
@@ -596,7 +597,7 @@ function AdmissionCheckout() {
                 
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Admission Fee <span className="text-xs text-red-500 font-bold">(Required)</span></span>
+                    <span className="text-gray-600">New Admission Fee <span className="text-xs text-red-500 font-bold">(Required)</span></span>
                     <span className="font-bold">₹{ADMISSION_FEE}</span>
                   </div>
                   {Q1_FEE > 0 && (

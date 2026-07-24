@@ -399,8 +399,13 @@ router.get('/status', async (req, res) => {
       }
     }
 
+    // Apply 100% discount to Admission Fee if prospectus code was used
+    if (application.prospectus_code) {
+      admissionFee = 0;
+    }
+
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.json({ ...application, dynamic_admission_fee: admissionFee, dynamic_q1_fee: q1Fee });
+    res.json({ ...application, dynamic_admission_fee: admissionFee, dynamic_q1_fee: 0 });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -454,6 +459,7 @@ const buildAdmissionRecord = (input, filesData = {}) => {
     upi_transaction_id: (input.upiTransactionId || '').toUpperCase().trim(),
     status: 'pending',
     school_id: input.schoolId || null,
+    prospectus_code: input.prospectusCode || null,
     // Merge file URLs (from either multipart or direct-upload)
     ...filesData
   };
@@ -522,6 +528,25 @@ router.post(
         return res.status(400).json({ message: `Missing required fields: ${missingFields.join(', ')}`, fields: missingFields });
       }
 
+      // Validate prospectus code if provided
+      if (input.prospectusCode) {
+        const { data: prospectusDoc, error: pdError } = await supabase
+          .from('prospectus_downloads')
+          .select('id, payment_status, is_used')
+          .eq('reference_number', input.prospectusCode)
+          .maybeSingle();
+
+        if (pdError || !prospectusDoc) {
+          return res.status(400).json({ message: 'Invalid prospectus code. Please check your reference number.' });
+        }
+        if (prospectusDoc.payment_status !== 'Paid') {
+          return res.status(400).json({ message: 'The provided prospectus code is not marked as paid.' });
+        }
+        if (prospectusDoc.is_used) {
+          return res.status(400).json({ message: 'This prospectus code has already been used for another application.' });
+        }
+      }
+
       // Build file URLs map
       const filesData = {};
 
@@ -582,6 +607,14 @@ router.post(
           error: insertError.message,
           details: insertError.details 
         });
+      }
+
+      // Mark prospectus code as used
+      if (input.prospectusCode) {
+        await supabase
+          .from('prospectus_downloads')
+          .update({ is_used: true })
+          .eq('reference_number', input.prospectusCode);
       }
 
       // Notifications (fire-and-forget, non-blocking)

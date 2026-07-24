@@ -93,6 +93,7 @@ function AdmissionForm() {
   const [penNumber, setPenNumber] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [caste, setCaste] = useState("General");
+  const [prospectusCode, setProspectusCode] = useState("");
 
   // Normalize grade display values (e.g. "PRE-NURSERY", "KG I (LKG)", "CLASS XI") to clean keys
   const normalizeGrade = (val) => {
@@ -159,8 +160,12 @@ function AdmissionForm() {
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
-  const admissionFee = 0;
-  const paymentEnabled = false;
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [pendingSubmissionData, setPendingSubmissionData] = useState(null);
+
+  const admissionFee = 500;
+  const paymentEnabled = true;
 
   useEffect(() => {
     // Check if returning from UPIGateway
@@ -416,6 +421,7 @@ function AdmissionForm() {
       elective: getUVal('elective'),
       mil: getUVal('mil'),
       schoolId: schoolProfile?.id || null,
+      prospectusCode: getUVal('prospectusCode'),
     };
 
     if (!["class10", "class12"].includes(gradeKey)) {
@@ -523,12 +529,21 @@ function AdmissionForm() {
       });
 
       const fullData = { ...payload };
-      fullData.referenceNumber = res.data.referenceNumber;
+      fullData.referenceNumber = res.data.referenceNumber || res.data.reference_number;
       fullData.selectedSubjects = [...selectedSubjects];
       fullData.dateOfApplication = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
       
-      // Redirect to checkout page directly
-      navigate(`/admission/checkout/${res.data.referenceNumber || res.data.reference_number}`);
+      const requiresPayment = paymentEnabled && admissionFee > 0 && !payload.prospectusCode;
+      
+      if (requiresPayment) {
+        setPendingSubmissionData(fullData);
+        setShowPaymentModal(true);
+      } else {
+        setSubmittedData(fullData);
+        setTimeout(() => {
+          window.scrollTo({ top: document.getElementById('apply')?.offsetTop - 100, behavior: 'smooth' });
+        }, 500);
+      }
     } catch (err) {
       const data = err.response?.data;
       const msg = data?.message || 'Submission failed. Please try again.';
@@ -552,6 +567,20 @@ function AdmissionForm() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const processPayment = () => {
+    setPaymentProcessing(true);
+    setTimeout(() => {
+      setPaymentProcessing(false);
+      setShowPaymentModal(false);
+      if (pendingSubmissionData) {
+        setSubmittedData(pendingSubmissionData);
+        setTimeout(() => {
+          window.scrollTo({ top: document.getElementById('apply')?.offsetTop - 100, behavior: 'smooth' });
+        }, 500);
+      }
+    }, 1500);
   };
 
   const handleDownloadReceipt = async (appData = null) => {
@@ -1654,6 +1683,31 @@ function AdmissionForm() {
                         )}
                       </div>
                     </div>
+                    
+                    {/* Prospectus Discount Code Section */}
+                    <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100 mt-8">
+                      <div className="flex flex-col md:flex-row items-center gap-6">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-gray-900 flex items-center gap-2 mb-2">
+                            <FaFileAlt className="text-blue-500" /> Prospectus Reference Code
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            If you purchased a prospectus, enter your unique reference number (e.g., PR-XXXX) here to waive your Admission Fee during checkout.
+                          </p>
+                        </div>
+                        <div className="w-full md:w-1/3">
+                          <input 
+                            type="text" 
+                            name="prospectusCode"
+                            value={prospectusCode}
+                            onChange={(e) => setProspectusCode(e.target.value.toUpperCase())}
+                            placeholder="Enter Code (Optional)" 
+                            className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="text-center pt-10">
                       <button
                         type="button"
@@ -2006,6 +2060,61 @@ function AdmissionForm() {
           </div>
         </div>
       </div>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+      `}</style>
+      
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl animate-fade-in">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                <span className="material-symbols-outlined">payments</span>
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 mb-2">Complete Payment</h2>
+              <p className="text-gray-500 mb-6">Please pay the Applying Fee of ₹{admissionFee} to finalize your application.</p>
+              
+              <div className="bg-gray-50 p-4 rounded-xl mb-6">
+                <div className="flex justify-between text-sm font-bold text-gray-700">
+                  <span>Applying Fee</span>
+                  <span>₹{admissionFee}</span>
+                </div>
+              </div>
+
+              {paymentProcessing ? (
+                <div className="py-6">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-blue-600 font-bold">Processing payment...</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={(e) => { e.preventDefault(); processPayment(); }}
+                    className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition-all shadow-lg"
+                  >
+                    Simulate Successful Payment
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowPaymentModal(false);
+                      setPendingSubmissionData(null);
+                    }}
+                    className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

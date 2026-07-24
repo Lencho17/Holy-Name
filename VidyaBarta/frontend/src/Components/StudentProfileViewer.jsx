@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { FaEdit, FaSave } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
-import { FaUser, FaDownload, FaTimes, FaPhone, FaMapMarkerAlt, FaEnvelope, FaBirthdayCake, FaTint } from 'react-icons/fa';
+import { FaUser, FaDownload, FaTimes, FaPhone, FaMapMarkerAlt, FaEnvelope, FaBirthdayCake, FaTint, FaVenusMars } from 'react-icons/fa';
 
 const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiUrl }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -13,6 +13,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
     rollNumber: student.rollNumber || student.roll_number || '',
     dob: student.dateOfBirth || student.date_of_birth || student.dob || '',
     bloodGroup: student.bloodGroup || student.blood_group || '',
+    gender: student.gender || '',
     phone: student.contactNumber || student.contact_number || student.phone || '',
     email: student.email || '',
     address: student.address || '',
@@ -177,6 +178,19 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
                   <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Blood Group</span>
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <FaTint className="text-red-400" /> {isEditing ? <input type="text" className="w-full text-sm p-1 border rounded ml-2" value={formData.bloodGroup} onChange={e => setFormData({...formData, bloodGroup: e.target.value})} /> : (student.bloodGroup || student.blood_group || 'N/A')}
+                  </div>
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Gender</span>
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <FaVenusMars className="text-pink-400" /> {isEditing ? (
+                      <select className="w-full text-sm p-1 border rounded ml-2" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    ) : (student.gender || 'N/A')}
                   </div>
                 </div>
               </div>

@@ -123,45 +123,58 @@ const StudentDues = () => {
           </button>
         </form>
       ) : (
-        <div className="animate-fadeIn">
-          <div className="bg-gray-50 border border-gray-200 p-6 rounded-2xl mb-8">
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Hello, {duesData.student_name}</h3>
-            <p className="text-gray-500 text-sm mb-6">Here is your fee breakdown for Trimester {formData.trimester}:</p>
+        <div className="animate-fadeIn max-w-lg mx-auto mt-6">
+          <div className="bg-primary p-8 rounded-3xl shadow-xl border border-primary flex flex-col relative transform transition-all">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-secondary text-white px-6 py-1.5 rounded-full text-label-sm font-bold uppercase tracking-wide shadow-md">
+              Trimester {formData.trimester} Dues
+            </div>
             
-            <div className="space-y-3 mb-6">
+            <h3 className="text-title-lg font-bold text-white mb-1 text-center">Hello, {duesData.student_name}</h3>
+            <p className="text-body-sm text-white/80 mb-8 text-center">Here is your fee breakdown</p>
+
+            <p className="text-display-sm font-bold text-white mb-8 text-center border-b border-white/10 pb-8">
+              ₹{duesData.total.toFixed(2)}<span className="text-title-sm font-normal text-white/70 ml-1">total due</span>
+            </p>
+
+            <ul className="space-y-4 mb-8 flex-1">
               {Object.keys(duesData.breakdown).map(item => (
-                <div key={item} className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600 font-medium">{item}</span>
-                  <span className="text-gray-800 font-bold">₹{duesData.breakdown[item].toFixed(2)}</span>
-                </div>
+                <li key={item} className="flex justify-between items-center text-body-md text-white group">
+                  <div className="flex items-center gap-3">
+                    <FaCheckCircle className="text-white/60 group-hover:text-white shrink-0 transition-colors" />
+                    <span className="text-white/90 group-hover:text-white transition-colors">{item}</span>
+                  </div>
+                  <span className="font-bold">₹{duesData.breakdown[item].toFixed(2)}</span>
+                </li>
               ))}
               {Object.keys(duesData.breakdown).length === 0 && (
-                <div className="text-center text-gray-400 py-4 italic">No fees configured for your class yet.</div>
+                <li className="text-center text-white/60 py-4 italic text-sm">No fees configured for your class yet.</li>
               )}
-            </div>
-
-            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-              <span className="text-lg font-black text-gray-800">Total Due Amount</span>
-              <span className="text-2xl font-black text-green-600">₹{duesData.total.toFixed(2)}</span>
-            </div>
+            </ul>
             
             {duesData.isPaid && (
-              <div className="mt-6 p-4 bg-green-50 text-green-800 rounded-xl font-bold flex justify-center items-center gap-2 border border-green-200">
+              <div className="mb-8 p-4 bg-green-500/20 backdrop-blur border border-green-400/30 text-green-50 rounded-xl font-bold flex justify-center items-center gap-2">
                 <FaCheckCircle className="text-xl" />
                 Fees Paid for this Trimester
               </div>
             )}
-          </div>
 
-          <div className="flex gap-4">
-            <button onClick={() => setDuesData(null)} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200">
-              Back
-            </button>
-            {duesData.total > 0 && !duesData.isPaid && (
-              <button onClick={handlePay} disabled={paying} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50">
-                {paying ? <FaSpinner className="animate-spin" /> : <FaRupeeSign />} Pay with UPI / SBI Epay
+            <div className="flex gap-4 pt-2">
+              <button 
+                onClick={() => setDuesData(null)} 
+                className="px-6 py-3 bg-white/10 text-white border border-white/20 rounded-xl font-bold hover:bg-white/20 transition-colors shadow-sm"
+              >
+                Back
               </button>
-            )}
+              {duesData.total > 0 && !duesData.isPaid && (
+                <button 
+                  onClick={handlePay} 
+                  disabled={paying} 
+                  className="flex-1 py-3 bg-white text-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 shadow-lg transition-colors disabled:opacity-50"
+                >
+                  {paying ? <FaSpinner className="animate-spin" /> : <FaRupeeSign />} Pay Now
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

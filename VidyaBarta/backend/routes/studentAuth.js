@@ -119,11 +119,11 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ message: 'Please provide email and select a school' });
     }
 
-    // Find student by email AND school_id
+    // Find student by email AND school_id (case-insensitive email search)
     const { data: student, error } = await supabase
       .from('students')
       .select('id, admission_id, student_name, email, date_of_birth, school_id')
-      .eq('email', email)
+      .ilike('email', email.trim())
       .eq('school_id', schoolId)
       .single();
 

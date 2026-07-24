@@ -424,6 +424,7 @@ const buildAdmissionRecord = (input, filesData = {}) => {
     sports_type: (input.sportsType || '').toUpperCase().trim(),
     upi_transaction_id: (input.upiTransactionId || '').toUpperCase().trim(),
     status: 'pending',
+    school_id: input.schoolId || null,
     // Merge file URLs (from either multipart or direct-upload)
     ...filesData
   };

@@ -415,6 +415,7 @@ function AdmissionForm() {
       ps: getUVal('ps'),
       elective: getUVal('elective'),
       mil: getUVal('mil'),
+      schoolId: schoolProfile?.id || null,
     };
 
     if (!["class10", "class12"].includes(gradeKey)) {

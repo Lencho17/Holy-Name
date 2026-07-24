@@ -82,9 +82,11 @@ router.post('/login', async (req, res) => {
             id: student.id,
             name: student.student_name,
             rollNumber: student.admission_id,
+            admissionId: student.admission_id,
             grade: student.grade,
             email: student.email,
-            school_id: student.school_id
+            school_id: student.school_id,
+            admissionFeePaid: student.admission_fee_paid || false
           }
         });
       }
@@ -192,9 +194,11 @@ router.get('/profile', protectStudent, (req, res) => {
       id: studentProfile.id,
       name: studentProfile.student_name,
       rollNumber: studentProfile.admission_id,
+      admissionId: studentProfile.admission_id,
       grade: studentProfile.grade,
       email: studentProfile.email,
-      school_id: studentProfile.school_id
+      school_id: studentProfile.school_id,
+      admissionFeePaid: studentProfile.admission_fee_paid || false
     } 
   });
 });

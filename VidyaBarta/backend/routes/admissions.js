@@ -643,23 +643,69 @@ router.patch('/:id/status', protect, async (req, res) => {
           return res.status(500).json({ message: 'Failed to create student account during approval.' });
         }
 
-        // Send email with the login credentials
+        // Send email with the login credentials + payment instructions
+        const { data: siteSettings } = await supabase.from('site_settings').select('school_name, school_logo, school_tagline').single();
+        const emailSchoolName = siteSettings?.school_name || 'Our School';
+        const emailSchoolLogo = siteSettings?.school_logo || '';
+        const emailSchoolTagline = siteSettings?.school_tagline || 'Excellence in Education';
+        const portalUrl = process.env.CLIENT_URL ? `${process.env.CLIENT_URL}/login` : 'https://student.vidyabarta.com/login';
+
         const mailOptions = {
-          from: `"Vidyabarta Admissions" <${process.env.EMAIL_USER}>`,
+          from: `"${emailSchoolName} Admissions" <${process.env.EMAIL_USER}>`,
           to: admission.email,
-          subject: 'Welcome! Your Student Portal Login Credentials',
+          subject: `🎉 Admission Approved! Complete Your Enrollment - ${emailSchoolName}`,
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #1e3a8a;">Your admission has been officially approved!</h2>
-              <p>Dear ${admission.student_name},</p>
-              <p>Welcome to the Vidyabarta Student Portal. Below are your official login credentials:</p>
-              <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>Login ID:</strong> <span style="font-family: monospace; font-size: 16px;">${admission.reference_number}</span></p>
-                <p><strong>Temporary Password:</strong> <span style="font-family: monospace; font-size: 16px;">${tempPassword}</span></p>
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #444; max-width: 600px; margin: auto; border: 1px solid #1e3a8a; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+              <div style="background-color: #1e3a8a; color: white; padding: 30px; text-align: center;">
+                ${emailSchoolLogo ? `<img src="${emailSchoolLogo}" alt="${emailSchoolName}" style="max-height: 80px; margin-bottom: 15px; border-radius: 8px;">` : ''}
+                <h1 style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">${emailSchoolName}</h1>
+                <p style="margin: 5px 0 0 0; opacity: 0.9; font-style: italic;">${emailSchoolTagline}</p>
               </div>
-              <p>Please log in at our central student portal:</p>
-              <a href="https://student.vidyabarta.com/login" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Go to Student Portal</a>
-              <p style="margin-top: 30px; font-size: 12px; color: #64748b;">For security reasons, please change your password after logging in for the first time.</p>
+              
+              <div style="padding: 30px; background-color: white;">
+                <div style="background-color: #ecfdf5; border: 2px solid #10b981; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 25px;">
+                  <p style="margin: 0; font-size: 28px;">🎉</p>
+                  <h2 style="color: #059669; margin: 10px 0 5px 0;">Admission Approved!</h2>
+                  <p style="margin: 0; color: #4b5563;">Welcome to the ${emailSchoolName} family</p>
+                </div>
+
+                <p>Dear <strong>${admission.student_name}</strong>,</p>
+                <p>Congratulations! Your admission application (Ref: <strong>${admission.reference_number}</strong>) for <strong>${(admission.grade_applied || '').toUpperCase()}</strong> has been officially approved.</p>
+                
+                <h3 style="color: #1e3a8a; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Your Student Portal Login Credentials</h3>
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e3a8a;">
+                  <p style="margin: 0 0 10px 0;"><strong>Login Email:</strong> <span style="font-family: monospace; font-size: 16px; color: #1e3a8a;">${admission.email}</span></p>
+                  <p style="margin: 0;"><strong>Password:</strong> <span style="font-family: monospace; font-size: 16px; color: #1e3a8a;">${tempPassword}</span></p>
+                </div>
+
+                <h3 style="color: #1e3a8a; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">📋 Steps to Complete Your Enrollment</h3>
+                <ol style="padding-left: 20px; line-height: 2;">
+                  <li><strong>Log in</strong> to the Student Portal using the credentials above.</li>
+                  <li>You will see a <strong>payment banner</strong> prompting you to complete your admission fees.</li>
+                  <li>Click <strong>"Continue to Payment"</strong> to review your details and admission kit.</li>
+                  <li><strong>Verify</strong> your personal information on the verification screen.</li>
+                  <li><strong>Review the Admission Kit</strong> — compulsory items are pre-selected, optional items can be added/removed.</li>
+                  <li><strong>Complete the payment</strong> to finalize your enrollment.</li>
+                  <li><strong>Download your receipts</strong> (Payment Proof + Kit Invoice) after successful payment.</li>
+                </ol>
+
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${portalUrl}" style="display: inline-block; background-color: #1e3a8a; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Go to Student Portal →</a>
+                </div>
+
+                <div style="background-color: #fefce8; border: 1px solid #fbbf24; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                  <p style="margin: 0; font-size: 13px; color: #92400e;"><strong>⚠️ Important:</strong> Please complete the admission fee payment within 7 days to secure your seat. Failure to do so may result in the seat being offered to another applicant.</p>
+                </div>
+
+                <p style="margin-top: 30px;">Warm regards,<br/><strong>Admissions Office</strong><br/>${emailSchoolName}</p>
+              </div>
+              
+              <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+                <p style="font-size: 12px; color: #64748b; margin: 0;">
+                  This is an automated message. Please do not reply to this email.<br/>
+                  &copy; ${new Date().getFullYear()} ${emailSchoolName}. All rights reserved.
+                </p>
+              </div>
             </div>
           `
         };
@@ -740,23 +786,20 @@ router.delete('/bulk', protect, async (req, res) => {
 router.post('/checkout/:refNum', async (req, res) => {
   try {
     const { refNum } = req.params;
-    const { purchasedItems, paymentTotal } = req.body;
+    const { purchasedItems, paymentTotal, transactionId } = req.body;
 
     if (!purchasedItems || typeof paymentTotal === 'undefined') {
       return res.status(400).json({ message: 'purchasedItems and paymentTotal are required.' });
     }
 
-    // Since we don't have direct DB schema access to add purchased_items column right now,
-    // we'll serialize the items into a JSON string and store it in status_remark or another suitable text field,
-    // OR we use upi_transaction_id to simulate payment success flag. 
-    // Ideally we update status_remark with the stringified JSON.
-    const checkoutData = JSON.stringify({ purchasedItems, paymentTotal });
+    const checkoutData = JSON.stringify({ purchasedItems, paymentTotal, paidAt: new Date().toISOString() });
+    const txnId = transactionId || 'TXN-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const { data, error } = await supabase
       .from('admissions')
       .update({
         status_remark: checkoutData,
-        upi_transaction_id: 'PAID-' + Date.now() // Mark as paid with a pseudo-ID
+        upi_transaction_id: txnId
       })
       .eq('reference_number', refNum)
       .select()
@@ -765,7 +808,17 @@ router.post('/checkout/:refNum', async (req, res) => {
     if (error) throw error;
     if (!data) return res.status(404).json({ message: 'Admission not found' });
 
-    res.json({ message: 'Checkout successful', admission: data });
+    // Also mark the student record as fee paid
+    const { error: studentUpdateError } = await supabase
+      .from('students')
+      .update({ admission_fee_paid: true })
+      .eq('admission_id', refNum);
+
+    if (studentUpdateError) {
+      console.error('Warning: Could not update student admission_fee_paid:', studentUpdateError.message);
+    }
+
+    res.json({ message: 'Checkout successful', admission: data, transactionId: txnId });
   } catch (error) {
     console.error('Checkout error:', error);
     res.status(500).json({ message: 'Server error during checkout' });

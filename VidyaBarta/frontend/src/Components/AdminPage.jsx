@@ -466,6 +466,7 @@ function AdminPage() {
   };
 
   const [pageHeroUploading, setPageHeroUploading] = useState({});
+  const [uploadingOptionalItem, setUploadingOptionalItem] = useState(null);
   
   const [editingExcellenceId, setEditingExcellenceId] = useState(null);
   const [excellenceForm, setExcellenceForm] = useState({ _id: null, title: '', name: '', passedYear: '', designation: '', company: '', location: '', message: '', photo: '' });
@@ -5183,7 +5184,7 @@ function AdminPage() {
                 />
                 <button
                   onClick={() => {
-                    const newSeats = admissionPage.vacantSeats.filter((_, idx) => idx !== i);
+                    const newSeats = (admissionPage?.vacantSeats || []).filter((_, idx) => idx !== i);
                     setAdmissionPage({...admissionPage, vacantSeats: newSeats});
                   }}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
@@ -5332,10 +5333,15 @@ function AdminPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           {oItem.image && <img src={oItem.image} alt={oItem.name} className="h-8 w-8 object-cover rounded" />}
-                          <label className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 flex items-center gap-1 font-bold">
-                            <FaImage /> {oItem.image ? 'Change Image' : 'Upload Image'}
+                          <label className={`text-xs px-2 py-1 rounded cursor-pointer flex items-center gap-1 font-bold ${uploadingOptionalItem === `${kIdx}-${oIdx}` ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
+                            {uploadingOptionalItem === `${kIdx}-${oIdx}` ? (
+                              <><FaSpinner className="animate-spin" /> Uploading...</>
+                            ) : (
+                              <><FaImage /> {oItem.image ? 'Change Image' : 'Upload Image'}</>
+                            )}
                             <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                               if (e.target.files[0]) {
+                                setUploadingOptionalItem(`${kIdx}-${oIdx}`);
                                 try {
                                   const url = await uploadImage(e.target.files[0]);
                                   const newKits = [...admissionPage.admissionKits];
@@ -5343,9 +5349,11 @@ function AdminPage() {
                                   setAdmissionPage({ ...admissionPage, admissionKits: newKits });
                                 } catch (err) {
                                   alert("Upload failed: " + err.message);
+                                } finally {
+                                  setUploadingOptionalItem(null);
                                 }
                               }
-                            }} />
+                            }} disabled={uploadingOptionalItem === `${kIdx}-${oIdx}`} />
                           </label>
                           {oItem.image && (
                             <button onClick={() => {

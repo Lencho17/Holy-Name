@@ -327,6 +327,7 @@ export const SiteDataProvider = ({ children }) => {
         if (legacyData.aboutPage && Object.keys(legacyData.aboutPage).length > 0) setAboutPage(legacyData.aboutPage);
         if (legacyData.appointmentSettings && typeof legacyData.appointmentSettings === 'object') setAppointmentSettings(legacyData.appointmentSettings);
         if (legacyData.careerPage && typeof legacyData.careerPage === 'object') setCareerPage(legacyData.careerPage);
+        if (legacyData.admissionPage && typeof legacyData.admissionPage === 'object') setAdmissionPage({ ...defaultAdmissionPage, ...legacyData.admissionPage });
         retryCount = 0; // Reset on success
         setLoading(false);
       } catch (error) {
@@ -422,6 +423,7 @@ export const SiteDataProvider = ({ children }) => {
       if (updatedData.schoolProfile?.isMaintenanceMode !== undefined) setIsMaintenanceMode(updatedData.schoolProfile.isMaintenanceMode);
       if (updatedData.amenities) setAmenities(updatedData.amenities);
       if (updatedData.aboutPage) setAboutPage(updatedData.aboutPage);
+      if (updatedData.admissionPage) setAdmissionPage(updatedData.admissionPage);
 
       // console.log("Auto-save successful");
       return true;

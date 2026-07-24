@@ -304,6 +304,52 @@ function StudentPortal() {
           </div>
         </header>
 
+        {/* Admission Fee Pending Popup/Banner */}
+        {student && !student.admissionFeePaid && student.admissionId && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-bounce-in">
+              {/* Banner header */}
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-white text-center">
+                <div className="text-5xl mb-3">🎓</div>
+                <h2 className="text-2xl font-black">Complete Your Enrollment</h2>
+                <p className="text-white/80 text-sm mt-1">One last step to finalize your admission</p>
+              </div>
+
+              <div className="p-8">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                  <p className="text-amber-800 text-sm font-medium">
+                    <strong>Hi {student.name}!</strong> Your admission has been approved. 
+                    Please complete the admission fee payment and kit selection to activate your full student account.
+                  </p>
+                </div>
+
+                <div className="space-y-3 mb-6 text-sm text-gray-600">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-bold">✓</span>
+                    <span>Application submitted</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-bold">✓</span>
+                    <span>Interview passed</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-xs font-bold animate-pulse">!</span>
+                    <span className="font-bold text-amber-700">Admission fee payment pending</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => navigate(`/admission/checkout/${student.admissionId}`)}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black py-4 rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
+                >
+                  Continue to Payment →
+                </button>
+                <p className="text-xs text-gray-400 text-center mt-3">You can browse the portal after completing payment</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <main className="p-8 max-w-[1440px] w-full mx-auto flex-1">
           {loading ? (
             <div className="flex justify-center py-20">

@@ -34,6 +34,10 @@ async function calculateStudentFee(studentId, trimester = 1, isNewAdmission = fa
     student.schools = school;
     let classLevel = student.grade; // grade is typically the class level e.g., '11', '9'
     
+    if (classLevel && classLevel.includes(' ') && !classLevel.includes('-')) {
+      classLevel = classLevel.split(' ')[0];
+    }
+
     if (['11', '12'].includes(classLevel) && student.stream) {
       const streamCapitalized = student.stream.charAt(0).toUpperCase() + student.stream.slice(1).toLowerCase();
       classLevel = `${classLevel} - ${streamCapitalized}`;

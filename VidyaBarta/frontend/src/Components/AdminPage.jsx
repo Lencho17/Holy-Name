@@ -33,7 +33,7 @@ import CommunicationHub from './CommunicationHub';
 import WalletDashboard from './WalletDashboard';
 import DomainManager from './DomainManager';
 import ClassSubjectConfig from './ClassSubjectConfig';
-
+import ConfirmModal from './ConfirmModal';
 const SidebarItem = ({ active, onClick, icon: Icon, label, children }) => {
   const [isOpen, ReactSetIsOpen] = React.useState(false);
   const isActive = active;
@@ -127,6 +127,8 @@ function AdminPage() {
   const [studentClassFilter, setStudentClassFilter] = useState('');
   const [studentSectionFilter, setStudentSectionFilter] = useState('');
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [studentToDelete, setStudentToDelete] = useState(null);
+  const [isDeletingStudent, setIsDeletingStudent] = useState(false);
   const [showGlobalSearchModal, setShowGlobalSearchModal] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
@@ -1189,6 +1191,28 @@ function AdminPage() {
       setIsImportingStudent(false);
     }
   };
+
+  const handleConfirmDeleteStudent = async () => {
+    if (!studentToDelete) return;
+    setIsDeletingStudent(true);
+    const sId = studentToDelete._id || studentToDelete.id;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/students/${sId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if(res.ok) {
+        setStudents(students.filter(s => (s._id || s.id) !== sId));
+        setStudentToDelete(null);
+      }
+    } catch(err) {
+      alert("Failed to delete student: " + err.message);
+    } finally {
+      setIsDeletingStudent(false);
+    }
+  };
+
 
   const fetchActivities = async () => {
     if (adminUser?.role !== 'developer') return;
@@ -9290,23 +9314,7 @@ function AdminPage() {
                                </select>
 
                                <button 
-                                 onClick={async () => {
-                                   if(window.confirm(`Permanently delete ${student.studentName || student.student_name} from database?`)) {
-                                     try {
-                                        const token = localStorage.getItem('adminToken');
-                                        const res = await fetch(`${API_URL}/students/${sId}`, {
-                                          method: 'DELETE',
-                                          headers: { Authorization: `Bearer ${token}` }
-                                        });
-                                        if(res.ok) {
-                                          setStudents(students.filter(s => (s._id || s.id) !== sId));
-                                          alert("Student deleted permanently.");
-                                        }
-                                     } catch(err) {
-                                       alert("Failed to delete student: " + err.message);
-                                     }
-                                   }
-                                 }} 
+                                 onClick={() => setStudentToDelete(student)} 
                                  className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors mt-1 flex items-center gap-1"
                                >
                                  <FaTrash size={10} /> Delete
@@ -10899,6 +10907,18 @@ function AdminPage() {
 
       </div>
     </main>
+    
+    <ConfirmModal
+      isOpen={!!studentToDelete}
+      title="Delete Student"
+      message={`Permanently delete ${studentToDelete?.studentName || studentToDelete?.student_name} from the database? This action cannot be undone.`}
+      confirmText={isDeletingStudent ? "Deleting..." : "Delete Permanently"}
+      cancelText="Cancel"
+      isDestructive={true}
+      onConfirm={handleConfirmDeleteStudent}
+      onCancel={() => !isDeletingStudent && setStudentToDelete(null)}
+    />
+
   </div>
   );
 }

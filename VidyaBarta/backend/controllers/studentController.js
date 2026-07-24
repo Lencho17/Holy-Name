@@ -174,9 +174,11 @@ exports.updateStudent = async (req, res) => {
   try {
     const updateData = {
       student_name: req.body.name || req.body.studentName || req.body.student_name,
-      admission_id: req.body.rollNumber || req.body.roll_number || req.body.admissionId || req.body.admission_id,
+      admission_id: req.body.admissionId || req.body.admission_id,
+      roll_number: req.body.rollNumber || req.body.roll_number,
       grade: req.body.grade || req.body.classLevel,
       section: req.body.section,
+      blood_group: req.body.bloodGroup || req.body.blood_group,
       guardian_name: req.body.parentsName || req.body.guardianName || req.body.parents_name || req.body.guardian_name,
       father_name: req.body.father_name || req.body.fatherName,
       mother_name: req.body.mother_name || req.body.motherName,
@@ -229,9 +231,11 @@ exports.createStudent = async (req, res) => {
   try {
     const studentData = {
       student_name: req.body.name || req.body.studentName || req.body.student_name,
-      admission_id: req.body.rollNumber || req.body.roll_number || req.body.admissionId || req.body.admission_id,
+      admission_id: req.body.admissionId || req.body.admission_id,
+      roll_number: req.body.rollNumber || req.body.roll_number,
       grade: req.body.grade || req.body.classLevel,
       section: req.body.section,
+      blood_group: req.body.bloodGroup || req.body.blood_group,
       guardian_name: req.body.parentsName || req.body.guardianName || req.body.parents_name || req.body.guardian_name,
       father_name: req.body.father_name || req.body.fatherName,
       mother_name: req.body.mother_name || req.body.motherName,

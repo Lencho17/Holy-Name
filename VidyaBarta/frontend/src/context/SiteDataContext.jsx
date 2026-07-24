@@ -234,6 +234,7 @@ export const SiteDataProvider = ({ children }) => {
   const [amenities, setAmenities] = useState(defaultAmenities);
   const [aboutPage, setAboutPage] = useState(defaultAboutPage);
   const [appointmentSettings, setAppointmentSettings] = useState(defaultAppointmentSettings);
+  const [admissionFee, setAdmissionFee] = useState(500);
   const [loading, setLoading] = useState(true);
 
 
@@ -328,6 +329,7 @@ export const SiteDataProvider = ({ children }) => {
         if (legacyData.appointmentSettings && typeof legacyData.appointmentSettings === 'object') setAppointmentSettings(legacyData.appointmentSettings);
         if (legacyData.careerPage && typeof legacyData.careerPage === 'object') setCareerPage(legacyData.careerPage);
         if (legacyData.admissionPage && typeof legacyData.admissionPage === 'object') setAdmissionPage({ ...defaultAdmissionPage, ...legacyData.admissionPage });
+        if (legacyData.admissionFee !== undefined) setAdmissionFee(legacyData.admissionFee);
         retryCount = 0; // Reset on success
         setLoading(false);
       } catch (error) {
@@ -575,6 +577,7 @@ export const SiteDataProvider = ({ children }) => {
       aboutPage, setAboutPage: wrapSetAboutPage,
       admissionPage, setAdmissionPage: wrapSetAdmissionPage,
       appointmentSettings, setAppointmentSettings: wrapSetAppointmentSettings,
+      admissionFee, setAdmissionFee: (val) => { setAdmissionFee(val); saveToBackend({ admissionFee: val }); },
       careerPage, setCareerPage: (val) => { setCareerPage(val); saveToBackend({ careerPage: val }); },
       updateSiteContent,
       uploadImage,

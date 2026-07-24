@@ -9,7 +9,7 @@ import autoTable from 'jspdf-autotable';
 function AdmissionCheckout() {
   const { refNum } = useParams();
   const navigate = useNavigate();
-  const { API_URL, schoolProfile, admissionPage } = useContext(SiteDataContext);
+  const { API_URL, schoolProfile, admissionPage, admissionFee } = useContext(SiteDataContext);
   const apiBase = API_URL || import.meta.env.VITE_API_URL || '/api';
 
   const [admissionData, setAdmissionData] = useState(null);
@@ -75,7 +75,13 @@ function AdmissionCheckout() {
     }, 0);
   };
 
-  const getTotal = () => getCompulsoryTotal() + getOptionalTotal();
+  const ADMISSION_FEE = admissionData?.dynamic_admission_fee !== undefined && admissionData?.dynamic_admission_fee !== null 
+    ? Number(admissionData.dynamic_admission_fee) 
+    : (admissionFee !== undefined && admissionFee !== null ? Number(admissionFee) : 500);
+  
+  const Q1_FEE = admissionData?.dynamic_q1_fee ? Number(admissionData.dynamic_q1_fee) : 0;
+
+  const getTotal = () => ADMISSION_FEE + Q1_FEE + getCompulsoryTotal() + getOptionalTotal();
 
   const handlePayment = async () => {
     setShowPaymentModal(true);
@@ -246,6 +252,8 @@ function AdmissionCheckout() {
         3: { cellWidth: 30, halign: 'right' }
       },
       foot: [
+        ['', '', 'Admission Fee', `₹${ADMISSION_FEE}`],
+        ['', '', 'Quarter 1 Tuition Fee', `₹${Q1_FEE}`],
         ['', '', 'Compulsory Total', `₹${getCompulsoryTotal()}`],
         ['', '', 'Optional Total', `₹${getOptionalTotal()}`],
         ['', '', 'GRAND TOTAL', `₹${getTotal()}`],
@@ -528,7 +536,17 @@ function AdmissionCheckout() {
                   
                   <div className="space-y-4 mb-8">
                     <div className="flex justify-between items-center text-white/80">
-                      <span>Compulsory Total</span>
+                      <span>Admission Fee</span>
+                      <span className="font-bold text-white">₹{ADMISSION_FEE}</span>
+                    </div>
+                    {Q1_FEE > 0 && (
+                      <div className="flex justify-between items-center text-white/80">
+                        <span>Quarter 1 Tuition Fee</span>
+                        <span className="font-bold text-white">₹{Q1_FEE}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-white/80">
+                      <span>Compulsory Kit Total</span>
                       <span className="font-bold text-white">₹{getCompulsoryTotal()}</span>
                     </div>
                     <div className="flex justify-between items-center text-white/80 pb-4 border-b border-white/20">
@@ -576,6 +594,16 @@ function AdmissionCheckout() {
                 <h3 className="font-bold text-gray-700 mb-4 text-sm uppercase tracking-wider">Payment Summary</h3>
                 
                 <div className="space-y-3 mb-6">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Admission Fee <span className="text-xs text-red-500 font-bold">(Required)</span></span>
+                    <span className="font-bold">₹{ADMISSION_FEE}</span>
+                  </div>
+                  {Q1_FEE > 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Quarter 1 Tuition Fee <span className="text-xs text-red-500 font-bold">(Required)</span></span>
+                      <span className="font-bold">₹{Q1_FEE}</span>
+                    </div>
+                  )}
                   {(kit?.compulsoryItems || []).map((item, idx) => (
                     <div key={`c-${idx}`} className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">{item.name} <span className="text-xs text-red-500 font-bold">(Required)</span></span>

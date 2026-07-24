@@ -370,8 +370,26 @@ router.get('/status', async (req, res) => {
       return res.status(404).json({ message: 'No application found with these details.' });
     }
 
+    // Fetch dynamic admission fee and Q1 fee from fee_structures
+    let admissionFee = null;
+    let q1Fee = 0;
+    if (application.school_id && application.grade_applied) {
+      const classLevel = application.grade_applied.replace(/class\s+/i, '').trim();
+      const { data: feeStructure } = await supabase
+        .from('fee_structures')
+        .select('admission_fee, base_tuition_fee')
+        .eq('school_id', application.school_id)
+        .eq('class_level', classLevel)
+        .maybeSingle();
+      
+      if (feeStructure) {
+        if (feeStructure.admission_fee) admissionFee = feeStructure.admission_fee;
+        if (feeStructure.base_tuition_fee) q1Fee = parseFloat(feeStructure.base_tuition_fee) / 4;
+      }
+    }
+
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.json(application);
+    res.json({ ...application, dynamic_admission_fee: admissionFee, dynamic_q1_fee: q1Fee });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

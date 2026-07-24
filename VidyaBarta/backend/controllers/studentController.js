@@ -354,3 +354,36 @@ exports.importStudent = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+exports.issueReadmission = async (req, res) => {
+  try {
+    const { classes, deadline } = req.body;
+    if (!classes || !deadline) {
+      return res.status(400).json({ message: 'Classes and deadline are required' });
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    let query = supabase
+      .from('students')
+      .update({ 
+        admission_fee_paid: false, 
+        readmission_deadline: deadline 
+      })
+      .eq('school_id', req.user.school_id)
+      .eq('enrollment_status', 'active');
+
+    if (!classes.includes('ALL')) {
+      query = query.in('grade', classes);
+    }
+
+    const { data, error } = await query.select();
+
+    if (error) throw error;
+    res.json({ message: 'Readmission issued successfully', updatedCount: data?.length || 0 });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

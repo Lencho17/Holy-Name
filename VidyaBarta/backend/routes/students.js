@@ -9,7 +9,8 @@ const {
   exportStudents,
   updateStudentStatus,
   globalSearchStudents,
-  importStudent
+  importStudent,
+  issueReadmission
 } = require('../controllers/studentController');
 const { protect, protectAnyStaff } = require('../middleware/auth');
 
@@ -18,6 +19,8 @@ router.route('/')
   .post(protect, createStudent);
 
 router.get('/export', protect, exportStudents);
+
+router.post('/readmission-campaign', protect, issueReadmission);
 
 router.get('/global-search', protect, globalSearchStudents);
 router.put('/:id/status', protect, updateStudentStatus);

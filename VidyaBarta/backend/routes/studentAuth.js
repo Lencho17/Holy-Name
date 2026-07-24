@@ -97,7 +97,8 @@ router.post('/login', async (req, res) => {
             grade: student.grade,
             email: student.email,
             school_id: student.school_id,
-            admissionFeePaid: student.admission_fee_paid || false
+            admissionFeePaid: student.admission_fee_paid || false,
+            readmissionDeadline: student.readmission_deadline || null
           }
         });
       }
@@ -209,7 +210,8 @@ router.get('/profile', protectStudent, (req, res) => {
       grade: studentProfile.grade,
       email: studentProfile.email,
       school_id: studentProfile.school_id,
-      admissionFeePaid: studentProfile.admission_fee_paid || false
+      admissionFeePaid: studentProfile.admission_fee_paid || false,
+      readmissionDeadline: studentProfile.readmission_deadline || null
     } 
   });
 });

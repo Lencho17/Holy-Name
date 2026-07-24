@@ -85,7 +85,7 @@ router.put('/bank-details', protect, async (req, res) => {
 // @access  Public (Student)
 router.get('/my-dues', async (req, res) => {
   try {
-    const { trimester, isNewAdmission, admissionId, contactNumber } = req.query;
+    const { quarter, isNewAdmission, admissionId, contactNumber } = req.query;
     let studentId, studentName, schoolId;
 
     // Check for auth header
@@ -128,7 +128,7 @@ router.get('/my-dues', async (req, res) => {
       schoolId = student.school_id;
     }
 
-    const fee_record_id = `TRIMESTER-${trimester}`;
+    const fee_record_id = `QUARTER-${quarter}`;
 
     // Check if already paid
     const { data: tx, error: txError } = await supabase
@@ -139,7 +139,7 @@ router.get('/my-dues', async (req, res) => {
       .in('status', ['Success', 'completed'])
       .maybeSingle();
 
-    const feeDetails = await calculateStudentFee(studentId, parseInt(trimester) || 1, isNewAdmission === 'true');
+    const feeDetails = await calculateStudentFee(studentId, parseInt(quarter) || 1, isNewAdmission === 'true');
     feeDetails.student_name = studentName;
     feeDetails.fee_record_id = fee_record_id;
     feeDetails.school_id = schoolId;
@@ -157,7 +157,7 @@ router.get('/my-dues', async (req, res) => {
 // @access  Public (Student)
 router.post('/checkout', async (req, res) => {
   try {
-    const { admissionId, contactNumber, trimester, isNewAdmission } = req.body;
+    const { admissionId, contactNumber, quarter, isNewAdmission } = req.body;
     if (!admissionId || !contactNumber) {
       return res.status(400).json({ message: 'Admission ID and Contact Number are required' });
     }
@@ -175,7 +175,7 @@ router.post('/checkout', async (req, res) => {
     }
     
     // 1. Calculate actual dues from backend
-    const feeDetails = await calculateStudentFee(student.id, trimester, isNewAdmission);
+    const feeDetails = await calculateStudentFee(student.id, quarter, isNewAdmission);
     
     if (feeDetails.total <= 0) {
       return res.status(400).json({ message: 'No dues to pay' });

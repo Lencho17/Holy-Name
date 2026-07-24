@@ -22,11 +22,11 @@ const StudentDues = () => {
       const token = localStorage.getItem('studentToken');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       
-      const promises = [1, 2, 3].map(tri => 
+      const promises = [1, 2, 3, 4].map(q => 
         axios.get(`${API_URL}/fees/my-dues`, {
-          params: { ...formData, trimester: tri },
+          params: { ...formData, quarter: q },
           headers
-        }).then(res => ({ trimester: tri, data: res.data }))
+        }).then(res => ({ quarter: q, data: res.data }))
       );
 
       const results = await Promise.all(promises);
@@ -140,16 +140,16 @@ const StudentDues = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-            {allDues.map(({ trimester, data }) => {
-              const isPopular = trimester === 1; // Highlight first trimester or next unpaid
+            {allDues.map(({ quarter, data }) => {
+              const isPopular = quarter === 1; // Highlight first quarter or next unpaid
               const CardWrapper = isPopular ? 'div' : 'div';
               const isPaid = data.isPaid;
               const hasNoFees = Object.keys(data.breakdown).length === 0;
 
               if (isPopular) {
                 return (
-                  <div key={trimester} className="bg-primary p-8 rounded-3xl shadow-xl border border-primary flex flex-col relative transform md:-translate-y-4">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-secondary text-white px-4 py-1 rounded-full text-label-sm font-bold uppercase tracking-wide">Trimester {trimester}</div>
+                  <div key={quarter} className="bg-primary p-8 rounded-3xl shadow-xl border border-primary flex flex-col relative transform md:-translate-y-4">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-secondary text-white px-4 py-1 rounded-full text-label-sm font-bold uppercase tracking-wide">Quarter {quarter}</div>
                     
                     <h3 className="text-title-lg font-bold text-white mb-2">Current Dues</h3>
                     <p className="text-body-sm text-white/80 mb-6">Standard fee schedule for this term.</p>
@@ -179,11 +179,11 @@ const StudentDues = () => {
                       </div>
                     ) : data.total > 0 ? (
                       <button 
-                        onClick={() => handlePay(data, trimester)}
-                        disabled={payingTrimester === trimester}
+                        onClick={() => handlePay(data, quarter)}
+                        disabled={payingTrimester === quarter}
                         className="w-full py-3 rounded-xl bg-white text-primary font-bold hover:bg-white/90 transition-colors shadow-lg flex justify-center items-center gap-2 disabled:opacity-50"
                       >
-                        {payingTrimester === trimester ? <FaSpinner className="animate-spin" /> : <FaRupeeSign />} Pay Now
+                        {payingTrimester === quarter ? <FaSpinner className="animate-spin" /> : <FaRupeeSign />} Pay Now
                       </button>
                     ) : (
                       <div className="w-full py-3 rounded-xl bg-white/10 text-white/50 text-center font-bold">No Dues</div>
@@ -193,8 +193,8 @@ const StudentDues = () => {
               }
 
               return (
-                <div key={trimester} className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant flex flex-col hover:-translate-y-1 transition-transform duration-300 relative">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface-variant text-on-surface-variant border border-outline-variant px-4 py-1 rounded-full text-label-sm font-bold uppercase tracking-wide">Trimester {trimester}</div>
+                <div key={quarter} className="bg-surface p-8 rounded-3xl shadow-sm border border-outline-variant flex flex-col hover:-translate-y-1 transition-transform duration-300 relative">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface-variant text-on-surface-variant border border-outline-variant px-4 py-1 rounded-full text-label-sm font-bold uppercase tracking-wide">Quarter {quarter}</div>
                   
                   <h3 className="text-title-lg font-bold text-neutral mb-2 mt-2">Upcoming Dues</h3>
                   <p className="text-body-sm text-on-surface-variant mb-6">Standard fee schedule for this term.</p>
@@ -224,11 +224,11 @@ const StudentDues = () => {
                     </div>
                   ) : data.total > 0 ? (
                     <button 
-                      onClick={() => handlePay(data, trimester)}
-                      disabled={payingTrimester === trimester}
+                      onClick={() => handlePay(data, quarter)}
+                      disabled={payingTrimester === quarter}
                       className="w-full py-3 rounded-xl border border-primary text-primary font-bold hover:bg-primary/5 transition-colors flex justify-center items-center gap-2 disabled:opacity-50"
                     >
-                      {payingTrimester === trimester ? <FaSpinner className="animate-spin" /> : <FaRupeeSign />} Pay Now
+                      {payingTrimester === quarter ? <FaSpinner className="animate-spin" /> : <FaRupeeSign />} Pay Now
                     </button>
                   ) : (
                     <div className="w-full py-3 rounded-xl bg-surface-variant text-on-surface-variant/50 text-center font-bold">No Dues</div>

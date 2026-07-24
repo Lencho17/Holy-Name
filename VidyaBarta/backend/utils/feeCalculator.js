@@ -1,12 +1,12 @@
 const supabase = require('../config/supabase');
 
 /**
- * Calculates the fee for a student for a specific trimester.
+ * Calculates the fee for a student for a specific quarter.
  * @param {string} studentId - The UUID of the student
- * @param {number} trimester - The trimester number (1, 2, or 3)
+ * @param {number} quarter - The quarter number (1, 2, 3, or 4)
  * @param {boolean} isNewAdmission - Whether the student is a new admission this year
  */
-async function calculateStudentFee(studentId, trimester = 1, isNewAdmission = false) {
+async function calculateStudentFee(studentId, quarter = 1, isNewAdmission = false) {
   try {
     // 1. Fetch student details
     const { data: student, error: studentError } = await supabase
@@ -59,16 +59,16 @@ async function calculateStudentFee(studentId, trimester = 1, isNewAdmission = fa
     let total = 0;
     const breakdown = {};
 
-    // Base Tuition Fee per trimester
+    // Base Tuition Fee per quarter
     const tuitionFee = parseFloat(feeStructure.base_tuition_fee || 0);
     if (tuitionFee > 0) {
-      breakdown['Tuition Fee (Trimester ' + trimester + ')'] = tuitionFee;
+      breakdown['Tuition Fee (Quarter ' + quarter + ')'] = tuitionFee;
       total += tuitionFee;
     }
 
-    // New Admission Fee (Usually charged only in Trimester 1, and NOT for Class 10+)
+    // New Admission Fee (Usually charged only in Quarter 1, and NOT for Class 10+)
     const classNum = parseInt(classLevel.replace(/[^0-9]/g, ''), 10) || 0;
-    if (isNewAdmission && trimester === 1 && classNum < 10) {
+    if (isNewAdmission && quarter === 1 && classNum < 10) {
       const admissionFee = parseFloat(feeStructure.admission_fee || 0);
       if (admissionFee > 0) {
         breakdown['New Admission Fee'] = admissionFee;

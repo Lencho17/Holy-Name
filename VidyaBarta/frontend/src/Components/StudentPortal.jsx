@@ -25,6 +25,8 @@ function StudentPortal() {
   const [loading, setLoading] = useState(true);
   const [showUdiseBanner, setShowUdiseBanner] = useState(true);
   const navigate = useNavigate();
+  
+  const hasPendingFees = !student?.admissionFeePaid || fees.some(f => f.status === 'Pending' || f.status === 'Overdue');
 
   // Results & Grievance State
   const [publishedResults, setPublishedResults] = useState([]);
@@ -304,22 +306,30 @@ function StudentPortal() {
           </div>
         </header>
 
-        {/* Admission Fee Pending Popup/Banner */}
+        {/* Admission / Readmission Fee Pending Popup/Banner */}
         {student && !student.admissionFeePaid && student.admissionId && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-bounce-in">
               {/* Banner header */}
               <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-white text-center">
                 <div className="text-5xl mb-3">🎓</div>
-                <h2 className="text-2xl font-black">Complete Your Enrollment</h2>
-                <p className="text-white/80 text-sm mt-1">One last step to finalize your admission</p>
+                <h2 className="text-2xl font-black">
+                  {student.readmissionDeadline ? "Readmission Due" : "Complete Your Enrollment"}
+                </h2>
+                <p className="text-white/80 text-sm mt-1">
+                  {student.readmissionDeadline 
+                    ? `Please complete your readmission before ${student.readmissionDeadline}`
+                    : "One last step to finalize your admission"}
+                </p>
               </div>
 
               <div className="p-8">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
                   <p className="text-amber-800 text-sm font-medium">
-                    <strong>Hi {student.name}!</strong> Your admission has been approved. 
-                    Please complete the admission fee payment and kit selection to activate your full student account.
+                    <strong>Hi {student.name}!</strong>{" "}
+                    {student.readmissionDeadline
+                      ? "You have been promoted to the next class! Please complete your readmission fee payment and Quarter 1 fees to activate your account for the new academic year."
+                      : "Your admission has been approved. Please complete the admission fee payment and kit selection to activate your full student account."}
                   </p>
                 </div>
 
@@ -754,13 +764,25 @@ function StudentPortal() {
                               <h4 className="font-bold text-gray-800">{pr.name}</h4>
                               <p className="text-xs text-gray-500">Published: {new Date(pr.published_date).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</p>
                             </div>
-                            <button className="text-blue-600 text-sm font-bold bg-blue-50 px-3 py-1.5 rounded-lg">Download SVG Card</button>
+                            {hasPendingFees ? (
+                              <div className="text-red-500 text-xs font-bold px-3 py-1.5 bg-red-50 rounded-lg border border-red-100">
+                                Pending Fees - Download Disabled
+                              </div>
+                            ) : (
+                              <button className="text-blue-600 text-sm font-bold bg-blue-50 px-3 py-1.5 rounded-lg">Download SVG Card</button>
+                            )}
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {pr.marks.map((m, i) => (
                               <div key={i} className="bg-white p-2 rounded border border-gray-100 text-center">
                                 <div className="text-xs text-gray-500 font-bold">{m.subject?.replace(/^VB-?/, '')}</div>
-                                <div className="text-sm font-black text-gray-800">{m.obtained}/{m.max}</div>
+                                {hasPendingFees ? (
+                                  <div className="text-sm font-black text-gray-800">
+                                    {Math.round((m.obtained / m.max) * 100)}%
+                                  </div>
+                                ) : (
+                                  <div className="text-sm font-black text-gray-800">{m.obtained}/{m.max}</div>
+                                )}
                               </div>
                             ))}
                           </div>

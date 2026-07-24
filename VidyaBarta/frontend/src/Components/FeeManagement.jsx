@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaMoneyCheckAlt, FaLandmark, FaExchangeAlt, FaSpinner, FaFileInvoiceDollar } from 'react-icons/fa';
+import { FaMoneyCheckAlt, FaLandmark, FaExchangeAlt, FaSpinner, FaFileInvoiceDollar, FaBullhorn } from 'react-icons/fa';
 import FeeConfiguration from './FeeConfiguration';
 import BankDetails from './BankDetails';
+import ReadmissionCampaign from './ReadmissionCampaign';
 
 const FeeManagement = ({ apiUrl, token }) => {
   const [activeTab, setActiveTab] = useState('configuration');
@@ -56,6 +57,12 @@ const FeeManagement = ({ apiUrl, token }) => {
           <FaLandmark className="inline mr-2" /> Bank Details
         </button>
         <button
+          onClick={() => setActiveTab('readmission')}
+          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'readmission' ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+        >
+          <FaBullhorn className="inline mr-2" /> Readmissions
+        </button>
+        <button
           onClick={() => setActiveTab('transactions')}
           className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'transactions' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
         >
@@ -65,6 +72,7 @@ const FeeManagement = ({ apiUrl, token }) => {
 
       {activeTab === 'configuration' && <FeeConfiguration apiUrl={apiUrl} token={token} />}
       {activeTab === 'bank' && <BankDetails apiUrl={apiUrl} token={token} />}
+      {activeTab === 'readmission' && <ReadmissionCampaign apiUrl={apiUrl} token={token} />}
       
       {activeTab === 'transactions' && (
         <div className="space-y-6">

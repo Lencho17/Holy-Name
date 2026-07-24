@@ -648,7 +648,7 @@ router.patch('/:id/status', protect, async (req, res) => {
         const emailSchoolName = siteSettings?.school_name || 'Our School';
         const emailSchoolLogo = siteSettings?.school_logo || '';
         const emailSchoolTagline = siteSettings?.school_tagline || 'Excellence in Education';
-        const portalUrl = process.env.CLIENT_URL ? `${process.env.CLIENT_URL}/login` : 'https://student.vidyabarta.com/login';
+        const portalUrl = 'https://student.vidyabarta.com/login';
 
         const mailOptions = {
           from: `"${emailSchoolName} Admissions" <${process.env.EMAIL_USER}>`,

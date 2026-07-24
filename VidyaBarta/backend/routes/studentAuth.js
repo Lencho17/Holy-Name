@@ -36,11 +36,11 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Please provide roll number, password, and select a school' });
     }
 
-    // Find student by email AND school_id
+    // Find student by email AND school_id (case-insensitive email search)
     const { data: student, error } = await supabase
       .from('students')
       .select('*')
-      .eq('email', rollNumber)
+      .ilike('email', rollNumber.trim())
       .eq('school_id', schoolId)
       .single();
 
@@ -56,7 +56,18 @@ router.post('/login', async (req, res) => {
     const dobParts = student.date_of_birth.split('-');
     const dobFormatted = dobParts.length === 3 ? `${dobParts[2]}${dobParts[1]}${dobParts[0]}` : null;
     
-    const isMatch = (password === student.date_of_birth) || (dobFormatted && password === dobFormatted);
+    // Also check against the hashed password in the database
+    const bcrypt = require('bcryptjs');
+    let isHashMatch = false;
+    if (student.password) {
+      isHashMatch = await bcrypt.compare(password, student.password);
+      if (!isHashMatch) {
+        // Fallback: check if the user typed the generated hex password in uppercase
+        isHashMatch = await bcrypt.compare(password.toLowerCase(), student.password);
+      }
+    }
+    
+    const isMatch = isHashMatch || (password === student.date_of_birth) || (dobFormatted && password === dobFormatted);
 
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });

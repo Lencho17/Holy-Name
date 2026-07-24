@@ -8,7 +8,8 @@ yarn-error.log*
 lerna-debug.log*
 DataFlow/vidyabarta_dataflow_supabase.png
 DataFlow/vidyabarta_dataflow.png
-vidyabarta_rd
+vidyabarta_rdbms_supabase.png
+vidyabarta_rdbms.png
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

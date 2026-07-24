@@ -485,7 +485,7 @@ function StudentPortal() {
                         {grades.length > 0 ? grades.slice(0, 5).map((grade, idx) => (
                           <tr key={idx} className="hover:bg-white/60 transition-colors group">
                             <td className="py-4 pl-2">
-                              <p className="text-sm font-bold text-gray-800">{grade.exams?.exam_name || 'N/A'}</p>
+                              <p className="text-sm font-bold text-gray-800">{grade.exams?.name || 'N/A'}</p>
                             </td>
                             <td className="py-4 text-sm text-gray-600 font-medium">{grade.subject?.replace(/^VB-?/, '')}</td>
                             <td className="py-4 text-sm text-gray-800 font-bold">{grade.marks_obtained} <span className="text-gray-400 font-normal">/ {grade.total_marks}</span></td>
@@ -849,7 +849,7 @@ function StudentPortal() {
                             <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4 text-sm text-gray-500 font-mono">SBJ-{idx+1}01</td>
                               <td className="px-6 py-4 text-sm font-bold text-gray-900">{grade.subject?.replace(/^VB-?/, '')}</td>
-                              <td className="px-6 py-4 text-center text-sm text-gray-500">{grade.exams?.exam_name || 'N/A'}</td>
+                              <td className="px-6 py-4 text-center text-sm text-gray-500">{grade.exams?.name || 'N/A'}</td>
                               <td className="px-6 py-4 text-center">
                                 <div className="flex flex-col items-center justify-center">
                                   {grade.timetable?.has_practical ? (

@@ -267,7 +267,7 @@ const UdiseStudentForm = () => {
                 </div>
                 <div>
                   <label className={labelClass}>Admission Date</label>
-                  <input type="text" name="admissionDate" value={formData.admissionDate} readOnly className={`${inputClass} bg-gray-100 text-gray-500`} />
+                  <input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleInputChange} className={inputClass} required />
                 </div>
                 <div>
                   <label className={labelClass}>Class (Auto-detected)</label>
@@ -275,7 +275,7 @@ const UdiseStudentForm = () => {
                 </div>
                 <div>
                   <label className={labelClass}>Section</label>
-                  <input type="text" name="section" value={formData.section} readOnly className={`${inputClass} bg-gray-100 text-gray-500`} />
+                  <input type="text" name="section" value={formData.section} onChange={handleInputChange} className={inputClass} />
                 </div>
               </div>
 

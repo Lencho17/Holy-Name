@@ -36,21 +36,49 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Please provide roll number, password, and select a school' });
     }
 
-    // Find student by email AND school_id (case-insensitive email search)
-    const { data: student, error } = await supabase
+    // Find students by email or admission_id (case-insensitive)
+    const { data: students, error } = await supabase
       .from('students')
       .select('*')
-      .ilike('email', rollNumber.trim())
-      .eq('school_id', schoolId)
-      .single();
+      .or(`email.ilike."${rollNumber.trim()}",admission_id.eq."${rollNumber.trim()}"`)
+      .eq('school_id', schoolId);
 
-    if (error || !student) {
+    if (error || !students || students.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    if (!student.date_of_birth) {
-      return res.status(401).json({ message: 'Date of Birth not registered. Please contact your administrator.' });
+    let matchedStudent = null;
+    const bcrypt = require('bcryptjs');
+
+    for (let currentStudent of students) {
+      if (!currentStudent.date_of_birth) continue;
+
+      let isHashMatch = false;
+      if (currentStudent.password) {
+        isHashMatch = await bcrypt.compare(password, currentStudent.password);
+        if (!isHashMatch) {
+          // Fallback: check if the user typed the generated hex password in uppercase
+          isHashMatch = await bcrypt.compare(password.toLowerCase(), currentStudent.password);
+        }
+      }
+
+      // Check password against date of birth (support YYYY-MM-DD or DDMMYYYY)
+      const dobParts = currentStudent.date_of_birth.split('-');
+      const dobFormatted = dobParts.length === 3 ? `${dobParts[2]}${dobParts[1]}${dobParts[0]}` : null;
+      
+      const isMatch = isHashMatch || (password === currentStudent.date_of_birth) || (dobFormatted && password === dobFormatted);
+
+      if (isMatch) {
+        matchedStudent = currentStudent;
+        break;
+      }
     }
+
+    if (!matchedStudent) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const student = matchedStudent;
 
     // Check Readmission Inactive Logic
     if (student.enrollment_status !== 'inactive' && !student.admission_fee_paid && student.readmission_deadline) {
@@ -64,27 +92,6 @@ router.post('/login', async (req, res) => {
           .eq('id', student.id);
         student.enrollment_status = 'inactive';
       }
-    }
-
-    // Check password against date of birth (support YYYY-MM-DD or DDMMYYYY)
-    const dobParts = student.date_of_birth.split('-');
-    const dobFormatted = dobParts.length === 3 ? `${dobParts[2]}${dobParts[1]}${dobParts[0]}` : null;
-    
-    // Also check against the hashed password in the database
-    const bcrypt = require('bcryptjs');
-    let isHashMatch = false;
-    if (student.password) {
-      isHashMatch = await bcrypt.compare(password, student.password);
-      if (!isHashMatch) {
-        // Fallback: check if the user typed the generated hex password in uppercase
-        isHashMatch = await bcrypt.compare(password.toLowerCase(), student.password);
-      }
-    }
-    
-    const isMatch = isHashMatch || (password === student.date_of_birth) || (dobFormatted && password === dobFormatted);
-
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Create JWT payload

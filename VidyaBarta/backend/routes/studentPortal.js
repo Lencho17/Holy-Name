@@ -80,6 +80,10 @@ router.get('/courses', protectStudent, async (req, res) => {
     const student = req.student;
     const parsed = parseStudentClass(student);
     
+    const d = new Date();
+    const year = d.getFullYear();
+    const currentSession = d.getMonth() >= 3 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+
     // 1. Get Class Teacher
     let classTeacher = 'Not Assigned';
     const { data: assignmentData } = await supabase
@@ -132,7 +136,7 @@ router.get('/courses', protectStudent, async (req, res) => {
     res.json({
       currentClass: parsed.classLevel,
       section: parsed.section,
-      session: '2024-2025',
+      session: currentSession,
       classTeacher,
       subjects: subjectsList
     });

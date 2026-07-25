@@ -103,13 +103,7 @@ const StudentDues = () => {
                 </div>
               </>
             )}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Are you a new admission this year?</label>
-              <select value={formData.isNewAdmission} onChange={e => setFormData({...formData, isNewAdmission: e.target.value})} className="w-full md:w-1/2 border-gray-300 border p-3 rounded-xl focus:ring-2 focus:ring-blue-500">
-                <option value="false">No (Returning Student)</option>
-                <option value="true">Yes (New Student)</option>
-              </select>
-            </div>
+
           </div>
           
           {error && (
@@ -155,7 +149,7 @@ const StudentDues = () => {
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-secondary text-white px-4 py-1 rounded-full text-label-sm font-bold uppercase tracking-wide">Quarter {quarter}</div>
                     
                     <h3 className="text-title-lg font-bold text-white mb-2">Current Dues</h3>
-                    <p className="text-body-sm text-white/80 mb-6">Standard fee schedule for this term.</p>
+                    <p className="text-body-sm text-white/80 mb-6">{quarter === 1 ? 'April - June' : quarter === 2 ? 'July - September' : quarter === 3 ? 'October - December' : 'January - March'}</p>
                     
                     <p className="text-display-sm font-bold text-white mb-6">
                       ₹{data.total.toFixed(2)}<span className="text-title-sm font-normal text-white/80 ml-1">total</span>
@@ -200,7 +194,7 @@ const StudentDues = () => {
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface-variant text-on-surface-variant border border-outline-variant px-4 py-1 rounded-full text-label-sm font-bold uppercase tracking-wide">Quarter {quarter}</div>
                   
                   <h3 className="text-title-lg font-bold text-neutral mb-2 mt-2">Upcoming Dues</h3>
-                  <p className="text-body-sm text-on-surface-variant mb-6">Standard fee schedule for this term.</p>
+                  <p className="text-body-sm text-on-surface-variant mb-6">{quarter === 1 ? 'April - June' : quarter === 2 ? 'July - September' : quarter === 3 ? 'October - December' : 'January - March'}</p>
                   
                   <p className="text-display-sm font-bold text-neutral mb-6">
                     ₹{data.total.toFixed(2)}<span className="text-title-sm font-normal text-on-surface-variant ml-1">total</span>

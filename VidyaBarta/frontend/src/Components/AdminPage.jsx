@@ -5287,7 +5287,7 @@ function AdminPage() {
                           newKits[kIdx].compulsoryItems[cIdx].name = e.target.value;
                           setAdmissionPage({ ...admissionPage, admissionKits: newKits });
                         }} placeholder="Item Name" className="flex-1 p-1 text-sm border rounded" />
-                        <input type="number" value={cItem.price} onChange={(e) => {
+                        <input type="text" value={cItem.price} onChange={(e) => {
                           const newKits = [...admissionPage.admissionKits];
                           newKits[kIdx].compulsoryItems[cIdx].price = e.target.value;
                           setAdmissionPage({ ...admissionPage, admissionKits: newKits });
@@ -5320,7 +5320,7 @@ function AdminPage() {
                             newKits[kIdx].optionalItems[oIdx].name = e.target.value;
                             setAdmissionPage({ ...admissionPage, admissionKits: newKits });
                           }} placeholder="Item Name" className="flex-1 p-1 text-sm border rounded" />
-                          <input type="number" value={oItem.price} onChange={(e) => {
+                          <input type="text" value={oItem.price} onChange={(e) => {
                             const newKits = [...admissionPage.admissionKits];
                             newKits[kIdx].optionalItems[oIdx].price = e.target.value;
                             setAdmissionPage({ ...admissionPage, admissionKits: newKits });

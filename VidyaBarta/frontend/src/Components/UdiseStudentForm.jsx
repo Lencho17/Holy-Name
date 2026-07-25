@@ -49,7 +49,6 @@ const UdiseStudentForm = () => {
     height: '',
     weight: '',
     
-    bothParentsDeceased: false,
     motherTitle: 'Mrs.',
     motherName: student?.mother_name || '',
     motherAadhaar: '',
@@ -304,14 +303,8 @@ const UdiseStudentForm = () => {
             <div className="space-y-6 animate-fade-in">
               <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">Parent/Guardian Data</h2>
               
-              <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <input type="checkbox" id="bothParentsDeceased" name="bothParentsDeceased" checked={formData.bothParentsDeceased} onChange={handleInputChange} className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary" />
-                <label htmlFor="bothParentsDeceased" className="font-semibold text-gray-700">Both parents deceased?</label>
-              </div>
-
-              {!formData.bothParentsDeceased && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Mother Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+                {/* Mother Details */}
                   <div className="space-y-4 p-5 bg-pink-50/30 rounded-2xl border border-pink-100">
                     <h3 className="text-lg font-bold text-pink-800">Mother's Details</h3>
                     <div>
@@ -358,9 +351,8 @@ const UdiseStudentForm = () => {
                     </div>
                   </div>
                 </div>
-              )}
 
-              {(formData.bothParentsDeceased || (formData.motherTitle === 'Late' && formData.fatherTitle === 'Late')) && (
+              {(formData.motherTitle === 'Late' && formData.fatherTitle === 'Late') && (
                 <div className="space-y-4 p-5 bg-orange-50/30 rounded-2xl border border-orange-100 mt-6 animate-fade-in">
                   <h3 className="text-lg font-bold text-orange-800">Guardian's Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

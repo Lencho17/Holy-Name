@@ -366,18 +366,42 @@ router.get('/status', async (req, res) => {
       .or(`reference_number.eq."${q.toUpperCase().trim()}",email.eq."${q.toLowerCase().trim()}"`)
       .maybeSingle();
 
+    let applicationData = application;
+
     if (error || !application) {
-      return res.status(404).json({ message: 'No application found with these details.' });
+      // Fallback: Check if it's an existing student's admission_id (e.g., manually added students)
+      const { data: student, error: studentError } = await supabase
+        .from('students')
+        .select('*')
+        .or(`admission_id.eq."${q.toUpperCase().trim()}",email.eq."${q.toLowerCase().trim()}"`)
+        .maybeSingle();
+
+      if (studentError || !student) {
+        return res.status(404).json({ message: 'No application found with these details.' });
+      }
+
+      // Map student to application format
+      applicationData = {
+        reference_number: student.admission_id,
+        student_name: student.student_name,
+        email: student.email,
+        contact_number: student.contact_number,
+        grade_applied: student.grade,
+        date_of_birth: student.date_of_birth,
+        gender: student.gender,
+        father_name: student.father_name || student.guardian_name,
+        school_id: student.school_id
+      };
     }
 
     // Fetch dynamic admission fee and Q1 fee from fee_structures
     let admissionFee = null;
     let q1Fee = 0;
     
-    let targetSchoolId = application.school_id || school_id;
+    let targetSchoolId = applicationData.school_id || school_id;
 
-    if (targetSchoolId && application.grade_applied) {
-      let classLevel = application.grade_applied.replace(/class\s+/i, '').trim().toUpperCase();
+    if (targetSchoolId && applicationData.grade_applied) {
+      let classLevel = applicationData.grade_applied.replace(/class\s+/i, '').trim().toUpperCase();
       
       const romanToArabic = { 'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8', 'IX': '9', 'X': '10', 'XI': '11', 'XII': '12' };
       const arabicToRoman = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X', '11': 'XI', '12': 'XII' };
@@ -400,12 +424,12 @@ router.get('/status', async (req, res) => {
     }
 
     // Apply 100% discount to Admission Fee if prospectus code was used
-    if (application.prospectus_code) {
+    if (applicationData.prospectus_code) {
       admissionFee = 0;
     }
 
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.json({ ...application, dynamic_admission_fee: admissionFee, dynamic_q1_fee: 0 });
+    res.json({ ...applicationData, dynamic_admission_fee: admissionFee, dynamic_q1_fee: 0 });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

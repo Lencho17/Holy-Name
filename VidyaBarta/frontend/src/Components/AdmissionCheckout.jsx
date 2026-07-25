@@ -254,7 +254,7 @@ function AdmissionCheckout() {
       });
     }
     const footArr = [
-      ['', '', 'New Admission Fee', `₹${ADMISSION_FEE}`]
+      ['', '', admissionData?.is_readmission ? 'Readmission Fee' : 'New Admission Fee', `₹${ADMISSION_FEE}`]
     ];
     if (Q1_FEE > 0) footArr.push(['', '', 'Quarter 1 Tuition Fee', `₹${Q1_FEE}`]);
     footArr.push(['', '', 'Compulsory Total', `₹${getCompulsoryTotal()}`]);
@@ -559,7 +559,7 @@ function AdmissionCheckout() {
                   
                   <div className="space-y-4 mb-8">
                     <div className="flex justify-between items-center text-white/80 pb-3 border-b border-white/20">
-                      <span>New Admission Fee</span>
+                      <span>{admissionData?.is_readmission ? "Readmission Fee" : "New Admission Fee"}</span>
                       <span className="font-bold text-white">₹{ADMISSION_FEE}</span>
                     </div>
                     {Q1_FEE > 0 && (
@@ -618,7 +618,7 @@ function AdmissionCheckout() {
                 
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">New Admission Fee <span className="text-xs text-red-500 font-bold">(Required)</span></span>
+                    <span className="text-gray-600">{admissionData?.is_readmission ? "Readmission Fee" : "New Admission Fee"} <span className="text-xs text-red-500 font-bold">(Required)</span></span>
                     <span className="font-bold">₹{ADMISSION_FEE}</span>
                   </div>
                   {Q1_FEE > 0 && (

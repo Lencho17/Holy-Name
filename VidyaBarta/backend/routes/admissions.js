@@ -21,7 +21,7 @@ function calculateNextGrade(currentGrade) {
   let index = -1;
   for (let i = 0; i < grades.length; i++) {
     let gBase = grades[i].replace('CLASS ', '');
-    if (base === gBase || upper.includes(grades[i])) {
+    if (base === gBase) {
       index = i;
       break;
     }
@@ -472,6 +472,10 @@ router.get('/status', async (req, res) => {
 
     // Apply 100% discount to Admission Fee if prospectus code was used
     if (applicationData.prospectus_code) {
+      admissionFee = 0;
+    }
+
+    if (applicationData.is_readmission) {
       admissionFee = 0;
     }
 

@@ -44,12 +44,10 @@ const WebcamCapture = ({ onCapture, label }) => {
     setIsProcessing(true);
     
     try {
-      // Convert base64 to blob for API
-      const response = await fetch(base64Image);
-      const originalBlob = await response.blob();
+      const base64Data = base64Image.split(',')[1];
       
       const formData = new FormData();
-      formData.append('image_file', originalBlob, 'capture.jpg');
+      formData.append('image_file_b64', base64Data);
       formData.append('size', 'auto');
       formData.append('bg_color', 'blue');
       
@@ -127,7 +125,7 @@ const WebcamCapture = ({ onCapture, label }) => {
               className="w-full h-[240px] object-cover"
             />
             {/* Camera Overlay for face alignment */}
-            <div className="absolute inset-6 z-10 border-2 border-white/50 border-dashed rounded-[30%] pointer-events-none shadow-[0_0_0_999px_rgba(0,0,0,0.2)]"></div>
+            <div className="absolute inset-x-12 inset-y-6 z-10 border-2 border-white/60 border-dashed rounded-[40%] pointer-events-none"></div>
             
             <button 
               type="button"

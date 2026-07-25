@@ -154,7 +154,8 @@ function AdmissionCheckout() {
     doc.text(schoolProfile?.name || "Our School", 105, 18, { align: 'center' });
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(schoolProfile?.officeAddress || "Assam, India", 105, 25, { align: 'center' });
+    const safeAddress = (schoolProfile?.officeAddress || "Assam, India").replace(/\n/g, ', ');
+    doc.text(safeAddress, 105, 25, { align: 'center' });
     doc.text(`Phone: ${schoolProfile?.phone || ''} | Email: ${schoolProfile?.email || ''}`, 105, 30, { align: 'center' });
     doc.setDrawColor(...primaryColor);
     doc.setLineWidth(0.5);
@@ -191,7 +192,7 @@ function AdmissionCheckout() {
         ['Email', admissionData?.email || 'N/A'],
         ['Contact', admissionData?.contact_number || admissionData?.contactNumber || 'N/A'],
         ['Payment Date', dateStr],
-        ['Total Amount Paid', `₹${getTotal()}`],
+        ['Total Amount Paid', `Rs. ${getTotal()}`],
         ['Payment Status', 'SUCCESSFUL ✓'],
       ],
       theme: 'plain',
@@ -243,38 +244,68 @@ function AdmissionCheckout() {
 
     const tableData = [];
     let slNo = 1;
+    const itemImages = {};
+    
+    // Preload images
+    const loadItemImage = async (item, rowIndex) => {
+      if (item.image) {
+        const img = await loadImage(item.image);
+        if (img) itemImages[rowIndex] = img;
+      }
+    };
+
+    const preloadPromises = [];
+
     if (kit?.compulsoryItems) {
       kit.compulsoryItems.forEach(item => {
-        tableData.push([slNo++, item.name, "Compulsory", `₹${Number(item.price) || 0}`]);
+        tableData.push([slNo++, '', item.name, "Compulsory", `Rs. ${Number(item.price) || 0}`]);
+        preloadPromises.push(loadItemImage(item, tableData.length - 1));
       });
     }
     if (kit?.optionalItems) {
       kit.optionalItems.filter(i => selectedOptional[i.name]).forEach(item => {
-        tableData.push([slNo++, item.name, "Optional", `₹${Number(item.price) || 0}`]);
+        tableData.push([slNo++, '', item.name, "Optional", `Rs. ${Number(item.price) || 0}`]);
+        preloadPromises.push(loadItemImage(item, tableData.length - 1));
       });
     }
+    
+    await Promise.all(preloadPromises);
+
     const footArr = [
-      ['', '', admissionData?.is_readmission ? 'Readmission Fee' : 'New Admission Fee', `₹${ADMISSION_FEE}`]
+      ['', '', '', admissionData?.is_readmission ? 'Readmission Fee' : 'New Admission Fee', `Rs. ${ADMISSION_FEE}`]
     ];
-    if (Q1_FEE > 0) footArr.push(['', '', 'Quarter 1 Tuition Fee', `₹${Q1_FEE}`]);
-    footArr.push(['', '', 'Compulsory Total', `₹${getCompulsoryTotal()}`]);
-    footArr.push(['', '', 'Optional Total', `₹${getOptionalTotal()}`]);
-    footArr.push(['', '', 'GRAND TOTAL', `₹${getTotal()}`]);
+    if (Q1_FEE > 0) footArr.push(['', '', '', 'Quarter 1 Tuition Fee', `Rs. ${Q1_FEE}`]);
+    footArr.push(['', '', '', 'Compulsory Total', `Rs. ${getCompulsoryTotal()}`]);
+    footArr.push(['', '', '', 'Optional Total', `Rs. ${getOptionalTotal()}`]);
+    footArr.push(['', '', '', 'GRAND TOTAL', `Rs. ${getTotal()}`]);
 
     autoTable(doc, {
       startY: 80,
-      head: [['Sl.', 'Item Name', 'Category', 'Amount (₹)']],
+      head: [['Sl.', 'Image', 'Item Name', 'Category', 'Amount (Rs.)']],
       body: tableData,
+      foot: footArr,
       theme: 'grid',
       headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontSize: 10, fontStyle: 'bold' },
-      styles: { fontSize: 10, cellPadding: 4 },
+      styles: { fontSize: 10, cellPadding: 4, minCellHeight: 14 },
       columnStyles: {
-        0: { cellWidth: 15, halign: 'center' },
-        2: { cellWidth: 35 },
-        3: { cellWidth: 30, halign: 'right' }
+        0: { cellWidth: 15, halign: 'center', valign: 'middle' },
+        1: { cellWidth: 20, halign: 'center', valign: 'middle' },
+        2: { cellWidth: 'auto', valign: 'middle' },
+        3: { cellWidth: 35, valign: 'middle' },
+        4: { cellWidth: 35, halign: 'right', fontStyle: 'bold', valign: 'middle' }
       },
-      foot: footArr,
-      footStyles: { fillColor: [240, 240, 240], textColor: [0,0,0], fontStyle: 'bold', fontSize: 10 },
+      footStyles: { fillColor: [248, 250, 252], textColor: [15, 23, 42], fontStyle: 'bold' },
+      didDrawCell: function (data) {
+        if (data.section === 'body' && data.column.index === 1) {
+          const img = itemImages[data.row.index];
+          if (img) {
+            const dim = 10;
+            const x = data.cell.x + (data.cell.width - dim) / 2;
+            const y = data.cell.y + (data.cell.height - dim) / 2;
+            doc.addImage(img, 'PNG', x, y, dim, dim);
+          }
+        }
+      },
       margin: { left: 15, right: 15 },
     });
 

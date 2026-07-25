@@ -223,6 +223,7 @@ router.get('/profile', protectStudent, (req, res) => {
   // Format for frontend
   res.json({ 
     student: {
+      ...studentProfile,
       id: studentProfile.id,
       name: studentProfile.student_name,
       rollNumber: studentProfile.admission_id,

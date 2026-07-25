@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowRight, FaArrowLeft, FaCheck, FaFileUpload, FaHome } from 'react-icons/fa';
 import { StudentAuthContext } from '../context/StudentAuthContext';
+import WebcamCapture from './WebcamCapture';
 
 const UdiseStudentForm = () => {
   const navigate = useNavigate();
@@ -12,26 +13,26 @@ const UdiseStudentForm = () => {
   const { student } = useContext(StudentAuthContext);
   
   const [formData, setFormData] = useState({
-    studentName: student?.name || '',
+    studentName: student?.name || student?.student_name || '',
     nameAsPerAadhaar: '',
-    gender: '',
-    dob: '',
-    bloodGroup: '',
-    aadhaarNumber: '',
+    gender: student?.gender || '',
+    dob: student?.date_of_birth || '',
+    bloodGroup: student?.blood_group || '',
+    aadhaarNumber: student?.aadhar_number || '',
     bankAcNo: '',
     bankIfsc: '',
-    admissionNo: student?.rollNumber || '',
+    admissionNo: student?.admissionId || student?.admission_id || '',
     admissionDate: '',
     class: student?.grade || '',
-    section: '',
-    rollNo: '',
-    address: '',
+    section: student?.section || '',
+    rollNo: student?.roll_number || '',
+    address: student?.address || '',
     landmark: '',
     pincode: '',
     postOffice: '',
     policeStation: '',
     district: '',
-    primaryContact: '',
+    primaryContact: student?.contact_number || '',
     alternateContact: '',
     email: student?.email || '',
     nationality: 'Indian',
@@ -40,20 +41,27 @@ const UdiseStudentForm = () => {
     weight: '',
     
     bothParentsDeceased: false,
-    motherName: '',
+    motherTitle: 'Mrs.',
+    motherName: student?.mother_name || '',
     motherAadhaar: '',
     motherPan: '',
     motherEducation: '',
-    fatherName: '',
+    fatherTitle: 'Mr.',
+    fatherName: student?.father_name || '',
     fatherAadhaar: '',
     fatherPan: '',
     fatherEducation: '',
+    guardianName: student?.guardian_name || '',
+    guardianRelation: '',
     parentBankAc: '',
     parentBankIfsc: '',
     
     hasSiblings: 'No',
+    siblingName: '',
+    siblingClass: '',
+    siblingSection: '',
     
-    isNewCommer: 'No',
+    isNewCommer: student?.enrollment_status === 'Active' ? 'No' : 'Yes',
     prevYearStatus: '',
     prevGrade: '',
     prevResult: '',
@@ -94,7 +102,7 @@ const UdiseStudentForm = () => {
   };
 
   const isBankCompulsory = () => {
-    const c = formData.class.toUpperCase();
+    const c = String(formData.class || '').toUpperCase();
     return ['IX', 'X', 'XI', 'XII', '9', '10', '11', '12'].includes(c);
   };
 
@@ -186,7 +194,7 @@ const UdiseStudentForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className={labelClass}>Gender</label>
-                  <select name="gender" value={formData.gender} onChange={handleInputChange} className={inputClass} required>
+                  <select name="gender" value={formData.gender} onChange={handleInputChange} className={inputClass} required disabled={!!student?.gender}>
                     <option value="">Select...</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -195,11 +203,11 @@ const UdiseStudentForm = () => {
                 </div>
                 <div>
                   <label className={labelClass}>Date of Birth</label>
-                  <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} className={inputClass} required />
+                  <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} className={inputClass} required readOnly={!!student?.date_of_birth} />
                 </div>
                 <div>
                   <label className={labelClass}>Blood Group</label>
-                  <select name="bloodGroup" value={formData.bloodGroup} onChange={handleInputChange} className={inputClass}>
+                  <select name="bloodGroup" value={formData.bloodGroup} onChange={handleInputChange} className={inputClass} disabled={!!student?.blood_group}>
                     <option value="">Select...</option>
                     <option value="A+">A+</option><option value="A-">A-</option>
                     <option value="B+">B+</option><option value="B-">B-</option>
@@ -212,7 +220,7 @@ const UdiseStudentForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className={labelClass}>Aadhaar Card Number (Optional)</label>
-                  <input type="text" name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleInputChange} className={inputClass} />
+                  <input type="text" name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleInputChange} className={inputClass} readOnly={!!student?.aadhar_number} />
                 </div>
                 <div>
                   <label className={labelClass}>Aadhaar of student (Doc upload)</label>
@@ -221,26 +229,28 @@ const UdiseStudentForm = () => {
               </div>
 
               {/* Bank Details */}
-              <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-bold text-gray-800">Student Bank Details</h3>
-                  {isBankCompulsory() && <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded font-bold uppercase tracking-wide">Compulsory for Class {formData.class}</span>}
+              {isBankCompulsory() && (
+                <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-bold text-gray-800">Student Bank Details</h3>
+                    <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded font-bold uppercase tracking-wide">Compulsory for Class {formData.class}</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className={labelClass}>Bank A/C No.</label>
+                      <input type="text" name="bankAcNo" value={formData.bankAcNo} onChange={handleInputChange} className={inputClass} required />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Bank IFSC</label>
+                      <input type="text" name="bankIfsc" value={formData.bankIfsc} onChange={handleInputChange} className={inputClass} required />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Passbook Upload</label>
+                      <input type="file" className={fileInputClass} required />
+                    </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className={labelClass}>Bank A/C No.</label>
-                    <input type="text" name="bankAcNo" value={formData.bankAcNo} onChange={handleInputChange} className={inputClass} required={isBankCompulsory()} />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Bank IFSC</label>
-                    <input type="text" name="bankIfsc" value={formData.bankIfsc} onChange={handleInputChange} className={inputClass} required={isBankCompulsory()} />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Passbook Upload</label>
-                    <input type="file" className={fileInputClass} required={isBankCompulsory()} />
-                  </div>
-                </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
                 <div>
@@ -295,7 +305,17 @@ const UdiseStudentForm = () => {
                   {/* Mother Details */}
                   <div className="space-y-4 p-5 bg-pink-50/30 rounded-2xl border border-pink-100">
                     <h3 className="text-lg font-bold text-pink-800">Mother's Details</h3>
-                    <div><label className={labelClass}>Name</label><input type="text" name="motherName" value={formData.motherName} onChange={handleInputChange} className={inputClass} /></div>
+                    <div>
+                      <label className={labelClass}>Name</label>
+                      <div className="flex gap-2">
+                        <select name="motherTitle" value={formData.motherTitle} onChange={handleInputChange} className={`${inputClass} w-1/3`}>
+                          <option value="Mrs.">Mrs.</option>
+                          <option value="Late">Late</option>
+                          <option value="Miss">Miss</option>
+                        </select>
+                        <input type="text" name="motherName" value={formData.motherName} onChange={handleInputChange} className={`${inputClass} w-2/3`} readOnly={!!student?.mother_name} />
+                      </div>
+                    </div>
                     <div><label className={labelClass}>Aadhaar Number</label><input type="text" name="motherAadhaar" value={formData.motherAadhaar} onChange={handleInputChange} className={inputClass} /></div>
                     <div><label className={labelClass}>Aadhaar Document</label><input type="file" className={fileInputClass} /></div>
                     <div><label className={labelClass}>PAN Number</label><input type="text" name="motherPan" value={formData.motherPan} onChange={handleInputChange} className={inputClass} /></div>
@@ -309,7 +329,16 @@ const UdiseStudentForm = () => {
                   {/* Father Details */}
                   <div className="space-y-4 p-5 bg-blue-50/30 rounded-2xl border border-blue-100">
                     <h3 className="text-lg font-bold text-blue-800">Father's Details</h3>
-                    <div><label className={labelClass}>Name</label><input type="text" name="fatherName" value={formData.fatherName} onChange={handleInputChange} className={inputClass} /></div>
+                    <div>
+                      <label className={labelClass}>Name</label>
+                      <div className="flex gap-2">
+                        <select name="fatherTitle" value={formData.fatherTitle} onChange={handleInputChange} className={`${inputClass} w-1/3`}>
+                          <option value="Mr.">Mr.</option>
+                          <option value="Late">Late</option>
+                        </select>
+                        <input type="text" name="fatherName" value={formData.fatherName} onChange={handleInputChange} className={`${inputClass} w-2/3`} readOnly={!!student?.father_name} />
+                      </div>
+                    </div>
                     <div><label className={labelClass}>Aadhaar Number</label><input type="text" name="fatherAadhaar" value={formData.fatherAadhaar} onChange={handleInputChange} className={inputClass} /></div>
                     <div><label className={labelClass}>Aadhaar Document</label><input type="file" className={fileInputClass} /></div>
                     <div><label className={labelClass}>PAN Number</label><input type="text" name="fatherPan" value={formData.fatherPan} onChange={handleInputChange} className={inputClass} /></div>
@@ -317,6 +346,22 @@ const UdiseStudentForm = () => {
                       <select name="fatherEducation" value={formData.fatherEducation} onChange={handleInputChange} className={inputClass}>
                         <option value="">Select...</option><option value="Below Secondary">Below Secondary</option><option value="Secondary">Secondary</option><option value="Graduate">Graduate</option><option value="Post Graduate">Post Graduate</option>
                       </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(formData.bothParentsDeceased || (formData.motherTitle === 'Late' && formData.fatherTitle === 'Late')) && (
+                <div className="space-y-4 p-5 bg-orange-50/30 rounded-2xl border border-orange-100 mt-6 animate-fade-in">
+                  <h3 className="text-lg font-bold text-orange-800">Guardian's Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className={labelClass}>Guardian Name</label>
+                      <input type="text" name="guardianName" value={formData.guardianName} onChange={handleInputChange} className={inputClass} required readOnly={!!student?.guardian_name} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Relation to Student</label>
+                      <input type="text" name="guardianRelation" value={formData.guardianRelation} onChange={handleInputChange} className={inputClass} required />
                     </div>
                   </div>
                 </div>
@@ -330,7 +375,12 @@ const UdiseStudentForm = () => {
                   <div><label className={labelClass}>Bank A/C Doc Upload</label><input type="file" className={fileInputClass} /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                  <div><label className={labelClass}>Parent/Guardian Live Photo (Blue BG)</label><input type="file" className={fileInputClass} /></div>
+                  <div>
+                    <WebcamCapture 
+                      label="Parent/Guardian Live Photo (Auto Blue BG)" 
+                      onCapture={(blob) => setFormData(prev => ({...prev, parentLivePhoto: blob}))} 
+                    />
+                  </div>
                   <div><label className={labelClass}>Parent/Guardian Signature Photo</label><input type="file" className={fileInputClass} /></div>
                 </div>
               </div>
@@ -343,6 +393,23 @@ const UdiseStudentForm = () => {
                   <option value="Yes">Yes</option>
                 </select>
               </div>
+
+              {formData.hasSiblings === 'Yes' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div>
+                    <label className={labelClass}>Sibling Name</label>
+                    <input type="text" name="siblingName" value={formData.siblingName} onChange={handleInputChange} className={inputClass} required />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Sibling Class</label>
+                    <input type="text" name="siblingClass" value={formData.siblingClass} onChange={handleInputChange} className={inputClass} required />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Sibling Section</label>
+                    <input type="text" name="siblingSection" value={formData.siblingSection} onChange={handleInputChange} className={inputClass} required />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -352,8 +419,8 @@ const UdiseStudentForm = () => {
               <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">Category 2: Academic Data</h2>
               
               <div>
-                <label className={labelClass}>Are you a New Commer?</label>
-                <select name="isNewCommer" value={formData.isNewCommer} onChange={handleInputChange} className={`${inputClass} max-w-xs`}>
+                <label className={labelClass}>Are you a New Commer? (Auto-detected)</label>
+                <select name="isNewCommer" value={formData.isNewCommer} disabled className={`${inputClass} max-w-xs bg-gray-100 text-gray-500 font-bold`}>
                   <option value="No">No</option>
                   <option value="Yes">Yes</option>
                 </select>
@@ -391,12 +458,14 @@ const UdiseStudentForm = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div><label className={labelClass}>Current Class</label><input type="text" value={formData.class} readOnly className={`${inputClass} bg-gray-100 text-gray-500 font-bold`} /></div>
-                <div>
-                  <label className={labelClass}>Academic Stream</label>
-                  <select name="academicStream" value={formData.academicStream} onChange={handleInputChange} className={inputClass}>
-                    <option value="">Select...</option><option value="Science">Science</option><option value="Arts">Arts</option><option value="Commerce">Commerce</option>
-                  </select>
-                </div>
+                {['XI', 'XII', '11', '12'].includes(String(formData.class || '').toUpperCase()) && (
+                  <div>
+                    <label className={labelClass}>Academic Stream</label>
+                    <select name="academicStream" value={formData.academicStream} onChange={handleInputChange} className={inputClass}>
+                      <option value="">Select...</option><option value="Science">Science</option><option value="Arts">Arts</option><option value="Commerce">Commerce</option>
+                    </select>
+                  </div>
+                )}
                 <div className="md:col-span-2">
                   <label className={labelClass}>Education PEN Number (Optional)</label>
                   <input type="text" name="educationPen" value={formData.educationPen} onChange={handleInputChange} placeholder="Permanent Education Number" className={inputClass} />

@@ -322,8 +322,8 @@ function AdmissionCheckout() {
           <FaCheckCircle className="text-6xl text-green-500 mx-auto mb-6" />
           <h2 className="text-3xl font-black text-gray-900 mb-4">Application Submitted!</h2>
           <p className="text-gray-600 mb-8 text-lg">Your admission form was submitted successfully (Ref: <strong>{refNum}</strong>). <br/><br/>No admission kit is configured for <strong>{admissionData?.grade_applied || admissionData?.gradeApplied}</strong> at this moment.</p>
-          <button onClick={() => navigate('/')} className="bg-primary text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-primary/90 transition-all">
-            Return to Home
+          <button onClick={() => window.location.href = 'https://student.vidyabarta.com'} className="bg-primary text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-primary/90 transition-all">
+            Go to Your Account
           </button>
         </div>
       </div>
@@ -380,8 +380,8 @@ function AdmissionCheckout() {
           </div>
 
           <div className="text-center mt-8">
-            <button onClick={() => navigate('/')} className="text-gray-500 hover:text-gray-700 font-medium text-sm underline">
-              Return to Home
+            <button onClick={() => window.location.href = 'https://student.vidyabarta.com'} className="text-gray-500 hover:text-gray-700 font-medium text-sm underline">
+              Go to Your Account
             </button>
           </div>
         </div>

@@ -13,9 +13,6 @@ const WebcamCapture = ({ onCapture, label }) => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
     } catch (err) {
       setError('Camera access denied or unavailable. Please check permissions.');
     }
@@ -94,6 +91,13 @@ const WebcamCapture = ({ onCapture, label }) => {
       }
     };
   }, [stream]);
+
+  // Attach stream to video element when it mounts
+  React.useEffect(() => {
+    if (videoRef.current && stream && !videoRef.current.srcObject) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream, isProcessing, capturedImage]);
 
   return (
     <div className="w-full">

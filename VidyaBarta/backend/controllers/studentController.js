@@ -376,7 +376,16 @@ exports.issueReadmission = async (req, res) => {
       .eq('enrollment_status', 'active');
 
     if (!classes.includes('ALL')) {
-      query = query.in('grade', classes);
+      const orConditions = [];
+      classes.forEach(cls => {
+        const variants = getEquivalentClasses(cls);
+        variants.forEach(v => {
+          orConditions.push(`grade.ilike."${v}"`);
+          orConditions.push(`grade.ilike."${v} %"`);
+          orConditions.push(`grade.ilike."Class ${v}"`);
+        });
+      });
+      query = query.or(orConditions.join(','));
     }
 
     const { data, error } = await query.select();

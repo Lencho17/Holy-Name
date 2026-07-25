@@ -244,6 +244,15 @@ function Header() {
 
           {/* Admin Login, Phone & Mobile Toggle */}
           <div className="flex items-center gap-3">
+            <a
+              href="https://student.vidyabarta.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:flex items-center justify-center px-4 py-2.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-primary dark:text-blue-400 rounded-lg shadow-sm hover:shadow transition-all duration-fast font-semibold text-sm h-10 focus-ring border border-blue-200 dark:border-blue-800"
+            >
+              <span className="material-symbols-outlined text-[18px] mr-1.5">school</span>
+              Student Portal
+            </a>
             <div className="hidden md:block">
               <AdminLoginBtn />
             </div>
@@ -401,6 +410,15 @@ function Header() {
 
               {/* Menu Footer */}
               <div className="p-6 bg-slate-50 dark:bg-slate-700 mt-auto flex flex-col gap-4 border-t border-slate-200 dark:border-slate-600">
+                <a
+                  href="https://student.vidyabarta.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center w-full px-5 py-2.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-primary dark:text-blue-400 rounded-lg shadow-sm hover:shadow transition-all duration-fast font-semibold text-sm h-10 focus-ring border border-blue-200 dark:border-blue-800"
+                >
+                  <span className="material-symbols-outlined text-[18px] mr-1.5">school</span>
+                  Student Portal
+                </a>
                 <AdminLoginBtn onClick={() => setShowMediaIcons(false)} />
                 <div className="flex items-center gap-3">
                   <a

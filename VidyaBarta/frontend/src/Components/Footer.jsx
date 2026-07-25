@@ -49,6 +49,7 @@ const Footer = () => {
           {/* Quick Links Column */}
           <div className="flex flex-col items-start gap-2.5">
             <h5 className="font-bold text-xs text-primary dark:text-blue-400 uppercase tracking-widest mb-1">Quick Links</h5>
+            <a href="https://student.vidyabarta.com" target="_blank" rel="noopener noreferrer" className={linkClass}>Student Portal</a>
             <Link to="/about" className={linkClass}>About Us</Link>
             {schoolProfile?.servicesVisibility?.admission !== false && (
               <Link to="/admission" className={linkClass}>Admission</Link>

@@ -363,7 +363,7 @@ router.get('/status', async (req, res) => {
     const { data: application, error } = await supabase
       .from('admissions')
       .select('*')
-      .or(`reference_number.eq.${q.toUpperCase()},email.eq.${q.toLowerCase()}`)
+      .or(`reference_number.eq."${q.toUpperCase().trim()}",email.eq."${q.toLowerCase().trim()}"`)
       .maybeSingle();
 
     if (error || !application) {
@@ -390,7 +390,7 @@ router.get('/status', async (req, res) => {
         .from('fee_structures')
         .select('admission_fee, base_tuition_fee')
         .eq('school_id', targetSchoolId)
-        .or(`class_level.eq.${classLevel},class_level.eq.${altClassLevel}`)
+        .or(`class_level.eq."${classLevel}",class_level.eq."${altClassLevel}"`)
         .maybeSingle();
       
       if (feeStructure) {

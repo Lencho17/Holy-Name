@@ -111,35 +111,30 @@ function Layout() {
 
   if (schoolProfile?.isNotFound) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden p-4 font-sans">
-        <div className="absolute top-0 left-0 w-full h-full opacity-40">
-           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-red-100 blur-[120px] rounded-full" />
-           <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] bg-orange-50 blur-[120px] rounded-full" />
-        </div>
-
-        <div className="relative z-10 w-full max-w-xl">
-          <div className="bg-white rounded-[3rem] p-12 md:p-20 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.08)] border border-white text-center">
-            <div className="flex justify-center mb-12">
-              <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center shadow-inner">
-                <span className="text-4xl">🏫</span>
-              </div>
-            </div>
-
-            <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">
-              School <span className="text-red-500">Not Found</span>
-            </h1>
-            
-            <div className="w-12 h-1.5 bg-red-200 rounded-full mx-auto mb-8" />
-
-            <p className="text-gray-500 text-lg font-medium leading-relaxed max-w-md mx-auto mb-10">
-              The domain <strong className="text-gray-800">{window.location.hostname}</strong> is not registered or is currently being set up.
-            </p>
-
+      <div className="min-h-screen bg-white flex flex-col items-center pt-24 px-6 font-sans text-[#202124]">
+        <div className="max-w-xl w-full">
+          <svg className="w-14 h-14 text-[#5f6368] mb-6 stroke-[1.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <path d="M9 12h2v2H9z" fill="currentColor" stroke="none" />
+            <path d="M13 12h2v2h-2z" fill="currentColor" stroke="none" />
+            <path d="M9 17v-1h6v1" />
+          </svg>
+          <h1 className="text-[24px] font-normal m-0 mb-3 tracking-tight">
+            This site can't be reached
+          </h1>
+          <p className="text-[15px] m-0 mb-6">
+            Check if there is a typo in {window.location.hostname}.
+          </p>
+          <p className="text-[12px] text-[#5f6368] m-0 mb-8 font-mono">
+            DNS_PROBE_FINISHED_NXDOMAIN
+          </p>
+          <div>
             <button
-              onClick={() => window.location.href = 'https://www.vidyabarta.com'}
-              className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl w-full sm:w-auto"
+              onClick={() => window.location.reload()}
+              className="bg-[#1a73e8] hover:bg-[#1557b0] text-white px-6 py-2 rounded-full font-medium text-[14px] transition-colors border-none cursor-pointer shadow-none"
             >
-              Visit VidyaBarta
+              Reload
             </button>
           </div>
         </div>

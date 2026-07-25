@@ -387,44 +387,58 @@ router.get('/status', async (req, res) => {
     const { q, school_id } = req.query;
     if (!q) return res.status(400).json({ message: 'Query parameter required' });
 
-    const { data: application, error } = await supabase
-      .from('admissions')
+    let applicationData = null;
+
+    // First, check if it's an existing student (could be doing readmission)
+    const { data: student, error: studentError } = await supabase
+      .from('students')
       .select('*')
-      .or(`reference_number.eq."${q.toUpperCase().trim()}",email.eq."${q.toLowerCase().trim()}"`)
+      .or(`admission_id.eq."${q.toUpperCase().trim()}",email.eq."${q.toLowerCase().trim()}"`)
       .maybeSingle();
 
-    let applicationData = application;
-
-    if (error || !application) {
-      // Fallback: Check if it's an existing student's admission_id (e.g., manually added students)
-      const { data: student, error: studentError } = await supabase
-        .from('students')
-        .select('*')
-        .or(`admission_id.eq."${q.toUpperCase().trim()}",email.eq."${q.toLowerCase().trim()}"`)
-        .maybeSingle();
-
-      if (studentError || !student) {
-        return res.status(404).json({ message: 'No application found with these details.' });
-      }
-
-      let gradeApplied = student.grade;
-      if (student.readmission_deadline) {
-        gradeApplied = calculateNextGrade(student.grade);
-      }
-
-      // Map student to application format
+    if (student && student.readmission_deadline) {
+      // It's a readmission. Use the student record as the application source of truth.
       applicationData = {
         reference_number: student.admission_id,
         student_name: student.student_name,
         email: student.email,
         contact_number: student.contact_number,
-        grade_applied: gradeApplied,
+        grade_applied: calculateNextGrade(student.grade),
         date_of_birth: student.date_of_birth,
         gender: student.gender,
         father_name: student.father_name || student.guardian_name,
         school_id: student.school_id,
-        is_readmission: !!student.readmission_deadline
+        is_readmission: true
       };
+    } else {
+      // Not a readmission. Check the admissions table for a regular application.
+      const { data: application, error: appError } = await supabase
+        .from('admissions')
+        .select('*')
+        .or(`reference_number.eq."${q.toUpperCase().trim()}",email.eq."${q.toLowerCase().trim()}"`)
+        .maybeSingle();
+
+      if (appError || !application) {
+        // Not in admissions. Is it a legacy student paying their very first admission fee?
+        if (student) {
+          applicationData = {
+            reference_number: student.admission_id,
+            student_name: student.student_name,
+            email: student.email,
+            contact_number: student.contact_number,
+            grade_applied: student.grade,
+            date_of_birth: student.date_of_birth,
+            gender: student.gender,
+            father_name: student.father_name || student.guardian_name,
+            school_id: student.school_id,
+            is_readmission: false
+          };
+        } else {
+          return res.status(404).json({ message: 'No application found with these details.' });
+        }
+      } else {
+        applicationData = application;
+      }
     }
 
     // Fetch dynamic admission fee and Q1 fee from fee_structures

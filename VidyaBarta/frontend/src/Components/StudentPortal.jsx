@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FaDownload, FaExclamationTriangle } from 'react-icons/fa';
 import ReadmissionVerification from './ReadmissionVerification';
+import StudentProfile from './StudentProfile';
 
 function StudentPortal() {
   const { API_URL, schoolProfile } = useContext(SiteDataContext);
@@ -25,6 +26,7 @@ function StudentPortal() {
   const [upcomingExams, setUpcomingExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUdiseBanner, setShowUdiseBanner] = useState(true);
+  const [udiseProfile, setUdiseProfile] = useState(null);
   const navigate = useNavigate();
   
   const hasPendingFees = !student?.admissionFeePaid || fees.some(f => f.status === 'Pending' || f.status === 'Overdue');
@@ -41,14 +43,15 @@ function StudentPortal() {
 
     const fetchPortalData = async () => {
       try {
-        const [gradesRes, noticesRes, coursesRes, assignmentsRes, feesRes, transactionsRes, upcomingExamsRes] = await Promise.all([
+        const [gradesRes, noticesRes, coursesRes, assignmentsRes, feesRes, transactionsRes, upcomingExamsRes, udiseRes] = await Promise.all([
           axios.get(`${API_URL}/student-portal/grades`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/notices`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/courses`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/assignments`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/fees`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/transactions`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/upcoming-exams`, { headers: { Authorization: `Bearer ${token}` } })
+          axios.get(`${API_URL}/student-portal/upcoming-exams`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API_URL}/student-portal/udise`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null }))
         ]);
         
         const gradesData = Array.isArray(gradesRes.data) ? gradesRes.data : [];
@@ -91,6 +94,10 @@ function StudentPortal() {
         setFees(Array.isArray(feesRes.data) ? feesRes.data : []);
         setTransactions(Array.isArray(transactionsRes.data) ? transactionsRes.data : []);
         setUpcomingExams(Array.isArray(upcomingExamsRes.data) ? upcomingExamsRes.data : []);
+        setUdiseProfile(udiseRes.data);
+        if (udiseRes.data) {
+          setShowUdiseBanner(false);
+        }
 
         // Fetch Grievances (if route exists)
         try {
@@ -223,6 +230,7 @@ function StudentPortal() {
           <nav className="flex flex-col gap-1.5">
             {[
               { id: 'dashboard', icon: 'dashboard', label: 'Dashboard', disabled: mustPayReadmission },
+              { id: 'profile', icon: 'person', label: 'My Profile', disabled: mustPayReadmission },
               { id: 'courses', icon: 'menu_book', label: 'Courses', disabled: mustPayReadmission },
               { id: 'fees', icon: 'payments', label: 'Fees' },
               { id: 'notices', icon: 'notifications', label: 'Notices', disabled: mustPayReadmission },
@@ -402,6 +410,8 @@ function StudentPortal() {
             <div className="flex justify-center py-20">
                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             </div>
+          ) : activeTab === 'profile' ? (
+            <StudentProfile udiseData={udiseProfile} />
           ) : activeTab === 'courses' ? (
             <StudentCourses />
           ) : activeTab === 'timetable' ? (

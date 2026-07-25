@@ -304,4 +304,63 @@ router.put('/verify-readmission', protectStudent, async (req, res) => {
   }
 });
 
+// @route   GET /api/student-portal/udise
+// @desc    Get UDISE profile for the logged in student
+// @access  Private (Student)
+router.get('/udise', protectStudent, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('udise_profiles')
+      .select('profile_data')
+      .eq('student_id', req.student.id)
+      .single();
+      
+    if (error) {
+      if (error.code === 'PGRST116') return res.status(404).json({ message: 'UDISE profile not found' });
+      throw error;
+    }
+    
+    res.json(data.profile_data);
+  } catch (error) {
+    console.error('Error fetching UDISE profile:', error);
+    res.status(500).json({ message: 'Server error fetching UDISE profile' });
+  }
+});
+
+// @route   POST /api/student-portal/udise
+// @desc    Save or update UDISE profile for the logged in student
+// @access  Private (Student)
+router.post('/udise', protectStudent, async (req, res) => {
+  try {
+    const profile_data = req.body;
+    
+    // Check if exists
+    const { data: existing } = await supabase
+      .from('udise_profiles')
+      .select('id')
+      .eq('student_id', req.student.id)
+      .single();
+      
+    if (existing) {
+      // Update
+      const { error } = await supabase
+        .from('udise_profiles')
+        .update({ profile_data, updated_at: new Date() })
+        .eq('student_id', req.student.id);
+      if (error) throw error;
+    } else {
+      // Insert
+      const { error } = await supabase
+        .from('udise_profiles')
+        .insert({ student_id: req.student.id, profile_data });
+      if (error) throw error;
+    }
+    
+    res.json({ message: 'UDISE profile saved successfully' });
+  } catch (error) {
+    console.error('Error saving UDISE profile:', error);
+    res.status(500).json({ message: 'Server error saving UDISE profile' });
+  }
+});
+
 module.exports = router;

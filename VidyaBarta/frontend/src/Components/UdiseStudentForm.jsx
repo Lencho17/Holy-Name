@@ -1,7 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { FaArrowRight, FaArrowLeft, FaCheck, FaFileUpload, FaHome } from 'react-icons/fa';
 import { StudentAuthContext } from '../context/StudentAuthContext';
+import { SiteDataContext } from '../context/SiteDataContext';
 import WebcamCapture from './WebcamCapture';
 
 const UdiseStudentForm = () => {
@@ -10,7 +12,8 @@ const UdiseStudentForm = () => {
   const totalSteps = 4;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { student } = useContext(StudentAuthContext);
+  const { student, token } = useContext(StudentAuthContext);
+  const { API_URL } = useContext(SiteDataContext);
 
   const formatGender = (g) => {
     if (!g) return '';
@@ -165,14 +168,20 @@ const UdiseStudentForm = () => {
   const nextStep = () => setStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await axios.post(`${API_URL}/student-portal/udise`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setIsSubmitting(false);
-      navigate('/dashboard'); // Go back to student portal on success
-    }, 1500);
+      navigate('/dashboard'); 
+    } catch (error) {
+      console.error('Failed to submit UDISE form:', error);
+      alert('Failed to submit form. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   // Helper for input styles to keep it clean

@@ -11,11 +11,20 @@ const UdiseStudentForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { student } = useContext(StudentAuthContext);
+
+  const formatGender = (g) => {
+    if (!g) return '';
+    const lower = g.toLowerCase();
+    if (lower === 'male') return 'Male';
+    if (lower === 'female') return 'Female';
+    if (lower === 'transgender') return 'Transgender';
+    return g;
+  };
   
   const [formData, setFormData] = useState({
     studentName: student?.name || student?.student_name || '',
     nameAsPerAadhaar: '',
-    gender: student?.gender || '',
+    gender: formatGender(student?.gender),
     dob: student?.date_of_birth || '',
     bloodGroup: student?.blood_group || '',
     aadhaarNumber: student?.aadhar_number || '',
@@ -176,7 +185,7 @@ const UdiseStudentForm = () => {
                 </div>
                 <div>
                   <label className={labelClass}>Name as per Aadhaar</label>
-                  <input type="text" name="nameAsPerAadhaar" value={formData.nameAsPerAadhaar} readOnly className={`${inputClass} bg-gray-50 text-gray-500 font-medium`} />
+                  <input type="text" name="nameAsPerAadhaar" value={formData.nameAsPerAadhaar} onChange={handleInputChange} className={inputClass} />
                 </div>
               </div>
 

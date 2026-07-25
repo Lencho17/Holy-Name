@@ -35,8 +35,22 @@ function AdmissionCheckout() {
           
           // Match the kit from admissionPage context
           const kits = admissionPage?.admissionKits || [];
-          const grade = data.grade_applied || data.gradeApplied;
-          const matchedKit = kits.find(k => k.className?.toUpperCase() === grade?.toUpperCase());
+          const rawGrade = data.grade_applied || data.gradeApplied || '';
+          
+          // Helper to normalize grade (e.g. "CLASS IV A" -> "IV", "IV A" -> "IV")
+          const normalizeGrade = (g) => {
+            if (!g) return '';
+            let stripped = g.toUpperCase().replace(/CLASS\s+/g, '').trim();
+            return stripped.split(' ')[0]; // Take only the base class, ignore section
+          };
+
+          const normalizedGrade = normalizeGrade(rawGrade);
+
+          const matchedKit = kits.find(k => {
+            const kNorm = normalizeGrade(k.className);
+            return kNorm === normalizedGrade;
+          });
+
           setKit(matchedKit);
           
           // Default: all optional items are INCLUDED (user can exclude)
@@ -320,8 +334,15 @@ function AdmissionCheckout() {
       <div className="min-h-screen bg-slate-50 pt-32 pb-20 px-4">
         <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-xl p-10 text-center border border-gray-100">
           <FaCheckCircle className="text-6xl text-green-500 mx-auto mb-6" />
-          <h2 className="text-3xl font-black text-gray-900 mb-4">Application Submitted!</h2>
-          <p className="text-gray-600 mb-8 text-lg">Your admission form was submitted successfully (Ref: <strong>{refNum}</strong>). <br/><br/>No admission kit is configured for <strong>{admissionData?.grade_applied || admissionData?.gradeApplied}</strong> at this moment.</p>
+          <h2 className="text-3xl font-black text-gray-900 mb-4">
+            {admissionData?.is_readmission ? "Readmission Started!" : "Application Submitted!"}
+          </h2>
+          <p className="text-gray-600 mb-8 text-lg">
+            {admissionData?.is_readmission 
+              ? <>You are proceeding with readmission (Ref: <strong>{refNum}</strong>). <br/><br/></>
+              : <>Your admission form was submitted successfully (Ref: <strong>{refNum}</strong>). <br/><br/></>}
+            No admission kit is configured for <strong>{admissionData?.grade_applied || admissionData?.gradeApplied}</strong> at this moment.
+          </p>
           <button onClick={() => window.location.href = 'https://student.vidyabarta.com'} className="bg-primary text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-primary/90 transition-all">
             Go to Your Account
           </button>

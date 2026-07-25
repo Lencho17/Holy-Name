@@ -7,6 +7,33 @@ const { upload, uploadToCloudinary } = require('../middleware/upload');
 
 const router = express.Router();
 
+function calculateNextGrade(currentGrade) {
+  if (!currentGrade) return currentGrade;
+  const grades = ["NURSERY", "LKG", "UKG", "CLASS I", "CLASS II", "CLASS III", "CLASS IV", "CLASS V", "CLASS VI", "CLASS VII", "CLASS VIII", "CLASS IX", "CLASS X", "CLASS XI", "CLASS XII"];
+  
+  let upper = currentGrade.toUpperCase();
+  let stripped = upper.replace('CLASS', '').trim();
+  
+  let parts = stripped.split(' ');
+  let base = parts[0];
+  let section = parts.slice(1).join(' ');
+
+  let index = -1;
+  for (let i = 0; i < grades.length; i++) {
+    let gBase = grades[i].replace('CLASS ', '');
+    if (base === gBase || upper.includes(grades[i])) {
+      index = i;
+      break;
+    }
+  }
+
+  if (index !== -1 && index < grades.length - 1) {
+    let nextGrade = grades[index + 1];
+    return section ? `${nextGrade} ${section}` : nextGrade;
+  }
+  return currentGrade;
+}
+
 const sendSubmissionEmail = async (admissionData) => {
   try {
     const { data: settings } = await supabase.from('site_settings').select('notification_email').single();
@@ -380,17 +407,23 @@ router.get('/status', async (req, res) => {
         return res.status(404).json({ message: 'No application found with these details.' });
       }
 
+      let gradeApplied = student.grade;
+      if (student.readmission_deadline) {
+        gradeApplied = calculateNextGrade(student.grade);
+      }
+
       // Map student to application format
       applicationData = {
         reference_number: student.admission_id,
         student_name: student.student_name,
         email: student.email,
         contact_number: student.contact_number,
-        grade_applied: student.grade,
+        grade_applied: gradeApplied,
         date_of_birth: student.date_of_birth,
         gender: student.gender,
         father_name: student.father_name || student.guardian_name,
-        school_id: student.school_id
+        school_id: student.school_id,
+        is_readmission: !!student.readmission_deadline
       };
     }
 
@@ -882,7 +915,8 @@ router.post('/checkout/:refNum', async (req, res) => {
     const checkoutData = JSON.stringify({ purchasedItems, paymentTotal, paidAt: new Date().toISOString() });
     const txnId = transactionId || 'TXN-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const { data, error } = await supabase
+    // Try to update admissions table (might not exist for legacy readmissions)
+    const { data: adminData } = await supabase
       .from('admissions')
       .update({
         status_remark: checkoutData,
@@ -890,22 +924,39 @@ router.post('/checkout/:refNum', async (req, res) => {
       })
       .eq('reference_number', refNum)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
-    if (!data) return res.status(404).json({ message: 'Admission not found' });
-
-    // Also mark the student record as fee paid
-    const { error: studentUpdateError } = await supabase
+    // Update the student record
+    const { data: student, error: studentError } = await supabase
       .from('students')
-      .update({ admission_fee_paid: true })
-      .eq('admission_id', refNum);
+      .select('*')
+      .eq('admission_id', refNum)
+      .maybeSingle();
 
-    if (studentUpdateError) {
-      console.error('Warning: Could not update student admission_fee_paid:', studentUpdateError.message);
+    if (!adminData && !student) {
+      return res.status(404).json({ message: 'Admission/Student not found' });
     }
 
-    res.json({ message: 'Checkout successful', admission: data, transactionId: txnId });
+    if (student) {
+      let updateData = { admission_fee_paid: true };
+      
+      // If it's a readmission, promote the student to the next class
+      if (student.readmission_deadline) {
+        updateData.grade = calculateNextGrade(student.grade);
+        updateData.readmission_deadline = null;
+      }
+
+      const { error: studentUpdateError } = await supabase
+        .from('students')
+        .update(updateData)
+        .eq('id', student.id);
+
+      if (studentUpdateError) {
+        console.error('Warning: Could not update student:', studentUpdateError.message);
+      }
+    }
+
+    res.json({ message: 'Checkout successful', admission: adminData || student, transactionId: txnId });
   } catch (error) {
     console.error('Checkout error:', error);
     res.status(500).json({ message: 'Server error during checkout' });

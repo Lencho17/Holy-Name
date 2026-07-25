@@ -98,8 +98,56 @@ const UdiseStudentForm = () => {
     isOutOfSchool: 'No',
     freeUniform: 'No',
     freeTransport: 'No',
-    communicationPreference: 'Email'
+    communicationPreference: 'Email',
+    parentLivePhoto: null,
   });
+
+  const [bankDetails, setBankDetails] = useState({ student: null, parent: null });
+
+  // Auto-fetch Bank details from IFSC
+  React.useEffect(() => {
+    const fetchBank = async (ifsc, type) => {
+      if (ifsc && ifsc.length === 11) {
+        try {
+          const res = await fetch(`https://ifsc.razorpay.com/${ifsc}`);
+          if (res.ok) {
+            const data = await res.json();
+            setBankDetails(prev => ({ ...prev, [type]: `${data.BANK}, ${data.BRANCH}` }));
+          } else {
+            setBankDetails(prev => ({ ...prev, [type]: 'Invalid IFSC Code' }));
+          }
+        } catch (e) {
+          setBankDetails(prev => ({ ...prev, [type]: 'Failed to fetch bank details' }));
+        }
+      } else {
+        setBankDetails(prev => ({ ...prev, [type]: null }));
+      }
+    };
+
+    fetchBank(formData.bankIfsc, 'student');
+  }, [formData.bankIfsc]);
+
+  React.useEffect(() => {
+    const fetchBank = async (ifsc, type) => {
+      if (ifsc && ifsc.length === 11) {
+        try {
+          const res = await fetch(`https://ifsc.razorpay.com/${ifsc}`);
+          if (res.ok) {
+            const data = await res.json();
+            setBankDetails(prev => ({ ...prev, [type]: `${data.BANK}, ${data.BRANCH}` }));
+          } else {
+            setBankDetails(prev => ({ ...prev, [type]: 'Invalid IFSC Code' }));
+          }
+        } catch (e) {
+          setBankDetails(prev => ({ ...prev, [type]: 'Failed to fetch bank details' }));
+        }
+      } else {
+        setBankDetails(prev => ({ ...prev, [type]: null }));
+      }
+    };
+
+    fetchBank(formData.parentBankIfsc, 'parent');
+  }, [formData.parentBankIfsc]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -249,9 +297,14 @@ const UdiseStudentForm = () => {
                       <input type="text" name="bankAcNo" value={formData.bankAcNo} onChange={handleInputChange} className={inputClass} required />
                     </div>
                     <div>
-                      <label className={labelClass}>Bank IFSC</label>
-                      <input type="text" name="bankIfsc" value={formData.bankIfsc} onChange={handleInputChange} className={inputClass} required />
-                    </div>
+                    <label className={labelClass}>Bank IFSC</label>
+                    <input type="text" name="bankIfsc" value={formData.bankIfsc} onChange={handleInputChange} maxLength="11" className={inputClass} required />
+                    {bankDetails.student && (
+                      <div className={`mt-1 text-xs font-bold ${bankDetails.student.includes('Invalid') || bankDetails.student.includes('Failed') ? 'text-red-500' : 'text-green-600'}`}>
+                        {bankDetails.student}
+                      </div>
+                    )}
+                  </div>
                     <div>
                       <label className={labelClass}>Passbook Upload</label>
                       <input type="file" className={fileInputClass} required />
@@ -372,7 +425,15 @@ const UdiseStudentForm = () => {
                 <h3 className="text-lg font-bold text-gray-800 mb-4">Parent's Bank Details & Documents</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                   <div><label className={labelClass}>Parent's Bank A/C No.</label><input type="text" name="parentBankAc" value={formData.parentBankAc} onChange={handleInputChange} className={inputClass} /></div>
-                  <div><label className={labelClass}>Parent's Bank IFSC</label><input type="text" name="parentBankIfsc" value={formData.parentBankIfsc} onChange={handleInputChange} className={inputClass} /></div>
+                  <div>
+                    <label className={labelClass}>Parent's Bank IFSC</label>
+                    <input type="text" name="parentBankIfsc" value={formData.parentBankIfsc} onChange={handleInputChange} maxLength="11" className={inputClass} />
+                    {bankDetails.parent && (
+                      <div className={`mt-1 text-xs font-bold ${bankDetails.parent.includes('Invalid') || bankDetails.parent.includes('Failed') ? 'text-red-500' : 'text-green-600'}`}>
+                        {bankDetails.parent}
+                      </div>
+                    )}
+                  </div>
                   <div><label className={labelClass}>Bank A/C Doc Upload</label><input type="file" className={fileInputClass} /></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">

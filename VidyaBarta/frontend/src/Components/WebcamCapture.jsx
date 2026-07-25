@@ -127,9 +127,7 @@ const WebcamCapture = ({ onCapture, label }) => {
               className="w-full h-[240px] object-cover"
             />
             {/* Camera Overlay for face alignment */}
-            <div className="absolute inset-0 z-10 border-[30px] border-black/20 pointer-events-none">
-              <div className="w-full h-full border-2 border-white/50 border-dashed rounded-full"></div>
-            </div>
+            <div className="absolute inset-6 z-10 border-2 border-white/50 border-dashed rounded-[30%] pointer-events-none shadow-[0_0_0_999px_rgba(0,0,0,0.2)]"></div>
             
             <button 
               type="button"

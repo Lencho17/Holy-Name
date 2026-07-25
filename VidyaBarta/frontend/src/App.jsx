@@ -45,6 +45,7 @@ const CenterOfExcellence = React.lazy(() => import("./Components/CenterOfExcelle
 const BelowSocialbtn = React.lazy(() => import("./Components/BelowSocialbtn"));
 const Appointment = React.lazy(() => import("./Components/Appointment"));
 const UdiseStudentForm = React.lazy(() => import("./Components/UdiseStudentForm"));
+const PaymentStatus = React.lazy(() => import("./Components/PaymentStatus"));
 
 const Login = React.lazy(() => import("./Components/Login"));
 const StaffSignUp = React.lazy(() => import("./Components/StaffSignUp"));
@@ -274,6 +275,7 @@ function App() {
           <Route path="tenders/apply/:id" element={<Suspense fallback={<SuspenseFallback />}><TenderApply /></Suspense>} />
           <Route path="excellence" element={<Suspense fallback={<SuspenseFallback />}><CenterOfExcellence /></Suspense>} />
           <Route path="appointment" element={<Suspense fallback={<SuspenseFallback />}><Appointment /></Suspense>} />
+          <Route path="payment-status" element={<Suspense fallback={<SuspenseFallback />}><PaymentStatus /></Suspense>} />
         </Route>
         
         <Route path="adminLogin" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
@@ -298,6 +300,7 @@ function App() {
           <Route path="login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
           <Route path="student-login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
           <Route path="admission/checkout/:refNum" element={<Suspense fallback={<SuspenseFallback />}><AdmissionCheckout /></Suspense>} />
+          <Route path="payment-status" element={<Suspense fallback={<SuspenseFallback />}><PaymentStatus /></Suspense>} />
         </Route>
       </Route>
     )

@@ -49,16 +49,19 @@ const StudentDues = () => {
   const handlePay = async (duesData, trimester) => {
     setPayingTrimester(trimester);
     try {
-      const res = await axios.post(`${API_URL}/payments/initiate`, {
-        fee_record_id: duesData.fee_record_id,
-        amount: duesData.totalAmount,
-        student_id: duesData.student_id,
-        school_id: duesData.school_id
+      const res = await axios.post(`${API_URL}/fees/initiate-payment`, {
+        invoiceId: duesData.fee_record_id,
+        amount: duesData.total,
+        studentId: duesData.student_id
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('studentToken') || 'placeholder'}` }
       });
       
-      setCheckoutData(res.data);
+      setCheckoutData({
+        paymentUrl: res.data.paymentUrl,
+        encData: res.data.payload,
+        merchantId: 'MOCK_MERCHANT_SBI'
+      });
     } catch (err) {
       alert('Failed to initiate payment gateway');
     } finally {

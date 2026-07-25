@@ -1,0 +1,27 @@
+SBI ePay Integration Requirements & Guidelines
+
+1. Prerequisites
+- Merchant ID & Aggregator ID (Provided by SBI ePay after onboarding)
+- Encryption Key (Generated via SBI ePay Merchant Panel)
+- Server IP Whitelisting: Our production/staging server IPs and domain must be whitelisted by SBI.
+
+2. API Parameters
+- The request must contain mandatory parameters as per the SBI ePay Merchant Integration Guide.
+- Typical parameters include: Merchant ID, Operating Mode (DOM), Country (IN), Currency (INR), Amount, Success URL, Failure URL, Order ID, etc.
+
+3. Encryption & Security
+- The request payload must be encrypted using the provided Merchant Key (often AES-128 or AES-256 depending on the exact protocol version).
+- Secure transmission over HTTPS is mandatory.
+- A checksum/hash (like SHA256) is typically required to ensure data integrity.
+
+4. Integration Workflow
+- Request Initiation: Generate an order on the backend, encrypt the payload, and redirect the user's browser to the SBI ePay payment page.
+- Response Handling: Receive the response on the Success/Failure URL via an HTTP POST request.
+- Decrypt the response payload to extract the transaction status.
+
+5. Double Verification (Status Query API)
+- Crucial Step: Before updating the local database, always verify the final transaction status using the SBI ePay "Status Query API" (Double Verification) to prevent spoofing or man-in-the-middle attacks.
+
+6. Testing Environment
+- All integrations must first be tested in the SBI ePay staging/sandbox environment.
+- Only after successful end-to-end testing will SBI provide production credentials.

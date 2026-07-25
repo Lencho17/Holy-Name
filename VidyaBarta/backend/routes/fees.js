@@ -286,4 +286,94 @@ router.get('/global-revenue', protect, async (req, res) => {
   }
 });
 
+// @desc    Initiate SBI ePay Payment
+// @route   POST /api/fees/initiate-payment
+// @access  Public (Student)
+router.post('/initiate-payment', async (req, res) => {
+  try {
+    const { studentId, invoiceId, amount } = req.body;
+    
+    // In a real integration, you would construct the payload here
+    // as per SBI ePay Merchant Integration Guide.
+    // e.g., Merchant ID, Amount, Return URL, etc.
+    const orderId = 'ORD' + Date.now();
+    
+    // Encrypt the payload using SBI ePay provided Encryption Key (AES-128/256)
+    // const encryptedPayload = encrypt(payload, MERCHANT_KEY);
+    
+    // Create a pending transaction record
+    const { data: transaction, error } = await supabase.from('transactions').insert({
+      student_id: studentId,
+      fee_record_id: invoiceId, // Linking to invoice
+      gross_amount: amount,
+      status: 'pending',
+      payment_method: 'SBI_EPAY',
+      order_id: orderId
+    }).select().single();
+
+    if (error) throw error;
+
+    // Return the encrypted payload and URL to the frontend so it can submit the form to SBI ePay
+    res.json({ 
+      orderId, 
+      paymentUrl: 'https://staging.sbiepay.sbi/pay', // Staging URL
+      payload: 'mock_encrypted_payload' 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to initiate payment', error: error.message });
+  }
+});
+
+// @desc    Handle SBI ePay Callback
+// @route   POST /api/fees/payment-callback
+// @access  Public (SBI ePay Server)
+router.post('/payment-callback', async (req, res) => {
+  try {
+    const { responsePayload } = req.body; // Encrypted response from SBI ePay
+
+    // Decrypt the payload
+    // const decrypted = decrypt(responsePayload, MERCHANT_KEY);
+    // Parse the decrypted response
+    const mockDecrypted = { orderId: req.body.orderId, status: 'SUCCESS', sbiRef: 'SBI' + Date.now() };
+
+    // Update transaction
+    const { error } = await supabase.from('transactions')
+      .update({ 
+        status: mockDecrypted.status, 
+        sbi_reference_id: mockDecrypted.sbiRef,
+        sbi_response: mockDecrypted 
+      })
+      .eq('order_id', mockDecrypted.orderId);
+
+    if (error) throw error;
+
+    // Optionally redirect back to frontend
+    res.redirect(`${process.env.FRONTEND_URL}/payment-status?orderId=${mockDecrypted.orderId}`);
+  } catch (error) {
+    res.status(500).json({ message: 'Callback processing failed', error: error.message });
+  }
+});
+
+// @desc    Double Verification for SBI ePay
+// @route   POST /api/fees/verify-payment
+// @access  Public
+router.post('/verify-payment', async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    
+    // Call SBI ePay Status Query API to verify final status
+    // const response = await fetch('https://staging.sbiepay.sbi/statusQuery', { ... })
+    const mockStatusResponse = { status: 'SUCCESS' }; // Mock response
+    
+    // Update our DB if needed
+    await supabase.from('transactions')
+      .update({ status: mockStatusResponse.status })
+      .eq('order_id', orderId);
+
+    res.json({ verified: true, status: mockStatusResponse.status });
+  } catch (error) {
+    res.status(500).json({ message: 'Verification failed', error: error.message });
+  }
+});
+
 module.exports = router;

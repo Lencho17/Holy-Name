@@ -41,7 +41,7 @@ router.post('/login', async (req, res) => {
       .from('students')
       .select('*')
       .or(`email.ilike."${rollNumber.trim()}",admission_id.eq."${rollNumber.trim()}"`)
-      .eq('school_id', schoolId);
+      .or(`school_id.eq.${schoolId},school_id.is.null`);
 
     if (error || !students || students.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -150,7 +150,7 @@ router.post('/reset-password', async (req, res) => {
       .from('students')
       .select('id, admission_id, student_name, email, date_of_birth, school_id')
       .or(`email.ilike."${email.trim()}",admission_id.eq."${email.trim()}"`)
-      .eq('school_id', schoolId);
+      .or(`school_id.eq.${schoolId},school_id.is.null`);
 
     if (error || !students || students.length === 0) {
       return res.status(404).json({ message: 'Student account not found with the provided details.' });

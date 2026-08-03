@@ -3,8 +3,9 @@ import { NavLink, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { QRCodeSVG } from 'qrcode.react';
-import { FaLaptop, FaBuilding, FaClipboardList, FaGraduationCap, FaPhoneAlt, FaEnvelope, FaCheckCircle, FaSearch, FaExclamationCircle, FaIdBadge, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUserCheck, FaClipboardCheck, FaPrint, FaShieldAlt, FaBriefcase } from "react-icons/fa";
+import { FaLaptop, FaBuilding, FaClipboardList, FaGraduationCap, FaPhoneAlt, FaEnvelope, FaCheckCircle, FaSearch, FaExclamationCircle, FaIdBadge, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUserCheck, FaClipboardCheck, FaPrint, FaShieldAlt, FaBriefcase, FaUser, FaUsers, FaMapMarkerAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function AdmissionForm() {
@@ -584,7 +585,6 @@ function AdmissionForm() {
   };
 
   const handleDownloadReceipt = async (appData = null) => {
-    // If appData is an event object (e.g. from onClick={handleDownloadReceipt}), ignore it
     const isEvent = appData && (appData.nativeEvent || appData.target);
     const rawData = (!isEvent && appData) ? appData : submittedData;
     
@@ -594,295 +594,49 @@ function AdmissionForm() {
     }
     
     const app = rawData?.data || rawData || {};
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const primaryColor = [15, 23, 42]; // Dark slate
-    const secondaryColor = [100, 116, 139]; // Gray
+    
+    const receiptElement = document.getElementById('receipt-container');
+    if (!receiptElement) {
+       console.error("Receipt element not found");
+       alert("Error: Receipt view not found. Please try again.");
+       return;
+    }
 
-    const loadImage = (url) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = url;
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
+    // Set a flag to show loading state if you have one, or just proceed
+    try {
+      const canvas = await html2canvas(receiptElement, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
       });
-    };
-
-    // Calculate age
-    let age = '';
-    if (app.dateOfBirth) {
-      const birthDate = new Date(app.dateOfBirth);
-      const today = new Date();
-      age = today.getFullYear() - birthDate.getFullYear();
-      const m = today.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-    }
-
-    // --- 1. Clean Letterhead Header ---
-    const logoImg = schoolProfile?.logo ? await loadImage(schoolProfile.logo) : null;
-    if (logoImg) {
-      doc.addImage(logoImg, 'PNG', 15, 8, 25, 25);
-    }
-
-    // Header Text (Centered)
-    doc.setTextColor(...primaryColor);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text(schoolProfile?.name?.toUpperCase() || "", 105, 16, { align: "center" });
-    
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...secondaryColor);
-    doc.text(schoolProfile?.officeAddress || "", 105, 22, { align: "center" });
-    
-    const contactLine = [schoolProfile?.email, schoolProfile?.phone].filter(Boolean).join(" | ");
-    if (contactLine) {
-        doc.text(contactLine, 105, 27, { align: "center" });
-    }
-    
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
-    doc.text(`Official Receipt Generated on ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')} at ${new Date().toLocaleTimeString('en-IN')}`, 105, 32, { align: "center" });
-
-    // Subtle Separator
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.3);
-    doc.line(15, 36, 195, 36);
-
-    // --- 1.5 Authentic Watermark ---
-    doc.saveGraphicsState();
-    doc.setTextColor(245, 245, 245); // Super subtle
-    doc.setFontSize(38);
-    doc.setFont("helvetica", "bold");
-    doc.text("VidyaBarta School Management Software", 20, 280, { angle: 50 });
-    doc.restoreGraphicsState();
-
-    // --- 2. Title & Status ---
-    doc.setTextColor(...primaryColor);
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("ADMISSION APPLICATION SUCCESSFUL", 105, 44, { align: "center" });
-    
-    doc.setDrawColor(30, 30, 30);
-    doc.setLineWidth(0.5);
-    doc.line(60, 47, 150, 47);
-
-    // --- 3. Reference & Candidate Photo ---
-    // Ref Box
-    doc.setFillColor(245, 245, 245);
-    doc.roundedRect(15, 52, 140, 22, 2, 2, 'F');
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(15, 52, 140, 22, 2, 2, 'D');
-    
-    doc.setFontSize(11);
-    doc.setTextColor(...primaryColor);
-    doc.setFont("helvetica", "bold");
-    doc.text(`REFERENCE NO: ${app.referenceNumber || 'N/A'}`, 20, 60);
-    
-    doc.setFontSize(9);
-    doc.setTextColor(...secondaryColor);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Applicant: ${app.studentName || app.fullName || 'N/A'}  |  Contact: ${app.contactNumber || app.phone || 'N/A'}`, 20, 67);
-
-    // Student Photo (Right side)
-    doc.setDrawColor(...primaryColor);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(165, 52, 28, 28, 2, 2, 'D');
-    
-    let studentPhotoUrl = app.studentPhoto || (filePreviews?.studentPhoto?.url);
-    if (app.studentPhoto instanceof File) studentPhotoUrl = URL.createObjectURL(app.studentPhoto);
-    
-    const studentImg = studentPhotoUrl ? await loadImage(studentPhotoUrl) : null;
-    if (studentImg) {
-      doc.addImage(studentImg, 'JPEG', 166, 53, 26, 26);
-    } else {
-      doc.setFontSize(7);
-      doc.setTextColor(180);
-      doc.text("CANDIDATE", 179, 64, { align: "center" });
-      doc.text("PHOTO", 179, 68, { align: "center" });
-    }
-
-    // --- 5. Data Fields Grid ---
-    let currY = 88;
-    let yInc = 7;
-    doc.setTextColor(...primaryColor);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("APPLICATION DETAILS", 15, currY - 4);
-
-    // Dynamic Fields Logic
-    const getFieldVal = (fieldName) => {
-      if (!fieldName) return 'N/A';
-      const val = app[fieldName];
-      if (val === undefined || val === null || val === '') return 'N/A';
-      if (Array.isArray(val)) return val.join(", ").toUpperCase();
-      if (typeof val === 'boolean') return val ? 'YES' : 'NO';
-      return val.toString().toUpperCase();
-    };
-
-    const displayFields = admissionFields.length > 0 
-      ? admissionFields
-          .filter(f => f.section !== 'Documents' && f.type !== 'file')
-          .sort((a, b) => (a.order || 0) - (b.order || 0))
-      : [
-          { name: "studentName", label: "Student Name (As per Aadhaar)" },
-          { name: "dateOfBirth", label: "Date of Birth" },
-          { name: "AadhaarNumber", label: "Aadhaar Number" },
-          { name: "placeOfBirth", label: "Place of Birth" },
-          { name: "gender", label: "Gender" },
-          { name: "bloodGroup", label: "Blood Group" },
-          { name: "religion", label: "Religion" },
-          { name: "caste", label: "Caste" },
-          { name: "gradeApplied", label: "Grade/Class Applied For" },
-          { name: "fatherName", label: "Father's Name" },
-          { name: "fatherOccupation", label: "Father's Occupation" },
-          { name: "motherName", label: "Mother's Name" },
-          { name: "motherOccupation", label: "Mother's Occupation" },
-          { name: "guardianName", label: "Guardian's Full Name" },
-          { name: "relationship", label: "Relationship to Student" },
-          { name: "contactNumber", label: "Contact Number" },
-          { name: "email", label: "Email Address" },
-          { name: "address", label: "Residential Address" },
-          { name: "po", label: "Post Office (PO)" },
-          { name: "ps", label: "Police Station (PS)" },
-          { name: "pincode", label: "Pincode" },
-          { name: "previousSchool", label: "Previous School Attended" },
-          { name: "penNumber", label: "PEN (Permanent Education Number)" },
-          { name: "boardMarks", label: "Total Marks Obtained (Class X)" },
-          { name: "darpanId", label: "DARPAN ID" }
-        ];
-
-    const half = Math.ceil(displayFields.length / 2);
-    const leftColX = 15;
-    const rightColX = 110;
-
-    for (let i = 0; i < Math.max(half, displayFields.length - half); i++) {
-      const leftField = displayFields[i];
-      const rightField = displayFields[i + half];
-
-      const leftVal = getFieldVal(leftField?.name);
-      const rightVal = getFieldVal(rightField?.name);
-
-      const leftLabelSplit = leftField ? doc.splitTextToSize(`${leftField.label.toUpperCase()}:`, 52) : [];
-      const rightLabelSplit = rightField ? doc.splitTextToSize(`${rightField.label.toUpperCase()}:`, 52) : [];
-
-      const leftSplit = leftField ? doc.splitTextToSize(leftVal, 38) : [];
-      const rightSplit = rightField ? doc.splitTextToSize(rightVal, 38) : [];
       
-      const maxLines = Math.max(leftSplit.length || 1, rightSplit.length || 1, leftLabelSplit.length || 1, rightLabelSplit.length || 1);
-
-      // Zebra Striping
-      if (i % 2 === 0) {
-        doc.setFillColor(248, 250, 252);
-        doc.rect(12, currY - 4, 186, yInc + ((maxLines - 1) * 3.5) + 1, 'F');
-      }
-
-      // Left Column
-      if (leftField) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(...secondaryColor);
-        doc.text(leftLabelSplit, leftColX, currY);
-        
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(...primaryColor);
-        doc.text(leftSplit, leftColX + 54, currY);
-      }
-
-      // Right Column
-      if (rightField) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(...secondaryColor);
-        doc.text(rightLabelSplit, rightColX, currY);
-        
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(...primaryColor);
-        doc.text(rightSplit, rightColX + 54, currY);
-      }
-
-      currY += yInc + ((maxLines - 1) * 3.5);
-
-      if (currY > 265) {
-        doc.addPage();
-        currY = 20;
-      }
-    }
-
-    // --- 6. Additional Info Section ---
-    currY += 5;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...primaryColor);
-    doc.text("ADDITIONAL INFORMATION", 15, currY);
-    currY += 4;
-
-    const renderAdditional = (label, val, x, y) => {
-      doc.setFont("helvetica", "normal");
+      const imgData = canvas.toDataURL('image/png');
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+      
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeight = doc.internal.pageSize.getHeight();
+      
+      const padding = 15;
+      const imgWidth = pdfWidth - (padding * 2);
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      doc.addImage(imgData, 'PNG', padding, padding, imgWidth, imgHeight);
+      
+      // Optional Footer on PDF
       doc.setFontSize(8);
-      doc.setTextColor(...secondaryColor);
-      doc.text(`${label}:`, x, y);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...primaryColor);
-      doc.text(val, x + 54, y);
-    };
+      doc.setTextColor(150, 150, 150);
+      doc.text("Securely Powered by VidyaBarta School Management Software", pdfWidth / 2, pdfHeight - 10, { align: "center" });
 
-    renderAdditional("AGE", age ? age.toString() : 'N/A', leftColX, currY);
-    
-    if (selectedSubjects && selectedSubjects.length > 0) {
-      currY += yInc;
-      const subjects = selectedSubjects.join(", ");
-      const splitSubjects = doc.splitTextToSize(subjects.toUpperCase(), 130);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...secondaryColor);
-      doc.text("ELECTIVE SUBJECTS:", leftColX, currY);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...primaryColor);
-      doc.text(splitSubjects, leftColX + 54, currY);
-      currY += (splitSubjects.length * 4);
+      doc.save(`Admission_Receipt_${app.referenceNumber || 'Success'}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF receipt:", error);
+      alert("There was an error generating your PDF. Please try again.");
     }
-
-    // --- 7. Important Footer Block ---
-    if (currY > 240) { doc.addPage(); currY = 20; }
-    currY += 5;
-    
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(15, currY, 180, 20, 2, 2, 'F');
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(15, currY, 180, 20, 2, 2, 'D');
-
-    doc.setFontSize(9);
-    doc.setTextColor(...primaryColor);
-    doc.setFont("helvetica", "bold");
-    doc.text("IMPORTANT:", 20, currY + 7);
-    
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...primaryColor);
-    doc.text("Please bring this original receipt along with all required original documents (Aadhaar, Birth Certificate, etc.)", 20, currY + 13);
-    doc.text("for the scheduled interview. Admission selection depends on the verification of these submitted details.", 20, currY + 17);
-
-    // --- 8. Page Footer ---
-    doc.setDrawColor(226, 232, 240);
-    doc.line(15, 280, 195, 280);
-    doc.setFontSize(8);
-    doc.setTextColor(...secondaryColor);
-    doc.text(`${schoolProfile?.name || ""} | Contact: ${schoolProfile?.phone || ""}`, 105, 285, { align: "center" });
-    doc.setFontSize(7);
-    doc.setTextColor(180, 180, 180);
-    doc.text("Securely Powered by VidyaBarta School Management Software - A Product of Lencho Solutions", 105, 290, { align: "center" });
-
-    doc.save(`Admission_Receipt_${app.referenceNumber || 'Success'}.pdf`);
   };
 
   return (
@@ -1743,104 +1497,161 @@ function AdmissionForm() {
               </div>
 
               {/* Receipt Preview */}
-              <div className="bg-white p-8 md:p-10 rounded-3xl border-2 border-gray-200 text-left relative shadow-xl overflow-hidden mb-10 transition-all">
-                {/* Top Accent Bar */}
-                <div className="absolute top-0 left-0 w-full h-2 bg-primary"></div>
+              <div id="receipt-container" className="bg-[#f8f9fc] p-4 md:p-8 rounded-xl shadow-inner mb-10 w-full max-w-3xl mx-auto font-sans text-gray-800">
+                <div className="bg-white shadow-md border border-gray-200 p-6 md:p-10 relative text-left">
+                  
+                  {/* Header */}
+                  <div className="text-center mb-6">
+                    <h2 className="text-lg md:text-xl font-black uppercase text-[#1e3a8a] tracking-widest inline-block border-b-2 border-[#C8A97E] pb-1">
+                      Admission Application Receipt
+                    </h2>
+                  </div>
 
-                {/* School Header */}
-                <div className="flex flex-col items-center text-center border-b border-gray-100 pb-8 mb-8 pt-4">
-                  {schoolProfile?.logo && (
-                    <img
-                      src={schoolProfile.logo}
-                      alt="School Logo"
-                      className="w-24 h-24 object-contain mb-4 transform hover:scale-105 transition-transform"
-                    />
-                  )}
-                  <h2 className="text-3xl md:text-4xl font-serif font-black text-black tracking-tighter leading-none mb-2">
-                    {schoolProfile?.name || "Our School"}
-                  </h2>
-                  <p className="text-sm text-gray-600 font-bold italic tracking-widest opacity-80 uppercase">
-                    {schoolProfile?.punchLine}
-                  </p>
-                  {schoolProfile?.officeAddress && (
-                    <p className="text-[10px] md:text-xs text-gray-500 font-medium mt-2 max-w-xs md:max-w-md mx-auto leading-relaxed">
-                      {schoolProfile.officeAddress}
+                  {/* Receipt Meta */}
+                  <div className="flex justify-between items-start border-b border-gray-100 pb-4 mb-6 text-xs md:text-sm">
+                    <div>
+                      <p className="font-bold text-gray-500 text-[10px] uppercase tracking-wider mb-1">Receipt No.</p>
+                      <p className="font-bold text-gray-800">{submittedData.referenceNumber}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-500 text-[10px] uppercase tracking-wider mb-1">Date</p>
+                      <p className="font-bold text-gray-800">{submittedData.dateOfApplication || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+
+                  {/* Student Information */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FaUser className="text-[#C8A97E]" />
+                      <h3 className="font-bold text-[#1e3a8a] text-sm md:text-base">Student Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-4">
+                      <div>
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Full Name</p>
+                        <p className="font-bold text-gray-900 text-xs md:text-sm">{submittedData.studentName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Date of Birth</p>
+                        <p className="font-bold text-gray-900 text-xs md:text-sm">{submittedData.dateOfBirth || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Gender</p>
+                        <p className="font-bold text-gray-900 text-xs md:text-sm">{submittedData.gender || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Grade Applied</p>
+                        <p className="font-bold text-gray-900 text-xs md:text-sm">
+                          {submittedData.gradeApplied} {submittedData.stream ? `(${submittedData.stream})` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Subjects Tag Cloud - for Class 11-12 */}
+                    {(submittedData.selectedSubjects?.length > 0 || submittedData.mil || submittedData.elective) && (
+                      <div className="mt-4">
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-2">Academic Selection</p>
+                        <div className="flex flex-wrap gap-2">
+                          {submittedData.mil && <span className="px-2 py-1 bg-white text-slate-700 font-bold rounded text-[10px] border border-slate-200 capitalize">Language: {submittedData.mil}</span>}
+                          {submittedData.elective && <span className="px-2 py-1 bg-white text-slate-700 font-bold rounded text-[10px] border border-slate-200 capitalize">Elective: {submittedData.elective.replace(/_/g, ' ')}</span>}
+                          {submittedData.selectedSubjects?.map((sub, i) => (
+                            <span key={i} className="px-2 py-1 bg-[#1e3a8a] text-white font-bold rounded text-[10px]">{sub}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-full border-t border-dashed border-gray-200 my-4"></div>
+
+                  {/* Parent Information */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FaUsers className="text-[#C8A97E]" />
+                      <h3 className="font-bold text-[#1e3a8a] text-sm md:text-base">Parent/Guardian Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-4">
+                      <div>
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Name</p>
+                        <p className="font-bold text-gray-900 text-xs md:text-sm">{submittedData.fatherName || submittedData.motherName || submittedData.guardianName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Relationship</p>
+                        <p className="font-bold text-gray-900 text-xs md:text-sm">{submittedData.fatherName ? 'Father' : submittedData.motherName ? 'Mother' : 'Guardian'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Contact Number</p>
+                        <p className="font-bold text-gray-900 text-xs md:text-sm">{submittedData.contactNumber || submittedData.phone || submittedData.mobileNumber || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Email Address</p>
+                        <p className="font-bold text-gray-900 text-xs md:text-sm">{submittedData.email || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-full border-t border-dashed border-gray-200 my-4"></div>
+
+                  {/* Address */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FaMapMarkerAlt className="text-[#C8A97E]" />
+                      <h3 className="font-bold text-[#1e3a8a] text-sm md:text-base">Address Details</h3>
+                    </div>
+                    <div className="bg-[#f8fafc] border border-gray-200 p-4 rounded-md">
+                      <p className="font-bold text-gray-400 text-[10px] uppercase tracking-wider mb-1">Residential Address</p>
+                      <p className="text-gray-900 text-xs md:text-sm font-medium leading-relaxed">
+                        {submittedData.address || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Fee Status */}
+                  <div className="bg-[#eef2ff] border border-blue-100 rounded-md p-4 flex justify-between items-center mb-10">
+                    <div>
+                      <p className="font-bold text-[#1e3a8a] text-[10px] uppercase tracking-wider mb-1">Application Fee Status</p>
+                      <p className="font-black text-[#1e3a8a] text-lg">₹{admissionFee.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full flex items-center gap-2 text-xs font-bold">
+                      <FaCheckCircle /> PAID
+                    </div>
+                  </div>
+
+                  <div className="w-full border-t border-gray-200 my-8"></div>
+
+                  {/* Signatures */}
+                  <div className="flex flex-col md:flex-row justify-between items-center md:items-end mt-12 mb-6 gap-8 md:gap-0">
+                    <div className="w-full md:w-1/3 text-center order-2 md:order-1">
+                      <div className="border-t border-gray-400 mb-2 mx-auto w-3/4"></div>
+                      <p className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase">Parent/Guardian Signature</p>
+                    </div>
+                    
+                    <div className="w-full md:w-1/3 flex justify-center order-1 md:order-2 mb-4 md:mb-0">
+                      {schoolProfile?.logo ? (
+                        <div className="w-20 h-20 border-2 border-[#C8A97E] rounded flex flex-col items-center justify-center p-2">
+                          <img src={schoolProfile.logo} alt="Seal" className="max-w-full max-h-12 object-contain opacity-80" />
+                          <span className="text-[6px] font-bold uppercase mt-1 text-[#C8A97E]">Official Seal</span>
+                        </div>
+                      ) : (
+                        <div className="w-20 h-20 border-2 border-[#C8A97E] rounded flex flex-col items-center justify-center text-[#C8A97E]">
+                          <FaCheckCircle className="text-xl mb-1" />
+                          <span className="text-[8px] font-bold uppercase text-center leading-tight">Official<br/>Seal</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="w-full md:w-1/3 text-center order-3 md:order-3">
+                      <div className="border-t border-gray-400 mb-2 mx-auto w-3/4"></div>
+                      <p className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase">Authorized Signatory</p>
+                    </div>
+                  </div>
+
+                  {/* Footer text */}
+                  <div className="text-center border-t border-gray-200 pt-4 mt-6">
+                    <p className="text-[8px] md:text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                      This receipt is generated by {schoolProfile?.name || 'Vidyabarta School Management System'}
                     </p>
-                  )}
-                  <div className="flex items-center gap-3 mt-4">
-                    <span className="h-[1px] w-8 bg-gray-200"></span>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Acknowledgement Receipt</span>
-                    <span className="h-[1px] w-8 bg-gray-200"></span>
                   </div>
-                </div>
 
-                {/* Reference ID Highlight */}
-                <div className="bg-white rounded-2xl p-8 mb-8 text-center border-2 border-primary shadow-sm group transition-colors">
-                  <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] mb-3">Application Reference Number</p>
-                  <p className="font-mono text-4xl md:text-5xl font-black text-primary tracking-tighter select-all">
-                    {submittedData.referenceNumber}
-                  </p>
-                </div>
-
-                {/* Details Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="space-y-4">
-                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
-                      <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Student Name</span>
-                      <span className="font-black text-gray-800">{submittedData.studentName}</span>
-                    </div>
-                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
-                      <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Class Applied</span>
-                      <span className="font-black text-gray-800 uppercase">{submittedData.gradeApplied}</span>
-                    </div>
-                    {submittedData.stream && (
-                      <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
-                        <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Stream</span>
-                        <span className="font-black text-gray-800 uppercase">{submittedData.stream}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
-                      <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Applied Date</span>
-                      <span className="font-black text-gray-800">{submittedData.dateOfApplication}</span>
-                    </div>
-                    <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
-                      <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Contact No</span>
-                      <span className="font-black text-gray-800">{submittedData.contactNumber}</span>
-                    </div>
-                    {submittedData.penNumber && (
-                      <div className="flex justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group transition-colors">
-                        <span className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">PEN Number</span>
-                        <span className="font-mono font-black text-gray-800">{submittedData.penNumber}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Subjects Tag Cloud - for Class 11-12 */}
-                {(submittedData.selectedSubjects?.length > 0 || submittedData.mil || submittedData.elective) && (
-                  <div className="mt-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Academic Selection</p>
-                    <div className="flex flex-wrap gap-2">
-                      {submittedData.mil && <span className="px-4 py-2 bg-white text-slate-700 font-bold rounded-full text-xs border border-slate-200 shadow-sm capitalize">Language: {submittedData.mil}</span>}
-                      {submittedData.elective && <span className="px-4 py-2 bg-white text-slate-700 font-bold rounded-full text-xs border border-slate-200 shadow-sm capitalize">Elective: {submittedData.elective.replace(/_/g, ' ')}</span>}
-                      {submittedData.selectedSubjects?.map((sub, i) => (
-                        <span key={i} className="px-4 py-2 bg-primary text-white font-bold rounded-full text-xs shadow-sm">{sub}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Warning / Footer */}
-                <div className="mt-8 pt-8 border-t border-gray-100 text-center">
-                  <div className="flex items-center justify-center gap-2 text-gray-800 mb-2">
-                    <FaExclamationCircle className="text-sm" />
-                    <p className="text-xs font-bold uppercase tracking-wider">Next Step Instruction</p>
-                  </div>
-                  <p className="text-sm text-gray-600 leading-relaxed font-medium">
-                    Please download the official PDF receipt and keep the reference number safe for your upcoming interview and document verification.
-                  </p>
                 </div>
               </div>
 

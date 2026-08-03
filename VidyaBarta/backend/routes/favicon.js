@@ -4,7 +4,10 @@ const supabase = require('../config/supabase');
 
 router.get('/', async (req, res) => {
   try {
-    const domain = req.headers['x-forwarded-host'] || req.headers.host || req.query.domain;
+    let domain = req.headers['x-forwarded-host'] || req.headers.host || req.query.domain;
+    if (domain) {
+      domain = domain.split(',')[0].trim();
+    }
     
     if (!domain) {
       return res.redirect('https://www.vidyabarta.com/vidyabarta-favicon.png');
@@ -17,12 +20,12 @@ router.get('/', async (req, res) => {
     // Find school by subdomain or custom_domain
     const { data: school } = await supabase
       .from('schools')
-      .select('logo')
+      .select('logo_url')
       .or(`subdomain.eq.${cleanDomain},custom_domain.eq.${cleanDomain},custom_domain.eq.${wwwDomain}`)
       .single();
     
-    if (school && school.logo) {
-      return res.redirect(school.logo);
+    if (school && school.logo_url) {
+      return res.redirect(school.logo_url);
     }
     
     // Fallback to default Vidyabarta favicon

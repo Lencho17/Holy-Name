@@ -10,7 +10,7 @@ export default function SystemLogs({ API_URL, adminUser }) {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/api/system/logs`, {
+      const res = await axios.get(`${API_URL}/system/logs`, {
         headers: { Authorization: `Bearer ${adminUser.token}` }
       });
       setLogs(res.data);

@@ -18,7 +18,7 @@ document.addEventListener('input', (e) => {
     // Exclude specific types
     const excludedTypes = ['email', 'password', 'url', 'file', 'hidden', 'color', 'date', 'datetime-local', 'month', 'time', 'week', 'number', 'range', 'checkbox', 'radio'];
     
-    if (!excludedTypes.includes(type)) {
+    if (!excludedTypes.includes(type) && target.getAttribute('data-no-uppercase') !== 'true') {
       const oldVal = target.value;
       const newVal = oldVal.toUpperCase();
       

@@ -241,6 +241,7 @@ function Login() {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       placeholder="••••••••"
+                      data-no-uppercase="true"
                     />
                     <button
                       type="button"

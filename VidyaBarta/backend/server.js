@@ -43,6 +43,7 @@ const studentPortalRoutes = require('./routes/studentPortal');
 const assignmentsRoutes = require('./routes/assignments');
 const subjectsRoutes = require('./routes/subjects');
 const grievancesRoutes = require('./routes/grievances');
+const systemRoutes = require('./routes/system');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -117,6 +118,9 @@ app.use((req, res, next) => {
   next();
 });
 
+const auditLogger = require('./middleware/auditLogger');
+app.use(auditLogger);
+
 // ============================================
 // STATIC FILES
 // ============================================
@@ -170,6 +174,7 @@ app.use('/api/saas-pricing', apiLimiter, saasPricingRoutes);
 app.use('/api/saas-settings', apiLimiter, saasSettingsRoutes);
 app.use('/api/bulk-upload', apiLimiter, bulkUploadRoutes);
 app.use('/api/holidays', apiLimiter, holidayRoutes);
+app.use('/api/system', apiLimiter, systemRoutes);
 
 // Dynamic Favicon Route for Googlebot
 app.use('/api/favicon', require('./routes/favicon'));

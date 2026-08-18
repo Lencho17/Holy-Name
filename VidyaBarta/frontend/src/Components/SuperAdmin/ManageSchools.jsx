@@ -55,6 +55,7 @@ export const ManageSchools = () => {
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isChangeAdminModalOpen, setIsChangeAdminModalOpen] = useState(false);
+  const [isChangePrincipalModalOpen, setIsChangePrincipalModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
   const [isBulkDownloadModalOpen, setIsBulkDownloadModalOpen] = useState(false);
@@ -67,6 +68,7 @@ export const ManageSchools = () => {
   // Specific Form States for Edit & Change Admin
   const [editFormData, setEditFormData] = useState({});
   const [adminFormData, setAdminFormData] = useState({});
+  const [principalFormData, setPrincipalFormData] = useState({});
   const [servicesFormData, setServicesFormData] = useState({
     admission: true, career: true, tenders: true, appointment: true, gallery: true, studentPortal: true, faculty: true, alumestron: true, excellence: true, complaints: true
   });
@@ -100,6 +102,11 @@ export const ManageSchools = () => {
     admin_email: '',
     admin_image_url: '',
     admin_password: '',
+    principal_first_name: '',
+    principal_last_name: '',
+    principal_contact: '',
+    principal_email: '',
+    principal_password: '',
     package_id: '',
     platform_fee: 0,
     transaction_fee: 0
@@ -218,12 +225,7 @@ export const ManageSchools = () => {
     try {
       setModalLoading(true);
       const token = localStorage.getItem('adminToken');
-      const adminId = selectedSchool.admins && selectedSchool.admins.length > 0 ? selectedSchool.admins[0].id : null;
-      if (!adminId) {
-        alert('No admin found for this school');
-        return;
-      }
-      await axios.patch(`${API_URL}/superadmin/schools/${selectedSchool.id}/admin`, { ...adminFormData, admin_id: adminId }, {
+      await axios.patch(`${API_URL}/superadmin/schools/${selectedSchool.id}/admin`, { ...adminFormData, role: 'admin' }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchSchools();
@@ -231,6 +233,24 @@ export const ManageSchools = () => {
     } catch (err) {
       console.error('Failed to change admin', err);
       alert('Failed to change admin');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleChangePrincipalSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setModalLoading(true);
+      const token = localStorage.getItem('adminToken');
+      await axios.patch(`${API_URL}/superadmin/schools/${selectedSchool.id}/admin`, { ...principalFormData, role: 'principal' }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchSchools();
+      setIsChangePrincipalModalOpen(false);
+    } catch (err) {
+      console.error('Failed to change principal', err);
+      alert('Failed to change principal');
     } finally {
       setModalLoading(false);
     }
@@ -401,8 +421,10 @@ export const ManageSchools = () => {
             </div>
           </div>
 
-          {/* Add Admin Section */}
-          <div className="bg-white p-8 rounded-2xl border border-outline-variant shadow-sm h-fit relative overflow-hidden">
+          {/* Right Column (Admin & Principal Accounts) */}
+          <div className="flex flex-col gap-8 h-fit">
+            {/* Add Admin Section */}
+            <div className="bg-white p-8 rounded-2xl border border-outline-variant shadow-sm h-fit relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary to-primary"></div>
             <h2 className="text-title-lg font-bold text-neutral mb-6 flex items-center gap-2">
               <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-sm">2</span>
@@ -449,8 +471,45 @@ export const ManageSchools = () => {
 
               <div>
                 <label className="block text-label-md font-medium text-neutral mb-1.5">Admin Password</label>
-                <input type="text" name="admin_password" value={formData.admin_password} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="School@123 (Default)" />
+                <input type="password" name="admin_password" value={formData.admin_password} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="School@123 (Default)" />
               </div>
+            </div>
+          </div>
+
+          {/* Add Principal Section */}
+          <div className="bg-white p-8 rounded-2xl border border-outline-variant shadow-sm h-fit relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            <h2 className="text-title-lg font-bold text-neutral mb-6 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-sm">3</span>
+              Principal Account
+            </h2>
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-label-md font-medium text-neutral mb-1.5">First Name <span className="text-red-500">*</span></label>
+                  <input required type="text" name="principal_first_name" value={formData.principal_first_name} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="Jane" />
+                </div>
+                <div>
+                  <label className="block text-label-md font-medium text-neutral mb-1.5">Last Name</label>
+                  <input type="text" name="principal_last_name" value={formData.principal_last_name} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="Smith" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-label-md font-medium text-neutral mb-1.5">Personal Contact Number</label>
+                <input type="text" name="principal_contact" value={formData.principal_contact} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="+91 9876543210" />
+              </div>
+
+              <div>
+                <label className="block text-label-md font-medium text-neutral mb-1.5">Principal Email (Login ID) <span className="text-red-500">*</span></label>
+                <input required type="email" name="principal_email" value={formData.principal_email} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="principal@school.com" />
+              </div>
+
+              <div>
+                <label className="block text-label-md font-medium text-neutral mb-1.5">Principal Password</label>
+                <input type="password" name="principal_password" value={formData.principal_password} onChange={handleInputChange} className="w-full px-4 py-3 bg-white border border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/10 rounded-xl transition-all text-body-md" placeholder="School@123 (Default)" />
+              </div>
+            </div>
             </div>
           </div>
         </div>
@@ -592,11 +651,13 @@ export const ManageSchools = () => {
                           <button 
                             onClick={() => {
                               setSelectedSchool(school);
+                              const admin = school.admins?.find(a => a.role === 'admin') || school.admins?.[0];
                               setAdminFormData({
-                                first_name: school.admins?.[0]?.first_name || '',
-                                last_name: school.admins?.[0]?.last_name || '',
-                                email: school.admins?.[0]?.email || '',
-                                phone: school.admins?.[0]?.phone || '',
+                                admin_id: admin?.id || '',
+                                first_name: admin?.first_name || '',
+                                last_name: admin?.last_name || '',
+                                email: admin?.email || '',
+                                phone: admin?.phone || '',
                                 password: ''
                               });
                               setIsChangeAdminModalOpen(true);
@@ -605,6 +666,26 @@ export const ManageSchools = () => {
                             className="w-full text-left px-4 py-2 text-body-md text-neutral hover:bg-surface-variant transition-colors flex items-center gap-2"
                           >
                             <FiUser className="text-secondary" /> Change Admin
+                          </button>
+
+                          <button 
+                            onClick={() => {
+                              setSelectedSchool(school);
+                              const principal = school.admins?.find(a => a.role === 'principal');
+                              setPrincipalFormData({
+                                admin_id: principal?.id || '',
+                                first_name: principal?.first_name || '',
+                                last_name: principal?.last_name || '',
+                                email: principal?.email || '',
+                                phone: principal?.phone || '',
+                                password: ''
+                              });
+                              setIsChangePrincipalModalOpen(true);
+                              setOpenDropdownId(null);
+                            }}
+                            className="w-full text-left px-4 py-2 text-body-md text-neutral hover:bg-surface-variant transition-colors flex items-center gap-2"
+                          >
+                            <FiUser className="text-emerald-500" /> Add/Change Principal
                           </button>
                           
                           <button 
@@ -817,6 +898,50 @@ export const ManageSchools = () => {
               <button type="button" onClick={() => setIsChangeAdminModalOpen(false)} className="px-6 py-2.5 rounded-xl text-label-md font-bold text-neutral hover:bg-surface-variant transition-colors border border-outline-variant">Cancel</button>
               <button type="submit" form="changeAdminForm" disabled={modalLoading} className="px-6 py-2.5 rounded-xl text-label-md font-bold text-white bg-primary hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50">
                 {modalLoading ? 'Saving...' : 'Update Admin'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Principal Modal */}
+      {isChangePrincipalModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scaleIn">
+            <div className="p-6 border-b border-outline-variant flex justify-between items-center bg-surface/50">
+              <h2 className="text-title-lg font-bold text-neutral">Add/Change Principal</h2>
+              <button onClick={() => setIsChangePrincipalModalOpen(false)} className="text-neutral hover:bg-surface-variant p-2 rounded-full transition-colors">✕</button>
+            </div>
+            <div className="p-6">
+              <form id="changePrincipalForm" onSubmit={handleChangePrincipalSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-label-sm font-medium text-neutral mb-1">First Name</label>
+                    <input type="text" value={principalFormData.first_name} onChange={(e) => setPrincipalFormData({...principalFormData, first_name: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-outline-variant focus:border-primary rounded-xl" required />
+                  </div>
+                  <div>
+                    <label className="block text-label-sm font-medium text-neutral mb-1">Last Name</label>
+                    <input type="text" value={principalFormData.last_name} onChange={(e) => setPrincipalFormData({...principalFormData, last_name: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-outline-variant focus:border-primary rounded-xl" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-label-sm font-medium text-neutral mb-1">Email (Login ID)</label>
+                  <input type="email" value={principalFormData.email} onChange={(e) => setPrincipalFormData({...principalFormData, email: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-outline-variant focus:border-primary rounded-xl" required />
+                </div>
+                <div>
+                  <label className="block text-label-sm font-medium text-neutral mb-1">Phone</label>
+                  <input type="text" value={principalFormData.phone} onChange={(e) => setPrincipalFormData({...principalFormData, phone: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-outline-variant focus:border-primary rounded-xl" />
+                </div>
+                <div>
+                  <label className="block text-label-sm font-medium text-neutral mb-1">New Password (Optional)</label>
+                  <input type="password" value={principalFormData.password} onChange={(e) => setPrincipalFormData({...principalFormData, password: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-outline-variant focus:border-primary rounded-xl" placeholder="Leave blank to keep current password" />
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-outline-variant flex justify-end gap-3 bg-surface/50">
+              <button type="button" onClick={() => setIsChangePrincipalModalOpen(false)} className="px-6 py-2.5 rounded-xl text-label-md font-bold text-neutral hover:bg-surface-variant transition-colors border border-outline-variant">Cancel</button>
+              <button type="submit" form="changePrincipalForm" disabled={modalLoading} className="px-6 py-2.5 rounded-xl text-label-md font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50">
+                {modalLoading ? 'Saving...' : 'Save Principal'}
               </button>
             </div>
           </div>

@@ -34,6 +34,9 @@ import WalletDashboard from './WalletDashboard';
 import DomainManager from './DomainManager';
 import ClassSubjectConfig from './ClassSubjectConfig';
 import ConfirmModal from './ConfirmModal';
+import SystemLogs from './SystemLogs';
+import OnlineUsersWidget from './OnlineUsersWidget';
+
 const SidebarItem = ({ active, onClick, icon: Icon, label, children }) => {
   const [isOpen, ReactSetIsOpen] = React.useState(false);
   const isActive = active;
@@ -4340,7 +4343,7 @@ function AdminPage() {
           </div>
           Register New Administrator {adminUser?.role !== 'developer' && <span className="ml-2 text-[10px] text-gray-400 font-bold lowercase tracking-normal">(Dual OTP Auth)</span>}
         </h4>
-        <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end relative z-10">
+        <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 items-end relative z-10">
           <div className="space-y-1.5">
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
             <input 
@@ -4373,6 +4376,17 @@ function AdminPage() {
               className="w-full px-5 py-3.5 border-2 border-white bg-white rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-sm font-medium placeholder:text-gray-300" 
               placeholder="e.g. 9876543210"
             />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Admin Role</label>
+            <select 
+              value={newAdmin.role} 
+              onChange={e => setNewAdmin({...newAdmin, role: e.target.value})} 
+              className="w-full px-5 py-3.5 border-2 border-white bg-white rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-sm font-medium text-gray-700"
+            >
+              <option value="admin">Standard Admin</option>
+              <option value="principal">Principal</option>
+            </select>
           </div>
           <div className="pb-0.5">
               <button 
@@ -8661,6 +8675,13 @@ function AdminPage() {
           {adminUser?.role === 'developer' && (
              <SidebarItem active={activeTab === 'activity'} onClick={() => { setActiveTab('activity'); setIsSidebarOpen(false); }} icon={FiMonitor} label="Activity Logs" />
           )}
+          {(adminUser?.role === 'developer' || adminUser?.role === 'principal') && (
+            <SidebarItem active={activeTab === 'systemLogs' || activeTab === 'onlineUsers'} icon={FiMonitor} label="System Monitoring">
+              <SubItem active={activeTab === 'systemLogs'} onClick={() => { setActiveTab('systemLogs'); setIsSidebarOpen(false); }} label="Audit Logs" />
+              <SubItem active={activeTab === 'onlineUsers'} onClick={() => { setActiveTab('onlineUsers'); setIsSidebarOpen(false); }} label="Online Users" />
+            </SidebarItem>
+          )}
+
           <SidebarItem active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} icon={FiHome} label="Dashboard" />
           
           <SidebarItem active={isContentActive} icon={FiLayers} label="Content">
@@ -8790,6 +8811,8 @@ function AdminPage() {
           {activeTab === 'careerAds' && renderCareersTab()}
           {activeTab === 'admins' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderAdminsTab()}
           {activeTab === 'activity' && adminUser?.role === 'developer' && renderActivityTab()}
+          {activeTab === 'systemLogs' && (adminUser?.role === 'developer' || adminUser?.role === 'principal') && <SystemLogs API_URL={API_URL} adminUser={adminUser} />}
+          {activeTab === 'onlineUsers' && (adminUser?.role === 'developer' || adminUser?.role === 'principal') && <OnlineUsersWidget API_URL={API_URL} adminUser={adminUser} />}
           {activeTab === 'admission' && renderAdmissionTab()}
 
           {activeTab === 'status' && <SchoolStatusSettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}

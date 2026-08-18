@@ -12,6 +12,7 @@ import { SiteDataProvider, SiteDataContext } from "./context/SiteDataContext";
 import { StudentAuthProvider } from "./context/StudentAuthContext";
 import { EmployeeAuthProvider } from "./context/EmployeeAuthContext";
 import React, { useContext, useEffect, Suspense } from "react";
+import axios from "axios";
 import { FaSpinner } from "react-icons/fa";
 
 // SaaS Components
@@ -133,6 +134,31 @@ function DocumentHeadManager({ isSaaS, isStudentSite, isEmployeeSite }) {
     updateMetaTag('meta[name="twitter:image"]', 'content', pageImage);
     
   }, [schoolProfile, isSaaS, isStudentSite, isEmployeeSite]);
+  return null;
+}
+
+function GlobalHeartbeat() {
+  const { API_URL } = useContext(SiteDataContext);
+  
+  useEffect(() => {
+    const sendHeartbeat = async () => {
+      const token = localStorage.getItem('adminToken') || localStorage.getItem('staffToken') || localStorage.getItem('studentToken');
+      if (!token || !API_URL) return;
+
+      try {
+        await axios.post(`${API_URL}/system/heartbeat`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        // Ignore errors to prevent console spam
+      }
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 45000); // 45 seconds
+    return () => clearInterval(interval);
+  }, [API_URL]);
+
   return null;
 }
 
@@ -329,6 +355,7 @@ function App() {
     <SiteDataProvider>
       <StudentAuthProvider>
         <EmployeeAuthProvider>
+          <GlobalHeartbeat />
           <DocumentHeadManager isSaaS={isSaaS} isStudentSite={isStudentSite} isEmployeeSite={isEmployeeSite} />
           <RouterProvider router={isEmployeeSite ? employeeRouter : (isStudentSite ? studentRouter : (isSaaS ? saasRouter : schoolRouter))} />
         </EmployeeAuthProvider>

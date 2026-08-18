@@ -44,7 +44,7 @@ router.get('/schools', protect, async (req, res) => {
 
     const { data: schools, error } = await supabase
       .from('schools')
-      .select('*, admins(id, first_name, last_name, email, image_url)')
+      .select('*, admins(id, first_name, last_name, email, image_url, role)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -65,11 +65,12 @@ router.post('/schools', protect, async (req, res) => {
     const {
       name, logo_url, email, phone, tagline, address, 
       subdomain, custom_domain, package, status,
-      admin_first_name, admin_last_name, admin_email, admin_contact, admin_image_url, admin_password
+      admin_first_name, admin_last_name, admin_email, admin_contact, admin_image_url, admin_password,
+      principal_first_name, principal_last_name, principal_email, principal_contact, principal_password
     } = req.body;
 
-    if (!name || !subdomain || !admin_email) {
-      return res.status(400).json({ message: 'School name, subdomain, and admin email are required' });
+    if (!name || !subdomain || !admin_email || !principal_email) {
+      return res.status(400).json({ message: 'School name, subdomain, admin email, and principal email are required' });
     }
 
     // Insert School
@@ -89,30 +90,43 @@ router.post('/schools', protect, async (req, res) => {
 
     // Insert Admin for the school
     const salt = await bcrypt.genSalt(10);
-    const passwordToHash = admin_password && admin_password.trim() !== '' ? admin_password : 'School@123';
-    const hashedPassword = await bcrypt.hash(passwordToHash, salt);
+    const adminPasswordToHash = admin_password && admin_password.trim() !== '' ? admin_password : 'School@123';
+    const principalPasswordToHash = principal_password && principal_password.trim() !== '' ? principal_password : 'School@123';
+    const adminHashedPassword = await bcrypt.hash(adminPasswordToHash, salt);
+    const principalHashedPassword = await bcrypt.hash(principalPasswordToHash, salt);
 
-    const { data: newAdmin, error: adminError } = await supabase
+    const { data: insertedAdmins, error: adminsError } = await supabase
       .from('admins')
-      .insert({
-        name: `${admin_first_name} ${admin_last_name}`, // legacy field
-        first_name: admin_first_name,
-        last_name: admin_last_name,
-        email: admin_email.toLowerCase(),
-        phone: admin_contact || phone || '0000000000',
-        password: hashedPassword,
-        role: 'admin',
-        is_approved: true,
-        school_id: newSchool.id,
-        image_url: admin_image_url
-      })
-      .select()
-      .single();
+      .insert([
+        {
+          name: `${admin_first_name} ${admin_last_name}`,
+          first_name: admin_first_name,
+          last_name: admin_last_name,
+          email: admin_email.toLowerCase(),
+          phone: admin_contact || phone || '0000000000',
+          password: adminHashedPassword,
+          role: 'admin',
+          is_approved: true,
+          school_id: newSchool.id,
+          image_url: admin_image_url
+        },
+        {
+          name: `${principal_first_name} ${principal_last_name}`,
+          first_name: principal_first_name,
+          last_name: principal_last_name,
+          email: principal_email.toLowerCase(),
+          phone: principal_contact || phone || '0000000000',
+          password: principalHashedPassword,
+          role: 'principal',
+          is_approved: true,
+          school_id: newSchool.id
+        }
+      ])
+      .select();
 
-    if (adminError) {
-      // If admin creation fails, ideally rollback school creation (Supabase JS doesn't support transactions easily via RPC without setup, so we do manual cleanup or just log it)
-      console.error('[CREATE ADMIN ERROR]:', adminError);
-      return res.status(400).json({ message: 'School created but failed to create admin. Email might be taken.', error: adminError.message });
+    if (adminsError) {
+      console.error('[CREATE ADMINS ERROR]:', adminsError);
+      return res.status(400).json({ message: 'School created but failed to create admin or principal accounts. Emails might be taken.', error: adminsError.message });
     }
 
     // Clone Holy Name template data (school_id IS NULL)
@@ -227,7 +241,7 @@ router.patch('/schools/:id/admin', protect, async (req, res) => {
       return res.status(403).json({ message: 'Forbidden' });
     }
     
-    const { admin_id, first_name, last_name, email, phone, password, image_url } = req.body;
+    const { admin_id, first_name, last_name, email, phone, password, image_url, role } = req.body;
     const updateData = { first_name, last_name, email: email?.toLowerCase(), phone, image_url, name: `${first_name} ${last_name}` };
     
     if (password) {
@@ -235,14 +249,33 @@ router.patch('/schools/:id/admin', protect, async (req, res) => {
       updateData.password = await bcrypt.hash(password, salt);
     }
 
-    const { error } = await supabase
-      .from('admins')
-      .update(updateData)
-      .eq('id', admin_id)
-      .eq('school_id', req.params.id);
+    if (admin_id) {
+      // Update existing admin
+      const { error } = await supabase
+        .from('admins')
+        .update(updateData)
+        .eq('id', admin_id)
+        .eq('school_id', req.params.id);
 
-    if (error) throw error;
-    res.json({ message: 'Admin updated' });
+      if (error) throw error;
+      res.json({ message: 'Admin updated' });
+    } else {
+      // Insert new admin/principal
+      if (!password) {
+        const salt = await bcrypt.genSalt(10);
+        updateData.password = await bcrypt.hash('School@123', salt);
+      }
+      updateData.role = role || 'principal';
+      updateData.school_id = req.params.id;
+      updateData.is_approved = true;
+
+      const { error } = await supabase
+        .from('admins')
+        .insert(updateData);
+
+      if (error) throw error;
+      res.json({ message: 'Admin created' });
+    }
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

@@ -71,8 +71,14 @@ const optionalProtect = async (req, res, next) => {
 
 const authorize = (...roles) => {
   return (req, res, next) => {
+    let allowedRoles = [...roles];
+    // If 'admin' is allowed, 'principal' is implicitly allowed
+    if (allowedRoles.includes('admin') && !allowedRoles.includes('principal')) {
+      allowedRoles.push('principal');
+    }
+
     // Developer role is universally authorized
-    if (req.user.role === 'developer' || roles.includes(req.user.role)) {
+    if (req.user.role === 'developer' || allowedRoles.includes(req.user.role)) {
       return next();
     }
     

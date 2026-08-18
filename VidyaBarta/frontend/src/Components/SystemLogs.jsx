@@ -11,7 +11,7 @@ export default function SystemLogs({ API_URL, adminUser }) {
     setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/system/logs`, {
-        headers: { Authorization: `Bearer ${adminUser.token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || localStorage.getItem('employeeToken')}` }
       });
       setLogs(res.data);
       setError('');

@@ -11,7 +11,7 @@ export default function OnlineUsersWidget({ API_URL, adminUser }) {
     setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/system/online-users`, {
-        headers: { Authorization: `Bearer ${adminUser.token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || localStorage.getItem('employeeToken')}` }
       });
       setOnlineData(res.data);
       setError('');

@@ -8720,9 +8720,13 @@ function AdminPage() {
 
           <SidebarItem active={isDataActive} icon={FiUsers} label="Data">
              <SubItem active={activeTab === 'admission'} onClick={() => { setActiveTab('admission'); setIsSidebarOpen(false); }} label="Admission" />
-             <SubItem active={activeTab === 'appointments'} onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} label="Appointments" />
-             <SubItem active={activeTab === 'inquiries'} onClick={() => { setActiveTab('inquiries'); setIsSidebarOpen(false); }} label="Inquiries" />
-             <SubItem active={activeTab === 'jobApplications'} onClick={() => { setActiveTab('jobApplications'); setIsSidebarOpen(false); }} label="Recruitment" />
+             {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+               <>
+                 <SubItem active={activeTab === 'appointments'} onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} label="Appointments" />
+                 <SubItem active={activeTab === 'inquiries'} onClick={() => { setActiveTab('inquiries'); setIsSidebarOpen(false); }} label="Inquiries" />
+                 <SubItem active={activeTab === 'jobApplications'} onClick={() => { setActiveTab('jobApplications'); setIsSidebarOpen(false); }} label="Recruitment" />
+               </>
+             )}
              <SubItem active={activeTab === 'staffLeaves'} onClick={() => { setActiveTab('staffLeaves'); setIsSidebarOpen(false); }} label="Staff Leaves" />
              <SubItem active={activeTab === 'staffRequests'} onClick={() => { setActiveTab('staffRequests'); setIsSidebarOpen(false); }} label="Staff Requests" />
              <SubItem active={activeTab === 'staffAssignments'} onClick={() => { setActiveTab('staffAssignments'); setIsSidebarOpen(false); }} label="Staff Assignments" />
@@ -9428,7 +9432,7 @@ function AdminPage() {
           )}
 
 
-          {activeTab === 'inquiries' && (() => {
+          {activeTab === 'inquiries' && (adminUser?.role === 'principal' || adminUser?.role === 'developer') && (() => {
             const filteredInqs = inquiries.filter(i => !i.subject?.toUpperCase().includes('ADMIN ACCESS REQUEST'))
               .filter(i => inquiryTypeFilter === 'All' || i.type === inquiryTypeFilter)
               .filter(i => inquiryStatusFilter === 'All' || (i.status || 'Submitted') === inquiryStatusFilter);
@@ -9675,7 +9679,7 @@ function AdminPage() {
 
 
           {/* Appointments Tab */}
-          {activeTab === 'appointments' && (() => {
+          {activeTab === 'appointments' && (adminUser?.role === 'principal' || adminUser?.role === 'developer') && (() => {
             const filtered = appointments
               .filter(a => appointmentCategoryFilter === 'All' || a.category === appointmentCategoryFilter)
               .filter(a => appointmentStatusFilter === 'All' || a.status === appointmentStatusFilter)
@@ -10001,7 +10005,7 @@ function AdminPage() {
             );
           })()}
 
-          {activeTab === 'jobApplications' && (
+          {activeTab === 'jobApplications' && (adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
             <div className="bg-white/80 backdrop-blur-xl p-4 sm:p-6 md:p-8 rounded-2xl md:rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/50 relative overflow-hidden">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
                 <div>

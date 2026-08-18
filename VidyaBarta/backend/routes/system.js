@@ -7,12 +7,18 @@ const { authorize, protectAnyUser, protect } = require('../middleware/auth');
 // Only principal and developer can view these logs
 router.get('/logs', protect, authorize('principal'), async (req, res) => {
   try {
-    const { data: logs, error } = await supabase
+    let query = supabase
       .from('admin_activity')
       .select('*')
       .like('action', 'AUDIT_%')
       .order('created_at', { ascending: false })
       .limit(500);
+      
+    if (req.query.email) {
+      query = query.eq('email', req.query.email);
+    }
+
+    const { data: logs, error } = await query;
 
     if (error) {
       throw error;
@@ -45,15 +51,58 @@ router.get('/online-users', protect, authorize('principal'), async (req, res) =>
 
     // Deduplicate by email
     const onlineUsersMap = new Map();
+    const emailsToFetch = new Set();
     recentActivity.forEach(activity => {
       if (!onlineUsersMap.has(activity.email) && activity.email !== 'System/Anonymous') {
         onlineUsersMap.set(activity.email, {
           email: activity.email,
           lastActive: activity.created_at,
-          ip: activity.ip_address
+          ip: activity.ip_address,
+          name: activity.email.split('@')[0] // default fallback
         });
+        emailsToFetch.add(activity.email);
       }
     });
+
+    const emailsArray = Array.from(emailsToFetch);
+    
+    if (emailsArray.length > 0) {
+      // Fetch names and roles from admins
+      const { data: admins } = await supabase.from('admins').select('email, name, first_name, last_name, role').in('email', emailsArray);
+      if (admins) {
+        admins.forEach(admin => {
+          if (onlineUsersMap.has(admin.email)) {
+            const user = onlineUsersMap.get(admin.email);
+            user.name = admin.name || `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || admin.email.split('@')[0];
+            user.role = admin.role || 'admin';
+          }
+        });
+      }
+
+      // Fetch names from staff
+      const { data: staff } = await supabase.from('staff').select('email, name').in('email', emailsArray);
+      if (staff) {
+        staff.forEach(s => {
+          if (onlineUsersMap.has(s.email)) {
+            const user = onlineUsersMap.get(s.email);
+            user.name = s.name || s.email.split('@')[0];
+            user.role = 'staff';
+          }
+        });
+      }
+
+      // Fetch names from students
+      const { data: students } = await supabase.from('students').select('email, name').in('email', emailsArray);
+      if (students) {
+        students.forEach(student => {
+          if (onlineUsersMap.has(student.email)) {
+            const user = onlineUsersMap.get(student.email);
+            user.name = student.name || student.email.split('@')[0];
+            user.role = 'student';
+          }
+        });
+      }
+    }
 
     const onlineUsers = Array.from(onlineUsersMap.values());
 

@@ -9,7 +9,7 @@ const { calculateStudentFee } = require('../utils/feeCalculator');
 // @access  Private (Admin)
 router.get('/structures', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+    if (!['admin', 'principal', 'developer', 'school_admin', 'superadmin'].includes(req.user.role?.toLowerCase())) return res.status(403).json({ message: 'Forbidden' });
     const { data, error } = await supabase.from('fee_structures').select('*').eq('school_id', req.user.school_id);
     if (error) throw error;
     res.json(data);
@@ -23,7 +23,7 @@ router.get('/structures', protect, async (req, res) => {
 // @access  Private (Admin)
 router.put('/structures/:class_level', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+    if (!['admin', 'principal', 'developer', 'school_admin', 'superadmin'].includes(req.user.role?.toLowerCase())) return res.status(403).json({ message: 'Forbidden' });
     const { base_tuition_fee, admission_fee, subject_fees } = req.body;
     
     // Upsert structure
@@ -48,7 +48,7 @@ router.put('/structures/:class_level', protect, async (req, res) => {
 // @access  Private (Admin)
 router.get('/bank-details', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+    if (!['admin', 'principal', 'developer', 'school_admin', 'superadmin'].includes(req.user.role?.toLowerCase())) return res.status(403).json({ message: 'Forbidden' });
     const { data, error } = await supabase.from('school_bank_details').select('*').eq('school_id', req.user.school_id).maybeSingle();
     if (error) throw error;
     res.json(data || {});
@@ -62,7 +62,7 @@ router.get('/bank-details', protect, async (req, res) => {
 // @access  Private (Admin)
 router.put('/bank-details', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+    if (!['admin', 'principal', 'developer', 'school_admin', 'superadmin'].includes(req.user.role?.toLowerCase())) return res.status(403).json({ message: 'Forbidden' });
     const { account_number, ifsc_code, account_holder_name } = req.body;
     
     const { data, error } = await supabase.from('school_bank_details').upsert({
@@ -254,7 +254,7 @@ router.post('/checkout', async (req, res) => {
 // @access  Private (Admin)
 router.get('/transactions', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+    if (!['admin', 'principal', 'developer', 'school_admin', 'superadmin'].includes(req.user.role?.toLowerCase())) return res.status(403).json({ message: 'Forbidden' });
     const { data, error } = await supabase
       .from('transactions')
       .select('*, students(student_name, grade)')

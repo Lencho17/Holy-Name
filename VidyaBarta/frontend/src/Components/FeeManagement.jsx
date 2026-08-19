@@ -5,7 +5,7 @@ import FeeConfiguration from './FeeConfiguration';
 import BankDetails from './BankDetails';
 import ReadmissionCampaign from './ReadmissionCampaign';
 
-const FeeManagement = ({ apiUrl, token }) => {
+const FeeManagement = ({ apiUrl, token, adminUser }) => {
   const [activeTab, setActiveTab] = useState('configuration');
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -50,31 +50,35 @@ const FeeManagement = ({ apiUrl, token }) => {
         >
           <FaMoneyCheckAlt className="inline mr-2" /> Fee Structure
         </button>
-        <button
-          onClick={() => setActiveTab('bank')}
-          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'bank' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
-        >
-          <FaLandmark className="inline mr-2" /> Bank Details
-        </button>
+        {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+          <button
+            onClick={() => setActiveTab('bank')}
+            className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'bank' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+          >
+            <FaLandmark className="inline mr-2" /> Bank Details
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('readmission')}
           className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'readmission' ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
         >
           <FaBullhorn className="inline mr-2" /> Readmissions
         </button>
-        <button
-          onClick={() => setActiveTab('transactions')}
-          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'transactions' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
-        >
-          <FaExchangeAlt className="inline mr-2" /> Transactions
-        </button>
+        {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+          <button
+            onClick={() => setActiveTab('transactions')}
+            className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'transactions' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+          >
+            <FaExchangeAlt className="inline mr-2" /> Transactions
+          </button>
+        )}
       </div>
 
       {activeTab === 'configuration' && <FeeConfiguration apiUrl={apiUrl} token={token} />}
-      {activeTab === 'bank' && <BankDetails apiUrl={apiUrl} token={token} />}
+      {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'bank' && <BankDetails apiUrl={apiUrl} token={token} />}
       {activeTab === 'readmission' && <ReadmissionCampaign apiUrl={apiUrl} token={token} />}
       
-      {activeTab === 'transactions' && (
+      {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'transactions' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">

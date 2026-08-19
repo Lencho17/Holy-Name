@@ -8701,7 +8701,9 @@ function AdminPage() {
             <SubItem active={activeTab === 'fees'} onClick={() => { setActiveTab('fees'); setIsSidebarOpen(false); }} label="Fee Dashboard" />
 
             <SubItem active={activeTab === 'fines'} onClick={() => { setActiveTab('fines'); setIsSidebarOpen(false); }} label="Late Fees & Fines" />
-            <SubItem active={activeTab === 'wallet'} onClick={() => { setActiveTab('wallet'); setIsSidebarOpen(false); }} label="Escrow Wallet & Payouts" />
+            {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+              <SubItem active={activeTab === 'wallet'} onClick={() => { setActiveTab('wallet'); setIsSidebarOpen(false); }} label="Escrow Wallet & Payouts" />
+            )}
           </SidebarItem>
 
           <SidebarItem active={activeTab === 'classSubjects'} onClick={() => { setActiveTab('classSubjects'); setIsSidebarOpen(false); }} icon={FaBookOpen} label="Subject Selection" />
@@ -8711,12 +8713,16 @@ function AdminPage() {
             <SubItem active={activeTab === 'admitCards'} onClick={() => { setActiveTab('admitCards'); setIsSidebarOpen(false); }} label="Admit Cards & Concessions" />
             <SubItem active={activeTab === 'seats'} onClick={() => { setActiveTab('seats'); setIsSidebarOpen(false); }} label="Exam Duties & Seats" />
             <SubItem active={activeTab === 'results'} onClick={() => { setActiveTab('results'); setIsSidebarOpen(false); }} label="Results & Marksheets" />
-            <SubItem active={activeTab === 'certificates'} onClick={() => { setActiveTab('certificates'); setIsSidebarOpen(false); }} label="Certificates (TC/Character)" />
+            {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+              <SubItem active={activeTab === 'certificates'} onClick={() => { setActiveTab('certificates'); setIsSidebarOpen(false); }} label="Certificates (TC/Character)" />
+            )}
           </SidebarItem>
 
-          <SidebarItem active={isCommunicationActive} icon={FaPaperPlane} label="Communication">
-            <SubItem active={activeTab === 'communication'} onClick={() => { setActiveTab('communication'); setIsSidebarOpen(false); }} label="Broadcast Hub (WhatsApp/SMS)" />
-          </SidebarItem>
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+            <SidebarItem active={isCommunicationActive} icon={FaPaperPlane} label="Communication">
+              <SubItem active={activeTab === 'communication'} onClick={() => { setActiveTab('communication'); setIsSidebarOpen(false); }} label="Broadcast Hub (WhatsApp/SMS)" />
+            </SidebarItem>
+          )}
 
           <SidebarItem active={isDataActive} icon={FiUsers} label="Data">
              <SubItem active={activeTab === 'admission'} onClick={() => { setActiveTab('admission'); setIsSidebarOpen(false); }} label="Admission" />
@@ -8725,23 +8731,27 @@ function AdminPage() {
                  <SubItem active={activeTab === 'appointments'} onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} label="Appointments" />
                  <SubItem active={activeTab === 'inquiries'} onClick={() => { setActiveTab('inquiries'); setIsSidebarOpen(false); }} label="Inquiries" />
                  <SubItem active={activeTab === 'jobApplications'} onClick={() => { setActiveTab('jobApplications'); setIsSidebarOpen(false); }} label="Recruitment" />
+                 <SubItem active={activeTab === 'staffLeaves'} onClick={() => { setActiveTab('staffLeaves'); setIsSidebarOpen(false); }} label="Staff Leaves" />
+                 <SubItem active={activeTab === 'staffRequests'} onClick={() => { setActiveTab('staffRequests'); setIsSidebarOpen(false); }} label="Staff Requests" />
+                 <SubItem active={activeTab === 'staffPayroll'} onClick={() => { setActiveTab('staffPayroll'); setIsSidebarOpen(false); }} label="Payroll" />
+                 <SubItem active={activeTab === 'tenders'} onClick={() => { setActiveTab('tenders'); setIsSidebarOpen(false); }} label="Tenders" />
                </>
              )}
-             <SubItem active={activeTab === 'staffLeaves'} onClick={() => { setActiveTab('staffLeaves'); setIsSidebarOpen(false); }} label="Staff Leaves" />
-             <SubItem active={activeTab === 'staffRequests'} onClick={() => { setActiveTab('staffRequests'); setIsSidebarOpen(false); }} label="Staff Requests" />
              <SubItem active={activeTab === 'staffAssignments'} onClick={() => { setActiveTab('staffAssignments'); setIsSidebarOpen(false); }} label="Staff Assignments" />
-             <SubItem active={activeTab === 'staffPayroll'} onClick={() => { setActiveTab('staffPayroll'); setIsSidebarOpen(false); }} label="Payroll" />
              <SubItem active={activeTab === 'staffAnnouncements'} onClick={() => { setActiveTab('staffAnnouncements'); setIsSidebarOpen(false); }} label="Announcements" />
              <SubItem active={activeTab === 'teachers'} onClick={() => { setActiveTab('teachers'); setIsSidebarOpen(false); }} label="Teachers Database" />
              <SubItem active={activeTab === 'students'} onClick={() => { setActiveTab('students'); setIsSidebarOpen(false); }} label="Students" />
              <SubItem active={activeTab === 'studentAttendance'} onClick={() => { setActiveTab('studentAttendance'); setIsSidebarOpen(false); }} label="Student Attendance" />
              <SubItem active={activeTab === 'staffAttendance'} onClick={() => { setActiveTab('staffAttendance'); setIsSidebarOpen(false); }} label="Staff Attendance" />
-             <SubItem active={activeTab === 'tenders'} onClick={() => { setActiveTab('tenders'); setIsSidebarOpen(false); }} label="Tenders" />
           </SidebarItem>
 
           <SidebarItem active={isSystemActive} icon={FiSettings} label="System">
-            <SubItem active={activeTab === 'pendingAdmins'} onClick={() => { setActiveTab('pendingAdmins'); setIsSidebarOpen(false); }} label="Access Requests" />
-            <SubItem active={activeTab === 'status'} onClick={() => { setActiveTab('status'); setIsSidebarOpen(false); }} label="Portal Status" />
+            {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+              <>
+                <SubItem active={activeTab === 'pendingAdmins'} onClick={() => { setActiveTab('pendingAdmins'); setIsSidebarOpen(false); }} label="Access Requests" />
+                <SubItem active={activeTab === 'status'} onClick={() => { setActiveTab('status'); setIsSidebarOpen(false); }} label="Portal Status" />
+              </>
+            )}
             <SubItem active={activeTab === 'bulk'} onClick={() => { setActiveTab('bulk'); setIsSidebarOpen(false); }} label="Bulk Upload" />
             <SubItem active={activeTab === 'holidays'} onClick={() => { setActiveTab('holidays'); setIsSidebarOpen(false); }} label="Holiday Calendar" />
             <SubItem active={activeTab === 'idCardViewer'} onClick={() => { setActiveTab('idCardViewer'); setIsSidebarOpen(false); }} label="ID Card Template Viewer" />
@@ -8784,7 +8794,13 @@ function AdminPage() {
 
           {activeTab === 'dashboard' && renderDashboard()}
 
-          {activeTab === 'fees' && <FeeManagement apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {activeTab === 'fees' && <FeeManagement apiUrl={API_URL} token={localStorage.getItem('adminToken')} adminUser={adminUser} />}
+          {activeTab === 'fines' && (
+             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h2 className="text-2xl font-black text-gray-800 mb-2">Late Fees & Fines</h2>
+                <p className="text-gray-500 mb-6">Manage student late fees and disciplinary fines. (Feature implementation pending).</p>
+             </div>
+          )}
           {activeTab === 'exams' && <ExamManagement apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
           {activeTab === 'admitCards' && <AdmitCardPanel apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
           {activeTab === 'results' && <ResultsPortal apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
@@ -8792,16 +8808,16 @@ function AdminPage() {
           {activeTab === 'seats' && <SeatArrangement apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
           {activeTab === 'studentAttendance' && <AttendanceManager apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
           {activeTab === 'staffAttendance' && <AdminStaffAttendance apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
-          {activeTab === 'certificates' && <CertificateGenerator apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
-          {activeTab === 'communication' && <CommunicationHub apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
-          {activeTab === 'wallet' && <WalletDashboard apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'certificates' && <CertificateGenerator apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'communication' && <CommunicationHub apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'wallet' && <WalletDashboard apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
           {activeTab === 'domains' && <DomainManager apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
 
-          {activeTab === 'tenders' && renderTendersTab()}
-          {activeTab === 'staffLeaves' && <AdminStaffLeaves />}
-          {activeTab === 'staffRequests' && <AdminStaffRequests />}
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'tenders' && renderTendersTab()}
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'staffLeaves' && <AdminStaffLeaves />}
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'staffRequests' && <AdminStaffRequests />}
           {activeTab === 'staffAssignments' && <AdminStaffAssignments />}
-          {activeTab === 'staffPayroll' && <AdminPayroll />}
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'staffPayroll' && <AdminPayroll />}
           {activeTab === 'staffAnnouncements' && <AdminAnnouncements />}
           {activeTab === 'faculty' && renderFacultyTab()}
           { activeTab === 'alumni' && renderAlumniTab() }
@@ -8819,7 +8835,7 @@ function AdminPage() {
           {activeTab === 'onlineUsers' && (adminUser?.role === 'developer' || adminUser?.role === 'principal') && <OnlineUsersWidget API_URL={API_URL} adminUser={adminUser} />}
           {activeTab === 'admission' && renderAdmissionTab()}
 
-          {activeTab === 'status' && <SchoolStatusSettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'status' && <SchoolStatusSettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
           {activeTab === 'holidays' && <HolidaySettings apiUrl={API_URL} token={localStorage.getItem('adminToken')} />}
           {activeTab === 'bulk' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -8836,7 +8852,7 @@ function AdminPage() {
               </div>
             </div>
           )}
-          {activeTab === 'pendingAdmins' && (
+          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'pendingAdmins' && (
             <div className="animate-fadeIn">
               <div className="flex justify-between items-center mb-6">
                 <div>

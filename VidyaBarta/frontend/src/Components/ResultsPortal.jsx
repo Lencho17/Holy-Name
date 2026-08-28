@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaFileAlt, FaDownload, FaSpinner } from 'react-icons/fa';
+import { FaFileAlt, FaDownload, FaSpinner, FaTable, FaClipboardList, FaExclamationCircle } from 'react-icons/fa';
+import ExamReportSpreadsheet from './ExamReportSpreadsheet';
 
 const ResultsPortal = ({ apiUrl, token }) => {
+  const [activeTab, setActiveTab] = useState('spreadsheet'); // 'spreadsheet' | 'workflow'
   const [exams, setExams] = useState([]);
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -104,139 +106,158 @@ const ResultsPortal = ({ apiUrl, token }) => {
     } catch (e) { alert('Failed to resolve grievance'); }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500"><FaSpinner className="animate-spin inline mr-2" /> Loading data...</div>;
-
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <div className="flex items-center gap-3 mb-6">
-        <FaFileAlt className="text-teal-600 text-2xl" />
-        <h2 className="text-2xl font-black text-gray-800">Results & Marksheets</h2>
+    <div className="space-y-6">
+      {/* Top Tab Bar */}
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex gap-2">
+        <button
+          onClick={() => setActiveTab('spreadsheet')}
+          className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${
+            activeTab === 'spreadsheet'
+              ? 'bg-primary text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <FaTable /> Excel Marks Spreadsheet & Reports
+        </button>
+        <button
+          onClick={() => setActiveTab('workflow')}
+          className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${
+            activeTab === 'workflow'
+              ? 'bg-primary text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <FaClipboardList /> Exam Status & Grievances ({grievances.filter(g => g.status !== 'Resolved').length})
+        </button>
       </div>
 
-      <div className="bg-teal-50/50 rounded-xl p-5 border border-teal-100">
-        <h3 className="font-bold text-teal-800 mb-4">Generate Marksheets for Exams</h3>
-        
-        <div className="grid grid-cols-1 gap-4">
-          {exams.map(exam => (
-            <div key={exam.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <div 
-                className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition"
-                onClick={() => toggleExam(exam)}
-              >
-                <div>
-                  <div className="font-bold text-gray-800">{exam.name}</div>
-                  <div className="text-xs text-gray-500">Class {exam.class_level} • Status: {exam.workflow_status || 'Draft'}</div>
-                </div>
-                <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                {exam.workflow_status === 'ClassReview' && (
-                  <button onClick={() => handlePublish(exam.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700">
-                    Publish Results
-                  </button>
-                )}
-                {exam.workflow_status === 'Published' && (
-                  <button onClick={() => handleFinalize(exam.id)} className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-red-700">
-                    Finalize
-                  </button>
-                )}
-                {(exam.workflow_status === 'Published' || exam.workflow_status === 'Finalized') && (
-                  <button 
-                    onClick={() => {
-                      // Original print logic kept for convenience, in a real app would use SVG templates
-                      alert('Download Marksheet (Will use SVG template soon)');
-                    }}
-                    className="bg-teal-100 text-teal-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-teal-200"
+      {activeTab === 'spreadsheet' ? (
+        <ExamReportSpreadsheet apiUrl={apiUrl} token={token} />
+      ) : (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-6">
+            <FaFileAlt className="text-teal-600 text-2xl" />
+            <h2 className="text-2xl font-black text-gray-800">Results & Marksheets Status</h2>
+          </div>
+
+          <div className="bg-teal-50/50 rounded-xl p-5 border border-teal-100">
+            <h3 className="font-bold text-teal-800 mb-4">Exam Workflow & Status Overview</h3>
+            
+            <div className="grid grid-cols-1 gap-4">
+              {exams.map(exam => (
+                <div key={exam.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div 
+                    className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition"
+                    onClick={() => toggleExam(exam)}
                   >
-                    <FaDownload /> Download
-                  </button>
-                )}
-                {(!exam.workflow_status || exam.workflow_status === 'Draft' || exam.workflow_status === 'SubjectEntry') && (
-                  <span className="text-sm text-gray-400 italic">Waiting on Teachers</span>
-                )}
-              </div>
-                </div>
-              {expandedExam === exam.id && (
-                <div className="border-t p-4 bg-gray-50">
-                  {loadingDetails ? (
-                    <div className="text-center text-sm text-gray-500 py-4"><FaSpinner className="animate-spin inline mr-2" /> Loading student data...</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left bg-white rounded border border-gray-200">
-                        <thead>
-                          <tr className="bg-gray-100 border-b">
-                            <th className="p-2 text-xs font-bold text-gray-700">Student Name</th>
-                            <th className="p-2 text-xs font-bold text-gray-700">Total Marks</th>
-                            <th className="p-2 text-xs font-bold text-gray-700">Percentage</th>
-                            <th className="p-2 text-xs font-bold text-gray-700">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {examDetails.aggregated.length === 0 ? (
-                            <tr><td colSpan="4" className="p-4 text-center text-sm text-gray-500">No marks entry found.</td></tr>
-                          ) : (
-                            examDetails.aggregated.map(row => (
-                              <tr key={row.student.id} className="border-b last:border-0 hover:bg-gray-50">
-                                <td className="p-2 text-sm">{row.student.student_name || row.student.name} <span className="text-gray-400 text-xs">({row.student.admission_id || row.student.roll_number})</span></td>
-                                <td className="p-2 text-sm font-medium">{row.totalObtained} / {row.totalMax}</td>
-                                <td className="p-2 text-sm">{row.percentage}%</td>
-                                <td className="p-2 text-sm">
-                                  {row.subjectsPassed === row.subjectsCount ? (
-                                    <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs border border-green-100">Passed ({row.subjectsPassed}/{row.subjectsCount})</span>
-                                  ) : (
-                                    <span className="text-orange-600 font-bold bg-orange-50 px-2 py-1 rounded text-xs border border-orange-100">Passed {row.subjectsPassed}/{row.subjectsCount} Subjects</span>
-                                  )}
-                                </td>
+                    <div>
+                      <div className="font-bold text-gray-800">{exam.name}</div>
+                      <div className="text-xs text-gray-500">Class {exam.class_level} • Status: <span className="font-semibold text-teal-700">{exam.workflow_status || 'Draft'}</span></div>
+                    </div>
+                    <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                    {exam.workflow_status === 'ClassReview' && (
+                      <button onClick={() => handlePublish(exam.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700">
+                        Publish Results
+                      </button>
+                    )}
+                    {exam.workflow_status === 'Published' && (
+                      <button onClick={() => handleFinalize(exam.id)} className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-red-700">
+                        Finalize
+                      </button>
+                    )}
+                    {(!exam.workflow_status || exam.workflow_status === 'Draft' || exam.workflow_status === 'SubjectEntry') && (
+                      <span className="text-sm text-gray-400 italic">Waiting on Teachers</span>
+                    )}
+                  </div>
+                    </div>
+                  {expandedExam === exam.id && (
+                    <div className="border-t p-4 bg-gray-50">
+                      {loadingDetails ? (
+                        <div className="text-center text-sm text-gray-500 py-4"><FaSpinner className="animate-spin inline mr-2" /> Loading student data...</div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left bg-white rounded border border-gray-200">
+                            <thead>
+                              <tr className="bg-gray-100 border-b">
+                                <th className="p-2 text-xs font-bold text-gray-700">Student Name</th>
+                                <th className="p-2 text-xs font-bold text-gray-700">Total Marks</th>
+                                <th className="p-2 text-xs font-bold text-gray-700">Percentage</th>
+                                <th className="p-2 text-xs font-bold text-gray-700">Status</th>
                               </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody>
+                              {examDetails.aggregated.length === 0 ? (
+                                <tr><td colSpan="4" className="p-4 text-center text-sm text-gray-500">No marks entry found.</td></tr>
+                              ) : (
+                                examDetails.aggregated.map(row => (
+                                  <tr key={row.student.id} className="border-b last:border-0 hover:bg-gray-50">
+                                    <td className="p-2 text-sm">{row.student.student_name || row.student.name} <span className="text-gray-400 text-xs">({row.student.admission_id || row.student.roll_number})</span></td>
+                                    <td className="p-2 text-sm font-medium">{row.totalObtained} / {row.totalMax}</td>
+                                    <td className="p-2 text-sm">{row.percentage}%</td>
+                                    <td className="p-2 text-sm">
+                                      {row.subjectsPassed === row.subjectsCount ? (
+                                        <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs border border-green-100">Passed ({row.subjectsPassed}/{row.subjectsCount})</span>
+                                      ) : (
+                                        <span className="text-orange-600 font-bold bg-orange-50 px-2 py-1 rounded text-xs border border-orange-100">Passed {row.subjectsPassed}/{row.subjectsCount} Subjects</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+              ))}
+              {exams.length === 0 && (
+                 <div className="text-sm text-gray-400">No exams available.</div>
               )}
             </div>
-          ))}
-          {exams.length === 0 && (
-             <div className="text-sm text-gray-400">No exams available.</div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      <div className="bg-orange-50/50 rounded-xl p-5 border border-orange-100 mt-6">
-        <h3 className="font-bold text-orange-800 mb-4">Grievance Management</h3>
-        <div className="grid grid-cols-1 gap-4">
-          {grievances.length === 0 ? <div className="text-sm text-gray-400">No grievances reported.</div> : null}
-          {grievances.map(g => (
-            <div key={g.id} className="bg-white p-4 rounded-xl shadow-sm border border-orange-200">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <div className="font-bold text-gray-800">Student: {g.student?.student_name || g.student?.name} ({g.student?.admission_id || g.student?.roll_number})</div>
-                  <div className="text-xs text-gray-500">Exam: {g.exam?.name} | Subject: {g.subject?.replace(/^VB-?/, '')} | Status: <span className={g.status === 'Resolved' ? 'text-green-600' : 'text-orange-600'}>{g.status}</span></div>
+          <div className="bg-orange-50/50 rounded-xl p-5 border border-orange-100 mt-6">
+            <h3 className="font-bold text-orange-800 mb-4">Grievance Management</h3>
+            <div className="grid grid-cols-1 gap-4">
+              {grievances.length === 0 ? <div className="text-sm text-gray-400">No grievances reported.</div> : null}
+              {grievances.map(g => (
+                <div key={g.id} className="bg-white p-4 rounded-xl shadow-sm border border-orange-200">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-bold text-gray-800">Student: {g.student?.student_name || g.student?.name} ({g.student?.admission_id || g.student?.roll_number})</div>
+                      <div className="text-xs text-gray-500">Exam: {g.exam?.name} | Subject: {g.subject?.replace(/^VB-?/, '')} | Status: <span className={g.status === 'Resolved' ? 'text-green-600' : 'text-orange-600'}>{g.status}</span></div>
+                    </div>
+                    <div className="text-xs text-gray-400">{new Date(g.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>
+                  </div>
+                  <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded mb-3">
+                    <strong>Complaint:</strong> {g.complaint}
+                  </div>
+                  {g.status !== 'Resolved' ? (
+                    <div className="flex gap-2 mt-2">
+                      <input type="text" id={`reply-${g.id}`} placeholder="Admin Reply (Optional)" className="border rounded p-1 text-sm flex-1" />
+                      <button onClick={() => {
+                        const reply = document.getElementById(`reply-${g.id}`).value;
+                        handleResolveGrievance(g.id, 'Resolved', reply);
+                      }} className="bg-green-600 text-white text-xs px-3 py-1 rounded">Mark Resolved</button>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-100">
+                      <strong>Admin Reply:</strong> {g.admin_reply || 'No reply provided.'}
+                    </div>
+                  )}
                 </div>
-                <div className="text-xs text-gray-400">{new Date(g.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}</div>
-              </div>
-              <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded mb-3">
-                <strong>Complaint:</strong> {g.complaint}
-              </div>
-              {g.status !== 'Resolved' ? (
-                <div className="flex gap-2 mt-2">
-                  <input type="text" id={`reply-${g.id}`} placeholder="Admin Reply (Optional)" className="border rounded p-1 text-sm flex-1" />
-                  <button onClick={() => {
-                    const reply = document.getElementById(`reply-${g.id}`).value;
-                    handleResolveGrievance(g.id, 'Resolved', reply);
-                  }} className="bg-green-600 text-white text-xs px-3 py-1 rounded">Mark Resolved</button>
-                </div>
-              ) : (
-                <div className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-100">
-                  <strong>Admin Reply:</strong> {g.admin_reply || 'No reply provided.'}
-                </div>
-              )}
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
 export default ResultsPortal;
+
+

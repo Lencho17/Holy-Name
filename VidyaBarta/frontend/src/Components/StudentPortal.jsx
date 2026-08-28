@@ -426,27 +426,39 @@ function StudentPortal() {
                   <h3 className="text-lg font-bold text-gray-900">Upcoming Schedule</h3>
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{upcomingExams.length} Exams Remaining</span>
-                    <button onClick={() => {
-                      const doc = new jsPDF();
-                      doc.setFontSize(18);
-                      doc.text(`My Exam Timetable - Class ${student.grade || student.class_id}`, 14, 22);
-                      
-                      const tableColumn = ["Date", "Exam Name", "Subject", "Time"];
-                      const tableRows = upcomingExams.map(exam => [
-                        new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-'),
-                        exam.exam_name,
-                        `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
-                        `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`
-                      ]);
-                      
-                      autoTable(doc, {
-                        head: [tableColumn],
-                        body: tableRows,
-                        startY: 40,
-                      });
-                      
-                      doc.save(`My_Timetable.pdf`);
-                    }} className="text-sm font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-indigo-700 transition-colors">
+                    <button 
+                      disabled={upcomingExams.length === 0}
+                      onClick={() => {
+                        if (!upcomingExams || upcomingExams.length === 0) {
+                          alert("No upcoming exams scheduled to download.");
+                          return;
+                        }
+                        const doc = new jsPDF();
+                        doc.setFontSize(18);
+                        doc.text(`My Exam Timetable - Class ${student.grade || student.class_id}`, 14, 22);
+                        
+                        const tableColumn = ["Date", "Exam Name", "Subject", "Time"];
+                        const tableRows = upcomingExams.map(exam => [
+                          new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-'),
+                          exam.exam_name,
+                          `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
+                          `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`
+                        ]);
+                        
+                        autoTable(doc, {
+                          head: [tableColumn],
+                          body: tableRows,
+                          startY: 40,
+                        });
+                        
+                        doc.save(`My_Timetable.pdf`);
+                      }} 
+                      className={`text-sm font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${
+                        upcomingExams.length === 0
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      }`}
+                    >
                       <span className="material-symbols-outlined text-[18px]">download</span>
                       Download PDF
                     </button>
@@ -707,27 +719,39 @@ function StudentPortal() {
                       <h3 className="text-lg font-bold text-gray-900">Upcoming Schedule</h3>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{upcomingExams.length} Exams Remaining</span>
-                        <button onClick={() => {
-                          const doc = new jsPDF();
-                          doc.setFontSize(18);
-                          doc.text(`My Exam Timetable - Class ${student.grade || student.class_id}`, 14, 22);
-                          
-                          const tableColumn = ["Date", "Exam Name", "Subject", "Time"];
-                          const tableRows = upcomingExams.map(exam => [
-                            new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-'),
-                            exam.exam_name,
-                            `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
-                            `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`
-                          ]);
-                          
-                          autoTable(doc, {
-                            head: [tableColumn],
-                            body: tableRows,
-                            startY: 30,
-                          });
-                          
-                          doc.save(`My_Timetable.pdf`);
-                        }} className="text-sm font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-indigo-700 transition-colors">
+                        <button 
+                          disabled={upcomingExams.length === 0}
+                          onClick={() => {
+                            if (!upcomingExams || upcomingExams.length === 0) {
+                              alert("No upcoming exams scheduled to download.");
+                              return;
+                            }
+                            const doc = new jsPDF();
+                            doc.setFontSize(18);
+                            doc.text(`My Exam Timetable - Class ${student.grade || student.class_id}`, 14, 22);
+                            
+                            const tableColumn = ["Date", "Exam Name", "Subject", "Time"];
+                            const tableRows = upcomingExams.map(exam => [
+                              new Date(exam.exam_date).toLocaleDateString('en-GB').replace(/\//g, '-'),
+                              exam.exam_name,
+                              `${exam.subject} ${exam.sub_subject ? `(${exam.sub_subject})` : ''}`,
+                              `${exam.start_time ? exam.start_time.substring(0,5) : '--:--'} - ${exam.end_time ? exam.end_time.substring(0,5) : '--:--'}`
+                            ]);
+                            
+                            autoTable(doc, {
+                              head: [tableColumn],
+                              body: tableRows,
+                              startY: 30,
+                            });
+                            
+                            doc.save(`My_Timetable.pdf`);
+                          }} 
+                          className={`text-sm font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${
+                            upcomingExams.length === 0
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                          }`}
+                        >
                           <span className="material-symbols-outlined">download</span> Download PDF
                         </button>
                       </div>

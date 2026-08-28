@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiClock, FiUser, FiActivity, FiMapPin, FiRefreshCw, FiFilter, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { HumanReadableLog, parseLogDetails } from '../utils/logFormatter';
 
 export default function SystemLogs({ API_URL, adminUser }) {
   const [logs, setLogs] = useState([]);
@@ -175,9 +176,19 @@ export default function SystemLogs({ API_URL, adminUser }) {
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {log.action.replace('AUDIT_', '')}
-                      </span>
+                      {(() => {
+                        const { title } = parseLogDetails(log.user_agent);
+                        const isAuth = log.action === 'LOGIN' || log.action === 'LOGOUT';
+                        return (
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                            log.action === 'LOGIN' ? 'bg-green-100 text-green-800' :
+                            log.action === 'LOGOUT' ? 'bg-amber-100 text-amber-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {isAuth ? log.action : title}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="p-4 text-gray-500 text-xs">
                       <div className="flex items-center">
@@ -185,10 +196,8 @@ export default function SystemLogs({ API_URL, adminUser }) {
                         {log.ip_address}
                       </div>
                     </td>
-                    <td className="p-4 text-xs font-mono text-gray-600 bg-gray-50 break-words rounded-md m-2 border border-gray-100">
-                      <div className="max-h-24 overflow-y-auto whitespace-pre-wrap">
-                        {log.user_agent}
-                      </div>
+                    <td className="p-4 text-xs text-gray-700 bg-gray-50/80 rounded-xl m-2 border border-gray-100">
+                      <HumanReadableLog logText={log.user_agent} />
                     </td>
                   </tr>
                       ))}

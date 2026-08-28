@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FiUsers, FiClock, FiMapPin, FiRefreshCw, FiShield, FiActivity, FiX } from 'react-icons/fi';
+import { HumanReadableLog, parseLogDetails } from '../utils/logFormatter';
 
 export default function OnlineUsersWidget({ API_URL, adminUser }) {
   const [onlineData, setOnlineData] = useState({ count: 0, users: [] });
@@ -163,20 +164,19 @@ export default function OnlineUsersWidget({ API_URL, adminUser }) {
                       <div className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-sm font-bold text-gray-800 capitalize">
-                            {log.action.replace('AUDIT_', '').replace(/_/g, ' ')}
+                            {(() => {
+                              const { title } = parseLogDetails(log.user_agent);
+                              const isAuth = log.action === 'LOGIN' || log.action === 'LOGOUT';
+                              return isAuth ? log.action.replace('AUDIT_', '').replace(/_/g, ' ') : title;
+                            })()}
                           </span>
                           <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider bg-gray-50 px-2 py-1 rounded">
                             {new Date(log.created_at).toLocaleString()}
                           </span>
                         </div>
                         {log.user_agent && (
-                          <div className="mt-3 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
-                            <div className="bg-gray-100 px-3 py-1.5 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                              Change Details
-                            </div>
-                            <pre className="p-3 text-[11px] text-gray-600 overflow-x-auto font-mono whitespace-pre-wrap">
-                              {log.user_agent}
-                            </pre>
+                          <div className="mt-2 bg-gray-50/80 rounded-xl p-3 border border-gray-100">
+                            <HumanReadableLog logText={log.user_agent} />
                           </div>
                         )}
                       </div>

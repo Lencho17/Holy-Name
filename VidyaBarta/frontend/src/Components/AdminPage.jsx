@@ -36,6 +36,7 @@ import ClassSubjectConfig from './ClassSubjectConfig';
 import ConfirmModal from './ConfirmModal';
 import SystemLogs from './SystemLogs';
 import OnlineUsersWidget from './OnlineUsersWidget';
+import { HumanReadableLog, parseLogDetails } from '../utils/logFormatter';
 
 const SidebarItem = ({ active, onClick, icon: Icon, label, children }) => {
   const [isOpen, ReactSetIsOpen] = React.useState(false);
@@ -1301,8 +1302,16 @@ function AdminPage() {
                       {log.ip_address || 'N/A'}
                     </td>
                     <td className="py-4 px-6">
-                      <div className="text-[10px] text-gray-600 truncate max-w-[200px]" title={log.user_agent}>
-                        {log.user_agent || 'N/A'}
+                      <div className="text-[11px] font-bold text-gray-700 max-w-[240px]">
+                        {(() => {
+                          const { title, summary } = parseLogDetails(log.user_agent);
+                          return (
+                            <div>
+                              <span className="font-bold text-gray-900 block">{title}</span>
+                              {summary && <span className="text-[10px] text-gray-500 font-normal truncate block" title={summary}>{summary}</span>}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </td>
                     <td className="py-4 px-6 text-[11px] font-medium text-gray-500">
@@ -4892,12 +4901,10 @@ function AdminPage() {
                             </div>
                           </div>
                           
-                          {/* Raw User Agent */}
+                          {/* Activity Details */}
                           <div className="mt-6 bg-white p-4 rounded-xl border border-gray-100">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2">Raw User Agent</p>
-                            <code className="text-[10px] text-gray-500 font-medium break-all leading-relaxed block">
-                              {(log.user_agent || 'Not available').replace(/\s*\[CH:[^\]]*\]/g, '')}
-                            </code>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2">Activity Details</p>
+                            <HumanReadableLog logText={log.user_agent} />
                           </div>
 
                           {/* Developer Controls */}

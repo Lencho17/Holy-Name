@@ -67,6 +67,11 @@ const UdiseStudentForm = () => {
     parentBankAc: '',
     parentBankIfsc: '',
     
+    hasRelative: 'No',
+    relativeName: '',
+    relativeRelation: '',
+    relativeClass: '',
+    relativeSection: '',
     hasSiblings: 'No',
     siblingName: '',
     siblingClass: '',
@@ -102,6 +107,7 @@ const UdiseStudentForm = () => {
     freeUniform: 'No',
     freeTransport: 'No',
     communicationPreference: 'Email',
+    studentLivePhoto: null,
     parentLivePhoto: null,
   });
 
@@ -221,7 +227,7 @@ const UdiseStudentForm = () => {
           </div>
           <div className="flex justify-between mt-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:flex">
             <span>Student Data</span>
-            <span>Family & Sibling</span>
+            <span>Family & Relative</span>
             <span>Academic Info</span>
             <span>Social Data</span>
           </div>
@@ -245,10 +251,14 @@ const UdiseStudentForm = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-yellow-50/50 rounded-2xl border border-yellow-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-amber-50/30 rounded-2xl border border-amber-100/60 items-start">
                 <div>
-                  <label className={labelClass}>Student's Photo (Yellow BG)</label>
-                  <input type="file" accept="image/*" className={fileInputClass} />
+                  <WebcamCapture 
+                    label="Student's Photo (Live - Auto Light Yellow BG)" 
+                    bgColor="yellow"
+                    initialImage={formData.studentLivePhoto}
+                    onCapture={(data) => setFormData(prev => ({...prev, studentLivePhoto: data}))} 
+                  />
                 </div>
                 <div>
                   <label className={labelClass}>Student Full Signature (Compulsory)</label>
@@ -445,39 +455,102 @@ const UdiseStudentForm = () => {
                   </div>
                   <div><label className={labelClass}>Bank A/C Doc Upload</label><input type="file" className={fileInputClass} /></div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100 items-start">
                   <div>
                     <WebcamCapture 
                       label="Parent/Guardian Live Photo (Auto Blue BG)" 
-                      onCapture={(blob) => setFormData(prev => ({...prev, parentLivePhoto: blob}))} 
+                      bgColor="blue"
+                      initialImage={formData.parentLivePhoto}
+                      onCapture={(data) => setFormData(prev => ({...prev, parentLivePhoto: data}))} 
                     />
                   </div>
                   <div><label className={labelClass}>Parent/Guardian Signature Photo</label><input type="file" className={fileInputClass} /></div>
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold text-gray-800 border-b pb-2 mt-8">Category 1: Sibling Data</h2>
+              <h2 className="text-2xl font-bold text-gray-800 border-b pb-2 mt-8">Category 1: Relative Data</h2>
               <div>
-                <label className={labelClass}>Whether student has siblings in the same school</label>
-                <select name="hasSiblings" value={formData.hasSiblings} onChange={handleInputChange} className={`${inputClass} max-w-xs`}>
+                <label className={labelClass}>Whether student has any relative studying in the same school</label>
+                <select 
+                  name="hasRelative" 
+                  value={formData.hasRelative || formData.hasSiblings || 'No'} 
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    // keep hasSiblings synced for backwards compatibility
+                    setFormData(prev => ({ ...prev, hasRelative: e.target.value, hasSiblings: e.target.value }));
+                  }} 
+                  className={`${inputClass} max-w-xs`}
+                >
                   <option value="No">No</option>
                   <option value="Yes">Yes</option>
                 </select>
               </div>
 
-              {formData.hasSiblings === 'Yes' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+              {(formData.hasRelative === 'Yes' || formData.hasSiblings === 'Yes') && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
                   <div>
-                    <label className={labelClass}>Sibling Name</label>
-                    <input type="text" name="siblingName" value={formData.siblingName} onChange={handleInputChange} className={inputClass} required />
+                    <label className={labelClass}>Relative's Name</label>
+                    <input 
+                      type="text" 
+                      name="relativeName" 
+                      value={formData.relativeName || formData.siblingName || ''} 
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        setFormData(prev => ({ ...prev, relativeName: e.target.value, siblingName: e.target.value }));
+                      }} 
+                      placeholder="e.g. Rahul Sharma"
+                      className={inputClass} 
+                      required 
+                    />
                   </div>
                   <div>
-                    <label className={labelClass}>Sibling Class</label>
-                    <input type="text" name="siblingClass" value={formData.siblingClass} onChange={handleInputChange} className={inputClass} required />
+                    <label className={labelClass}>Relation</label>
+                    <select 
+                      name="relativeRelation" 
+                      value={formData.relativeRelation || ''} 
+                      onChange={handleInputChange} 
+                      className={inputClass} 
+                      required
+                    >
+                      <option value="">Select Relation...</option>
+                      <option value="Brother">Brother</option>
+                      <option value="Sister">Sister</option>
+                      <option value="Cousin Brother">Cousin Brother</option>
+                      <option value="Cousin Sister">Cousin Sister</option>
+                      <option value="Nephew">Nephew</option>
+                      <option value="Niece">Niece</option>
+                      <option value="Other Relative">Other Relative</option>
+                    </select>
                   </div>
                   <div>
-                    <label className={labelClass}>Sibling Section</label>
-                    <input type="text" name="siblingSection" value={formData.siblingSection} onChange={handleInputChange} className={inputClass} required />
+                    <label className={labelClass}>Relative's Class</label>
+                    <input 
+                      type="text" 
+                      name="relativeClass" 
+                      value={formData.relativeClass || formData.siblingClass || ''} 
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        setFormData(prev => ({ ...prev, relativeClass: e.target.value, siblingClass: e.target.value }));
+                      }} 
+                      placeholder="e.g. Class 8"
+                      className={inputClass} 
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Relative's Section</label>
+                    <input 
+                      type="text" 
+                      name="relativeSection" 
+                      value={formData.relativeSection || formData.siblingSection || ''} 
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        setFormData(prev => ({ ...prev, relativeSection: e.target.value, siblingSection: e.target.value }));
+                      }} 
+                      placeholder="e.g. A"
+                      className={inputClass} 
+                      required 
+                    />
                   </div>
                 </div>
               )}

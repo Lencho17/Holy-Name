@@ -1,17 +1,33 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { FaCamera, FaSync } from 'react-icons/fa';
 
-const WebcamCapture = ({ onCapture, label }) => {
+const COLOR_MAP = {
+  yellow: 'FFF9C4', // Soft gentle pastel yellow
+  'light-yellow': 'FFFDE7', // Extra soft cream yellow
+  blue: '81D4FA', // Soft studio sky blue
+  'light-blue': 'B3E5FC',
+  white: 'FFFFFF'
+};
+
+const WebcamCapture = ({ onCapture, label, bgColor = 'yellow', initialImage = null }) => {
   const videoRef = useRef(null);
   const [stream, setStream] = useState(null);
-  const [capturedImage, setCapturedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(initialImage);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (initialImage) {
+      setCapturedImage(initialImage);
+    }
+  }, [initialImage]);
 
   const startCamera = async () => {
     setError('');
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } } 
+      });
       setStream(mediaStream);
     } catch (err) {
       setError('Camera access denied or unavailable. Please check permissions.');
@@ -30,23 +46,24 @@ const WebcamCapture = ({ onCapture, label }) => {
     
     // Draw current video frame to canvas
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
+    canvas.width = videoRef.current.videoWidth || 640;
+    canvas.height = videoRef.current.videoHeight || 640;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     
-    const base64Image = canvas.toDataURL('image/jpeg');
+    const base64Image = canvas.toDataURL('image/jpeg', 0.9);
     
     stopCamera();
     setIsProcessing(true);
     
     try {
       const base64Data = base64Image.split(',')[1];
+      const resolvedColor = COLOR_MAP[bgColor?.toLowerCase()] || (bgColor ? bgColor.replace('#', '') : 'FFF9C4');
       
       const formData = new FormData();
       formData.append('image_file_b64', base64Data);
       formData.append('size', 'auto');
-      formData.append('bg_color', 'blue');
+      formData.append('bg_color', resolvedColor);
       
       const apiRes = await fetch('https://api.remove.bg/v1.0/removebg', {
         method: 'POST',
@@ -61,22 +78,22 @@ const WebcamCapture = ({ onCapture, label }) => {
       }
       
       const resBlob = await apiRes.blob();
-      const processedImageUrl = URL.createObjectURL(resBlob);
-      
-      setCapturedImage(processedImageUrl);
-      if (onCapture) onCapture(resBlob);
+      const reader = new FileReader();
+      reader.readAsDataURL(resBlob);
+      reader.onloadend = () => {
+        const base64Result = reader.result;
+        setCapturedImage(base64Result);
+        if (onCapture) onCapture(base64Result);
+      };
     } catch (err) {
       console.error(err);
-      setError('Failed to process image background. Using original image.');
-      setCapturedImage(base64Image); // Fallback to original image
-      // Try to convert to blob
-      fetch(base64Image).then(r => r.blob()).then(blob => {
-        if (onCapture) onCapture(blob);
-      });
+      setError(`Background auto-processing unavailable. Saved original photo.`);
+      setCapturedImage(base64Image);
+      if (onCapture) onCapture(base64Image);
     } finally {
       setIsProcessing(false);
     }
-  }, [stream, onCapture]);
+  }, [stream, onCapture, bgColor]);
 
   const retakePhoto = () => {
     setCapturedImage(null);
@@ -84,7 +101,7 @@ const WebcamCapture = ({ onCapture, label }) => {
   };
 
   // Cleanup on unmount
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -93,18 +110,20 @@ const WebcamCapture = ({ onCapture, label }) => {
   }, [stream]);
 
   // Attach stream to video element when it mounts
-  React.useEffect(() => {
+  useEffect(() => {
     if (videoRef.current && stream && !videoRef.current.srcObject) {
       videoRef.current.srcObject = stream;
     }
   }, [stream, isProcessing, capturedImage]);
+
+  const bgLabel = bgColor ? bgColor.charAt(0).toUpperCase() + bgColor.slice(1) : 'Processed';
 
   return (
     <div className="w-full">
       {label && <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>}
       <div className="relative border-2 border-dashed border-primary/40 rounded-xl overflow-hidden bg-gray-50 flex flex-col items-center justify-center min-h-[240px]">
         
-        {error && <div className="absolute top-2 left-2 right-2 bg-red-100 text-red-600 p-2 rounded text-xs z-20 text-center font-bold">{error}</div>}
+        {error && <div className="absolute top-2 left-2 right-2 bg-amber-100 text-amber-800 p-2 rounded text-xs z-20 text-center font-bold">{error}</div>}
         
         {!stream && !capturedImage && !isProcessing && (
           <button 
@@ -115,7 +134,7 @@ const WebcamCapture = ({ onCapture, label }) => {
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
               <FaCamera size={24} />
             </div>
-            <span className="font-semibold text-sm">Start Camera</span>
+            <span className="font-semibold text-sm">Take Live Photo</span>
           </button>
         )}
 
@@ -144,7 +163,7 @@ const WebcamCapture = ({ onCapture, label }) => {
         {isProcessing && (
           <div className="flex flex-col items-center justify-center py-8">
             <FaSync className="animate-spin text-primary text-3xl mb-2" />
-            <span className="text-sm font-semibold text-gray-600">Processing Background (Blue)...</span>
+            <span className="text-sm font-semibold text-gray-600">Processing Background ({bgLabel})...</span>
           </div>
         )}
 
@@ -168,3 +187,4 @@ const WebcamCapture = ({ onCapture, label }) => {
 };
 
 export default WebcamCapture;
+

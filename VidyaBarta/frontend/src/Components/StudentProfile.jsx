@@ -120,7 +120,10 @@ const StudentProfile = ({ udiseData }) => {
           })}
 
           {renderSection("Additional Info", <FaIdCard />, {
-            "Has Siblings": udiseData.hasSiblings,
+            "Has Relatives in School": udiseData.hasRelative || udiseData.hasSiblings || 'No',
+            "Relative Name": udiseData.relativeName || udiseData.siblingName,
+            "Relation": udiseData.relativeRelation,
+            "Relative Class": udiseData.relativeClass || udiseData.siblingClass ? `${udiseData.relativeClass || udiseData.siblingClass} ${udiseData.relativeSection || udiseData.siblingSection || ''}`.trim() : null,
             "RTE Beneficiary": udiseData.rteDetails !== 'None' ? 'Yes' : 'No',
             "RTE Amount": udiseData.rteAmount,
             "BPL Beneficiary": udiseData.bplBeneficiary,

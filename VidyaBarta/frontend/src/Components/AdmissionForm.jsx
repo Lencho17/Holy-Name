@@ -1,3 +1,9 @@
+
+    // Validation is basic for now, handled by UI constraints
+    payload.minorSubjects = dynamicSelections['Minor'] || [];
+    payload.gradingSets = dynamicSelections['Grading Sets'] || [];
+    payload.mil = (dynamicSelections['MIL'] || [])[0] || '';
+    payload.selectedSubjects = dynamicSelections['Elective'] || [];
 import React, { useState, useEffect, useContext } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -101,8 +107,8 @@ function AdmissionForm() {
     if (!val) return '';
     const v = val.trim().toUpperCase();
     if (v === 'PRE-NURSERY') return 'pre-nursery';
-    if (v.startsWith('KG I') || v === 'LKG') return 'kg1';
-    if (v.startsWith('KG II') || v === 'UKG') return 'kg2';
+    if (v.startsWith('KG I') || v === 'LKG' || v === 'KG-1') return 'kg1';
+    if (v.startsWith('KG II') || v === 'UKG' || v === 'KG-2') return 'kg2';
     // Match "CLASS I" through "CLASS XII" — extract the Roman/Arabic numeral
     const classMatch = v.match(/^CLASS\s+(.+)$/);
     if (classMatch) {
@@ -164,6 +170,27 @@ function AdmissionForm() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [pendingSubmissionData, setPendingSubmissionData] = useState(null);
+  
+  const [subjectConfigs, setSubjectConfigs] = useState([]);
+  useEffect(() => {
+    axios.get(`${apiBase}/subjects/mapping`, { headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` } })
+      .then(res => setSubjectConfigs(res.data))
+      .catch(err => console.error("Failed to load subject configs:", err));
+  }, [apiBase]);
+  
+  // Custom states for dynamic subject selection
+  const [dynamicSelections, setDynamicSelections] = useState({});
+  const handleDynamicSubjectChange = (cat, subject) => {
+    setDynamicSelections(prev => {
+      const current = prev[cat] || [];
+      if (current.includes(subject)) {
+         return { ...prev, [cat]: current.filter(s => s !== subject) };
+      } else {
+         return { ...prev, [cat]: [...current, subject] };
+      }
+    });
+  };
+
 
   const admissionFee = 500;
   const paymentEnabled = true;
@@ -456,7 +483,14 @@ function AdmissionForm() {
         subjects.push('PHYSICS', 'CHEMISTRY');
       }
       selectedSubjects.forEach(subject => subjects.push(subject.toUpperCase()));
-      payload.selectedSubjects = subjects;
+            payload.coreSubjects = [];
+      payload.minorSubjects = dynamicSelections['Minor'] || [];
+      payload.gradingSets = dynamicSelections['Grading Sets'] || [];
+      payload.mil = (dynamicSelections['MIL'] || [])[0] || '';
+      payload.selectedSubjects = dynamicSelections['Elective'] || [];
+      
+      // We don't have the config here easily to inject core subjects into payload, but we can store the electives.
+
     }
 
     // Validate Aadhaar if provided
@@ -1009,8 +1043,8 @@ function AdmissionForm() {
                           <select name="gradeApplied" required value={gradeApplied} onChange={(e) => setGradeApplied(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none uppercase">
                             <option value="">SELECT GRADE</option>
                             <option value="PRE-NURSERY">PRE-NURSERY</option>
-                            <option value="KG I (LKG)">KG I (LKG)</option>
-                            <option value="KG II (UKG)">KG II (UKG)</option>
+                            <option value="KG-1">KG-1</option>
+                            <option value="KG-2">KG-2</option>
                             <option value="CLASS I">CLASS I</option>
                             <option value="CLASS II">CLASS II</option>
                             <option value="CLASS III">CLASS III</option>
@@ -1143,109 +1177,88 @@ function AdmissionForm() {
                           </div>
                         )}
 
-                        {/* Class 9-10 Subjects */}
-                        {(gradeKey === "class9" || gradeKey === "class10") && (
-                          <>
-                            <div>
-                              <label className="block text-gray-700 font-medium mb-2">MIL (Modern Indian Language) *</label>
-                              <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none uppercase" required>
-                                <option value="">SELECT MIL</option>
-                                <option value="assamese">ASSAMESE</option>
-                                <option value="bengali">BENGALI</option>
-                                <option value="hindi">HINDI</option>
-                                <option value="bodo">BODO</option>
-                                <option value="urdu">URDU</option>
-                                <option value="manipuri">MANIPURI</option>
-                                <option value="nepali">NEPALI</option>
-                                <option value="khasi">KHASI</option>
-                                <option value="garo">GARO</option>
-                                <option value="mizo">MIZO</option>
-                                <option value="hmar">HMAR</option>
-                                <option value="karbi">KARBI</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-gray-700 font-medium mb-2">Elective Subject *</label>
-                              <select name="elective" className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none" required>
-                                <option value="">SELECT ELECTIVE</option>
-                                <option value="advanced_math">ADVANCED MATHEMATICS (E)</option>
-                                <option value="geography">GEOGRAPHY (E)</option>
-                                <option value="history">HISTORY (E)</option>
-                                <option value="sanskrit">SANSKRIT (E)</option>
-                                <option value="computer_science">COMPUTER SCIENCE (E)</option>
-                                <option value="fine_art">FINE ART (E)</option>
-                                <option value="music">MUSIC (E)</option>
-                                <option value="it_ites">IT/ITES NSQF (E)</option>
-                                <option value="retail_trade">RETAIL TRADE NSQF (E)</option>
-                                <option value="health_care">HEALTH CARE NSQF (E)</option>
-                              </select>
-                            </div>
-                          </>
-                        )}
-
-                        {/* Class 11-12 Subjects */}
-                        {(gradeKey === 'class11' || gradeKey === 'class12') && (
+                        {/* Dynamic Subject Selection */}
+                        {gradeKey && (
                           <div className="md:col-span-2 space-y-6">
-                            <div className="bg-gray-100 p-5 rounded-2xl border border-gray-300">
-                              <p className="text-xs font-bold text-black uppercase tracking-widest mb-3 flex items-center">
-                                <FaShieldAlt className="mr-2" /> Compulsory Subjects
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                <span className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-bold text-black">ENGLISH</span>
-                                <span className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-bold text-black">ENVIRONMENTAL EDUCATION</span>
-                                {selectedStream === 'science' && (
-                                  <>
-                                    <span className="px-3 py-1 bg-gray-100 border border-gray-400 rounded-full text-xs font-bold text-black">PHYSICS</span>
-                                    <span className="px-3 py-1 bg-gray-100 border border-gray-400 rounded-full text-xs font-bold text-black">CHEMISTRY</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div>
-                                <label className="block text-gray-700 font-medium mb-2">MIL / Alt. English *</label>
-                                <select name="mil" className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none" required>
-                                  <option value="">SELECT LANGUAGE</option>
-                                  <option value="assamese">ASSAMESE</option>
-                                  <option value="hindi">HINDI</option>
-                                  <option value="bengali">BENGALI</option>
-                                  <option value="alt_english">ALTERNATIVE ENGLISH</option>
-                                  <option value="bodo">BODO</option>
-                                  <option value="manipuri">MANIPURI</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-gray-700 font-medium mb-2">Stream *</label>
-                                <select name="stream" value={selectedStream} onChange={(e) => { setSelectedStream(e.target.value); setSelectedSubjects([]); }} className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-bold" required>
-                                  <option value="">CHOOSE STREAM</option>
-                                  <option value="science">SCIENCE</option>
-                                  <option value="arts">ARTS</option>
-                                  <option value="commerce">COMMERCE</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            {selectedStream && (
-                              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                                <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center justify-between">
-                                  <span>Select Elective Subjects (Select {selectedStream === 'science' ? 2 : 4}) *</span>
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedSubjects.length === (selectedStream === 'science' ? 2 : 4) ? 'bg-gray-100 text-black' : 'bg-gray-200 text-black'}`}>
-                                    {selectedSubjects.length} / {selectedStream === 'science' ? 2 : 4} Selected
-                                  </span>
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                  {(selectedStream === 'science' ? ['MATHEMATICS', 'BIOLOGY', 'COMPUTER SCIENCE', 'ECONOMICS'] :
-                                    selectedStream === 'arts' ? ['POLITICAL SCIENCE', 'ECONOMICS', 'HISTORY', 'EDUCATION', 'GEOGRAPHY', 'LOGIC & PHILOSOPHY', 'MATHEMATICS', 'SANSKRIT', 'ADVANCED ASSAMESE'] :
-                                    ['ACCOUNTANCY', 'BUSINESS STUDIES', 'ECONOMICS', 'COMMERCIAL MATHEMATICS', 'FINANCE', 'INSURANCE']
-                                  ).map(sub => (
-                                    <label key={sub} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-white cursor-pointer transition-all bg-gray-50/50">
-                                      <input type="checkbox" checked={selectedSubjects.includes(sub)} onChange={() => handleSubjectChange(sub)} className="w-5 h-5 accent-black mr-3" />
-                                      <span className="text-xs font-bold text-gray-700">{sub}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
+                            {(gradeKey === 'class11' || gradeKey === 'class12') && (
+                               <div>
+                                 <label className="block text-gray-700 font-medium mb-2">Stream *</label>
+                                 <select name="stream" value={selectedStream} onChange={(e) => { setSelectedStream(e.target.value); setDynamicSelections({}); }} className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-bold" required>
+                                   <option value="">CHOOSE STREAM</option>
+                                   <option value="science">SCIENCE</option>
+                                   <option value="arts">ARTS</option>
+                                   <option value="commerce">COMMERCE</option>
+                                 </select>
+                               </div>
                             )}
+                            
+                            {(() => {
+                              // Find config
+                              if (!gradeApplied) return null;
+                              let searchClass = gradeApplied.replace('CLASS ', '');
+                              if (gradeApplied === 'PRE-NURSERY') searchClass = 'PRE-NURSERY';
+                              if (gradeApplied === 'KG-1') searchClass = 'KG-1';
+                              if (gradeApplied === 'KG-2') searchClass = 'KG-2';
+                              if (gradeKey === 'class11' || gradeKey === 'class12') {
+                                if (!selectedStream) return null;
+                                searchClass = `${searchClass} (${selectedStream.charAt(0).toUpperCase() + selectedStream.slice(1)})`;
+                              }
+                              const config = subjectConfigs.find(c => c.class_level === searchClass);
+                              
+                              if (!config) return null;
+                              
+                              return (
+                                <div className="space-y-6">
+                                  {config.core_subjects?.length > 0 && (
+                                    <div className="bg-gray-100 p-5 rounded-2xl border border-gray-300">
+                                      <p className="text-xs font-bold text-black uppercase tracking-widest mb-3 flex items-center">
+                                        <FaShieldAlt className="mr-2" /> Core Subjects
+                                      </p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {config.core_subjects.map((sub, i) => (
+                                           <span key={i} className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-bold text-black">{sub.subjects?.name || sub.name}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {['MIL', 'Elective', 'Minor', 'Grading Sets'].map(cat => {
+                                     const group = config.elective_groups?.find(g => g.group_name === cat);
+                                     if (!group || !group.subjects || group.subjects.length === 0) return null;
+                                     const maxSelect = group.selectable_count || 1;
+                                     const currentSelected = dynamicSelections[cat] || [];
+                                     
+                                     return (
+                                       <div key={cat} className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                                        <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center justify-between">
+                                          <span>Select {cat} Subjects (Select {maxSelect}) {maxSelect > 0 ? '*' : ''}</span>
+                                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${currentSelected.length === maxSelect ? 'bg-gray-100 text-black' : 'bg-gray-200 text-black'}`}>
+                                            {currentSelected.length} / {maxSelect} Selected
+                                          </span>
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                          {group.subjects.map((sub, i) => {
+                                            const subName = sub.subjects?.name || sub.name;
+                                            return (
+                                              <label key={i} className="flex items-center p-3 rounded-xl border border-gray-200 hover:bg-white cursor-pointer transition-all bg-gray-50/50">
+                                                <input 
+                                                  type="checkbox" 
+                                                  checked={currentSelected.includes(subName)} 
+                                                  onChange={() => handleDynamicSubjectChange(cat, subName)} 
+                                                  disabled={!currentSelected.includes(subName) && currentSelected.length >= maxSelect}
+                                                  className="w-5 h-5 accent-black mr-3" 
+                                                />
+                                                <span className="text-xs font-bold text-gray-700">{subName}</span>
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
+                                       </div>
+                                     );
+                                  })}
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
 

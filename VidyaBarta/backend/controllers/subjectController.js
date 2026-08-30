@@ -219,7 +219,7 @@ exports.getClassSubjectMappings = async (req, res) => {
     const classesMap = {};
     
     // Initialize all standard classes
-    const standardClasses = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+    const standardClasses = ['PRE-NURSERY', 'KG-1', 'KG-2', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI (Science)', 'XI (Arts)', 'XI (Commerce)', 'XII (Science)', 'XII (Arts)', 'XII (Commerce)'];
     standardClasses.forEach(c => {
       classesMap[c] = { class_level: c, medium: '', has_semester: false, sections: '', core_subjects: [], elective_groups: [] };
     });

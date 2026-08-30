@@ -126,6 +126,8 @@ const defaultCoursesPage = {
   levels: [
     { title: "Play School", desc: "A nurturing environment where early learning meets structured play, setting the foundational stones for lifelong curiosity.", iconType: "FaChild" },
     { title: "Nursery", desc: "Fostering social skills, early literacy, and numeracy through engaging and interactive activities.", iconType: "FaChild" },
+    { title: "KG-1", desc: "Building core skills for early learners.", iconType: "FaChild" },
+    { title: "KG-2", desc: "Preparing young minds for primary education.", iconType: "FaChild" },
     { title: "Lower Primary", desc: "Building core academic competencies in a supportive setting, encouraging independent thought and collaborative learning.", iconType: "FaBookOpen" },
     { title: "Upper Primary", desc: "Expanding knowledge horizons with a diverse curriculum designed to challenge and inspire growing minds.", iconType: "FaBookOpen" },
     { title: "Secondary School", desc: "Preparing students for rigorous academic challenges and holistic personal development ahead of crucial board examinations.", iconType: "FaGraduationCap" },

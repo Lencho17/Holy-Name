@@ -32,6 +32,9 @@ const admissionSchema = new mongoose.Schema({
   elective: String, // for class 9-10
   mil: String, // Modern Indian Language for class 9-12
   selectedSubjects: [String], // for class 11-12 electives
+  coreSubjects: [String],
+  minorSubjects: [String],
+  gradingSets: [String],
   studentPhoto: String, // file path
   birthCertificate: String, // file path
   transferCertificate: String, // file path
@@ -69,9 +72,11 @@ admissionSchema.pre('save', function(next) {
     }
   });
 
-  if (this.selectedSubjects && Array.isArray(this.selectedSubjects)) {
-    this.selectedSubjects = this.selectedSubjects.map(s => s.toUpperCase());
-  }
+  ['selectedSubjects', 'coreSubjects', 'minorSubjects', 'gradingSets'].forEach(arrField => {
+    if (this[arrField] && Array.isArray(this[arrField])) {
+      this[arrField] = this[arrField].map(s => s.toUpperCase());
+    }
+  });
 
   next();
 });

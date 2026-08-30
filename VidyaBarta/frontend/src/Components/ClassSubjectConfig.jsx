@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FiEdit2, FiPlus, FiX } from 'react-icons/fi';
 
+const CATEGORIES = ['MIL', 'Elective', 'Minor', 'Grading Sets'];
+
 const ClassSubjectConfig = ({ API_URL }) => {
   const [classesData, setClassesData] = useState([]);
   const [globalSubjects, setGlobalSubjects] = useState([]);
@@ -35,14 +37,17 @@ const ClassSubjectConfig = ({ API_URL }) => {
 
   const handleEdit = (cls) => {
     const data = JSON.parse(JSON.stringify(cls));
-    const milGroup = data.elective_groups?.find(g => g.group_name === 'MIL') || { subjects: [], selectable_count: 1 };
-    const electiveGroup = data.elective_groups?.find(g => g.group_name === 'Elective') || { subjects: [], selectable_count: 1 };
-    
-    data.mil_subjects = milGroup.subjects || [];
-    data.mil_selectable = milGroup.selectable_count || 1;
-    data.elective_subjects = electiveGroup.subjects || [];
-    data.elective_selectable = electiveGroup.selectable_count || 1;
     data.core_subjects = data.core_subjects || [];
+    
+    // Initialize standard categories in editData
+    data.categories = {};
+    CATEGORIES.forEach(cat => {
+      const group = data.elective_groups?.find(g => g.group_name === cat) || { subjects: [], selectable_count: 1 };
+      data.categories[cat] = {
+        subjects: group.subjects || [],
+        selectable_count: group.selectable_count || 1
+      };
+    });
     
     setEditData(data);
     setIsEditing(true);
@@ -53,20 +58,16 @@ const ClassSubjectConfig = ({ API_URL }) => {
       const token = localStorage.getItem('adminToken');
       
       const elective_groups = [];
-      if (editData.mil_subjects && editData.mil_subjects.length > 0) {
-        elective_groups.push({
-          group_name: 'MIL',
-          selectable_count: parseInt(editData.mil_selectable) || 1,
-          subjects: editData.mil_subjects.map(s => s.subject_id || s.id).filter(Boolean)
-        });
-      }
-      if (editData.elective_subjects && editData.elective_subjects.length > 0) {
-        elective_groups.push({
-          group_name: 'Elective',
-          selectable_count: parseInt(editData.elective_selectable) || 1,
-          subjects: editData.elective_subjects.map(s => s.subject_id || s.id).filter(Boolean)
-        });
-      }
+      CATEGORIES.forEach(cat => {
+        const catData = editData.categories[cat];
+        if (catData && catData.subjects.length > 0) {
+          elective_groups.push({
+            group_name: cat,
+            selectable_count: parseInt(catData.selectable_count) || 1,
+            subjects: catData.subjects.map(s => s.subject_id || s.id).filter(Boolean)
+          });
+        }
+      });
       
       const res = await fetch(`${API_URL}/subjects/mapping/config`, {
         method: 'POST',
@@ -155,111 +156,67 @@ const ClassSubjectConfig = ({ API_URL }) => {
 
           <hr className="border-gray-200" />
 
-          {/* MIL SUBJECTS */}
-          <div>
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">MIL Subjects <span className="text-xs bg-gray-200 text-gray-600 rounded-full w-4 h-4 flex items-center justify-center">i</span></h3>
-            
-            <div className="space-y-3">
-              {(editData.mil_subjects || []).map((cs, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-white rounded border border-gray-200 p-1">
-                  <select 
-                    className="flex-1 border-none focus:ring-0 text-sm"
-                    value={cs.subject_id || cs.id || ''}
-                    onChange={(e) => {
-                      const newMil = [...(editData.mil_subjects || [])];
-                      newMil[idx] = { subject_id: e.target.value, name: globalSubjects.find(s => s.id === e.target.value)?.name };
-                      setEditData({...editData, mil_subjects: newMil});
-                    }}
-                  >
-                    <option value="">Select Subject</option>
-                    {globalSubjects.map(sub => (
-                      <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
-                    ))}
-                  </select>
-                  <button onClick={() => {
-                    const newMil = editData.mil_subjects.filter((_, i) => i !== idx);
-                    setEditData({...editData, mil_subjects: newMil});
-                  }} className="text-red-400 bg-red-50 p-2 mr-1 rounded hover:text-red-600"><FiX /></button>
-                </div>
-              ))}
+          {/* DYNAMIC CATEGORIES */}
+          {CATEGORIES.map(cat => (
+            <div key={cat}>
+              <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">{cat} Subjects <span className="text-xs bg-gray-200 text-gray-600 rounded-full w-4 h-4 flex items-center justify-center">i</span></h3>
               
-              {(editData.mil_subjects || []).length > 0 && (
-                <div className="mt-4 mb-4">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">*Total Selectable Subjects :</label>
-                  <input 
-                    type="number" 
-                    className="w-48 p-2 text-sm border border-gray-300 rounded"
-                    min="1" 
-                    value={editData.mil_selectable || 1}
-                    onChange={(e) => setEditData({...editData, mil_selectable: parseInt(e.target.value) || 1})}
-                  />
-                </div>
-              )}
-              
-              <button 
-                onClick={() => setEditData({...editData, mil_subjects: [...(editData.mil_subjects || []), { subject_id: '', name: '' }]})}
-                className="py-2.5 px-8 bg-[#E6F8F5] text-teal-600 font-semibold rounded text-sm hover:bg-teal-50 transition"
-              >
-                MIL Subjects <FiPlus className="inline ml-1" />
-              </button>
+              <div className="space-y-3">
+                {(editData.categories[cat]?.subjects || []).map((cs, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-white rounded border border-gray-200 p-1">
+                    <select 
+                      className="flex-1 border-none focus:ring-0 text-sm"
+                      value={cs.subject_id || cs.id || ''}
+                      onChange={(e) => {
+                        const newCatSubjects = [...(editData.categories[cat].subjects || [])];
+                        newCatSubjects[idx] = { subject_id: e.target.value, name: globalSubjects.find(s => s.id === e.target.value)?.name };
+                        setEditData({...editData, categories: { ...editData.categories, [cat]: { ...editData.categories[cat], subjects: newCatSubjects } } });
+                      }}
+                    >
+                      <option value="">Select Subject</option>
+                      {globalSubjects.map(sub => (
+                        <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
+                      ))}
+                    </select>
+                    <button onClick={() => {
+                      const newCatSubjects = editData.categories[cat].subjects.filter((_, i) => i !== idx);
+                      setEditData({...editData, categories: { ...editData.categories, [cat]: { ...editData.categories[cat], subjects: newCatSubjects } } });
+                    }} className="text-red-400 bg-red-50 p-2 mr-1 rounded hover:text-red-600"><FiX /></button>
+                  </div>
+                ))}
+                
+                {(editData.categories[cat]?.subjects || []).length > 0 && (
+                  <div className="mt-4 mb-4">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">*Total Selectable Subjects :</label>
+                    <input 
+                      type="number" 
+                      className="w-48 p-2 text-sm border border-gray-300 rounded"
+                      min="1" 
+                      value={editData.categories[cat]?.selectable_count || 1}
+                      onChange={(e) => {
+                        setEditData({...editData, categories: { ...editData.categories, [cat]: { ...editData.categories[cat], selectable_count: parseInt(e.target.value) || 1 } } });
+                      }}
+                    />
+                  </div>
+                )}
+                
+                <button 
+                  onClick={() => {
+                     const newCatSubjects = [...(editData.categories[cat].subjects || []), { subject_id: '', name: '' }];
+                     setEditData({...editData, categories: { ...editData.categories, [cat]: { ...editData.categories[cat], subjects: newCatSubjects } } });
+                  }}
+                  className="py-2.5 px-8 bg-[#E6F8F5] text-teal-600 font-semibold rounded text-sm hover:bg-teal-50 transition"
+                >
+                  {cat} Subjects <FiPlus className="inline ml-1" />
+                </button>
+              </div>
+              <hr className="border-gray-200 my-10" />
             </div>
-          </div>
-
-          <hr className="border-gray-200" />
-
-          {/* ELECTIVE SUBJECTS */}
-          <div>
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">Elective Subjects <span className="text-xs bg-gray-200 text-gray-600 rounded-full w-4 h-4 flex items-center justify-center">i</span></h3>
-            
-            <div className="space-y-3">
-              {(editData.elective_subjects || []).map((cs, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-white rounded border border-gray-200 p-1">
-                  <select 
-                    className="flex-1 border-none focus:ring-0 text-sm"
-                    value={cs.subject_id || cs.id || ''}
-                    onChange={(e) => {
-                      const newElec = [...(editData.elective_subjects || [])];
-                      newElec[idx] = { subject_id: e.target.value, name: globalSubjects.find(s => s.id === e.target.value)?.name };
-                      setEditData({...editData, elective_subjects: newElec});
-                    }}
-                  >
-                    <option value="">Select Subject</option>
-                    {globalSubjects.map(sub => (
-                      <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
-                    ))}
-                  </select>
-                  <button onClick={() => {
-                    const newElec = editData.elective_subjects.filter((_, i) => i !== idx);
-                    setEditData({...editData, elective_subjects: newElec});
-                  }} className="text-red-400 bg-red-50 p-2 mr-1 rounded hover:text-red-600"><FiX /></button>
-                </div>
-              ))}
-              
-              {(editData.elective_subjects || []).length > 0 && (
-                <div className="mt-4 mb-4">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">*Total Selectable Subjects :</label>
-                  <input 
-                    type="number" 
-                    className="w-48 p-2 text-sm border border-gray-300 rounded"
-                    min="1" 
-                    value={editData.elective_selectable || 1}
-                    onChange={(e) => setEditData({...editData, elective_selectable: parseInt(e.target.value) || 1})}
-                  />
-                </div>
-              )}
-              
-              <button 
-                onClick={() => setEditData({...editData, elective_subjects: [...(editData.elective_subjects || []), { subject_id: '', name: '' }]})}
-                className="py-2.5 px-8 bg-[#E6F8F5] text-teal-600 font-semibold rounded text-sm hover:bg-teal-50 transition"
-              >
-                Elective Subjects <FiPlus className="inline ml-1" />
-              </button>
-            </div>
-          </div>
+          ))}
           
         </div>
 
-        <div className="flex justify-end mt-12 pt-6 border-t border-gray-200">
+        <div className="flex justify-end mt-4 pt-6">
            <button onClick={handleSave} className="bg-[#1C4E80] text-white px-10 py-2.5 rounded text-sm font-bold shadow hover:bg-blue-900 transition">submit</button>
         </div>
       </div>
@@ -277,14 +234,12 @@ const ClassSubjectConfig = ({ API_URL }) => {
             <th className="p-4 text-xs font-semibold text-gray-500 uppercase">Medium</th>
             <th className="p-4 text-xs font-semibold text-gray-500 uppercase">Section</th>
             <th className="p-4 text-xs font-semibold text-gray-500 uppercase">Core Subjects</th>
-            <th className="p-4 text-xs font-semibold text-gray-500 uppercase">Elective Subjects</th>
+            <th className="p-4 text-xs font-semibold text-gray-500 uppercase">Elective/Minor Groups</th>
             <th className="p-4 text-xs font-semibold text-gray-500 uppercase text-center">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
           {classesData.map((cls, idx) => {
-            const milGroup = (cls.elective_groups || []).find(g => g.group_name === 'MIL');
-            const electiveGroup = (cls.elective_groups || []).find(g => g.group_name === 'Elective');
             return (
               <tr key={cls.class_level} className="hover:bg-gray-50/30">
                 <td className="p-4 text-sm text-gray-600 align-top">{idx + 1}</td>
@@ -305,29 +260,23 @@ const ClassSubjectConfig = ({ API_URL }) => {
                 </td>
                 <td className="p-4 align-top">
                   <div className="space-y-6">
-                    {milGroup && milGroup.subjects?.length > 0 && (
-                      <div className="text-xs">
-                        <div className="font-bold text-gray-800 mb-1">MIL</div>
-                        <ul className="space-y-1 text-gray-600 mb-1">
-                          {milGroup.subjects.map((s, j) => (
-                            <li key={j}>{j+1}. {s.subjects?.name || s.name} - {s.subjects?.marking_system || s.marking_system || '-'}</li>
-                          ))}
-                        </ul>
-                        <div className="font-bold text-gray-800 mt-2">Total Selectable Subjects: {milGroup.selectable_count}</div>
-                      </div>
-                    )}
-                    
-                    {electiveGroup && electiveGroup.subjects?.length > 0 && (
-                      <div className="text-xs">
-                        <div className="font-bold text-gray-800 mb-1">Elective</div>
-                        <ul className="space-y-1 text-gray-600 mb-1">
-                          {electiveGroup.subjects.map((s, j) => (
-                            <li key={j}>{j+1}. {s.subjects?.name || s.name} - {s.subjects?.marking_system || s.marking_system || '-'}</li>
-                          ))}
-                        </ul>
-                        <div className="font-bold text-gray-800 mt-2">Total Selectable Subjects: {electiveGroup.selectable_count}</div>
-                      </div>
-                    )}
+                    {CATEGORIES.map(cat => {
+                      const group = (cls.elective_groups || []).find(g => g.group_name === cat);
+                      if (group && group.subjects?.length > 0) {
+                        return (
+                          <div key={cat} className="text-xs">
+                            <div className="font-bold text-gray-800 mb-1">{cat}</div>
+                            <ul className="space-y-1 text-gray-600 mb-1">
+                              {group.subjects.map((s, j) => (
+                                <li key={j}>{j+1}. {s.subjects?.name || s.name} - {s.subjects?.marking_system || s.marking_system || '-'}</li>
+                              ))}
+                            </ul>
+                            <div className="font-bold text-gray-800 mt-2">Total Selectable: {group.selectable_count}</div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
                   </div>
                 </td>
                 <td className="p-4 align-top text-center">

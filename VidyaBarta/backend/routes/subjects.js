@@ -8,6 +8,7 @@ const {
   getClassSubjectMappings,
   saveClassSubjectConfig,
   deleteClassSubjectMapping,
+  deleteClassConfig,
   updateGlobalSubject,
   finalizeGlobalSubject
 } = require('../controllers/subjectController');
@@ -29,6 +30,9 @@ router.route('/global/:id/finalize')
 
 router.route('/mapping/config')
   .post(protect, saveClassSubjectConfig);
+
+router.route('/mapping/class/:className')
+  .delete(protect, deleteClassConfig);
 
 router.route('/mapping')
   .get(protect, getClassSubjectMappings)

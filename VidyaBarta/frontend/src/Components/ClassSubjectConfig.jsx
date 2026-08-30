@@ -10,6 +10,9 @@ const ClassSubjectConfig = ({ API_URL }) => {
   
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(null);
+  
+  const [isAddingClass, setIsAddingClass] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
 
   const fetchData = async () => {
     try {
@@ -91,6 +94,42 @@ const ClassSubjectConfig = ({ API_URL }) => {
       console.error(err);
       alert("Error saving config");
     }
+  };
+
+  const handleDeleteClass = async (className) => {
+    if (!window.confirm(`Are you sure you want to delete configuration for ${className}?`)) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/subjects/mapping/class/${encodeURIComponent(className)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+      } else {
+        alert("Failed to delete class");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error deleting class");
+    }
+  };
+
+  const handleAddNewClass = () => {
+    if (!newClassName.trim()) return;
+    // Just add to local state and open edit mode so admin can configure it
+    const newClassData = {
+      class_level: newClassName.trim().toUpperCase(),
+      medium: '',
+      has_semester: false,
+      sections: '',
+      core_subjects: [],
+      elective_groups: []
+    };
+    setClassesData([...classesData, newClassData]);
+    setNewClassName('');
+    setIsAddingClass(false);
+    handleEdit(newClassData);
   };
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
@@ -224,8 +263,26 @@ const ClassSubjectConfig = ({ API_URL }) => {
   }
 
   return (
-    <div className="bg-white shadow-sm border border-gray-200 overflow-x-auto">
-      <table className="w-full text-left border-collapse min-w-max">
+    <div className="bg-white shadow-sm border border-gray-200 overflow-x-auto p-4 rounded-xl">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold text-gray-800">Class Configurations</h2>
+        <button onClick={() => setIsAddingClass(true)} className="flex items-center gap-2 bg-[#1C4E80] text-white px-4 py-2 rounded font-bold hover:bg-blue-900 transition">
+          <FiPlus /> Add New Class
+        </button>
+      </div>
+
+      {isAddingClass && (
+        <div className="mb-6 p-4 border border-gray-200 rounded-xl bg-gray-50 flex items-end gap-4 animate-fade-in">
+          <div className="flex-1 max-w-sm">
+            <label className="block text-sm font-bold text-gray-700 mb-2">New Class Name *</label>
+            <input type="text" value={newClassName} onChange={e => setNewClassName(e.target.value)} placeholder="e.g. CLASS 8 SECTION B" className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1C4E80] outline-none uppercase" />
+          </div>
+          <button onClick={handleAddNewClass} className="bg-teal-600 text-white px-6 py-2.5 rounded font-bold hover:bg-teal-700 transition">Create</button>
+          <button onClick={() => setIsAddingClass(false)} className="bg-gray-200 text-gray-700 px-6 py-2.5 rounded font-bold hover:bg-gray-300 transition">Cancel</button>
+        </div>
+      )}
+
+      <table className="w-full text-left border-collapse min-w-max mt-4">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50/50">
             <th className="p-4 text-xs font-semibold text-gray-500 uppercase">No.</th>
@@ -280,9 +337,14 @@ const ClassSubjectConfig = ({ API_URL }) => {
                   </div>
                 </td>
                 <td className="p-4 align-top text-center">
-                  <button onClick={() => handleEdit(cls)} className="text-[#9854CB] bg-[#F3E8FF] p-2 rounded-full hover:bg-purple-200">
-                    <FiEdit2 size={14} />
-                  </button>
+                  <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => handleEdit(cls)} title="Edit Configuration" className="text-[#9854CB] bg-[#F3E8FF] p-2 rounded-full hover:bg-purple-200">
+                      <FiEdit2 size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteClass(cls.class_level)} title="Delete Class" className="text-red-500 bg-red-50 p-2 rounded-full hover:bg-red-100">
+                      <FiX size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             );

@@ -89,8 +89,6 @@ function AdmissionForm() {
   const [prevMarksObtained, setPrevMarksObtained] = useState("");
   const [lastAttendedExam, setLastAttendedExam] = useState("");
   const [prevPercentage, setPrevPercentage] = useState("");
-  const [selectedStream, setSelectedStream] = useState("");
-  const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [nccInterest, setNccInterest] = useState(false);
   const [sportsActive, setSportsActive] = useState(false);
   const [sportsType, setSportsType] = useState("");
@@ -102,21 +100,27 @@ function AdmissionForm() {
   const [caste, setCaste] = useState("General");
   const [prospectusCode, setProspectusCode] = useState("");
 
-  // Normalize grade display values (e.g. "PRE-NURSERY", "KG I (LKG)", "CLASS XI") to clean keys
   const normalizeGrade = (val) => {
     if (!val) return '';
     const v = val.trim().toUpperCase();
-    if (v === 'PRE-NURSERY') return 'pre-nursery';
-    if (v.startsWith('KG I') || v === 'LKG' || v === 'KG-1') return 'kg1';
-    if (v.startsWith('KG II') || v === 'UKG' || v === 'KG-2') return 'kg2';
-    // Match "CLASS I" through "CLASS XII" — extract the Roman/Arabic numeral
-    const classMatch = v.match(/^CLASS\s+(.+)$/);
-    if (classMatch) {
-      const num = classMatch[1].trim();
-      const romanMap = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10, 'XI': 11, 'XII': 12 };
-      const n = romanMap[num] || parseInt(num);
-      if (n) return `class${n}`;
-    }
+    if (v.includes('PRE-NURSERY')) return 'pre-nursery';
+    if (v.includes('KG-1') || v.includes('LKG') || v.includes('KG I')) return 'kg1';
+    if (v.includes('KG-2') || v.includes('UKG') || v.includes('KG II')) return 'kg2';
+    
+    // Check in reverse order so XII doesn't match XI first, though includes('XII') should be first.
+    if (v.includes('XII') || /\b12\b/.test(v)) return 'class12';
+    if (v.includes('XI') || /\b11\b/.test(v)) return 'class11';
+    if (v.includes('IX') || /\b9\b/.test(v)) return 'class9';
+    if (v.includes('X') || /\b10\b/.test(v)) return 'class10';
+    if (v.includes('VIII') || /\b8\b/.test(v)) return 'class8';
+    if (v.includes('VII') || /\b7\b/.test(v)) return 'class7';
+    if (v.includes('VI') || /\b6\b/.test(v)) return 'class6';
+    if (v.includes('IV') || /\b4\b/.test(v)) return 'class4';
+    if (v.includes('V') || /\b5\b/.test(v)) return 'class5';
+    if (v.includes('III') || /\b3\b/.test(v)) return 'class3';
+    if (v.includes('II') || /\b2\b/.test(v)) return 'class2';
+    if (v.includes('I') || /\b1\b/.test(v)) return 'class1';
+    
     return v.toLowerCase().replace(/\s+/g, '');
   };
   const gradeKey = normalizeGrade(gradeApplied);
@@ -470,28 +474,12 @@ function AdmissionForm() {
       payload.darpanId = darpanId;
     }
 
-    // Class 11-12 specialized subjects
-    if (gradeKey && (gradeKey === 'class11' || gradeKey === 'class12')) {
-      const requiredCount = selectedStream === 'science' ? 2 : 4;
-      if (selectedSubjects.length !== requiredCount) {
-        setSubmitError(`Please select exactly ${requiredCount} elective subjects.`);
-        setSubmitting(false);
-        return;
-      }
-      const subjects = [];
-      if (selectedStream === 'science') {
-        subjects.push('PHYSICS', 'CHEMISTRY');
-      }
-      selectedSubjects.forEach(subject => subjects.push(subject.toUpperCase()));
-            payload.coreSubjects = [];
-      payload.minorSubjects = dynamicSelections['Minor'] || [];
-      payload.gradingSets = dynamicSelections['Grading Sets'] || [];
-      payload.mil = (dynamicSelections['MIL'] || [])[0] || '';
-      payload.selectedSubjects = dynamicSelections['Elective'] || [];
-      
-      // We don't have the config here easily to inject core subjects into payload, but we can store the electives.
-
-    }
+    // Dynamic Subjects mapping for payload
+    payload.coreSubjects = [];
+    payload.minorSubjects = dynamicSelections['Minor'] || [];
+    payload.gradingSets = dynamicSelections['Grading Sets'] || [];
+    payload.mil = (dynamicSelections['MIL'] || [])[0] || '';
+    payload.selectedSubjects = dynamicSelections['Elective'] || [];
 
     // Validate Aadhaar if provided
     if (AadhaarNumber && AadhaarNumber.length > 0 && !isValidAadhaar(AadhaarNumber)) {
@@ -565,7 +553,7 @@ function AdmissionForm() {
 
       const fullData = { ...payload };
       fullData.referenceNumber = res.data.referenceNumber || res.data.reference_number;
-      fullData.selectedSubjects = [...selectedSubjects];
+      fullData.selectedSubjects = payload.selectedSubjects;
       fullData.dateOfApplication = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
       
       const requiresPayment = paymentEnabled && admissionFee > 0 && !payload.prospectusCode;
@@ -1040,23 +1028,11 @@ function AdmissionForm() {
                         </div>
                         <div>
                           <label className="block text-gray-700 font-medium mb-2">Class Applied For *</label>
-                          <select name="gradeApplied" required value={gradeApplied} onChange={(e) => setGradeApplied(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none uppercase">
+                          <select name="gradeApplied" required value={gradeApplied} onChange={(e) => { setGradeApplied(e.target.value); setDynamicSelections({}); }} className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none uppercase">
                             <option value="">SELECT GRADE</option>
-                            <option value="PRE-NURSERY">PRE-NURSERY</option>
-                            <option value="KG-1">KG-1</option>
-                            <option value="KG-2">KG-2</option>
-                            <option value="CLASS I">CLASS I</option>
-                            <option value="CLASS II">CLASS II</option>
-                            <option value="CLASS III">CLASS III</option>
-                            <option value="CLASS IV">CLASS IV</option>
-                            <option value="CLASS V">CLASS V</option>
-                            <option value="CLASS VI">CLASS VI</option>
-                            <option value="CLASS VII">CLASS VII</option>
-                            <option value="CLASS VIII">CLASS VIII</option>
-                            <option value="CLASS IX">CLASS IX</option>
-                            <option value="CLASS X">CLASS X</option>
-                            <option value="CLASS XI">CLASS XI</option>
-                            <option value="CLASS XII">CLASS XII</option>
+                            {subjectConfigs.map((config, i) => (
+                              <option key={i} value={config.class_level}>{config.class_level}</option>
+                            ))}
                           </select>
                         </div>
                       </div>
@@ -1178,32 +1154,12 @@ function AdmissionForm() {
                         )}
 
                         {/* Dynamic Subject Selection */}
-                        {gradeKey && (
+                        {gradeApplied && (
                           <div className="md:col-span-2 space-y-6">
-                            {(gradeKey === 'class11' || gradeKey === 'class12') && (
-                               <div>
-                                 <label className="block text-gray-700 font-medium mb-2">Stream *</label>
-                                 <select name="stream" value={selectedStream} onChange={(e) => { setSelectedStream(e.target.value); setDynamicSelections({}); }} className="w-full px-4 py-3 rounded-xl border border-gray-400 focus:ring-2 focus:ring-black outline-none font-bold" required>
-                                   <option value="">CHOOSE STREAM</option>
-                                   <option value="science">SCIENCE</option>
-                                   <option value="arts">ARTS</option>
-                                   <option value="commerce">COMMERCE</option>
-                                 </select>
-                               </div>
-                            )}
                             
                             {(() => {
-                              // Find config
-                              if (!gradeApplied) return null;
-                              let searchClass = gradeApplied.replace('CLASS ', '');
-                              if (gradeApplied === 'PRE-NURSERY') searchClass = 'PRE-NURSERY';
-                              if (gradeApplied === 'KG-1') searchClass = 'KG-1';
-                              if (gradeApplied === 'KG-2') searchClass = 'KG-2';
-                              if (gradeKey === 'class11' || gradeKey === 'class12') {
-                                if (!selectedStream) return null;
-                                searchClass = `${searchClass} (${selectedStream.charAt(0).toUpperCase() + selectedStream.slice(1)})`;
-                              }
-                              const config = subjectConfigs.find(c => c.class_level === searchClass);
+                              // Find config directly from gradeApplied
+                              const config = subjectConfigs.find(c => c.class_level === gradeApplied);
                               
                               if (!config) return null;
                               

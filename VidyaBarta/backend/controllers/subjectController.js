@@ -337,3 +337,29 @@ exports.deleteClassSubjectMapping = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// @desc    Delete an entire class configuration
+// @route   DELETE /api/subjects/mapping/class/:className
+// @access  Private (Admin)
+exports.deleteClassConfig = async (req, res) => {
+  try {
+    const school_id = req.user.school_id;
+    const { className } = req.params;
+    
+    if (!school_id) {
+      return res.status(403).json({ message: 'School ID is required' });
+    }
+
+    // Delete existing subjects and groups for this class
+    await supabase.from('school_subjects').delete().eq('school_id', school_id).eq('class_level', className);
+    await supabase.from('school_elective_groups').delete().eq('school_id', school_id).eq('class_level', className);
+    
+    // Delete the class config itself
+    const { error } = await supabase.from('school_class_configs').delete().eq('school_id', school_id).eq('class_level', className);
+
+    if (error) throw error;
+    res.json({ message: 'Class configuration deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

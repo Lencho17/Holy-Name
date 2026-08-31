@@ -3,6 +3,83 @@ import { FiEdit2, FiPlus, FiX } from 'react-icons/fi';
 
 const CATEGORIES = ['MIL', 'Elective', 'Minor', 'Grading Sets'];
 
+const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) => {
+  return (
+    <div className="bg-white rounded border border-gray-200 p-2 mb-2">
+      <div className="flex items-center gap-2">
+        <select 
+          className="flex-1 border-none focus:ring-0 text-sm p-1"
+          value={subjectItem.subject_id || subjectItem.id || ''}
+          onChange={(e) => {
+            const name = globalSubjects.find(s => s.id === e.target.value)?.name;
+            onChange({ ...subjectItem, subject_id: e.target.value, name });
+          }}
+        >
+          <option value="">Select Subject</option>
+          {globalSubjects.map(sub => (
+            <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
+          ))}
+        </select>
+        
+        <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-1 rounded cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={subjectItem.is_divided || false} 
+            onChange={e => onChange({ ...subjectItem, is_divided: e.target.checked })} 
+          /> Divide
+        </label>
+        
+        <button onClick={onRemove} className="text-red-400 bg-red-50 p-2 mr-1 rounded hover:text-red-600"><FiX /></button>
+      </div>
+
+      {subjectItem.is_divided && (
+        <div className="mt-2 ml-2 pl-4 border-l-2 border-teal-200 space-y-2">
+          <div className="text-xs font-bold text-gray-500 mb-1">Subject Parts</div>
+          {(subjectItem.parts || []).map((p, pIdx) => (
+            <div key={pIdx} className="flex gap-2 items-center">
+              <input 
+                placeholder="Part Name (e.g. Theory)" 
+                value={p.name || ''} 
+                onChange={e => {
+                  const newParts = [...(subjectItem.parts || [])];
+                  newParts[pIdx] = { ...p, name: e.target.value };
+                  onChange({ ...subjectItem, parts: newParts });
+                }} 
+                className="text-xs border border-gray-300 p-1.5 rounded flex-1 outline-none focus:border-teal-500"
+              />
+              <input 
+                placeholder="Sub-code (e.g. TH)" 
+                value={p.sub_code || ''} 
+                onChange={e => {
+                  const newParts = [...(subjectItem.parts || [])];
+                  newParts[pIdx] = { ...p, sub_code: e.target.value };
+                  onChange({ ...subjectItem, parts: newParts });
+                }} 
+                className="text-xs border border-gray-300 p-1.5 rounded w-28 outline-none focus:border-teal-500"
+              />
+              <button 
+                onClick={() => {
+                  const newParts = (subjectItem.parts || []).filter((_, i) => i !== pIdx);
+                  onChange({ ...subjectItem, parts: newParts });
+                }} 
+                className="text-red-400 hover:text-red-600 p-1"
+                title="Remove part"
+              ><FiX size={14}/></button>
+            </div>
+          ))}
+          <button 
+            onClick={() => {
+              const newParts = [...(subjectItem.parts || []), { name: '', sub_code: '' }];
+              onChange({ ...subjectItem, parts: newParts });
+            }} 
+            className="text-xs text-teal-600 font-bold hover:underline mt-1"
+          >+ Add Part</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ClassSubjectConfig = ({ API_URL }) => {
   const [classesData, setClassesData] = useState([]);
   const [globalSubjects, setGlobalSubjects] = useState([]);
@@ -67,7 +144,11 @@ const ClassSubjectConfig = ({ API_URL }) => {
           elective_groups.push({
             group_name: cat,
             selectable_count: parseInt(catData.selectable_count) || 1,
-            subjects: catData.subjects.map(s => s.subject_id || s.id).filter(Boolean)
+            subjects: catData.subjects.map(s => ({
+              subject_id: s.subject_id || s.id,
+              is_divided: s.is_divided,
+              parts: s.parts || []
+            })).filter(s => s.subject_id)
           });
         }
       });
@@ -80,7 +161,11 @@ const ClassSubjectConfig = ({ API_URL }) => {
           medium: editData.medium || '',
           has_semester: editData.has_semester || false,
           sections: editData.sections || '',
-          core_subjects: (editData.core_subjects || []).map(c => c.subject_id || c.id).filter(Boolean),
+          core_subjects: (editData.core_subjects || []).map(c => ({
+            subject_id: c.subject_id || c.id,
+            is_divided: c.is_divided,
+            parts: c.parts || []
+          })).filter(c => c.subject_id),
           elective_groups: elective_groups
         })
       });
@@ -162,26 +247,20 @@ const ClassSubjectConfig = ({ API_URL }) => {
             
             <div className="space-y-3">
               {(editData.core_subjects || []).map((cs, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-white rounded border border-gray-200 p-1">
-                  <select 
-                    className="flex-1 border-none focus:ring-0 text-sm"
-                    value={cs.subject_id || cs.id || ''}
-                    onChange={(e) => {
-                      const newCore = [...(editData.core_subjects || [])];
-                      newCore[idx] = { subject_id: e.target.value, name: globalSubjects.find(s => s.id === e.target.value)?.name };
-                      setEditData({...editData, core_subjects: newCore});
-                    }}
-                  >
-                    <option value="">Select Subject</option>
-                    {globalSubjects.map(sub => (
-                      <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
-                    ))}
-                  </select>
-                  <button onClick={() => {
+                <SubjectConfigRow 
+                  key={idx}
+                  subjectItem={cs}
+                  globalSubjects={globalSubjects}
+                  onChange={(updatedItem) => {
+                    const newCore = [...(editData.core_subjects || [])];
+                    newCore[idx] = updatedItem;
+                    setEditData({...editData, core_subjects: newCore});
+                  }}
+                  onRemove={() => {
                     const newCore = editData.core_subjects.filter((_, i) => i !== idx);
                     setEditData({...editData, core_subjects: newCore});
-                  }} className="text-red-400 bg-red-50 p-2 mr-1 rounded hover:text-red-600"><FiX /></button>
-                </div>
+                  }}
+                />
               ))}
               
               <button 
@@ -202,26 +281,20 @@ const ClassSubjectConfig = ({ API_URL }) => {
               
               <div className="space-y-3">
                 {(editData.categories[cat]?.subjects || []).map((cs, idx) => (
-                  <div key={idx} className="flex items-center gap-2 bg-white rounded border border-gray-200 p-1">
-                    <select 
-                      className="flex-1 border-none focus:ring-0 text-sm"
-                      value={cs.subject_id || cs.id || ''}
-                      onChange={(e) => {
-                        const newCatSubjects = [...(editData.categories[cat].subjects || [])];
-                        newCatSubjects[idx] = { subject_id: e.target.value, name: globalSubjects.find(s => s.id === e.target.value)?.name };
-                        setEditData({...editData, categories: { ...editData.categories, [cat]: { ...editData.categories[cat], subjects: newCatSubjects } } });
-                      }}
-                    >
-                      <option value="">Select Subject</option>
-                      {globalSubjects.map(sub => (
-                        <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
-                      ))}
-                    </select>
-                    <button onClick={() => {
+                  <SubjectConfigRow 
+                    key={idx}
+                    subjectItem={cs}
+                    globalSubjects={globalSubjects}
+                    onChange={(updatedItem) => {
+                      const newCatSubjects = [...(editData.categories[cat].subjects || [])];
+                      newCatSubjects[idx] = updatedItem;
+                      setEditData({...editData, categories: { ...editData.categories, [cat]: { ...editData.categories[cat], subjects: newCatSubjects } } });
+                    }}
+                    onRemove={() => {
                       const newCatSubjects = editData.categories[cat].subjects.filter((_, i) => i !== idx);
                       setEditData({...editData, categories: { ...editData.categories, [cat]: { ...editData.categories[cat], subjects: newCatSubjects } } });
-                    }} className="text-red-400 bg-red-50 p-2 mr-1 rounded hover:text-red-600"><FiX /></button>
-                  </div>
+                    }}
+                  />
                 ))}
                 
                 {(editData.categories[cat]?.subjects || []).length > 0 && (

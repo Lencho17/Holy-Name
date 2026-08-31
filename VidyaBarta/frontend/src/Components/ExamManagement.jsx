@@ -216,7 +216,14 @@ const ExamManagement = ({ apiUrl, token }) => {
       if (clsConfig) {
         subs = [...(clsConfig.core_subjects || []), ...((clsConfig.elective_groups || []).flatMap(g => g.subjects || []))];
       }
-      setAvailableSubjects(subs.map(s => (typeof s === 'string' ? s : (s.subjects?.name || s.name || s.subject_name))).filter(Boolean));
+      setAvailableSubjects(subs.map(s => {
+        if (typeof s === 'string') return { name: s };
+        return {
+          name: s.subjects?.name || s.name || s.subject_name,
+          is_divided: s.is_divided || false,
+          parts: s.parts || []
+        };
+      }).filter(s => s.name));
     } catch (err) {
       console.error(err);
     }
@@ -234,17 +241,18 @@ const ExamManagement = ({ apiUrl, token }) => {
           grouped.push({
             subject: item.subject,
             total_marks: item.total_marks || 100,
-            passing_marks: item.passing_marks || 30,
+            passing_marks: item.passing_marks || 40,
             has_practical: item.has_practical || false,
             theory_marks: item.theory_marks || '',
             theory_passing_marks: item.theory_passing_marks || '',
             practical_marks: item.practical_marks || '',
             practical_passing_marks: item.practical_passing_marks || '',
             exam_date: item.exam_date || '', 
-            start_time: item.start_time || '',
-            end_time: item.end_time || '',
+            start_time: item.start_time || '08:30',
+            end_time: item.end_time || '11:00',
             is_divided: !!item.sub_subject,
-            papers: [{ name: item.sub_subject || '', marks: item.total_marks || '' }]
+            subjectMeta: null,
+            papers: [{ name: item.sub_subject || '', marks: item.total_marks || '', passing_marks: item.passing_marks || '' }]
           });
         }
       });
@@ -255,20 +263,36 @@ const ExamManagement = ({ apiUrl, token }) => {
   };
 
   const addTimetableRow = () => {
+    let nextDate = '';
+    if (timetableData.length > 0) {
+      const lastDate = timetableData[timetableData.length - 1].exam_date;
+      if (lastDate) {
+        const d = new Date(lastDate);
+        if (!isNaN(d.getTime())) {
+          d.setDate(d.getDate() + 1);
+          if (d.getDay() === 0) { // Skip Sunday
+            d.setDate(d.getDate() + 1);
+          }
+          nextDate = d.toISOString().split('T')[0];
+        }
+      }
+    }
+
     setTimetableData([...timetableData, {
       subject: '',
       total_marks: 100,
-      passing_marks: 30,
+      passing_marks: 40,
       has_practical: false,
       theory_marks: '',
       theory_passing_marks: '',
       practical_marks: '',
       practical_passing_marks: '',
-      exam_date: '',
-      start_time: '',
-      end_time: '',
+      exam_date: nextDate,
+      start_time: '08:30',
+      end_time: '11:00',
       is_divided: false,
-      papers: [{ name: '', marks: '' }]
+      subjectMeta: null,
+      papers: [{ name: '', marks: '', passing_marks: '' }]
     }]);
   };
 
@@ -282,13 +306,13 @@ const ExamManagement = ({ apiUrl, token }) => {
             class_level: selectedClassExam.class_level,
             subject: g.subject,
             total_marks: g.is_divided ? (parseInt(p.marks) || 0) : g.total_marks,
-            passing_marks: g.is_divided ? Math.round(((parseInt(p.marks) || 0) / g.total_marks) * g.passing_marks) : g.passing_marks,
+            passing_marks: g.is_divided ? (p.passing_marks ? parseInt(p.passing_marks) : Math.round(((parseInt(p.marks) || 0) / g.total_marks) * g.passing_marks)) : g.passing_marks,
             has_practical: g.has_practical,
             theory_marks: g.theory_marks || null,
             theory_passing_marks: g.theory_passing_marks || null,
             practical_marks: g.practical_marks || null,
             practical_passing_marks: g.practical_passing_marks || null,
-            sub_subject: g.is_divided ? p.name : '',
+            sub_subject: g.is_divided ? (p.sub_code ? `${p.name} (${p.sub_code})` : p.name) : '',
             exam_date: g.exam_date,
             start_time: g.start_time,
             end_time: g.end_time,
@@ -418,10 +442,19 @@ const ExamManagement = ({ apiUrl, token }) => {
                   <div className="md:col-span-2">
                     <label className="block text-xs font-bold text-gray-600 mb-2">Subject</label>
                     <select value={group.subject} onChange={e => {
-                      const newTt = [...timetableData]; newTt[idx].subject = e.target.value; setTimetableData(newTt);
+                      const val = e.target.value;
+                      const newTt = [...timetableData]; 
+                      newTt[idx].subject = val; 
+                      const selSubj = availableSubjects.find(s => s.name === val);
+                      if (selSubj) {
+                         newTt[idx].subjectMeta = selSubj;
+                         newTt[idx].is_divided = false;
+                         newTt[idx].papers = [{ name: '', marks: '', passing_marks: '' }];
+                      }
+                      setTimetableData(newTt);
                     }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500">
                       <option value="">-- Select --</option>
-                      {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                      {availableSubjects.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
                     </select>
                   </div>
                   <div>
@@ -437,6 +470,26 @@ const ExamManagement = ({ apiUrl, token }) => {
                     }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Passing Marks" />
                   </div>
                 </div>
+
+                {group.is_divided && (
+                  <div className="mb-6 p-4 bg-[#f8f9fa] rounded-lg border border-gray-200">
+                    <label className="block text-xs font-bold text-gray-600 mb-3">Sub Parts configuration</label>
+                    {group.papers.map((paper, pIdx) => (
+                      <div key={pIdx} className="flex items-center gap-3 mb-2">
+                        <div className="w-1/3 text-xs font-bold text-gray-700 bg-gray-200 p-2 rounded">
+                          {paper.name} {paper.sub_code ? `(${paper.sub_code})` : ''}
+                        </div>
+                        <input type="number" value={paper.marks || ''} onChange={e => {
+                          const newTt = [...timetableData]; newTt[idx].papers[pIdx].marks = parseInt(e.target.value) || ''; setTimetableData(newTt);
+                        }} className="w-1/3 border border-gray-300 p-2 rounded text-xs bg-white" placeholder="Total Marks" />
+                        <input type="number" value={paper.passing_marks || ''} onChange={e => {
+                          const newTt = [...timetableData]; newTt[idx].papers[pIdx].passing_marks = parseInt(e.target.value) || ''; setTimetableData(newTt);
+                        }} className="w-1/3 border border-gray-300 p-2 rounded text-xs bg-white" placeholder="Passing Marks" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div>
                     <label className="block text-xs font-bold text-gray-600 mb-2">Date</label>
@@ -462,17 +515,25 @@ const ExamManagement = ({ apiUrl, token }) => {
 
                 {/* Toggles */}
                 <div className="flex flex-wrap gap-6 items-center mb-6">
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={group.is_divided} onChange={e => {
-                      const newTt = [...timetableData]; 
-                      newTt[idx].is_divided = e.target.checked; 
-                      // If dividing for first time, make sure there's at least one paper name initialized
-                      if (e.target.checked && !newTt[idx].papers[0].name) {
-                          newTt[idx].papers[0].name = 'Paper 1';
-                      }
-                      setTimetableData(newTt);
-                    }} className="rounded text-[#20c997] focus:ring-[#20c997] w-4 h-4" /> Divide Subject
-                  </label>
+                  {group.subjectMeta?.is_divided && (
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={group.is_divided} onChange={e => {
+                        const newTt = [...timetableData]; 
+                        newTt[idx].is_divided = e.target.checked; 
+                        if (e.target.checked && group.subjectMeta.parts?.length > 0) {
+                            newTt[idx].papers = group.subjectMeta.parts.map(p => ({
+                                name: p.name,
+                                sub_code: p.sub_code || '',
+                                marks: '',
+                                passing_marks: ''
+                            }));
+                        } else {
+                            newTt[idx].papers = [{ name: '', marks: '', passing_marks: '' }];
+                        }
+                        setTimetableData(newTt);
+                      }} className="rounded text-[#20c997] focus:ring-[#20c997] w-4 h-4" /> Divide Subject ?
+                    </label>
+                  )}
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
                     <input type="checkbox" checked={group.has_practical} onChange={e => {
                       const newTt = [...timetableData]; newTt[idx].has_practical = e.target.checked; setTimetableData(newTt);

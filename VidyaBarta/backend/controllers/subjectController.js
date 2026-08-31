@@ -211,7 +211,7 @@ exports.getClassSubjectMappings = async (req, res) => {
     // 3. Fetch subjects mapping
     const { data: subjects, error: subjError } = await supabase
       .from('school_subjects')
-      .select('id, class_level, subject_id, is_core, elective_group_id, subjects(name, code, marking_system)')
+      .select('id, class_level, subject_id, is_core, elective_group_id, is_divided, parts, subjects(name, code, marking_system)')
       .eq('school_id', school_id);
     if (subjError) throw subjError;
 
@@ -282,8 +282,9 @@ exports.saveClassSubjectConfig = async (req, res) => {
 
     // Insert new core subjects
     if (core_subjects && core_subjects.length > 0) {
-      const coreInserts = core_subjects.map(sub_id => ({
-        school_id, class_level, subject_id: sub_id, is_core: true
+      const coreInserts = core_subjects.map(sub => ({
+        school_id, class_level, subject_id: sub.subject_id, is_core: true,
+        is_divided: sub.is_divided || false, parts: sub.parts || []
       }));
       await supabase.from('school_subjects').insert(coreInserts);
     }
@@ -299,8 +300,9 @@ exports.saveClassSubjectConfig = async (req, res) => {
         if (grpError) throw grpError;
 
         if (grp.subjects && grp.subjects.length > 0) {
-          const eleInserts = grp.subjects.map(sub_id => ({
-            school_id, class_level, subject_id: sub_id, is_core: false, elective_group_id: newGrp.id
+          const eleInserts = grp.subjects.map(sub => ({
+            school_id, class_level, subject_id: sub.subject_id, is_core: false, elective_group_id: newGrp.id,
+            is_divided: sub.is_divided || false, parts: sub.parts || []
           }));
           await supabase.from('school_subjects').insert(eleInserts);
         }

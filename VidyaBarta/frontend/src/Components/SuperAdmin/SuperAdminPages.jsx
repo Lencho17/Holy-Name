@@ -1119,18 +1119,74 @@ const AHSEC_SEBA_SUBJECTS = [
   "Urdu"
 ];
 
+const SortableGlobalSubjectRow = ({ sub, setIsEditing, setEditSubject, handleFinalize, handleDeleteGlobalSubject }) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: sub.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <tr ref={setNodeRef} style={style} className="hover:bg-surface-variant/50 bg-surface z-10">
+      <td className="p-4 font-semibold text-on-surface flex items-center gap-3">
+        <span {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600 text-lg">☰</span>
+        {sub.name}
+      </td>
+      <td className="p-4">
+        <span className="font-mono font-bold text-green-700 bg-green-100 px-3 py-1 rounded-full border border-green-200 mr-2">{sub.code}</span>
+        {!sub.is_finalized && <span className="text-xs text-orange-500 font-semibold italic bg-orange-100 px-2 py-1 rounded">Draft</span>}
+      </td>
+      <td className="p-4 text-sm text-on-surface-variant">{sub.marking_system}</td>
+      <td className="p-4 text-right flex justify-end items-center gap-2">
+        {!sub.is_finalized && (
+          <>
+            <button onClick={() => { setIsEditing(true); setEditSubject(sub); }} className="text-blue-600 hover:text-blue-800 p-1.5 font-bold text-sm bg-blue-50 rounded border border-blue-100">Edit</button>
+            <button onClick={() => handleFinalize(sub.id)} className="text-green-700 hover:text-green-900 p-1.5 font-bold text-sm bg-green-50 rounded border border-green-100">Finalize</button>
+          </>
+        )}
+        {!sub.is_finalized && (
+          <button onClick={() => handleDeleteGlobalSubject(sub.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded ml-2 border border-red-100"><FaTrash /></button>
+        )}
+      </td>
+    </tr>
+  );
+};
+
 export const GlobalSubjects = () => {
   const [globalSubjects, setGlobalSubjects] = useState([]);
   const [newGlobalSubject, setNewGlobalSubject] = useState({ name: '', marking_system: 'Marking' });
   const [loading, setLoading] = useState(true);
   
   // Filtering and Sorting state
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState('custom');
   const [filterBy, setFilterBy] = useState('All');
   
   // Edit State
   const [isEditing, setIsEditing] = useState(false);
   const [editSubject, setEditSubject] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setGlobalSubjects((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        const reordered = arrayMove(items, oldIndex, newIndex);
+        
+        const token = localStorage.getItem('adminToken');
+        const updatePayload = reordered.map((s, i) => ({ id: s.id, order_index: i + 1 }));
+        fetch(`${API_URL}/subjects/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ subjects: updatePayload })
+        }).catch(err => console.error('Error reordering', err));
+
+        return reordered;
+      });
+    }
+  };
 
   const fetchGlobalSubjects = async () => {
     try {
@@ -1294,6 +1350,7 @@ export const GlobalSubjects = () => {
         <div className="flex items-center gap-3">
           <label className="text-sm font-bold text-gray-700">Sort by:</label>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="border border-gray-300 text-sm p-2 rounded-lg bg-gray-50">
+            <option value="custom">Custom Order</option>
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
             <option value="A-Z">A-Z</option>
@@ -1304,48 +1361,33 @@ export const GlobalSubjects = () => {
 
       {/* Table */}
       <div className="overflow-x-auto border border-outline-variant rounded-xl">
-        <table className="w-full text-left">
-          <thead className="bg-surface-variant text-on-surface-variant text-sm font-bold uppercase">
-            <tr>
-              <th className="p-4">Subject Name</th>
-              <th className="p-4">Code</th>
-              <th className="p-4">Marking System</th>
-              <th className="p-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant bg-surface">
-            {globalSubjects.map(sub => (
-              <tr key={sub.id} className="hover:bg-surface-variant/50">
-                <td className="p-4 font-semibold text-on-surface">{sub.name}</td>
-                <td className="p-4">
-                  <span className="font-mono font-bold text-green-700 bg-green-100 px-3 py-1 rounded-full border border-green-200 mr-2">{sub.code}</span>
-                  {!sub.is_finalized && (
-                    <span className="text-xs text-orange-500 font-semibold italic bg-orange-100 px-2 py-1 rounded">Draft</span>
-                  )}
-                </td>
-                <td className="p-4 text-sm text-on-surface-variant">{sub.marking_system}</td>
-                <td className="p-4 text-right flex justify-end items-center gap-2">
-                  {!sub.is_finalized && (
-                    <>
-                      <button onClick={() => { setIsEditing(true); setEditSubject(sub); }} className="text-blue-600 hover:text-blue-800 p-1.5 font-bold text-sm bg-blue-50 rounded border border-blue-100">
-                        Edit
-                      </button>
-                      <button onClick={() => handleFinalize(sub.id)} className="text-green-700 hover:text-green-900 p-1.5 font-bold text-sm bg-green-50 rounded border border-green-100">
-                        Finalize
-                      </button>
-                    </>
-                  )}
-                  {!sub.is_finalized && (
-                    <button onClick={() => handleDeleteGlobalSubject(sub.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded ml-2 border border-red-100">
-                      <FaTrash />
-                    </button>
-                  )}
-                </td>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <table className="w-full text-left">
+            <thead className="bg-surface-variant text-on-surface-variant text-sm font-bold uppercase">
+              <tr>
+                <th className="p-4">Subject Name</th>
+                <th className="p-4">Code</th>
+                <th className="p-4">Marking System</th>
+                <th className="p-4 text-right">Actions</th>
               </tr>
-            ))}
-            {globalSubjects.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-on-surface-variant">No global subjects found.</td></tr>}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-outline-variant bg-surface">
+              <SortableContext items={globalSubjects.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                {globalSubjects.map(sub => (
+                  <SortableGlobalSubjectRow 
+                    key={sub.id} 
+                    sub={sub} 
+                    setIsEditing={setIsEditing} 
+                    setEditSubject={setEditSubject} 
+                    handleFinalize={handleFinalize} 
+                    handleDeleteGlobalSubject={handleDeleteGlobalSubject} 
+                  />
+                ))}
+                {globalSubjects.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-on-surface-variant">No global subjects found.</td></tr>}
+              </SortableContext>
+            </tbody>
+          </table>
+        </DndContext>
       </div>
     </PageWrapper>
   );

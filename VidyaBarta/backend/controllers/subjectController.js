@@ -6,7 +6,7 @@ const supabase = require('../config/supabase');
 exports.getGlobalSubjects = async (req, res) => {
   try {
     const { sortBy, filterBy } = req.query;
-    let query = supabase.from('subjects').select('id, name, code, marking_system, is_finalized, created_at');
+    let query = supabase.from('subjects').select('id, name, code, marking_system, is_finalized, created_at, order_index');
 
     if (filterBy && filterBy !== 'All') {
       query = query.eq('marking_system', filterBy);
@@ -16,6 +16,8 @@ exports.getGlobalSubjects = async (req, res) => {
     else if (sortBy === 'oldest') query = query.order('created_at', { ascending: true });
     else if (sortBy === 'Z-A') query = query.order('name', { ascending: false });
     else query = query.order('name', { ascending: true }); // default A-Z
+    
+    query = query.order('order_index', { ascending: true }).order('created_at', { ascending: true });
 
     const { data, error } = await query;
     if (error) throw error;
@@ -145,9 +147,32 @@ exports.deleteGlobalSubject = async (req, res) => {
       .eq('id', req.params.id);
 
     if (error) throw error;
-    res.json({ message: 'Global subject deleted' });
+    res.json({ message: 'Subject deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.reorderGlobalSubjects = async (req, res) => {
+  try {
+    const { subjects } = req.body;
+    if (!subjects || !Array.isArray(subjects)) {
+      return res.status(400).json({ message: 'Invalid data format' });
+    }
+
+    for (const sub of subjects) {
+      if (sub.id && sub.order_index !== undefined) {
+        await supabase
+          .from('subjects')
+          .update({ order_index: sub.order_index })
+          .eq('id', sub.id);
+      }
+    }
+
+    res.json({ message: 'Global subjects reordered successfully' });
+  } catch (error) {
+    console.error('Error reordering global subjects:', error);
+    res.status(500).json({ message: 'Server error reordering global subjects' });
   }
 };
 

@@ -10,7 +10,8 @@ const {
   deleteClassSubjectMapping,
   deleteClassConfig,
   updateGlobalSubject,
-  finalizeGlobalSubject
+  finalizeGlobalSubject,
+  reorderGlobalSubjects
 } = require('../controllers/subjectController');
 const { protect, protectAnyStaff } = require('../middleware/auth');
 
@@ -18,6 +19,9 @@ const { protect, protectAnyStaff } = require('../middleware/auth');
 router.route('/global')
   .get(protectAnyStaff, getGlobalSubjects)
   .post(protect, createGlobalSubject);
+
+router.route('/reorder')
+  .put(protect, reorderGlobalSubjects);
 
 router.route('/global/:id')
   .put(protect, updateGlobalSubject)

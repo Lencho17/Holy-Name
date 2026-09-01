@@ -1,37 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiEdit2 } from 'react-icons/fi';
-import Select from 'react-select';
-
 const CATEGORIES = ['MIL', 'Elective', 'Minor', 'Grading Sets'];
 
 const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) => {
   return (
     <div className="bg-white rounded border border-gray-200 p-2 mb-2">
       <div className="flex items-center gap-2">
-        <Select 
-          className="flex-1 text-sm z-20"
-          classNamePrefix="react-select"
-          value={
-            subjectItem.subject_id || subjectItem.id
-              ? { 
-                  value: subjectItem.subject_id || subjectItem.id, 
-                  label: globalSubjects.find(s => s.id === (subjectItem.subject_id || subjectItem.id))?.name || 'Selected'
-                } 
-              : null
-          }
-          onChange={(selectedOption) => {
-            if (selectedOption) {
-              const name = globalSubjects.find(s => s.id === selectedOption.value)?.name;
-              onChange({ ...subjectItem, subject_id: selectedOption.value, name });
-            } else {
-              onChange({ ...subjectItem, subject_id: '', name: '' });
-            }
+        <select 
+          className="flex-1 border-none focus:ring-0 text-sm p-1"
+          value={subjectItem.subject_id || subjectItem.id || ''}
+          onChange={(e) => {
+            const name = globalSubjects.find(s => s.id === e.target.value)?.name;
+            onChange({ ...subjectItem, subject_id: e.target.value, name });
           }}
-          options={globalSubjects.map(sub => ({ value: sub.id, label: `${sub.name} - ${sub.marking_system}` }))}
-          placeholder="Select Subject"
-          isClearable
-          styles={{ control: (base) => ({ ...base, border: 'none', boxShadow: 'none' }) }}
-        />
+        >
+          <option value="">Select Subject</option>
+          {globalSubjects.map(sub => (
+            <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
+          ))}
+        </select>
         
         <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-1 rounded cursor-pointer">
           <input 
@@ -98,10 +85,6 @@ const ClassSubjectConfig = ({ API_URL }) => {
   
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(null);
-  
-  const [isAddingClass, setIsAddingClass] = useState(false);
-  const [newClassName, setNewClassName] = useState('');
-  const [cloneFromClass, setCloneFromClass] = useState('');
 
   const fetchData = async () => {
     try {
@@ -235,35 +218,7 @@ const ClassSubjectConfig = ({ API_URL }) => {
     }
   };
 
-  const handleAddNewClass = () => {
-    if (!newClassName.trim()) return;
-    
-    let clonedConfig = {
-      core_subjects: [],
-      elective_groups: []
-    };
-    
-    if (cloneFromClass) {
-      const sourceClass = classesData.find(c => c.class_level === cloneFromClass);
-      if (sourceClass) {
-        clonedConfig = JSON.parse(JSON.stringify(sourceClass));
-      }
-    }
 
-    const newClassData = {
-      class_level: newClassName.trim().toUpperCase(),
-      medium: '',
-      has_semester: false,
-      sections: '',
-      core_subjects: clonedConfig.core_subjects || [],
-      elective_groups: clonedConfig.elective_groups || []
-    };
-    setClassesData([...classesData, newClassData]);
-    setNewClassName('');
-    setCloneFromClass('');
-    setIsAddingClass(false);
-    handleEdit(newClassData);
-  };
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
 
@@ -387,35 +342,7 @@ const ClassSubjectConfig = ({ API_URL }) => {
     <div className="bg-white shadow-sm border border-gray-200 overflow-x-auto p-4 rounded-xl">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-gray-800">Class Configurations</h2>
-        <button onClick={() => setIsAddingClass(true)} className="flex items-center gap-2 bg-[#1C4E80] text-white px-4 py-2 rounded font-bold hover:bg-blue-900 transition">
-          <FiPlus /> Add New Class
-        </button>
       </div>
-
-      {isAddingClass && (
-        <div className="mb-6 p-4 border border-gray-200 rounded-xl bg-gray-50 flex items-end gap-4 animate-fade-in">
-          <div className="flex-1 max-w-sm">
-            <label className="block text-sm font-bold text-gray-700 mb-2">Select Class *</label>
-            <select value={newClassName} onChange={e => setNewClassName(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1C4E80] outline-none">
-              <option value="">Select a class...</option>
-              {globalClasses.map(gc => (
-                <option key={gc.id} value={gc.name}>{gc.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1 max-w-sm">
-            <label className="block text-sm font-bold text-gray-700 mb-2">Clone from (Optional)</label>
-            <select value={cloneFromClass} onChange={e => setCloneFromClass(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1C4E80] outline-none">
-              <option value="">None</option>
-              {classesData.map(c => (
-                <option key={c.class_level} value={c.class_level}>{c.class_level}</option>
-              ))}
-            </select>
-          </div>
-          <button onClick={handleAddNewClass} className="bg-teal-600 text-white px-6 py-2.5 rounded font-bold hover:bg-teal-700 transition">Create</button>
-          <button onClick={() => { setIsAddingClass(false); setCloneFromClass(''); }} className="bg-gray-200 text-gray-700 px-6 py-2.5 rounded font-bold hover:bg-gray-300 transition">Cancel</button>
-        </div>
-      )}
 
       <table className="w-full text-left border-collapse min-w-max mt-4">
         <thead>
@@ -431,18 +358,29 @@ const ClassSubjectConfig = ({ API_URL }) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {classesData.map((cls, idx) => {
+          {globalClasses.map((gc, idx) => {
+            const cls = classesData.find(c => c.class_level === gc.name) || {
+              class_level: gc.name,
+              medium: '',
+              has_semester: false,
+              sections: 'A,B,C',
+              core_subjects: [],
+              elective_groups: []
+            };
+            const isConfigured = classesData.some(c => c.class_level === gc.name);
             return (
-              <tr key={cls.class_level} className="hover:bg-gray-50/30">
+              <tr key={gc.id} className="hover:bg-gray-50/30">
                 <td className="p-4 text-sm text-gray-600 align-top">{idx + 1}</td>
-                <td className="p-4 text-sm text-gray-800 font-medium align-top">Class {cls.class_level} {cls.medium ? `- ${cls.medium}` : ''}</td>
+                <td className="p-4 text-sm text-gray-800 font-medium align-top">{cls.class_level} {cls.medium ? `- ${cls.medium}` : ''}</td>
                 <td className="p-4 align-top">
-                  <span className={`text-xs font-bold px-2 py-1 rounded ${cls.has_semester ? 'bg-pink-100 text-pink-500' : 'bg-pink-100 text-pink-500'}`}>
-                    {cls.has_semester ? 'Yes' : 'No'}
-                  </span>
+                  {isConfigured && (
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${cls.has_semester ? 'bg-pink-100 text-pink-500' : 'bg-pink-100 text-pink-500'}`}>
+                      {cls.has_semester ? 'Yes' : 'No'}
+                    </span>
+                  )}
                 </td>
-                <td className="p-4 text-sm text-gray-600 align-top">{cls.medium || '-'}</td>
-                <td className="p-4 text-sm text-gray-600 align-top">{cls.sections || 'A,B,C'}</td>
+                <td className="p-4 text-sm text-gray-600 align-top">{isConfigured ? cls.medium || '-' : ''}</td>
+                <td className="p-4 text-sm text-gray-600 align-top">{isConfigured ? cls.sections || 'A,B,C' : ''}</td>
                 <td className="p-4 align-top">
                   <ul className="text-xs space-y-1 text-gray-700">
                     {(cls.core_subjects || []).map((s, i) => (
@@ -476,15 +414,17 @@ const ClassSubjectConfig = ({ API_URL }) => {
                     <button onClick={() => handleEdit(cls)} title="Edit Configuration" className="text-[#9854CB] bg-[#F3E8FF] p-2 rounded-full hover:bg-purple-200">
                       <FiEdit2 size={14} />
                     </button>
-                    <button onClick={() => handleDeleteClass(cls.class_level)} title="Delete Class" className="text-red-500 bg-red-50 p-2 rounded-full hover:bg-red-100">
-                      <FiX size={14} />
-                    </button>
+                    {isConfigured && (
+                      <button onClick={() => handleDeleteClass(cls.class_level)} title="Delete Class" className="text-red-500 bg-red-50 p-2 rounded-full hover:bg-red-100">
+                        <FiX size={14} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
             );
           })}
-          {classesData.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-gray-400">No configurations found.</td></tr>}
+          {globalClasses.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-gray-400">No global classes found. Please configure them in Superadmin.</td></tr>}
         </tbody>
       </table>
     </div>

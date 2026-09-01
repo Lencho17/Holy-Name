@@ -8,6 +8,7 @@ exports.getGlobalClasses = async (req, res) => {
     const { data, error } = await supabase
       .from('global_classes')
       .select('*')
+      .order('order_index', { ascending: true })
       .order('created_at', { ascending: true });
 
     if (error) throw error;
@@ -86,5 +87,33 @@ exports.deleteGlobalClass = async (req, res) => {
   } catch (error) {
     console.error('Error deleting global class:', error);
     res.status(500).json({ message: 'Server error deleting global class' });
+  }
+};
+
+// @desc    Reorder global classes
+// @route   PUT /api/classes/global/reorder
+// @access  Private (Superadmin)
+exports.reorderGlobalClasses = async (req, res) => {
+  try {
+    const { classes } = req.body;
+    if (!classes || !Array.isArray(classes)) {
+      return res.status(400).json({ message: 'Invalid data format' });
+    }
+
+    // Process updates sequentially to avoid race conditions or use a bulk RPC if available.
+    // For simplicity, updating one by one.
+    for (const cls of classes) {
+      if (cls.id && cls.order_index !== undefined) {
+        await supabase
+          .from('global_classes')
+          .update({ order_index: cls.order_index })
+          .eq('id', cls.id);
+      }
+    }
+
+    res.json({ message: 'Global classes reordered successfully' });
+  } catch (error) {
+    console.error('Error reordering global classes:', error);
+    res.status(500).json({ message: 'Server error reordering global classes' });
   }
 };

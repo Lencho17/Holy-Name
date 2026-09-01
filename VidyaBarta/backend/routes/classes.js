@@ -4,13 +4,17 @@ const {
   getGlobalClasses,
   createGlobalClass,
   updateGlobalClass,
-  deleteGlobalClass
+  deleteGlobalClass,
+  reorderGlobalClasses
 } = require('../controllers/classController');
 const { protect, protectAnyStaff } = require('../middleware/auth');
 
 router.route('/global')
   .get(protectAnyStaff, getGlobalClasses)
   .post(protect, createGlobalClass);
+
+router.route('/global/reorder')
+  .put(protect, reorderGlobalClasses);
 
 router.route('/global/:id')
   .put(protect, updateGlobalClass)

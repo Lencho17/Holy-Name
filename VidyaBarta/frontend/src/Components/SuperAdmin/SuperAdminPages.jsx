@@ -1,5 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { FaSpinner, FaTrash, FaEdit, FaPlus } from 'react-icons/fa';
 
@@ -1334,7 +1350,37 @@ export const GlobalSubjects = () => {
     </PageWrapper>
   );
 };
+const SortableGlobalClassRow = ({ cls, setEditClass, setIsEditing, handleDeleteGlobalClass }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: cls.id });
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className="hover:bg-gray-50/50 transition bg-white z-10">
+      <td className="p-4 flex items-center gap-3">
+        <span {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600 text-lg">☰</span>
+        <span className="font-bold text-gray-800">{cls.name}</span>
+      </td>
+      <td className="p-4 text-right">
+        <button onClick={() => { setEditClass(cls); setIsEditing(true); }} className="text-primary hover:text-primary/80 p-2 bg-primary/10 rounded mr-2">
+          <FaEdit />
+        </button>
+        <button onClick={() => handleDeleteGlobalClass(cls.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded border border-red-100">
+          <FaTrash />
+        </button>
+      </td>
+    </tr>
+  );
+};
 
 export const GlobalClasses = () => {
   const [globalClasses, setGlobalClasses] = useState([]);
@@ -1342,6 +1388,34 @@ export const GlobalClasses = () => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editClass, setEditClass] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setGlobalClasses((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        const reordered = arrayMove(items, oldIndex, newIndex);
+        
+        const token = localStorage.getItem('adminToken');
+        const updatePayload = reordered.map((c, i) => ({ id: c.id, order_index: i + 1 }));
+        fetch(`${API_URL}/classes/global/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ classes: updatePayload })
+        }).catch(err => console.error('Error reordering', err));
+
+        return reordered;
+      });
+    }
+  };
 
   const fetchGlobalClasses = async () => {
     try {
@@ -1457,6 +1531,7 @@ export const GlobalClasses = () => {
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading classes...</div>
         ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -1465,27 +1540,24 @@ export const GlobalClasses = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {globalClasses.length > 0 ? globalClasses.map(cls => (
-                <tr key={cls.id} className="hover:bg-gray-50/50 transition">
-                  <td className="p-4">
-                    <span className="font-bold text-gray-800">{cls.name}</span>
-                  </td>
-                  <td className="p-4 text-right">
-                    <button onClick={() => { setEditClass(cls); setIsEditing(true); }} className="text-primary hover:text-primary/80 p-2 bg-primary/10 rounded mr-2">
-                      <FaEdit />
-                    </button>
-                    <button onClick={() => handleDeleteGlobalClass(cls.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded border border-red-100">
-                      <FaTrash />
-                    </button>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan="2" className="p-8 text-center text-gray-400">No global classes found.</td>
-                </tr>
-              )}
+              <SortableContext items={globalClasses.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                {globalClasses.length > 0 ? globalClasses.map(cls => (
+                  <SortableGlobalClassRow 
+                    key={cls.id} 
+                    cls={cls} 
+                    setEditClass={setEditClass} 
+                    setIsEditing={setIsEditing} 
+                    handleDeleteGlobalClass={handleDeleteGlobalClass} 
+                  />
+                )) : (
+                  <tr>
+                    <td colSpan="2" className="p-8 text-center text-gray-400">No global classes found.</td>
+                  </tr>
+                )}
+              </SortableContext>
             </tbody>
           </table>
+        </DndContext>
         )}
       </div>
     </PageWrapper>

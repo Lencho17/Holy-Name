@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiEdit2, FiPlus, FiX } from 'react-icons/fi';
+import { FiX, FiPlus, FiEdit2 } from 'react-icons/fi';
+import Select from 'react-select';
 
 const CATEGORIES = ['MIL', 'Elective', 'Minor', 'Grading Sets'];
 
@@ -7,19 +8,30 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) =
   return (
     <div className="bg-white rounded border border-gray-200 p-2 mb-2">
       <div className="flex items-center gap-2">
-        <select 
-          className="flex-1 border-none focus:ring-0 text-sm p-1"
-          value={subjectItem.subject_id || subjectItem.id || ''}
-          onChange={(e) => {
-            const name = globalSubjects.find(s => s.id === e.target.value)?.name;
-            onChange({ ...subjectItem, subject_id: e.target.value, name });
+        <Select 
+          className="flex-1 text-sm z-20"
+          classNamePrefix="react-select"
+          value={
+            subjectItem.subject_id || subjectItem.id
+              ? { 
+                  value: subjectItem.subject_id || subjectItem.id, 
+                  label: globalSubjects.find(s => s.id === (subjectItem.subject_id || subjectItem.id))?.name || 'Selected'
+                } 
+              : null
+          }
+          onChange={(selectedOption) => {
+            if (selectedOption) {
+              const name = globalSubjects.find(s => s.id === selectedOption.value)?.name;
+              onChange({ ...subjectItem, subject_id: selectedOption.value, name });
+            } else {
+              onChange({ ...subjectItem, subject_id: '', name: '' });
+            }
           }}
-        >
-          <option value="">Select Subject</option>
-          {globalSubjects.map(sub => (
-            <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
-          ))}
-        </select>
+          options={globalSubjects.map(sub => ({ value: sub.id, label: `${sub.name} - ${sub.marking_system}` }))}
+          placeholder="Select Subject"
+          isClearable
+          styles={{ control: (base) => ({ ...base, border: 'none', boxShadow: 'none' }) }}
+        />
         
         <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-1 rounded cursor-pointer">
           <input 
@@ -89,6 +101,7 @@ const ClassSubjectConfig = ({ API_URL }) => {
   
   const [isAddingClass, setIsAddingClass] = useState(false);
   const [newClassName, setNewClassName] = useState('');
+  const [cloneFromClass, setCloneFromClass] = useState('');
 
   const fetchData = async () => {
     try {
@@ -137,6 +150,25 @@ const ClassSubjectConfig = ({ API_URL }) => {
   };
 
   const handleSave = async () => {
+    if (!editData.core_subjects || editData.core_subjects.length === 0) {
+      if (!window.confirm("You have not configured any Core Subjects. Are you sure you want to proceed?")) {
+        return;
+      }
+    }
+
+    let validationFailed = false;
+    CATEGORIES.forEach(cat => {
+      const catData = editData.categories[cat];
+      if (catData && catData.subjects.length > 0) {
+        if (catData.selectable_count > catData.subjects.length) {
+          alert(`Validation Error: Total Selectable Subjects for ${cat} (${catData.selectable_count}) cannot be greater than the number of added subjects (${catData.subjects.length}).`);
+          validationFailed = true;
+        }
+      }
+    });
+
+    if (validationFailed) return;
+
     try {
       const token = localStorage.getItem('adminToken');
       
@@ -205,17 +237,30 @@ const ClassSubjectConfig = ({ API_URL }) => {
 
   const handleAddNewClass = () => {
     if (!newClassName.trim()) return;
-    // Just add to local state and open edit mode so admin can configure it
+    
+    let clonedConfig = {
+      core_subjects: [],
+      elective_groups: []
+    };
+    
+    if (cloneFromClass) {
+      const sourceClass = classesData.find(c => c.class_level === cloneFromClass);
+      if (sourceClass) {
+        clonedConfig = JSON.parse(JSON.stringify(sourceClass));
+      }
+    }
+
     const newClassData = {
       class_level: newClassName.trim().toUpperCase(),
       medium: '',
       has_semester: false,
       sections: '',
-      core_subjects: [],
-      elective_groups: []
+      core_subjects: clonedConfig.core_subjects || [],
+      elective_groups: clonedConfig.elective_groups || []
     };
     setClassesData([...classesData, newClassData]);
     setNewClassName('');
+    setCloneFromClass('');
     setIsAddingClass(false);
     handleEdit(newClassData);
   };
@@ -358,8 +403,17 @@ const ClassSubjectConfig = ({ API_URL }) => {
               ))}
             </select>
           </div>
+          <div className="flex-1 max-w-sm">
+            <label className="block text-sm font-bold text-gray-700 mb-2">Clone from (Optional)</label>
+            <select value={cloneFromClass} onChange={e => setCloneFromClass(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1C4E80] outline-none">
+              <option value="">None</option>
+              {classesData.map(c => (
+                <option key={c.class_level} value={c.class_level}>{c.class_level}</option>
+              ))}
+            </select>
+          </div>
           <button onClick={handleAddNewClass} className="bg-teal-600 text-white px-6 py-2.5 rounded font-bold hover:bg-teal-700 transition">Create</button>
-          <button onClick={() => setIsAddingClass(false)} className="bg-gray-200 text-gray-700 px-6 py-2.5 rounded font-bold hover:bg-gray-300 transition">Cancel</button>
+          <button onClick={() => { setIsAddingClass(false); setCloneFromClass(''); }} className="bg-gray-200 text-gray-700 px-6 py-2.5 rounded font-bold hover:bg-gray-300 transition">Cancel</button>
         </div>
       )}
 

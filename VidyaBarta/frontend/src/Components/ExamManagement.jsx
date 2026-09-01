@@ -249,7 +249,7 @@ const ExamManagement = ({ apiUrl, token }) => {
             practical_passing_marks: item.practical_passing_marks || '',
             exam_date: item.exam_date || '', 
             start_time: item.start_time || '08:30',
-            end_time: item.end_time || '11:00',
+            end_time: item.end_time || '11:30',
             is_divided: !!item.sub_subject,
             subjectMeta: null,
             papers: [{ name: item.sub_subject || '', marks: item.total_marks || '', passing_marks: item.passing_marks || '' }]
@@ -289,7 +289,7 @@ const ExamManagement = ({ apiUrl, token }) => {
       practical_passing_marks: '',
       exam_date: nextDate,
       start_time: '08:30',
-      end_time: '11:00',
+      end_time: '11:30',
       is_divided: false,
       subjectMeta: null,
       papers: [{ name: '', marks: '', passing_marks: '' }]
@@ -581,20 +581,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                             const newTt = [...timetableData]; newTt[idx].papers[pIdx].marks = e.target.value; setTimetableData(newTt);
                           }} className="w-full border border-gray-300 p-2.5 rounded text-sm bg-white" placeholder="e.g. 50" />
                         </div>
-                        <div className="flex items-center justify-center gap-2 mb-1">
-                          <button onClick={() => {
-                            const newTt = [...timetableData];
-                            newTt[idx].papers.splice(pIdx + 1, 0, { name: `Paper ${newTt[idx].papers.length + 1}`, marks: '' });
-                            setTimetableData(newTt);
-                          }} className="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 w-9 h-9 rounded flex items-center justify-center font-bold" title="Add Division">+</button>
-                          {group.papers.length > 1 && (
-                            <button onClick={() => {
-                              const newTt = [...timetableData];
-                              newTt[idx].papers.splice(pIdx, 1);
-                              setTimetableData(newTt);
-                            }} className="bg-pink-100 text-pink-500 hover:bg-pink-200 w-9 h-9 rounded flex items-center justify-center font-bold" title="Remove Division">-</button>
-                          )}
-                        </div>
+
                     </div>
                   ))}
                 </div>

@@ -117,6 +117,7 @@ const SuperAdminLayout = () => {
           <SidebarItem to="/superadmin/wallets" icon={FaWallet} label="Wallets & Payouts" />
           <SidebarItem to="/superadmin/domain-requests" icon={FiGlobe} label="Domain Requests" />
           <SidebarItem to="/superadmin/global-subjects" icon={FiBook} label="Global Subjects" />
+          <SidebarItem to="/superadmin/global-classes" icon={FiLayers} label="Global Classes" />
           
           <SidebarItem to="/superadmin/staff-management" icon={FiUsers} label="Staff Management">
             <SubItem to="/superadmin/staff-management/roles" label="Role & Permission" />

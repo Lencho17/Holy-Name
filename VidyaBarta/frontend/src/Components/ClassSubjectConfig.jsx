@@ -42,7 +42,9 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) =
                 value={p.name || ''} 
                 onChange={e => {
                   const newParts = [...(subjectItem.parts || [])];
-                  newParts[pIdx] = { ...p, name: e.target.value };
+                  const newName = e.target.value;
+                  const autoSubCode = newName.substring(0, 2).toUpperCase();
+                  newParts[pIdx] = { ...p, name: newName, sub_code: autoSubCode };
                   onChange({ ...subjectItem, parts: newParts });
                 }} 
                 className="text-xs border border-gray-300 p-1.5 rounded flex-1 outline-none focus:border-teal-500"
@@ -50,12 +52,8 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) =
               <input 
                 placeholder="Sub-code (e.g. TH)" 
                 value={p.sub_code || ''} 
-                onChange={e => {
-                  const newParts = [...(subjectItem.parts || [])];
-                  newParts[pIdx] = { ...p, sub_code: e.target.value };
-                  onChange({ ...subjectItem, parts: newParts });
-                }} 
-                className="text-xs border border-gray-300 p-1.5 rounded w-28 outline-none focus:border-teal-500"
+                readOnly
+                className="text-xs border border-gray-200 bg-gray-50 text-gray-500 p-1.5 rounded w-28 outline-none cursor-not-allowed"
               />
               <button 
                 onClick={() => {
@@ -83,6 +81,7 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) =
 const ClassSubjectConfig = ({ API_URL }) => {
   const [classesData, setClassesData] = useState([]);
   const [globalSubjects, setGlobalSubjects] = useState([]);
+  const [globalClasses, setGlobalClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -103,6 +102,10 @@ const ClassSubjectConfig = ({ API_URL }) => {
       const resGlobal = await fetch(`${API_URL}/subjects/global`, { headers: { Authorization: `Bearer ${token}` } });
       const globalData = await resGlobal.json();
       setGlobalSubjects(globalData);
+      
+      const resGlobalClasses = await fetch(`${API_URL}/classes/global`, { headers: { Authorization: `Bearer ${token}` } });
+      const globalClassesData = await resGlobalClasses.json();
+      setGlobalClasses(globalClassesData);
       
       setLoading(false);
     } catch (err) {
@@ -297,7 +300,7 @@ const ClassSubjectConfig = ({ API_URL }) => {
                   />
                 ))}
                 
-                {(editData.categories[cat]?.subjects || []).length > 0 && (
+                {(editData.categories[cat]?.subjects || []).length > 0 && ['MIL', 'Elective'].includes(cat) && (
                   <div className="mt-4 mb-4">
                     <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">*Total Selectable Subjects :</label>
                     <input 
@@ -347,8 +350,13 @@ const ClassSubjectConfig = ({ API_URL }) => {
       {isAddingClass && (
         <div className="mb-6 p-4 border border-gray-200 rounded-xl bg-gray-50 flex items-end gap-4 animate-fade-in">
           <div className="flex-1 max-w-sm">
-            <label className="block text-sm font-bold text-gray-700 mb-2">New Class Name *</label>
-            <input type="text" value={newClassName} onChange={e => setNewClassName(e.target.value)} placeholder="e.g. CLASS 8 SECTION B" className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1C4E80] outline-none uppercase" />
+            <label className="block text-sm font-bold text-gray-700 mb-2">Select Class *</label>
+            <select value={newClassName} onChange={e => setNewClassName(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#1C4E80] outline-none">
+              <option value="">Select a class...</option>
+              {globalClasses.map(gc => (
+                <option key={gc.id} value={gc.name}>{gc.name}</option>
+              ))}
+            </select>
           </div>
           <button onClick={handleAddNewClass} className="bg-teal-600 text-white px-6 py-2.5 rounded font-bold hover:bg-teal-700 transition">Create</button>
           <button onClick={() => setIsAddingClass(false)} className="bg-gray-200 text-gray-700 px-6 py-2.5 rounded font-bold hover:bg-gray-300 transition">Cancel</button>

@@ -1334,3 +1334,161 @@ export const GlobalSubjects = () => {
     </PageWrapper>
   );
 };
+
+
+export const GlobalClasses = () => {
+  const [globalClasses, setGlobalClasses] = useState([]);
+  const [newClassName, setNewClassName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editClass, setEditClass] = useState(null);
+
+  const fetchGlobalClasses = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/classes/global`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setGlobalClasses(await res.json());
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGlobalClasses();
+  }, []);
+
+  const handleCreateGlobalClass = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/classes/global`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: newClassName })
+      });
+      if (res.ok) {
+        setNewClassName('');
+        fetchGlobalClasses();
+        alert('Global Class Created successfully.');
+      } else {
+        const errorData = await res.json();
+        alert('Failed: ' + (errorData.message || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Error creating class');
+    }
+  };
+
+  const handleUpdateGlobalClass = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/classes/global/${editClass.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: editClass.name })
+      });
+      if (res.ok) {
+        setIsEditing(false);
+        setEditClass(null);
+        fetchGlobalClasses();
+        alert('Class updated successfully.');
+      } else {
+         const errorData = await res.json();
+         alert('Failed: ' + (errorData.message || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Error updating class');
+    }
+  };
+
+  const handleDeleteGlobalClass = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this class?')) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/classes/global/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) fetchGlobalClasses();
+    } catch (err) {}
+  };
+
+  return (
+    <PageWrapper title="Global Classes">
+      {isEditing && editClass ? (
+        <form onSubmit={handleUpdateGlobalClass} className="bg-white p-6 rounded-xl border border-gray-200 mb-8 max-w-md shadow-sm">
+          <h3 className="font-bold text-gray-800 mb-4">Edit Global Class</h3>
+          <div className="mb-4">
+            <label className="block text-sm font-bold text-gray-700 mb-1">Class Name</label>
+            <input 
+              type="text" required 
+              value={editClass.name} 
+              onChange={e => setEditClass({...editClass, name: e.target.value})} 
+              className="w-full border border-gray-300 p-2.5 rounded-lg focus:border-primary outline-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="bg-primary text-white px-6 py-2 rounded font-bold hover:bg-primary/90 flex-1">Update</button>
+            <button type="button" onClick={() => { setIsEditing(false); setEditClass(null); }} className="bg-gray-100 text-gray-700 px-6 py-2 rounded font-bold hover:bg-gray-200">Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handleCreateGlobalClass} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-end max-w-2xl">
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">Class Name</label>
+            <input 
+              type="text" required 
+              placeholder="e.g. Class I"
+              value={newClassName} 
+              onChange={e => setNewClassName(e.target.value)} 
+              className="w-full border border-gray-300 p-2.5 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+            />
+          </div>
+          <div>
+            <button type="submit" className="bg-primary text-white px-8 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition shadow-sm w-full md:w-auto">
+              <FaPlus className="inline mr-2" /> Add Class
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-gray-500">Loading classes...</div>
+        ) : (
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="p-4 text-xs font-semibold text-gray-500 uppercase">Class Name</th>
+                <th className="p-4 text-xs font-semibold text-gray-500 uppercase text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {globalClasses.length > 0 ? globalClasses.map(cls => (
+                <tr key={cls.id} className="hover:bg-gray-50/50 transition">
+                  <td className="p-4">
+                    <span className="font-bold text-gray-800">{cls.name}</span>
+                  </td>
+                  <td className="p-4 text-right">
+                    <button onClick={() => { setEditClass(cls); setIsEditing(true); }} className="text-primary hover:text-primary/80 p-2 bg-primary/10 rounded mr-2">
+                      <FaEdit />
+                    </button>
+                    <button onClick={() => handleDeleteGlobalClass(cls.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded border border-red-100">
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="2" className="p-8 text-center text-gray-400">No global classes found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </PageWrapper>
+  );
+};
+

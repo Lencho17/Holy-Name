@@ -291,12 +291,12 @@ exports.saveClassSubjectConfig = async (req, res) => {
     const school_id = req.user.school_id;
     if (!school_id) return res.status(403).json({ message: 'School ID is required' });
 
-    const { class_level, medium, has_semester, sections, core_subjects, elective_groups } = req.body;
+    const { class_level, medium, has_semester, sections, core_subjects, elective_groups, has_sections, sections_data } = req.body;
     
     // Upsert config
     const { data: configData, error: configError } = await supabase
       .from('school_class_configs')
-      .upsert({ school_id, class_level, medium, has_semester, sections }, { onConflict: 'school_id, class_level' })
+      .upsert({ school_id, class_level, medium, has_semester, sections, has_sections: has_sections || false, sections_data: sections_data || [] }, { onConflict: 'school_id, class_level' })
       .select()
       .single();
     if (configError) throw configError;

@@ -760,6 +760,67 @@ router.patch('/:id/status', protect, async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(tempPassword, salt);
 
+        // ---------------- Section Assignment Logic ----------------
+        let assignedSection = null;
+        if (admission.school_id && admission.grade_applied) {
+          try {
+            // Normalize class_level to match school_class_configs
+            let classLevel = admission.grade_applied.replace(/class\s+/i, '').trim().toUpperCase();
+            const romanToArabic = { 'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8', 'IX': '9', 'X': '10', 'XI': '11', 'XII': '12' };
+            const arabicToRoman = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X', '11': 'XI', '12': 'XII' };
+            let altClassLevel = classLevel;
+            if (romanToArabic[classLevel]) altClassLevel = romanToArabic[classLevel];
+            else if (arabicToRoman[classLevel]) altClassLevel = arabicToRoman[classLevel];
+
+            // 1. Fetch class config
+            const { data: config } = await supabase
+              .from('school_class_configs')
+              .select('has_sections, sections_data')
+              .eq('school_id', admission.school_id)
+              .or(`class_level.eq."${classLevel}",class_level.eq."${altClassLevel}"`)
+              .maybeSingle();
+
+            if (config && config.has_sections && Array.isArray(config.sections_data) && config.sections_data.length > 0) {
+              // 2. Fetch current active students for this class and school to count section capacities
+              const { data: studentsInSection, error: stdErr } = await supabase
+                .from('students')
+                .select('section')
+                .eq('school_id', admission.school_id)
+                .eq('grade', admission.grade_applied)
+                .eq('enrollment_status', 'active');
+                
+              if (!stdErr) {
+                // Count students per section
+                const counts = {};
+                studentsInSection.forEach(st => {
+                  if (st.section) {
+                    counts[st.section] = (counts[st.section] || 0) + 1;
+                  }
+                });
+
+                // 3. Find first section with available capacity
+                for (const sec of config.sections_data) {
+                  const currentCount = counts[sec.name] || 0;
+                  const capacity = sec.capacity || 0;
+                  if (currentCount < capacity) {
+                    assignedSection = sec.name;
+                    break;
+                  }
+                }
+
+                // 4. If all are full, spillover to the last section
+                if (!assignedSection) {
+                  assignedSection = config.sections_data[config.sections_data.length - 1].name;
+                }
+              }
+            }
+          } catch (sectionErr) {
+            console.error('Error assigning section dynamically:', sectionErr);
+            // Continue without section if error
+          }
+        }
+        // ---------------- End Section Assignment ----------------
+
         const { error: insertError } = await supabase.from('students').insert({
           student_name: admission.student_name,
           date_of_birth: admission.date_of_birth,
@@ -773,7 +834,8 @@ router.patch('/:id/status', protect, async (req, res) => {
           pen_number: admission.pen_number,
           aadhar_number: admission.aadhar_number,
           school_id: admission.school_id || null, // Ensure school_id is passed
-          password: hashedPassword
+          password: hashedPassword,
+          section: assignedSection
         });
 
         if (insertError) {

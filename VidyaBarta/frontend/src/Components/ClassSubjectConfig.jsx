@@ -179,6 +179,8 @@ const ClassSubjectConfig = ({ API_URL }) => {
           medium: editData.medium || '',
           has_semester: editData.has_semester || false,
           sections: editData.sections || '',
+          has_sections: editData.has_sections || false,
+          sections_data: editData.sections_data || [],
           core_subjects: (editData.core_subjects || []).map(c => ({
             subject_id: c.subject_id || c.id,
             is_divided: c.is_divided,
@@ -237,6 +239,42 @@ const ClassSubjectConfig = ({ API_URL }) => {
                   <option value="Yes">Yes</option>
                 </select>
               </label>
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                Has Sections : 
+                <select className="bg-transparent border-none focus:ring-0 text-sm font-semibold p-0 ml-1" value={editData.has_sections ? 'Yes' : 'No'} onChange={e => setEditData({...editData, has_sections: e.target.value === 'Yes'})}>
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </label>
+              {editData.has_sections && (
+                <div className="mt-3 p-4 border border-gray-200 rounded-lg bg-white w-full max-w-md">
+                  <h3 className="font-bold text-gray-800 text-sm mb-3">Configure Sections & Capacities</h3>
+                  <div className="space-y-2">
+                    {(editData.sections_data || []).map((sec, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <span className="text-gray-400 font-bold text-xs">{idx + 1}.</span>
+                        <input type="text" placeholder="Name (e.g. A, Rose)" value={sec.name} onChange={e => {
+                          const newSecs = [...(editData.sections_data || [])];
+                          newSecs[idx].name = e.target.value;
+                          setEditData({...editData, sections_data: newSecs});
+                        }} className="border border-gray-300 rounded p-1.5 text-sm flex-1 outline-none focus:border-blue-500" />
+                        <input type="number" placeholder="Capacity" value={sec.capacity || ''} onChange={e => {
+                          const newSecs = [...(editData.sections_data || [])];
+                          newSecs[idx].capacity = parseInt(e.target.value) || 0;
+                          setEditData({...editData, sections_data: newSecs});
+                        }} className="border border-gray-300 rounded p-1.5 text-sm w-24 outline-none focus:border-blue-500" />
+                        <button onClick={() => {
+                          const newSecs = editData.sections_data.filter((_, i) => i !== idx);
+                          setEditData({...editData, sections_data: newSecs});
+                        }} className="text-red-500 hover:bg-red-50 p-2 rounded"><FiX size={16} /></button>
+                      </div>
+                    ))}
+                    <button onClick={() => setEditData({...editData, sections_data: [...(editData.sections_data || []), { name: '', capacity: 40 }]})} className="mt-2 text-sm text-teal-600 font-bold hover:underline flex items-center gap-1">
+                      <FiPlus /> Add Section
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <button onClick={() => setIsEditing(false)} className="text-gray-500 hover:text-gray-700 self-start"><FiX size={24} /></button>
@@ -380,7 +418,21 @@ const ClassSubjectConfig = ({ API_URL }) => {
                   )}
                 </td>
                 <td className="p-4 text-sm text-gray-600 align-top">{isConfigured ? cls.medium || '-' : ''}</td>
-                <td className="p-4 text-sm text-gray-600 align-top">{isConfigured ? cls.sections || 'A,B,C' : ''}</td>
+                <td className="p-4 align-top">
+                  {isConfigured ? (
+                    cls.has_sections ? (
+                      <div className="flex gap-1 flex-wrap">
+                        {(cls.sections_data || []).map((s, i) => (
+                          <span key={i} className="text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded">
+                            {s.name}({s.capacity})
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">None</span>
+                    )
+                  ) : ''}
+                </td>
                 <td className="p-4 align-top">
                   <ul className="text-xs space-y-1 text-gray-700">
                     {(cls.core_subjects || []).map((s, i) => (

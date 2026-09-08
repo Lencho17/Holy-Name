@@ -32,6 +32,38 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
+// POST /api/auth/refresh
+router.post('/refresh', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+
+    // Verify ignoring expiration to allow refreshing an expired token (or require a separate refresh token)
+    // For simplicity, we decode the token to get the user ID if the signature is valid.
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET, { ignoreExpiration: true });
+    } catch (err) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    const { data: admin, error } = await supabase
+      .from('admins')
+      .select('id')
+      .eq('id', decoded.id)
+      .single();
+
+    if (error || !admin) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    const newToken = generateToken(admin.id);
+    res.json({ token: newToken });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {

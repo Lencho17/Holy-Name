@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { SiteDataContext } from '../context/SiteDataContext';
 import { FaPlus, FaTrash, FaCheckCircle, FaCalendarAlt, FaArrowLeft, FaDownload, FaSpinner } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -27,7 +28,8 @@ const ExamManagement = ({ apiUrl, token }) => {
     class_levels: [],
     type: 'Offline'
   });
-  const allClasses = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  const { globalClasses } = useContext(SiteDataContext);
+  const allClasses = globalClasses?.map(c => c.name) || [];
   const uniqueExamNames = [...new Set(exams.map(e => e.name))];
 
   const fetchExamsAndStatus = async () => {

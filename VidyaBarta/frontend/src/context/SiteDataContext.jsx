@@ -238,6 +238,7 @@ export const SiteDataProvider = ({ children }) => {
   const [appointmentSettings, setAppointmentSettings] = useState(defaultAppointmentSettings);
   const [admissionFee, setAdmissionFee] = useState(500);
   const [loading, setLoading] = useState(true);
+  const [globalClasses, setGlobalClasses] = useState([]);
 
 
 
@@ -291,8 +292,19 @@ export const SiteDataProvider = ({ children }) => {
         const studentToken = localStorage.getItem('studentToken');
         const token = adminToken || staffToken || studentToken;
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const { data } = await axios.get(`${API_URL}/content?domain=${targetDomain}`, { headers });
-        const legacyData = mapSupabaseToLegacy(data);
+        const endpointUrl = `${API_URL}/content?target=${encodeURIComponent(targetDomain)}&timestamp=${new Date().getTime()}`;
+        console.log(`Fetching from endpoint: ${endpointUrl}`);
+        
+        const [res, classesRes] = await Promise.all([
+          axios.get(endpointUrl, { headers }),
+          axios.get(`${API_URL}/subjects/global?target=${encodeURIComponent(targetDomain)}`, { headers }).catch(() => ({ data: [] }))
+        ]);
+
+        if (classesRes && classesRes.data && Array.isArray(classesRes.data)) {
+          setGlobalClasses(classesRes.data);
+        }
+
+        const legacyData = mapSupabaseToLegacy(res.data);
         if (Array.isArray(legacyData.gallery)) setGallery(legacyData.gallery);
         if (Array.isArray(legacyData.events)) setEvents(legacyData.events);
         if (Array.isArray(legacyData.highlights)) setHighlights(legacyData.highlights);
@@ -553,6 +565,7 @@ export const SiteDataProvider = ({ children }) => {
   return (
     <SiteDataContext.Provider value={{
       loading,
+      globalClasses,
       videos, setVideos: wrapSetVideos,
       highlights, setHighlights: wrapSetHighlights,
       gallery, setGallery: wrapSetGallery,

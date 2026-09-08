@@ -3,11 +3,12 @@ import axios from 'axios';
 import { NavLink } from 'react-router-dom';
 import { FiChevronDown, FiMenu, FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, FiDollarSign, FiUsers, FiSettings, FiMonitor } from 'react-icons/fi';
 import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt, FaLeaf, FaUser, FaTransgender } from 'react-icons/fa';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import toast from 'react-hot-toast';
 import { SiteDataContext } from '../context/SiteDataContext';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { motion } from 'framer-motion';
 import SchoolStatusSettings from './SchoolStatusSettings';
 import BulkUpload from './BulkUpload';
 import HolidaySettings from './HolidaySettings';
@@ -114,7 +115,7 @@ function AdminPage() {
   }, []);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, careerPage, setCareerPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, careerPage, setCareerPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL, globalClasses } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -131,6 +132,8 @@ function AdminPage() {
   const [studentClassFilter, setStudentClassFilter] = useState('');
   const [studentSectionFilter, setStudentSectionFilter] = useState('');
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [studentPage, setStudentPage] = useState(1);
+  const [studentTotalPages, setStudentTotalPages] = useState(1);
   const [studentToDelete, setStudentToDelete] = useState(null);
   const [isDeletingStudent, setIsDeletingStudent] = useState(false);
   const [showGlobalSearchModal, setShowGlobalSearchModal] = useState(false);
@@ -239,16 +242,16 @@ function AdminPage() {
 
       if (remaining <= 0) {
         clearInterval(intervalId);
-        alert('Your session has expired (2 hour limit). Please log in again.');
+        toast.error('Your session has expired (2 hour limit). Please log in again.');
         handleLogout();
       } else {
         setSessionRemaining(remaining);
         
         // Notify at 1 hour 58 mins and 1 hour 59 mins
         if (remaining === 120) {
-          alert('Warning: Your session will expire in 2 minutes.');
+          toast.error('Warning: Your session will expire in 2 minutes.');
         } else if (remaining === 60) {
-          alert('Warning: Your session will expire in 1 minute. Please save your work!');
+          toast.error('Warning: Your session will expire in 1 minute. Please save your work!');
         }
       }
     }, 1000);
@@ -270,7 +273,7 @@ function AdminPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.forceLogout) {
-            alert('Your session has expired. Please log in again.');
+            toast.error('Your session has expired. Please log in again.');
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminData');
             localStorage.removeItem('loginTimestamp');
@@ -368,9 +371,9 @@ function AdminPage() {
   const handleCareerPageSave = async () => {
     try {
       await updateSiteContent({ careerPage: localCareerPage });
-      alert("Career Page Guidelines saved successfully!");
+      toast.success("Career Page Guidelines saved successfully!");
     } catch (err) {
-      alert("Failed to save Career Guidelines: " + err.message);
+      toast.error("Failed to save Career Guidelines: " + err.message);
     }
   };
 
@@ -427,9 +430,9 @@ function AdminPage() {
       // Update local state
       setJobApplications(jobApplications.map(a => a._id === selectedJobApp._id ? { ...a, ...res.data } : a));
       setSelectedJobApp({ ...selectedJobApp, ...res.data });
-      alert("Recruitment Tracking details saved successfully!");
+      toast.success("Recruitment Tracking details saved successfully!");
     } catch (err) {
-      alert("Failed to save tracking: " + (err.response?.data?.message || err.message));
+      toast.error("Failed to save tracking: " + (err.response?.data?.message || err.message));
     }
   };
   const [statusFilter, setStatusFilter] = useState('All');
@@ -466,7 +469,7 @@ function AdminPage() {
 
   const handleProfileSave = async () => {
     await updateSiteContent({ schoolProfile: localProfile });
-    alert('Settings updated successfully!');
+    toast.success('Settings updated successfully!');
   };
 
   const [pageHeroUploading, setPageHeroUploading] = useState({});
@@ -507,7 +510,7 @@ function AdminPage() {
       setTimeout(() => setLoading(false), 2000);
     } catch (error) {
       console.error("Export error:", error);
-      alert(`An error occurred during ${fileNamePrefix} export.`);
+      toast.error(`An error occurred during ${fileNamePrefix} export.`);
       setLoading(false);
     }
   };
@@ -524,7 +527,7 @@ function AdminPage() {
       setTimeout(() => setIsExportingAdmissions(false), 2000);
     } catch (error) {
       console.error("Export error:", error);
-      alert('An error occurred during admissions export.');
+      toast.error('An error occurred during admissions export.');
       setIsExportingAdmissions(false);
     }
   };
@@ -597,6 +600,8 @@ function AdminPage() {
   const handleDownloadPDF = async (app) => {
     setIsDownloadingPDF(true);
     try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const primaryColor = [37, 99, 235]; // Midblue (Blue 600) theme
@@ -801,7 +806,7 @@ function AdminPage() {
       doc.save(`Application_${app.studentName.replace(/\s+/g, '_')}_${app.referenceNumber}.pdf`);
     } catch (err) {
       console.error("PDF generation error:", err);
-      alert("Failed to generate PDF. Check console for details.");
+      toast.error("Failed to generate PDF. Check console for details.");
     } finally {
       setIsDownloadingPDF(false);
     }
@@ -838,7 +843,7 @@ function AdminPage() {
       ].filter(item => item.url);
 
       if (attachments.length === 0) {
-        alert("No documents available to download.");
+        toast.error("No documents available to download.");
         return;
       }
 
@@ -858,7 +863,7 @@ function AdminPage() {
       saveAs(content, `${folderName}.zip`);
     } catch (err) {
       console.error("ZIP generation error:", err);
-      alert("Failed to generate combined document package.");
+      toast.error("Failed to generate combined document package.");
     } finally {
       setIsDownloadingFiles(false);
     }
@@ -867,6 +872,8 @@ function AdminPage() {
   const handleDownloadJobPDF = async (app) => {
     setIsDownloadingPDF(true);
     try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const primaryColor = [37, 99, 235]; // Blue 600
@@ -1020,7 +1027,7 @@ function AdminPage() {
       doc.save(`JobApp_${app.fullName.replace(/\s+/g, '_')}_${app.referenceNumber}.pdf`);
     } catch (err) {
       console.error("Job PDF generation error:", err);
-      alert("Failed to generate PDF dossier.");
+      toast.error("Failed to generate PDF dossier.");
     } finally {
       setIsDownloadingPDF(false);
     }
@@ -1077,13 +1084,13 @@ function AdminPage() {
       });
       if (res.ok) {
         fetchClassSubjects();
-        alert('Subject mapped to class successfully');
+        toast.success('Subject mapped to class successfully');
       } else {
         const errorData = await res.json();
-        alert(errorData.message || 'Error mapping subject');
+        toast.error(errorData.message || 'Error mapping subject');
       }
     } catch (err) {
-      alert('Error mapping subject');
+      toast.error('Error mapping subject');
     }
   };
   
@@ -1105,8 +1112,9 @@ function AdminPage() {
       if (studentClassFilter) params.append('class_level', studentClassFilter);
       if (studentSectionFilter) params.append('section', studentSectionFilter);
       if (studentSearchQuery) params.append('search', studentSearchQuery);
-      // Fetch maximum 1000 for now to handle simple pagination
-      params.append('limit', '1000');
+      
+      params.append('page', studentPage);
+      params.append('limit', '20');
       
       const res = await fetch(`${API_URL}/students?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) return handleLogout();
@@ -1114,15 +1122,22 @@ function AdminPage() {
         const result = await res.json();
         const rawStudents = result.data || result || [];
         setStudents(mapSupabaseToLegacy(rawStudents));
+        if (result.pagination) {
+          setStudentTotalPages(result.pagination.pages || 1);
+        }
       }
     } catch (e) { console.warn('Could not fetch students'); }
   };
 
   useEffect(() => {
+    setStudentPage(1);
+  }, [studentViewStatus, studentSortBy, studentClassFilter, studentSectionFilter, studentSearchQuery]);
+
+  useEffect(() => {
     if (activeTab === 'students') {
       fetchStudents();
     }
-  }, [studentViewStatus, studentSortBy, studentClassFilter, studentSectionFilter, studentSearchQuery]);
+  }, [studentViewStatus, studentSortBy, studentClassFilter, studentSectionFilter, studentSearchQuery, studentPage, activeTab]);
 
   const handleUpdateStudentStatus = async (studentId, status) => {
     try {
@@ -1136,14 +1151,14 @@ function AdminPage() {
         body: JSON.stringify({ status })
       });
       if (res.ok) {
-        alert(`Student status updated to ${status}`);
+        toast.success(`Student status updated to ${status}`);
         fetchStudents();
       } else {
         const err = await res.json();
-        alert(`Failed to update status: ${err.message}`);
+        toast.error(`Failed to update status: ${err.message}`);
       }
     } catch (e) {
-      alert(`Error: ${e.message}`);
+      toast.error(`Error: ${e.message}`);
     }
   };
 
@@ -1161,11 +1176,11 @@ function AdminPage() {
         setGlobalSearchResults(data || []);
       } else {
         const err = await res.json();
-        alert(err.message || 'Global search failed');
+        toast.error(err.message || 'Global search failed');
       }
     } catch (e) {
       console.warn(e);
-      alert('Error searching globally');
+      toast.error('Error searching globally');
     } finally {
       setIsSearchingGlobal(false);
     }
@@ -1181,17 +1196,17 @@ function AdminPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        alert("Student successfully imported!");
+        toast.success("Student successfully imported!");
         setShowGlobalSearchModal(false);
         setGlobalSearchResults([]);
         fetchStudents();
       } else {
         const err = await res.json();
-        alert(err.message || 'Import failed');
+        toast.error(err.message || 'Import failed');
       }
     } catch (e) {
       console.warn(e);
-      alert('Error importing student');
+      toast.error('Error importing student');
     } finally {
       setIsImportingStudent(false);
     }
@@ -1212,7 +1227,7 @@ function AdminPage() {
         setStudentToDelete(null);
       }
     } catch(err) {
-      alert("Failed to delete student: " + err.message);
+      toast.error("Failed to delete student: " + err.message);
     } finally {
       setIsDeletingStudent(false);
     }
@@ -1382,7 +1397,7 @@ function AdminPage() {
   const handleTenderSubmit = async (e) => {
     e.preventDefault();
     if (!newTender.title || !newTender.tenderNumber) {
-      alert("Title and Tender Number are required.");
+      toast.error("Title and Tender Number are required.");
       return;
     }
     
@@ -1427,17 +1442,17 @@ function AdminPage() {
       });
 
       if (res.ok) {
-        alert(editingTenderId ? "Tender updated!" : "Tender created!");
+        toast.success(editingTenderId ? "Tender updated!" : "Tender created!");
         setNewTender({ title: '', tenderNumber: '', category: 'Other', description: '', estimatedValue: '', closingDate: '', documentUrl: '' });
         setEditingTenderId(null);
         setTenderFile(null);
         fetchTenders();
       } else {
         const error = await res.json();
-        alert("Failed to save tender: " + error.message);
+        toast.error("Failed to save tender: " + error.message);
       }
     } catch (err) {
-      alert("Error: " + err.message);
+      toast.error("Error: " + err.message);
     } finally {
       setIsTenderUploading(false);
     }
@@ -1455,7 +1470,7 @@ function AdminPage() {
           setTenders(tenders.filter(t => t._id !== id));
         }
       } catch (err) {
-        alert("Delete failed: " + err.message);
+        toast.error("Delete failed: " + err.message);
       }
     }
   };
@@ -1473,13 +1488,13 @@ function AdminPage() {
       });
       if (res.ok) {
         setTenderApplications(tenderApplications.map(app => app._id === id ? { ...app, status } : app));
-        alert(`Bid status updated to ${status}`);
+        toast.success(`Bid status updated to ${status}`);
       } else {
         const error = await res.json().catch(() => ({}));
-        alert("Update failed: " + (error.message || "Unknown error"));
+        toast.error("Update failed: " + (error.message || "Unknown error"));
       }
     } catch (err) {
-      alert("Update failed: " + err.message);
+      toast.error("Update failed: " + err.message);
     }
   };
 
@@ -1507,17 +1522,17 @@ function AdminPage() {
       });
 
       if (res.ok) {
-        alert(editingJobId ? 'Job updated successfully!' : 'Job posted successfully!');
+        toast.success(editingJobId ? 'Job updated successfully!' : 'Job posted successfully!');
         setIsAddingJob(false);
         setEditingJobId(null);
         setCurrentJob({ title: '', department: 'Science', type: 'Full-Time', experience: '', qualifications: '', deadline: 'Open until filled' });
         fetchJobs();
       } else {
         const data = await res.json();
-        alert(data.message || 'Error processing job');
+        toast.error(data.message || 'Error processing job');
       }
     } catch (err) {
-      alert('Network error');
+      toast.error('Network error');
     }
   };
 
@@ -1531,12 +1546,12 @@ function AdminPage() {
       });
       if (res.ok) {
         setJobs(prev => prev.filter(j => j._id !== id));
-        alert('Job deleted');
+        toast.success('Job deleted');
       } else {
-        alert('Failed to delete job');
+        toast.error('Failed to delete job');
       }
     } catch (err) {
-      alert('Error deleting job');
+      toast.error('Error deleting job');
     }
   };
 
@@ -1573,7 +1588,7 @@ function AdminPage() {
       console.error("Failed to toggle read status:", err.message);
       // Revert on failure
       setInquiries(prevInquiries);
-      alert("Failed to update status. Please try again.");
+      toast.error("Failed to update status. Please try again.");
     }
   };
 
@@ -1588,7 +1603,7 @@ function AdminPage() {
       setTimeout(() => setIsExportingInquiries(false), 2000);
     } catch (error) {
       console.error("Export error:", error);
-      alert('An error occurred during inquiries export.');
+      toast.error('An error occurred during inquiries export.');
       setIsExportingInquiries(false);
     }
   };
@@ -1607,7 +1622,7 @@ function AdminPage() {
       setInquiryReplyModal({ open: false, inquiry: null, reply: '', status: '' });
     } catch (err) {
       console.error("Failed to update inquiry:", err.message);
-      alert("Failed to update inquiry. Please try again.");
+      toast.error("Failed to update inquiry. Please try again.");
     }
   };
 
@@ -1641,7 +1656,7 @@ function AdminPage() {
       const res = await axios.patch(`${API_URL}/appointments/${id}/status`, { status, adminRemark }, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.appointment) setAppointments(appointments.map(a => a._id === id ? { ...a, ...res.data.appointment } : a));
       setAppointmentModal({ open: false, apt: null, status: '', remark: '' });
-    } catch (err) { alert('Failed to update appointment.'); }
+    } catch (err) { toast.error('Failed to update appointment.'); }
   };
 
   useEffect(() => {
@@ -1765,15 +1780,15 @@ function AdminPage() {
 
         if (res.ok) {
           fetchAdmins();
-          alert(`Action successful!`);
+          toast.success(`Action successful!`);
           if (actionType === 'create') setNewAdmin({ name: '', email: '', phone: '', role: 'admin' });
           if (actionType === 'edit') setEditingAdminId(null);
         } else {
           const err = await res.json();
-          alert(err.message || 'Action failed');
+          toast.error(err.message || 'Action failed');
         }
       } catch (e) {
-        alert('Error executing developer action');
+        toast.error('Error executing developer action');
       } finally {
         setIsAdminFormLoading(false);
       }
@@ -1804,10 +1819,10 @@ function AdminPage() {
         setOtpModalVisible(true);
       } else {
         const error = await res.json();
-        alert(error.message || 'Failed to request OTP');
+        toast.error(error.message || 'Failed to request OTP');
       }
     } catch (e) {
-      alert('Error requesting OTP');
+      toast.error('Error requesting OTP');
     }
     setIsAdminFormLoading(false);
   };
@@ -1852,13 +1867,13 @@ function AdminPage() {
         if (pendingAdminAction.type === 'edit') actionWord = 'updated';
         if (pendingAdminAction.type === 'delete') actionWord = 'deleted';
         if (pendingAdminAction.type === 'approve') actionWord = 'approved';
-        alert(`Admin successfully ${actionWord}!`);
+        toast.success(`Admin successfully ${actionWord}!`);
       } else {
         const err = await res.json();
-        alert(err.message || 'Verification failed');
+        toast.error(err.message || 'Verification failed');
       }
     } catch (error) {
-      alert('Error during verification');
+      toast.error('Error during verification');
     }
     setIsOtpLoading(false);
   };
@@ -1892,14 +1907,14 @@ function AdminPage() {
       const data = await res.json();
       if (res.ok) {
         setNewStaffPassword(data.temporaryPassword);
-        alert('Staff member added successfully!\nTemporary Password: ' + data.temporaryPassword + '\nPlease copy this password and share it with the staff member.');
+        toast.success('Staff member added successfully!\nTemporary Password: ' + data.temporaryPassword + '\nPlease copy this password and share it with the staff member.');
         setNewStaffForm({ name: '', email: '', phone: '', role: 'Teacher' });
         // Don't close modal automatically so they can see the password
       } else {
-        alert(data.message || 'Failed to add staff');
+        toast.error(data.message || 'Failed to add staff');
       }
     } catch (err) {
-      alert(err.message || 'Failed to add staff');
+      toast.error(err.message || 'Failed to add staff');
     } finally {
       setIsAddingStaff(false);
     }
@@ -1917,7 +1932,7 @@ function AdminPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert('Student added successfully!');
+        toast.success('Student added successfully!');
         setNewStudentForm({ name: '', rollNumber: '', classLevel: '', section: '', parentsName: '', phone: '', email: '', address: '' });
         setShowAddStudentModal(false);
         fetchStudents();
@@ -1925,7 +1940,7 @@ function AdminPage() {
         throw new Error(data.message || 'Error adding student');
       }
     } catch (err) {
-      alert(err.message || 'Failed to add student');
+      toast.error(err.message || 'Failed to add student');
     } finally {
       setIsAddingStudent(false);
     }
@@ -1941,13 +1956,13 @@ function AdminPage() {
         body: JSON.stringify({ staffId })
       });
       if (res.ok) {
-        alert("Staff approved and temporary password sent via email!");
+        toast.success("Staff approved and temporary password sent via email!");
         fetchPendingStaff();
       } else {
         const d = await res.json();
-        alert(d.message || "Approval failed");
+        toast.error(d.message || "Approval failed");
       }
-    } catch (err) { alert("An error occurred during staff approval"); }
+    } catch (err) { toast.error("An error occurred during staff approval"); }
   };
 
   const handleRejectAdmin = async (adminId) => {
@@ -1959,10 +1974,10 @@ function AdminPage() {
       await axios.delete(`${API_URL}/auth/admins/${adminId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert("Application rejected and deleted.");
+      toast.success("Application rejected and deleted.");
       fetchAdmins();
     } catch (err) {
-      alert(err.response?.data?.message || "Error rejecting application");
+      toast.error(err.response?.data?.message || "Error rejecting application");
     } finally {
       setIsAdminFormLoading(false);
     }
@@ -1995,11 +2010,11 @@ function AdminPage() {
         }
         setShowStatusModal(false);
       } else {
-        alert('Failed to update status');
+        toast.error('Failed to update status');
       }
     } catch (error) {
       console.warn('Could not update status', error);
-      alert('Error updating status');
+      toast.error('Error updating status');
     }
   };
 
@@ -2031,12 +2046,12 @@ function AdminPage() {
       if (res.ok) {
         setApplications(apps => apps.filter(app => app._id !== id));
         if (selectedApp?._id === id) setSelectedApp(null);
-        alert('Application deleted successfully');
+        toast.success('Application deleted successfully');
       } else {
-        alert('Failed to delete application');
+        toast.error('Failed to delete application');
       }
     } catch (error) {
-      alert('Error deleting application');
+      toast.error('Error deleting application');
     }
   };
 
@@ -2066,9 +2081,9 @@ function AdminPage() {
       });
       setApplications(prev => prev.filter(app => !selectedAppIds.includes(app._id)));
       setSelectedAppIds([]);
-      alert(`${selectedAppIds.length} applications deleted successfully.`);
+      toast.success(`${selectedAppIds.length} applications deleted successfully.`);
     } catch (err) {
-      alert("Failed to delete selected applications: " + (err.response?.data?.message || err.message));
+      toast.error("Failed to delete selected applications: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -2084,9 +2099,9 @@ function AdminPage() {
       });
       setJobApplications(prev => prev.filter(app => !selectedJobAppIds.includes(app._id)));
       setSelectedJobAppIds([]);
-      alert(`${selectedJobAppIds.length} applications deleted successfully.`);
+      toast.success(`${selectedJobAppIds.length} applications deleted successfully.`);
     } catch (err) {
-      alert("Failed to delete selected applications: " + (err.response?.data?.message || err.message));
+      toast.error("Failed to delete selected applications: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -2183,13 +2198,13 @@ function AdminPage() {
 
   const handleAddGallery = async () => {
     if (!newGalleryItem.title || (!galleryFiles.length && !newGalleryItem.src)) {
-      alert("Please provide a title and at least one image.");
+      toast.error("Please provide a title and at least one image.");
       return;
     }
     
     // 1. Enforce batch upload limit (at most 10 photos)
     if (galleryFiles.length > 10) {
-      alert("You can upload a maximum of 10 photos in each event section.");
+      toast.error("You can upload a maximum of 10 photos in each event section.");
       return;
     }
 
@@ -2205,7 +2220,7 @@ function AdminPage() {
     ).length;
 
     if (existingAlbumsCount >= 20) {
-      alert("Maximum limit of 20 photo event sections (albums) reached. Please delete an existing album before adding a new one.");
+      toast.error("Maximum limit of 20 photo event sections (albums) reached. Please delete an existing album before adding a new one.");
       return;
     }
 
@@ -2265,7 +2280,7 @@ function AdminPage() {
 
       updateSiteContent(updates);
 
-      alert(`Successfully added ${newItems.length} items to gallery${alsoShowInHighlights ? ', highlights' : ''}${alsoShowInEvents ? ' and events' : ''}.`);
+      toast.success(`Successfully added ${newItems.length} items to gallery${alsoShowInHighlights ? ', highlights' : ''}${alsoShowInEvents ? ' and events' : ''}.`);
 
       // Reset form
       setNewGalleryItem({ title: '', category: 'Campus Life', src: '', description: '' });
@@ -2273,7 +2288,7 @@ function AdminPage() {
       setAlsoShowInHighlights(false);
       setAlsoShowInEvents(false);
     } catch (err) {
-      alert("Failed to upload images: " + err.message);
+      toast.error("Failed to upload images: " + err.message);
     }
     setIsGalleryUploading(false);
   };
@@ -2300,7 +2315,7 @@ function AdminPage() {
       events: updatedEvents
     });
     
-    alert("Gallery item deleted successfully.");
+    toast.success("Gallery item deleted successfully.");
   };
 
   const handleUpdateAlbum = async () => {
@@ -2317,7 +2332,7 @@ function AdminPage() {
     });
 
     updateSiteContent({ gallery: updatedGallery });
-    alert("Album updated successfully.");
+    toast.success("Album updated successfully.");
     setEditingAlbumId(null);
   };
 
@@ -2329,7 +2344,7 @@ function AdminPage() {
       return itemEffectiveId !== albumId;
     });
     updateSiteContent({ gallery: updatedGallery });
-    alert("Album deleted successfully.");
+    toast.success("Album deleted successfully.");
   };
 
   const renderGalleryTab = () => {
@@ -2581,7 +2596,7 @@ function AdminPage() {
     const newPhotos = photos.filter(url => !existingUrls.includes(url));
     
     if (newPhotos.length === 0) {
-      alert("All photos from this item are already in the Gallery.");
+      toast.error("All photos from this item are already in the Gallery.");
       return;
     }
 
@@ -2595,7 +2610,7 @@ function AdminPage() {
     }));
 
     updateSiteContent({ gallery: [...newGalleryItems, ...gallery] });
-    alert(`${newPhotos.length} photo(s) successfully added to the Gallery!`);
+    toast.error(`${newPhotos.length} photo(s) successfully added to the Gallery!`);
   };
 
   // --- Highlights Tab ---
@@ -2638,7 +2653,7 @@ function AdminPage() {
             : h
         );
         updateSiteContent({ highlights: updatedHighlights });
-        alert(`Highlight "${newHighlight.title}" updated successfully!`);
+        toast.success(`Highlight "${newHighlight.title}" updated successfully!`);
         setEditingHighlightId(null);
       } else {
         // CREATE MODE
@@ -2650,13 +2665,13 @@ function AdminPage() {
           _id: `temp-${Date.now()}` 
         };
         updateSiteContent({ highlights: [itemToAdd, ...highlights] });
-        alert(`Highlight "${newHighlight.title}" created successfully!`);
+        toast.success(`Highlight "${newHighlight.title}" created successfully!`);
       }
       
       setNewHighlight({ title: '', date: '', category: 'Academic', image: '', description: '', galleryImages: [] });
       setHighlightFiles([]);
     } catch (err) {
-      alert("Failed to process highlight: " + err.message);
+      toast.error("Failed to process highlight: " + err.message);
     }
     setIsHighlightUploading(false);
   };
@@ -2678,7 +2693,7 @@ function AdminPage() {
             onChange={e => {
               const files = Array.from(e.target.files);
               if (files.length > 10) {
-                alert("Maximum 10 photos allowed. Only the first 10 will be selected.");
+                toast.error("Maximum 10 photos allowed. Only the first 10 will be selected.");
                 setHighlightFiles(files.slice(0, 10));
               } else {
                 setHighlightFiles(files);
@@ -2804,13 +2819,13 @@ function AdminPage() {
   const [editingEventId, setEditingEventId] = useState(null);
   const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.date || !newEvent.description) {
-      alert("Please fill in title, date, and description.");
+      toast.error("Please fill in title, date, and description.");
       return;
     }
     
     const token = localStorage.getItem('adminToken');
     if (!token) {
-      alert("Error: You are not authenticated.");
+      toast.error("Error: You are not authenticated.");
       handleLogout();
       return;
     }
@@ -2851,7 +2866,7 @@ function AdminPage() {
         );
 
         updateSiteContent({ events: updatedEvents });
-        alert(`Event "${newEvent.title}" updated successfully!`);
+        toast.success(`Event "${newEvent.title}" updated successfully!`);
         setEditingEventId(null);
       } else {
         // CREATE MODE
@@ -2878,14 +2893,14 @@ function AdminPage() {
           gallery: [...newGalleryItems, ...gallery]
         });
 
-        alert(`Event "${createdEvent.title}" created successfully!`);
+        toast.success(`Event "${createdEvent.title}" created successfully!`);
       }
       
       // Reset form
       setNewEvent({ title: '', date: '', image: '', description: '', galleryImages: [] });
       setEventGalleryFiles([]);
     } catch (err) {
-      alert("Failed to process event: " + err.message);
+      toast.error("Failed to process event: " + err.message);
     }
     setIsEventUploading(false);
   };
@@ -2922,10 +2937,10 @@ function AdminPage() {
           gallery: [...newGalleryItems, ...gallery]
         });
 
-        alert("Photos added to event and gallery successfully!");
+        toast.success("Photos added to event and gallery successfully!");
       }
     } catch (err) {
-      alert("Photo upload failed: " + err.message);
+      toast.error("Photo upload failed: " + err.message);
     }
     setIsAddingPhotos(false);
   };
@@ -2950,7 +2965,7 @@ function AdminPage() {
       gallery: updatedGallery
     });
     
-    alert("Event deleted successfully.");
+    toast.success("Event deleted successfully.");
   };
 
   const renderEventsTab = () => (
@@ -2967,7 +2982,7 @@ function AdminPage() {
             onChange={e => {
               const files = Array.from(e.target.files);
               if (files.length > 10) {
-                alert("Maximum 10 photos allowed per event. Only the first 10 will be selected.");
+                toast.error("Maximum 10 photos allowed per event. Only the first 10 will be selected.");
                 setEventGalleryFiles(files.slice(0, 10));
               } else {
                 setEventGalleryFiles(files);
@@ -3141,7 +3156,7 @@ function AdminPage() {
     if (!newVideo.title || !newVideo.src) return;
     
     if (videos.length >= 4) {
-      alert("Maximum limit of 4 video sections reached. Please delete a video before adding a new one.");
+      toast.error("Maximum limit of 4 video sections reached. Please delete a video before adding a new one.");
       return;
     }
 
@@ -3279,7 +3294,7 @@ function AdminPage() {
           errorMessage = `HTTP Error ${res.status}`;
         }
         console.error('PDF upload failed:', errorMessage);
-        alert(`Failed to upload PDF: ${errorMessage}`);
+        toast.error(`Failed to upload PDF: ${errorMessage}`);
         return;
       }
       
@@ -3290,10 +3305,10 @@ function AdminPage() {
         size: `${(file.size / 1024).toFixed(0)} KB`,
         date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
       });
-      alert('PDF uploaded successfully! Click Publish Notice to save.');
+      toast.success('PDF uploaded successfully! Click Publish Notice to save.');
     } catch (err) {
       console.error('PDF upload failed:', err);
-      alert(`Network error or upload failed: ${err.message}`);
+      toast.error(`Network error or upload failed: ${err.message}`);
     } finally {
       setIsPdfUploading(false);
     }
@@ -3396,7 +3411,7 @@ function AdminPage() {
       setNewFaculty({ name: '', title: '', EduQua: '', Subject: '', photo: '', facebook: '', instagram: '', whatsapp: '', classes: '', department: dept, section: newFaculty.section || 'Graduate', teachingExperience: '', jobTitle: '' });
       setFacultyFile(null);
     } catch (err) {
-      alert("Faculty update failed: " + err.message);
+      toast.error("Faculty update failed: " + err.message);
     }
     setIsFacultyUploading(false);
   };
@@ -3686,7 +3701,7 @@ function AdminPage() {
       const url = await uploadImage(file);
       setEditPrincipal(prev => ({ ...prev, [fieldName]: url }));
     } catch (err) {
-      alert("Upload failed: " + err.message);
+      toast.error("Upload failed: " + err.message);
     }
     setIsPrincipalUploading(false);
   };
@@ -3803,7 +3818,7 @@ function AdminPage() {
       const url = await uploadImage(file);
       setEditBanner(prev => ({ ...prev, image: url }));
     } catch (err) {
-      alert("Banner upload failed: " + err.message);
+      toast.error("Banner upload failed: " + err.message);
     }
     setIsBannerUploading(false);
   };
@@ -3913,7 +3928,7 @@ function AdminPage() {
   const handleAlumniSubmit = async (e) => {
     e.preventDefault();
     if (!alumniForm.name || !alumniForm.passedYear || (!alumniFile && !alumniForm.photo)) {
-      alert("Name, Passed Year, and Photo are required.");
+      toast.error("Name, Passed Year, and Photo are required.");
       return;
     }
     
@@ -3939,7 +3954,7 @@ function AdminPage() {
       resetAlumniForm();
       setAlumniFile(null);
     } catch (err) {
-      alert("Alumni upload failed: " + err.message);
+      toast.error("Alumni upload failed: " + err.message);
     }
     setIsAlumniUploading(false);
   };
@@ -3960,7 +3975,7 @@ function AdminPage() {
         // Based on previous edits, SiteDataContext handles syncing SiteContent.
         setAlumni(alumni.filter(a => (a._id || a.id) !== id));
       } catch (err) {
-        alert("Delete failed: " + err.message);
+        toast.error("Delete failed: " + err.message);
       }
     }
   };
@@ -4087,7 +4102,7 @@ function AdminPage() {
   const handleExcellenceSubmit = async (e) => {
     e.preventDefault();
     if (!excellenceForm.name || (!excellenceFile && !excellenceForm.photo)) {
-      alert("Name and Photo are required.");
+      toast.error("Name and Photo are required.");
       return;
     }
     
@@ -4105,7 +4120,7 @@ function AdminPage() {
       }
       resetExcellenceForm();
     } catch (err) {
-      alert("Excellence record update failed: " + err.message);
+      toast.error("Excellence record update failed: " + err.message);
     }
     setIsExcellenceUploading(false);
   };
@@ -4483,7 +4498,7 @@ function AdminPage() {
                         <button 
                           onClick={() => {
                             if (admin.role === 'developer' && adminUser?.role !== 'developer') {
-                              alert("You do not have permission to edit a developer account.");
+                              toast.error("You do not have permission to edit a developer account.");
                               return;
                             }
                             startEditAdmin(admin);
@@ -4499,7 +4514,7 @@ function AdminPage() {
                           <button 
                             onClick={() => {
                               if (admin.role === 'developer' && adminUser?.role !== 'developer') {
-                                alert("You do not have permission to delete a developer account.");
+                                toast.error("You do not have permission to delete a developer account.");
                                 return;
                               }
                               handleDeleteAdmin(admin);
@@ -4579,11 +4594,11 @@ function AdminPage() {
                   })
                   .then(res => res.json())
                   .then(data => {
-                    alert(data.message || 'Deleted');
+                    toast.success(data.message || 'Deleted');
                     setSelectedLogs(new Set());
                     fetchActivities();
                   })
-                  .catch(() => alert('Failed to delete'));
+                  .catch(() => toast.error('Failed to delete'));
                 }
               }}
               className="flex items-center gap-2 px-4 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all shadow-xl text-xs font-black uppercase tracking-wider"
@@ -4927,7 +4942,7 @@ function AdminPage() {
                                       })
                                       .then(r => r.json())
                                       .then(() => fetchActivities())
-                                      .catch(() => alert('Failed'));
+                                      .catch(() => toast.error('Failed'));
                                     }
                                   }}
                                   className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
@@ -4950,10 +4965,10 @@ function AdminPage() {
                                       })
                                       .then(r => r.json())
                                       .then(data => {
-                                        alert(data.message || 'IP blocked');
+                                        toast.error(data.message || 'IP blocked');
                                         fetchActivities();
                                       })
-                                      .catch(() => alert('Failed'));
+                                      .catch(() => toast.error('Failed'));
                                     }
                                   }}
                                   className="flex items-center gap-2 px-4 py-2.5 bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
@@ -4973,10 +4988,10 @@ function AdminPage() {
                                       })
                                       .then(r => r.json())
                                       .then(data => {
-                                        alert(data.message || 'IP unblocked');
+                                        toast.error(data.message || 'IP unblocked');
                                         fetchActivities();
                                       })
-                                      .catch(() => alert('Failed'));
+                                      .catch(() => toast.error('Failed'));
                                     }
                                   }}
                                   className="flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
@@ -5006,10 +5021,10 @@ function AdminPage() {
                                       })
                                       .then(r => r.json())
                                       .then(data => {
-                                        alert(data.message || 'User blocked');
+                                        toast.error(data.message || 'User blocked');
                                         fetchActivities();
                                       })
-                                      .catch(() => alert('Failed'));
+                                      .catch(() => toast.error('Failed'));
                                     }
                                   }}
                                   className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
@@ -5029,10 +5044,10 @@ function AdminPage() {
                                       })
                                       .then(r => r.json())
                                       .then(data => {
-                                        alert(data.message || 'User unblocked');
+                                        toast.error(data.message || 'User unblocked');
                                         fetchActivities();
                                       })
-                                      .catch(() => alert('Failed'));
+                                      .catch(() => toast.error('Failed'));
                                     }
                                   }}
                                   className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md"
@@ -5129,7 +5144,7 @@ function AdminPage() {
                     const url = await uploadImage(e.target.files[0]);
                     setAdmissionPage({ ...admissionPage, advertisements: [...(admissionPage?.advertisements || []), url] });
                   } catch (err) {
-                    alert("Upload failed: " + err.message);
+                    toast.error("Upload failed: " + err.message);
                   }
                 }
               }} />
@@ -5369,7 +5384,7 @@ function AdminPage() {
                                   newKits[kIdx].optionalItems[oIdx].image = url;
                                   setAdmissionPage({ ...admissionPage, admissionKits: newKits });
                                 } catch (err) {
-                                  alert("Upload failed: " + err.message);
+                                  toast.error("Upload failed: " + err.message);
                                 } finally {
                                   setUploadingOptionalItem(null);
                                 }
@@ -5412,7 +5427,7 @@ function AdminPage() {
                     const url = await uploadImage(e.target.files[0]); // uploadImage proxy supports PDFs
                     setAdmissionPage({ ...admissionPage, prospectusPdfLink: url });
                   } catch (err) {
-                    alert("Upload failed: " + err.message);
+                    toast.error("Upload failed: " + err.message);
                   }
                 }
               }} />
@@ -5431,7 +5446,7 @@ function AdminPage() {
 
         <button onClick={async () => {
           const success = await updateSiteContent({ admissionPage });
-          if (success) alert("Admissions Content saved successfully!");
+          if (success) toast.success("Admissions Content saved successfully!");
         }} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/30">
           <FaSave /> Save Admissions Content
         </button>
@@ -5507,7 +5522,7 @@ function AdminPage() {
       setAdmissionFields(updated);
       setEditingFieldId(null);
       setFieldEditForm(null);
-      alert("Field configuration updated.");
+      toast.success("Field configuration updated.");
     };
 
     const handleMoveField = (index, direction) => {
@@ -5526,13 +5541,13 @@ function AdminPage() {
 
     const handleAddField = () => {
       if (!newFieldForm.label || !newFieldForm.name) {
-        alert("Label and Name are required.");
+        toast.error("Label and Name are required.");
         return;
       }
       
       // Check for duplicate name
       if (admissionFields.find(f => f.name === newFieldForm.name)) {
-        alert("A field with this identifier already exists.");
+        toast.error("A field with this identifier already exists.");
         return;
       }
 
@@ -5554,7 +5569,7 @@ function AdminPage() {
         isActive: true,
         isSystemField: false
       });
-      alert("New field added successfully.");
+      toast.success("New field added successfully.");
     };
 
     const handleDeleteField = (fieldName) => {
@@ -6133,7 +6148,7 @@ function AdminPage() {
       setIsSaving(true);
       await setNotificationEmail(tempEmail);
       setIsSaving(false);
-      alert('Notification email updated successfully!');
+      toast.success('Notification email updated successfully!');
     };
 
     return (
@@ -6285,6 +6300,60 @@ function AdminPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Analytics Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+          className="bg-white rounded-xl p-6 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)]"
+        >
+          <h3 className="text-lg font-black text-gray-800 mb-6">Student Distribution by Class</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[
+                { name: 'Class 1', students: 45 },
+                { name: 'Class 2', students: 52 },
+                { name: 'Class 3', students: 38 },
+                { name: 'Class 4', students: 65 },
+                { name: 'Class 5', students: 48 },
+              ]}>
+                <XAxis dataKey="name" tick={{fontSize: 12}} stroke="#9CA3AF" />
+                <YAxis tick={{fontSize: 12}} stroke="#9CA3AF" />
+                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                <Bar dataKey="students" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
+          className="bg-white rounded-xl p-6 border border-gray-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)]"
+        >
+          <h3 className="text-lg font-black text-gray-800 mb-6">Gender Ratio</h3>
+          <div className="h-64 flex justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Boys', value: 540 },
+                    { name: 'Girls', value: 430 },
+                  ]}
+                  cx="50%" cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  <Cell fill="#3B82F6" />
+                  <Cell fill="#EC4899" />
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
       </div>
 
       {/* Recent Applications Table */}
@@ -6587,7 +6656,7 @@ function AdminPage() {
         const url = await uploadImage(file);
         setLocalProfile(prev => ({ ...prev, logo: url }));
       } catch (err) {
-        alert("Upload failed: " + err.message);
+        toast.error("Upload failed: " + err.message);
       }
     };
 
@@ -6598,7 +6667,7 @@ function AdminPage() {
         const urls = await Promise.all(files.map(file => uploadImage(file)));
         setLocalProfile(prev => ({ ...prev, heroImages: [...(prev.heroImages || []), ...urls.filter(Boolean)] }));
       } catch (err) {
-        alert("Upload failed: " + err.message);
+        toast.error("Upload failed: " + err.message);
       }
     };
 
@@ -6625,7 +6694,7 @@ function AdminPage() {
           }
         }));
       } catch (err) {
-        alert("Upload failed: " + err.message);
+        toast.error("Upload failed: " + err.message);
       } finally {
         setPageHeroUploading(prev => ({ ...prev, [pageId]: false }));
       }
@@ -6992,26 +7061,26 @@ function AdminPage() {
     const handleAboutSave = async () => {
       // Validate word limits before saving
       const getWc = (txt) => (txt || '').trim().split(/\s+/).filter(w=>w).length;
-      if (getWc(localAboutPage?.shortDescription?.text) > 100) return alert("Short description exceeds 100 words.");
-      if (getWc(localAboutPage?.founder?.text) > 100) return alert("Founder details exceed 100 words.");
-      if (getWc(localAboutPage?.history?.text) > 200) return alert("History section exceeds 200 words.");
+      if (getWc(localAboutPage?.shortDescription?.text) > 100) return toast.error("Short description exceeds 100 words.");
+      if (getWc(localAboutPage?.founder?.text) > 100) return toast.error("Founder details exceed 100 words.");
+      if (getWc(localAboutPage?.history?.text) > 200) return toast.error("History section exceeds 200 words.");
       
       let pErr = false;
       (localAboutPage?.principals || []).forEach(p => {
         if (getWc(p.text) > 200) pErr = true;
       });
-      if (pErr) return alert("One or more principal details exceed 200 words.");
+      if (pErr) return toast.error("One or more principal details exceed 200 words.");
 
       const hmText = localAboutPage?.leadership?.showHeadMistress ? (localAboutPage?.leadership?.headMistress?.text || '') : '';
       const vpText = localAboutPage?.leadership?.showVicePrincipal ? (localAboutPage?.leadership?.vicePrincipal?.text || '') : '';
-      if (getWc(hmText) + getWc(vpText) > 200) return alert("Combined Head Mistress and Vice Principal speech exceeds 200 words.");
+      if (getWc(hmText) + getWc(vpText) > 200) return toast.error("Combined Head Mistress and Vice Principal speech exceeds 200 words.");
 
       await updateSiteContent({
         visionStatement: localVisionStatement,
         aimsAndObjectives: localAimsAndObjectives,
         aboutPage: localAboutPage
       });
-      alert('About page updated successfully!');
+      toast.success('About page updated successfully!');
     };
 
     const getWordCount = (text) => {
@@ -7033,7 +7102,7 @@ function AdminPage() {
         curr[path[path.length - 1]] = url;
         setLocalAboutPage(newState);
       } catch (err) {
-        alert("Upload failed: " + err.message);
+        toast.error("Upload failed: " + err.message);
       }
     };
 
@@ -7279,7 +7348,7 @@ function AdminPage() {
       }
 
       await updateSiteContent({ coursesPage: pageToSave });
-      alert('Courses page updated successfully!');
+      toast.success('Courses page updated successfully!');
     };
 
     return (
@@ -7720,12 +7789,12 @@ function AdminPage() {
   const handleEmeritusSubmit = async (e) => {
     e.preventDefault();
     if (!emeritusForm.name || !emeritusForm.role || !emeritusForm.category || !emeritusForm.status) {
-      alert("Name, Role, Category and Status are required.");
+      toast.error("Name, Role, Category and Status are required.");
       return;
     }
     
     if (emeritusForm.status === 'Deceased' && !emeritusForm.causeOfDeath) {
-      alert("Please provide the cause of death for deceased members.");
+      toast.error("Please provide the cause of death for deceased members.");
       return;
     }
     
@@ -7747,9 +7816,9 @@ function AdminPage() {
 
       await updateSiteContent({ emeritus: newEmeritus });
       resetEmeritusForm();
-      alert(isEditingEmeritus ? "Emeritus updated successfully!" : "Emeritus added successfully!");
+      toast.success(isEditingEmeritus ? "Emeritus updated successfully!" : "Emeritus added successfully!");
     } catch (err) {
-      alert("Emeritus save failed: " + err.message);
+      toast.error("Emeritus save failed: " + err.message);
     }
     setIsEmeritusUploading(false);
   };
@@ -8281,7 +8350,7 @@ function AdminPage() {
   const renderFaqsTab = () => {
     const handleSaveFaqs = async () => {
       await updateSiteContent({ faqs: localFaqs });
-      alert('FAQs updated successfully!');
+      toast.success('FAQs updated successfully!');
     };
 
     return (
@@ -8455,7 +8524,7 @@ function AdminPage() {
         const url = await uploadImage(file);
         handleAmenityChange(index, 'image', url);
       } catch (err) {
-        alert('Image upload failed: ' + err.message);
+        toast.error('Image upload failed: ' + err.message);
       } finally {
         setAmenityUploadingIndex(null);
       }
@@ -9007,7 +9076,14 @@ function AdminPage() {
                     <FaSearch /> Global Student Search
                   </button>
                   <button 
-                    onClick={() => setShowAddStudentModal(true)}
+                    onClick={() => {
+                      setNewStudentForm({
+                        ...newStudentForm,
+                        classLevel: studentClassFilter || '',
+                        section: studentSectionFilter || ''
+                      });
+                      setShowAddStudentModal(true);
+                    }}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-sm whitespace-nowrap"
                   >
                     <FaPlus /> Add Student
@@ -9046,7 +9122,7 @@ function AdminPage() {
                     className="w-full p-2 border rounded-lg text-sm"
                   >
                     <option value="">All Classes</option>
-                    {['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(c => <option key={c} value={c}>{c}</option>)}
+                    {globalClasses?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -9092,7 +9168,10 @@ function AdminPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Class / Grade</label>
-                          <input type="text" required className="w-full p-3 border rounded-xl" value={newStudentForm.classLevel} onChange={e => setNewStudentForm({...newStudentForm, classLevel: e.target.value})} placeholder="e.g. 10" />
+                          <select required className="w-full p-3 border rounded-xl bg-white" value={newStudentForm.classLevel} onChange={e => setNewStudentForm({...newStudentForm, classLevel: e.target.value})}>
+                            <option value="">Select Class</option>
+                            {globalClasses?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                          </select>
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Section</label>
@@ -9213,7 +9292,7 @@ function AdminPage() {
                 <div className="space-y-8">
                   {(() => {
                     // Summary stats table
-                    const classOrder = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+                    const classOrder = globalClasses?.map(c => c.name) || [];
                     const stats = { total: 0, boys: 0, girls: 0, transgender: 0, classes: {} };
                     
                     classOrder.forEach(c => {
@@ -9384,6 +9463,26 @@ function AdminPage() {
                     </tbody>
                   </table>
                   </div>
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between p-4 border-t border-gray-100 bg-gray-50/50">
+                    <span className="text-sm text-gray-500 font-medium">Page {studentPage} of {studentTotalPages || 1}</span>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setStudentPage(p => Math.max(1, p - 1))}
+                        disabled={studentPage === 1}
+                        className="px-4 py-2 text-sm font-bold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <button 
+                        onClick={() => setStudentPage(p => Math.min(studentTotalPages, p + 1))}
+                        disabled={studentPage >= studentTotalPages}
+                        className="px-4 py-2 text-sm font-bold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -9427,11 +9526,11 @@ function AdminPage() {
                       elective_subject: formData.get('elective_subject')
                     }, { headers: { Authorization: `Bearer ${token}` } });
                     
-                    alert('Subjects updated successfully!');
+                    toast.success('Subjects updated successfully!');
                     setIsEditingSubjectsFor(null);
                     fetchStudents();
                   } catch (error) {
-                    alert('Failed to update subjects: ' + error.message);
+                    toast.error('Failed to update subjects: ' + error.message);
                   }
                 }} className="space-y-4">
                   <div>
@@ -9602,7 +9701,7 @@ function AdminPage() {
                                       });
                                       setInquiries(inquiries.filter(i => i._id !== inquiry._id));
                                    } catch(err) {
-                                     alert("Failed to delete inquiry: " + err.message);
+                                     toast.error("Failed to delete inquiry: " + err.message);
                                    }
                                  }
                                }} 
@@ -9819,7 +9918,7 @@ function AdminPage() {
                                   const token = localStorage.getItem('adminToken');
                                   await axios.delete(`${API_URL}/appointments/${apt._id}`, { headers: { Authorization: `Bearer ${token}` } });
                                   setAppointments(appointments.filter(a => a._id !== apt._id));
-                                } catch (err) { alert('Failed to delete.'); }
+                                } catch (err) { toast.error('Failed to delete.'); }
                               }
                             }} className="text-red-400 hover:text-red-600 transition-colors"><FaTrash size={12} /></button>
                           </td>
@@ -9949,7 +10048,7 @@ function AdminPage() {
                                       });
                                       fetchAdmins();
                                    } catch(err) {
-                                     alert("Failed to delete request: " + (err.response?.data?.message || err.message));
+                                     toast.error("Failed to delete request: " + (err.response?.data?.message || err.message));
                                    }
                                  }
                                }} 
@@ -10172,7 +10271,7 @@ function AdminPage() {
                                       });
                                       setJobApplications(jobApplications.filter(a => a._id !== app._id));
                                    } catch(err) {
-                                     alert("Failed to delete: " + err.message);
+                                     toast.error("Failed to delete: " + err.message);
                                    }
                                  }
                                }} 
@@ -10461,9 +10560,9 @@ function AdminPage() {
                          );
                          setSelectedJobApp({ ...selectedJobApp, status: newStatus });
                          setJobApplications(jobApplications.map(a => a._id === selectedJobApp._id ? { ...a, status: newStatus } : a));
-                         alert("Status updated successfully.");
+                         toast.success("Status updated successfully.");
                       } catch(err) {
-                        alert("Update failed: " + err.message);
+                        toast.error("Update failed: " + err.message);
                       }
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border-2 outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
@@ -10931,9 +11030,9 @@ function AdminPage() {
                   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                   body: JSON.stringify({ report_card_svg, admission_receipt_svg })
                 });
-                if(res.ok) alert('Templates saved successfully!');
-                else alert('Failed to save templates');
-              } catch(err) { console.error(err); alert('Error saving templates'); }
+                if(res.ok) toast.success('Templates saved successfully!');
+                else toast.error('Failed to save templates');
+              } catch(err) { console.error(err); toast.error('Error saving templates'); }
             }} className="space-y-6">
               
               <div>

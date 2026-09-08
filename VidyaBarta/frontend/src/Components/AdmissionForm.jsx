@@ -1,23 +1,13 @@
-
-    // Validation is basic for now, handled by UI constraints
-    payload.minorSubjects = dynamicSelections['Minor'] || [];
-    payload.gradingSets = dynamicSelections['Grading Sets'] || [];
-    payload.mil = (dynamicSelections['MIL'] || [])[0] || '';
-    payload.selectedSubjects = dynamicSelections['Elective'] || [];
 import React, { useState, useEffect, useContext } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import axios from "axios";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import html2canvas from "html2canvas";
 import { QRCodeSVG } from 'qrcode.react';
 import { FaLaptop, FaBuilding, FaClipboardList, FaGraduationCap, FaPhoneAlt, FaEnvelope, FaCheckCircle, FaSearch, FaExclamationCircle, FaIdBadge, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUserCheck, FaClipboardCheck, FaPrint, FaShieldAlt, FaBriefcase, FaUser, FaUsers, FaMapMarkerAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
 
 function AdmissionForm() {
-  const { schoolProfile, admissionFields, API_URL: ctxApiUrl } = useContext(SiteDataContext);
-  const navigate = useNavigate();
-  const apiBase = ctxApiUrl || import.meta.env.VITE_API_URL || '/api';
+  const { schoolProfile, API_URL: ctxApiUrl } = useContext(SiteDataContext);
+    const apiBase = ctxApiUrl || import.meta.env.VITE_API_URL || '/api';
   const steps = [
     { title: "Registration", desc: "Start by registering your ward's details online or at the school office." },
     { title: "Entrance Exam", desc: "A brief assessment to understand the student's current academic level." },
@@ -95,7 +85,6 @@ function AdmissionForm() {
   const [boardMarks, setBoardMarks] = useState("");
   const [boardDivision, setBoardDivision] = useState("");
   const [darpanId, setDarpanId] = useState("");
-  const [penNumber, setPenNumber] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [caste, setCaste] = useState("General");
   const [prospectusCode, setProspectusCode] = useState("");
@@ -161,13 +150,8 @@ function AdmissionForm() {
     }
   }, [boardMarks, gradeKey]);
 
-  const penStatus = penNumber.length === 0 ? 'empty' : /^[A-Z0-9]{8,20}$/.test(penNumber) ? 'valid' : 'invalid';
-  const darpanStatus = darpanId.length === 0 ? 'empty' : darpanId.length >= 4 ? 'valid' : 'invalid';
   const [errorField, setErrorField] = useState(null); // which field has a backend error
   const [filePreviews, setFilePreviews] = useState({}); // { fieldName: { name, size, type, url } }
-  
-  const [paymentSession, setPaymentSession] = useState(null);
-  const [paymentStatus, setPaymentStatus] = useState('pending');
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
@@ -244,31 +228,6 @@ function AdmissionForm() {
     setPincode(value);
   };
 
-  const handleSubjectChange = (subject) => {
-    const maxSubjects = selectedStream === 'science' ? 2 : 4;
-    setSelectedSubjects(prev => {
-      if (prev.includes(subject)) {
-        return prev.filter(s => s !== subject);
-      }
-      if (prev.length < maxSubjects) {
-        return [...prev, subject];
-      }
-      return prev;
-    });
-  };
-
-  // Division calculator for Class XI board marks
-  const getBoardDivision = (pct) => {
-    const p = parseFloat(pct);
-    if (p >= 95) return 'Rank';
-    if (p >= 85) return 'Distinction';
-    if (p >= 75) return 'Star';
-    if (p >= 60) return '1st Division';
-    if (p >= 50) return '2nd Division';
-    if (p >= 30) return '3rd Division';
-    return 'Below Pass';
-  };
-
   const handleReview = (e) => {
     e.preventDefault();
     const form = e.target.closest('form');
@@ -287,16 +246,6 @@ function AdmissionForm() {
       form.reportValidity();
       return;
     }
-
-    // Process subjects validation
-    if (gradeKey && (gradeKey === 'class11' || gradeKey === 'class12')) {
-      const requiredCount = selectedStream === 'science' ? 2 : 4;
-      if (selectedSubjects.length !== requiredCount) {
-        setSubmitError(`Please select exactly ${requiredCount} elective subjects.`);
-        return;
-      }
-    }
-
     // At least one parent/guardian check
     const fatherName = form.querySelector('[name="fatherName"]')?.value;
     const motherName = form.querySelector('[name="motherName"]')?.value;
@@ -317,7 +266,6 @@ function AdmissionForm() {
     });
 
     // Merge state-based fields
-    data.selectedSubjects = selectedSubjects;
     data.nccInterest = nccInterest;
     data.sportsActive = sportsActive;
     data.sportsType = sportsType;
@@ -626,6 +574,8 @@ function AdmissionForm() {
 
     // Set a flag to show loading state if you have one, or just proceed
     try {
+      const { default: html2canvas } = await import('html2canvas');
+      const { jsPDF } = await import('jspdf');
       const canvas = await html2canvas(receiptElement, {
         scale: 2,
         useCORS: true,
@@ -1643,15 +1593,12 @@ function AdmissionForm() {
                     setPrevMarksObtained("");
                     setLastAttendedExam("");
                     setPrevPercentage("");
-                    setSelectedStream("");
-                    setSelectedSubjects([]);
                     setNccInterest(false);
                     setSportsActive(false);
                     setSportsType("");
                     setBoardMarks("");
                     setBoardDivision("");
                     setDarpanId("");
-                    setPenNumber("");
                     setContactNumber("");
                     setCaste("General");
                     setPincode("");

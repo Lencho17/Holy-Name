@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { SiteDataContext } from '../context/SiteDataContext';
 import { FaMoneyCheckAlt, FaSave, FaSpinner } from 'react-icons/fa';
 
 const FeeConfiguration = ({ apiUrl, token }) => {
@@ -8,11 +9,8 @@ const FeeConfiguration = ({ apiUrl, token }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSubjectDropdown, setShowSubjectDropdown] = useState(false);
-  const classes = [
-    'Nursery', 'KG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 
-    '11 - Science', '11 - Arts', '11 - Commerce', 
-    '12 - Science', '12 - Arts', '12 - Commerce'
-  ];
+  const { globalClasses } = useContext(SiteDataContext);
+  const classes = globalClasses?.map(c => c.name) || [];
 
   const [formData, setFormData] = useState({
     class_level: 'I',

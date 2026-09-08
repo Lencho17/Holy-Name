@@ -14,6 +14,43 @@ import { EmployeeAuthProvider } from "./context/EmployeeAuthContext";
 import React, { useContext, useEffect, Suspense } from "react";
 import axios from "axios";
 import { FaSpinner } from "react-icons/fa";
+import { Toaster } from "react-hot-toast";
+
+// Setup Axios Interceptor for JWT Refresh
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        // Try to find which token to refresh based on the authorization header
+        const authHeader = originalRequest.headers['Authorization'] || originalRequest.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const oldToken = authHeader.split(' ')[1];
+          // We assume a generic /api/auth/refresh endpoint for now
+          // A full implementation would map to the correct endpoint based on the token type
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+          const res = await axios.post(`${API_URL}/auth/refresh`, { token: oldToken });
+          if (res.data.token) {
+            // Update the token in localStorage based on which one was used
+            if (localStorage.getItem('adminToken') === oldToken) localStorage.setItem('adminToken', res.data.token);
+            if (localStorage.getItem('staffToken') === oldToken) localStorage.setItem('staffToken', res.data.token);
+            if (localStorage.getItem('studentToken') === oldToken) localStorage.setItem('studentToken', res.data.token);
+            
+            // Retry the original request
+            originalRequest.headers['Authorization'] = `Bearer ${res.data.token}`;
+            return axios(originalRequest);
+          }
+        }
+      } catch (refreshError) {
+        // Refresh failed, let the application handle the 401 (usually forces logout)
+        return Promise.reject(refreshError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // SaaS Components
 const SaaSHome = React.lazy(() => import("./Components/SaaSHome"));
@@ -357,6 +394,7 @@ function App() {
       <StudentAuthProvider>
         <EmployeeAuthProvider>
           <GlobalHeartbeat />
+          <Toaster position="top-right" />
           <DocumentHeadManager isSaaS={isSaaS} isStudentSite={isStudentSite} isEmployeeSite={isEmployeeSite} />
           <RouterProvider router={isEmployeeSite ? employeeRouter : (isStudentSite ? studentRouter : (isSaaS ? saasRouter : schoolRouter))} />
         </EmployeeAuthProvider>

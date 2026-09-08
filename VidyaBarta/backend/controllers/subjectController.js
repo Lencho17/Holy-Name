@@ -15,9 +15,8 @@ exports.getGlobalSubjects = async (req, res) => {
     if (sortBy === 'newest') query = query.order('created_at', { ascending: false });
     else if (sortBy === 'oldest') query = query.order('created_at', { ascending: true });
     else if (sortBy === 'Z-A') query = query.order('name', { ascending: false });
-    else query = query.order('name', { ascending: true }); // default A-Z
-    
-    query = query.order('order_index', { ascending: true }).order('created_at', { ascending: true });
+    else if (sortBy === 'A-Z') query = query.order('name', { ascending: true });
+    else query = query.order('order_index', { ascending: true }).order('created_at', { ascending: true });
 
     const { data, error } = await query;
     if (error) throw error;

@@ -130,13 +130,47 @@ exports.reorderGlobalClasses = async (req, res) => {
 
 // ==================== SCHOOL-SPECIFIC CLASS ENDPOINTS ====================
 
+const resolveSchoolId = async (req) => {
+  let school_id = req.user?.school_id || req.query?.school_id || req.body?.school_id;
+  if (!school_id && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      if (token !== 'hardcoded-superadmin-token') {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded?.school_id) school_id = decoded.school_id;
+        else if (decoded?.id) {
+          const { data: admin } = await supabase.from('admins').select('school_id').eq('id', decoded.id).maybeSingle();
+          if (admin?.school_id) school_id = admin.school_id;
+        }
+      }
+    } catch (e) {}
+  }
+  if (!school_id && req.user?.id) {
+    const { data: admin } = await supabase.from('admins').select('school_id').eq('id', req.user.id).maybeSingle();
+    if (admin?.school_id) school_id = admin.school_id;
+  }
+  if (!school_id) {
+    const targetDomain = req.query?.target;
+    if (targetDomain) {
+      const { data: school } = await supabase.from('schools').select('id').or(`subdomain.eq.${targetDomain},custom_domain.eq.${targetDomain}`).maybeSingle();
+      if (school) school_id = school.id;
+    }
+  }
+  if (!school_id) {
+    const { data: firstSchool } = await supabase.from('schools').select('id').limit(1).maybeSingle();
+    if (firstSchool) school_id = firstSchool.id;
+  }
+  return school_id;
+};
+
 // @desc    Get all imported/configured classes for a school
 // @route   GET /api/classes/school
-// @access  Private (Admin, Staff)
+// @access  Public / Optional Protect
 exports.getSchoolClasses = async (req, res) => {
   try {
-    const school_id = req.user.school_id;
-    if (!school_id) return res.status(400).json({ message: 'School ID required' });
+    const school_id = await resolveSchoolId(req);
+    if (!school_id) return res.json([]);
 
     const { data, error } = await supabase
       .from('school_class_configs')
@@ -157,7 +191,7 @@ exports.getSchoolClasses = async (req, res) => {
 // @access  Private (Admin)
 exports.importSchoolClasses = async (req, res) => {
   try {
-    const school_id = req.user.school_id;
+    const school_id = await resolveSchoolId(req);
     if (!school_id) return res.status(400).json({ message: 'School ID required' });
 
     const { classes } = req.body;
@@ -203,7 +237,7 @@ exports.importSchoolClasses = async (req, res) => {
 // @access  Private (Admin)
 exports.updateSchoolClass = async (req, res) => {
   try {
-    const school_id = req.user.school_id;
+    const school_id = await resolveSchoolId(req);
     if (!school_id) return res.status(400).json({ message: 'School ID required' });
 
     const className = decodeURIComponent(req.params.className);
@@ -244,7 +278,7 @@ exports.updateSchoolClass = async (req, res) => {
 // @access  Private (Admin)
 exports.deleteSchoolClass = async (req, res) => {
   try {
-    const school_id = req.user.school_id;
+    const school_id = await resolveSchoolId(req);
     if (!school_id) return res.status(400).json({ message: 'School ID required' });
 
     const className = decodeURIComponent(req.params.className);

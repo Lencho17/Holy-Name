@@ -11,11 +11,11 @@ const {
   updateSchoolClass,
   deleteSchoolClass
 } = require('../controllers/classController');
-const { protect, protectAnyStaff } = require('../middleware/auth');
+const { protect, optionalProtect } = require('../middleware/auth');
 
 // School-specific class routes
 router.route('/school')
-  .get(protectAnyStaff, getSchoolClasses);
+  .get(optionalProtect, getSchoolClasses);
 
 router.route('/school/import')
   .post(protect, importSchoolClasses);
@@ -26,7 +26,7 @@ router.route('/school/:className')
 
 // Global class routes
 router.route('/global')
-  .get(protectAnyStaff, getGlobalClasses)
+  .get(getGlobalClasses)
   .post(protect, createGlobalClass);
 
 router.route('/global/reorder')

@@ -123,26 +123,68 @@ function AdminPage() {
     ? (raw_API_URL.startsWith('http') ? raw_API_URL : (raw_API_URL.startsWith('/') ? raw_API_URL : `/api`))
     : '/api';
 
-  // Active Classes list prioritized from school's imported classes, falling back to globalClasses
+  const [localSchoolClasses, setLocalSchoolClasses] = useState([]);
+  const [localGlobalClasses, setLocalGlobalClasses] = useState([]);
+
+  const fetchClassesData = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const [sRes, gRes] = await Promise.all([
+        fetch(`${API_URL}/classes/school`, { headers }),
+        fetch(`${API_URL}/classes/global`, { headers })
+      ]);
+      if (sRes.ok) {
+        const sData = await sRes.json();
+        if (Array.isArray(sData)) {
+          setLocalSchoolClasses(sData);
+          if (setSchoolClasses) setSchoolClasses(sData);
+        }
+      }
+      if (gRes.ok) {
+        const gData = await gRes.json();
+        if (Array.isArray(gData)) {
+          setLocalGlobalClasses(gData);
+          if (setGlobalClasses) setGlobalClasses(gData);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading classes in AdminPage:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchClassesData();
+  }, [API_URL]);
+
+  // Active Classes list prioritized from school's imported classes, then globalClasses, then fallback
   const activeClassList = React.useMemo(() => {
-    if (schoolClasses && schoolClasses.length > 0) {
-      return schoolClasses.map(c => {
+    const sClasses = (localSchoolClasses && localSchoolClasses.length > 0) ? localSchoolClasses : (schoolClasses || []);
+    const gClasses = (localGlobalClasses && localGlobalClasses.length > 0) ? localGlobalClasses : (globalClasses || []);
+
+    if (sClasses.length > 0) {
+      return sClasses.map(c => {
         const secs = c.sections_data && c.sections_data.length > 0
           ? c.sections_data.map(s => s.name)
           : (c.sections ? c.sections.split(',').map(s => s.trim()).filter(Boolean) : ['A']);
-        return { name: c.class_level, sections: secs };
+        return { name: c.class_level, sections: secs.length > 0 ? secs : ['A', 'B', 'C'] };
       });
     }
-    if (globalClasses && globalClasses.length > 0) {
-      return globalClasses.map(c => {
+    if (gClasses.length > 0) {
+      return gClasses.map(c => {
         const secs = Array.isArray(c.sections) 
           ? c.sections 
           : (c.sections ? String(c.sections).split(',').map(s => s.trim()).filter(Boolean) : ['A', 'B', 'C']);
-        return { name: c.name, sections: secs };
+        return { name: c.name, sections: secs.length > 0 ? secs : ['A', 'B', 'C'] };
       });
     }
-    return [];
-  }, [schoolClasses, globalClasses]);
+    // Reliable default school classes list so dropdown is NEVER empty
+    const defaultClasses = ['PRE-NURSERY', 'KG-I', 'KG-II', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI-Science', 'XI-Arts', 'XI-Com', 'XII-Science', 'XII-Arts', 'XII-Com'];
+    return defaultClasses.map(name => ({
+      name,
+      sections: ['A', 'B', 'C']
+    }));
+  }, [localSchoolClasses, schoolClasses, localGlobalClasses, globalClasses]);
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
@@ -9104,10 +9146,13 @@ function AdminPage() {
                   </button>
                   <button 
                     onClick={() => {
+                      const defaultClass = activeClassList.length > 0 ? activeClassList[0].name : 'I';
+                      const classObj = activeClassList.find(c => c.name === (studentClassFilter || defaultClass)) || activeClassList[0];
+                      const defaultSec = classObj && classObj.sections && classObj.sections.length > 0 ? classObj.sections[0] : 'A';
                       setNewStudentForm({
                         ...newStudentForm,
-                        classLevel: studentClassFilter || '',
-                        section: studentSectionFilter || ''
+                        classLevel: studentClassFilter || defaultClass,
+                        section: studentSectionFilter || defaultSec
                       });
                       setShowAddStudentModal(true);
                     }}

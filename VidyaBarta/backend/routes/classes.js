@@ -5,10 +5,26 @@ const {
   createGlobalClass,
   updateGlobalClass,
   deleteGlobalClass,
-  reorderGlobalClasses
+  reorderGlobalClasses,
+  getSchoolClasses,
+  importSchoolClasses,
+  updateSchoolClass,
+  deleteSchoolClass
 } = require('../controllers/classController');
 const { protect, protectAnyStaff } = require('../middleware/auth');
 
+// School-specific class routes
+router.route('/school')
+  .get(protectAnyStaff, getSchoolClasses);
+
+router.route('/school/import')
+  .post(protect, importSchoolClasses);
+
+router.route('/school/:className')
+  .put(protect, updateSchoolClass)
+  .delete(protect, deleteSchoolClass);
+
+// Global class routes
 router.route('/global')
   .get(protectAnyStaff, getGlobalClasses)
   .post(protect, createGlobalClass);

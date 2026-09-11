@@ -77,10 +77,10 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) =
   );
 };
 
-const ClassSubjectConfig = ({ API_URL }) => {
+const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
   const [classesData, setClassesData] = useState([]);
   const [globalSubjects, setGlobalSubjects] = useState([]);
-  const [globalClasses, setGlobalClasses] = useState([]);
+  const [schoolClasses, setSchoolClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -93,15 +93,15 @@ const ClassSubjectConfig = ({ API_URL }) => {
       
       const resConfig = await fetch(`${API_URL}/subjects/mapping`, { headers: { Authorization: `Bearer ${token}` } });
       const configData = await resConfig.json();
-      setClassesData(configData);
+      setClassesData(configData || []);
 
       const resGlobal = await fetch(`${API_URL}/subjects/global`, { headers: { Authorization: `Bearer ${token}` } });
       const globalData = await resGlobal.json();
-      setGlobalSubjects(globalData);
+      setGlobalSubjects(globalData || []);
       
-      const resGlobalClasses = await fetch(`${API_URL}/classes/global`, { headers: { Authorization: `Bearer ${token}` } });
-      const globalClassesData = await resGlobalClasses.json();
-      setGlobalClasses(globalClassesData);
+      const resSchoolClasses = await fetch(`${API_URL}/classes/school`, { headers: { Authorization: `Bearer ${token}` } });
+      const schoolClassesData = await resSchoolClasses.json();
+      setSchoolClasses(schoolClassesData || []);
       
       setLoading(false);
     } catch (err) {
@@ -396,49 +396,52 @@ const ClassSubjectConfig = ({ API_URL }) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {globalClasses.map((gc, idx) => {
-            const cls = classesData.find(c => c.class_level === gc.name) || {
-              class_level: gc.name,
-              medium: '',
-              has_semester: false,
-              sections: 'A,B,C',
+          {schoolClasses.map((sc, idx) => {
+            const cls = classesData.find(c => c.class_level === sc.class_level) || {
+              ...sc,
               core_subjects: [],
               elective_groups: []
             };
-            const isConfigured = classesData.some(c => c.class_level === gc.name);
+            const isConfigured = classesData.some(c => c.class_level === sc.class_level && (c.core_subjects?.length > 0 || c.elective_groups?.length > 0));
+            const sectionsList = sc.sections_data && sc.sections_data.length > 0
+              ? sc.sections_data
+              : (sc.sections ? sc.sections.split(',').map(s => ({ name: s.trim(), capacity: 40 })) : []);
+
             return (
-              <tr key={gc.id} className="hover:bg-gray-50/30">
+              <tr key={sc.id || idx} className="hover:bg-gray-50/30">
                 <td className="p-4 text-sm text-gray-600 align-top">{idx + 1}</td>
-                <td className="p-4 text-sm text-gray-800 font-medium align-top">{cls.class_level} {cls.medium ? `- ${cls.medium}` : ''}</td>
+                <td className="p-4 text-sm text-gray-800 font-medium align-top">
+                  {sc.class_level} {sc.medium ? `- ${sc.medium}` : ''}
+                </td>
                 <td className="p-4 align-top">
-                  {isConfigured && (
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${cls.has_semester ? 'bg-pink-100 text-pink-500' : 'bg-pink-100 text-pink-500'}`}>
-                      {cls.has_semester ? 'Yes' : 'No'}
-                    </span>
+                  <span className={`text-xs font-bold px-2 py-1 rounded ${sc.has_semester ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {sc.has_semester ? 'Semester' : 'Annual'}
+                  </span>
+                </td>
+                <td className="p-4 text-sm text-gray-600 align-top">{sc.medium || 'English'}</td>
+                <td className="p-4 align-top">
+                  {sectionsList.length > 0 ? (
+                    <div className="flex gap-1 flex-wrap">
+                      {sectionsList.map((s, i) => (
+                        <span key={i} className="text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded">
+                          {s.name}({s.capacity || 40})
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">None</span>
                   )}
                 </td>
-                <td className="p-4 text-sm text-gray-600 align-top">{isConfigured ? cls.medium || '-' : ''}</td>
                 <td className="p-4 align-top">
-                  {isConfigured ? (
-                    cls.has_sections ? (
-                      <div className="flex gap-1 flex-wrap">
-                        {(cls.sections_data || []).map((s, i) => (
-                          <span key={i} className="text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded">
-                            {s.name}({s.capacity})
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">None</span>
-                    )
-                  ) : ''}
-                </td>
-                <td className="p-4 align-top">
-                  <ul className="text-xs space-y-1 text-gray-700">
-                    {(cls.core_subjects || []).map((s, i) => (
-                      <li key={i}>{i+1}. {s.subjects?.name || s.name} - {s.subjects?.marking_system || s.marking_system || '-'}</li>
-                    ))}
-                  </ul>
+                  {cls.core_subjects && cls.core_subjects.length > 0 ? (
+                    <ul className="text-xs space-y-1 text-gray-700">
+                      {cls.core_subjects.map((s, i) => (
+                        <li key={i}>{i+1}. {s.subjects?.name || s.name} - {s.subjects?.marking_system || s.marking_system || '-'}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-xs text-amber-600 font-medium">Pending subject assignment</span>
+                  )}
                 </td>
                 <td className="p-4 align-top">
                   <div className="space-y-6">
@@ -463,11 +466,11 @@ const ClassSubjectConfig = ({ API_URL }) => {
                 </td>
                 <td className="p-4 align-top text-center">
                   <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => handleEdit(cls)} title="Edit Configuration" className="text-[#9854CB] bg-[#F3E8FF] p-2 rounded-full hover:bg-purple-200">
+                    <button onClick={() => handleEdit(cls)} title="Configure Subjects" className="text-[#9854CB] bg-[#F3E8FF] p-2 rounded-full hover:bg-purple-200">
                       <FiEdit2 size={14} />
                     </button>
                     {isConfigured && (
-                      <button onClick={() => handleDeleteClass(cls.class_level)} title="Delete Class" className="text-red-500 bg-red-50 p-2 rounded-full hover:bg-red-100">
+                      <button onClick={() => handleDeleteClass(cls.class_level)} title="Clear Subject Configuration" className="text-red-500 bg-red-50 p-2 rounded-full hover:bg-red-100">
                         <FiX size={14} />
                       </button>
                     )}
@@ -476,7 +479,24 @@ const ClassSubjectConfig = ({ API_URL }) => {
               </tr>
             );
           })}
-          {globalClasses.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-gray-400">No global classes found. Please configure them in Superadmin.</td></tr>}
+          {schoolClasses.length === 0 && (
+            <tr>
+              <td colSpan="8" className="p-12 text-center">
+                <div className="max-w-md mx-auto">
+                  <p className="text-gray-500 text-sm mb-4">No classes imported yet for your school. Please import classes from the SuperAdmin master list first.</p>
+                  {onNavigateToClasses && (
+                    <button 
+                      type="button" 
+                      onClick={onNavigateToClasses}
+                      className="bg-primary text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-primary/90 transition shadow-sm inline-flex items-center gap-2"
+                    >
+                      Go to Classes & Sections
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

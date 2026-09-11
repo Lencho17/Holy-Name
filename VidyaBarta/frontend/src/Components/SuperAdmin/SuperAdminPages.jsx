@@ -1406,17 +1406,33 @@ const SortableGlobalClassRow = ({ cls, setEditClass, setIsEditing, handleDeleteG
     transition,
   };
 
+  const sectionsList = Array.isArray(cls.sections) 
+    ? cls.sections 
+    : (cls.sections ? String(cls.sections).split(',').map(s => s.trim()) : ['A', 'B', 'C']);
+
   return (
     <tr ref={setNodeRef} style={style} className="hover:bg-gray-50/50 transition bg-white z-10">
       <td className="p-4 flex items-center gap-3">
         <span {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600 text-lg">☰</span>
         <span className="font-bold text-gray-800">{cls.name}</span>
       </td>
+      <td className="p-4">
+        <div className="flex flex-wrap gap-1.5">
+          {sectionsList.map((sec, idx) => (
+            <span key={idx} className="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-0.5 rounded-full border border-purple-200">
+              Section {sec}
+            </span>
+          ))}
+        </div>
+      </td>
       <td className="p-4 text-right">
-        <button onClick={() => { setEditClass(cls); setIsEditing(true); }} className="text-primary hover:text-primary/80 p-2 bg-primary/10 rounded mr-2">
+        <button onClick={() => { 
+          setEditClass({ ...cls, sections: sectionsList.join(', ') }); 
+          setIsEditing(true); 
+        }} className="text-primary hover:text-primary/80 p-2 bg-primary/10 rounded mr-2" title="Edit Class & Sections">
           <FaEdit />
         </button>
-        <button onClick={() => handleDeleteGlobalClass(cls.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded border border-red-100">
+        <button onClick={() => handleDeleteGlobalClass(cls.id)} className="text-error hover:text-error/80 p-2 bg-red-50 rounded border border-red-100" title="Delete">
           <FaTrash />
         </button>
       </td>
@@ -1427,6 +1443,7 @@ const SortableGlobalClassRow = ({ cls, setEditClass, setIsEditing, handleDeleteG
 export const GlobalClasses = () => {
   const [globalClasses, setGlobalClasses] = useState([]);
   const [newClassName, setNewClassName] = useState('');
+  const [newClassSections, setNewClassSections] = useState('A, B, C');
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editClass, setEditClass] = useState(null);
@@ -1480,15 +1497,17 @@ export const GlobalClasses = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('adminToken');
+      const secArray = newClassSections.split(',').map(s => s.trim()).filter(Boolean);
       const res = await fetch(`${API_URL}/classes/global`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: newClassName })
+        body: JSON.stringify({ name: newClassName, sections: secArray })
       });
       if (res.ok) {
         setNewClassName('');
+        setNewClassSections('A, B, C');
         fetchGlobalClasses();
-        alert('Global Class Created successfully.');
+        alert('Global Class and Sections created successfully.');
       } else {
         const errorData = await res.json();
         alert('Failed: ' + (errorData.message || 'Unknown error'));
@@ -1502,16 +1521,20 @@ export const GlobalClasses = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('adminToken');
+      const secArray = typeof editClass.sections === 'string'
+        ? editClass.sections.split(',').map(s => s.trim()).filter(Boolean)
+        : editClass.sections;
+
       const res = await fetch(`${API_URL}/classes/global/${editClass.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: editClass.name })
+        body: JSON.stringify({ name: editClass.name, sections: secArray })
       });
       if (res.ok) {
         setIsEditing(false);
         setEditClass(null);
         fetchGlobalClasses();
-        alert('Class updated successfully.');
+        alert('Class and sections updated successfully.');
       } else {
          const errorData = await res.json();
          alert('Failed: ' + (errorData.message || 'Unknown error'));
@@ -1531,18 +1554,30 @@ export const GlobalClasses = () => {
   };
 
   return (
-    <PageWrapper title="Global Classes">
+    <PageWrapper title="Global Classes & Sections">
       {isEditing && editClass ? (
-        <form onSubmit={handleUpdateGlobalClass} className="bg-white p-6 rounded-xl border border-gray-200 mb-8 max-w-md shadow-sm">
-          <h3 className="font-bold text-gray-800 mb-4">Edit Global Class</h3>
-          <div className="mb-4">
-            <label className="block text-sm font-bold text-gray-700 mb-1">Class Name</label>
-            <input 
-              type="text" required 
-              value={editClass.name} 
-              onChange={e => setEditClass({...editClass, name: e.target.value})} 
-              className="w-full border border-gray-300 p-2.5 rounded-lg focus:border-primary outline-none"
-            />
+        <form onSubmit={handleUpdateGlobalClass} className="bg-white p-6 rounded-xl border border-gray-200 mb-8 max-w-xl shadow-sm">
+          <h3 className="font-bold text-gray-800 mb-4">Edit Global Class & Sections</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Class Name</label>
+              <input 
+                type="text" required 
+                value={editClass.name} 
+                onChange={e => setEditClass({...editClass, name: e.target.value})} 
+                className="w-full border border-gray-300 p-2.5 rounded-lg focus:border-primary outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Sections (comma-separated)</label>
+              <input 
+                type="text" required 
+                value={editClass.sections} 
+                onChange={e => setEditClass({...editClass, sections: e.target.value})} 
+                placeholder="e.g. A, B, C"
+                className="w-full border border-gray-300 p-2.5 rounded-lg focus:border-primary outline-none"
+              />
+            </div>
           </div>
           <div className="flex gap-2">
             <button type="submit" className="bg-primary text-white px-6 py-2 rounded font-bold hover:bg-primary/90 flex-1">Update</button>
@@ -1550,7 +1585,7 @@ export const GlobalClasses = () => {
           </div>
         </form>
       ) : (
-        <form onSubmit={handleCreateGlobalClass} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-end max-w-2xl">
+        <form onSubmit={handleCreateGlobalClass} className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 items-end max-w-3xl">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Class Name</label>
             <input 
@@ -1558,12 +1593,22 @@ export const GlobalClasses = () => {
               placeholder="e.g. Class I"
               value={newClassName} 
               onChange={e => setNewClassName(e.target.value)} 
-              className="w-full border border-gray-300 p-2.5 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              className="w-full border border-gray-300 p-2.5 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white"
             />
           </div>
           <div>
-            <button type="submit" className="bg-primary text-white px-8 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition shadow-sm w-full md:w-auto">
-              <FaPlus className="inline mr-2" /> Add Class
+            <label className="block text-sm font-bold text-gray-700 mb-1">Sections (comma-separated)</label>
+            <input 
+              type="text" required 
+              placeholder="e.g. A, B, C"
+              value={newClassSections} 
+              onChange={e => setNewClassSections(e.target.value)} 
+              className="w-full border border-gray-300 p-2.5 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white"
+            />
+          </div>
+          <div>
+            <button type="submit" className="bg-primary text-white px-8 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition shadow-sm w-full">
+              <FaPlus className="inline mr-2" /> Add Class & Sections
             </button>
           </div>
         </form>
@@ -1571,13 +1616,14 @@ export const GlobalClasses = () => {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading classes...</div>
+          <div className="p-8 text-center text-gray-500">Loading classes & sections...</div>
         ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="p-4 text-xs font-semibold text-gray-500 uppercase">Class Name</th>
+                <th className="p-4 text-xs font-semibold text-gray-500 uppercase">Default Sections</th>
                 <th className="p-4 text-xs font-semibold text-gray-500 uppercase text-right">Actions</th>
               </tr>
             </thead>
@@ -1593,7 +1639,7 @@ export const GlobalClasses = () => {
                   />
                 )) : (
                   <tr>
-                    <td colSpan="2" className="p-8 text-center text-gray-400">No global classes found.</td>
+                    <td colSpan="3" className="p-8 text-center text-gray-400">No global classes found.</td>
                   </tr>
                 )}
               </SortableContext>

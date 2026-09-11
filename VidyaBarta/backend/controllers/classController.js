@@ -24,12 +24,16 @@ exports.getGlobalClasses = async (req, res) => {
 // @access  Private (Superadmin)
 exports.createGlobalClass = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, sections } = req.body;
     if (!name) return res.status(400).json({ message: 'Class name is required' });
+
+    const secArray = Array.isArray(sections)
+      ? sections
+      : (sections ? String(sections).split(',').map(s => s.trim()).filter(Boolean) : ['A', 'B', 'C']);
 
     const { data, error } = await supabase
       .from('global_classes')
-      .insert([{ name }])
+      .insert([{ name, sections: secArray }])
       .select();
 
     if (error) {
@@ -51,12 +55,20 @@ exports.createGlobalClass = async (req, res) => {
 // @access  Private (Superadmin)
 exports.updateGlobalClass = async (req, res) => {
   try {
-    const { name } = req.body;
-    if (!name) return res.status(400).json({ message: 'Class name is required' });
+    const { name, sections } = req.body;
+    if (!name && sections === undefined) return res.status(400).json({ message: 'Nothing to update' });
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (sections !== undefined) {
+      updateData.sections = Array.isArray(sections)
+        ? sections
+        : String(sections).split(',').map(s => s.trim()).filter(Boolean);
+    }
 
     const { data, error } = await supabase
       .from('global_classes')
-      .update({ name })
+      .update(updateData)
       .eq('id', req.params.id)
       .select();
 
@@ -100,8 +112,6 @@ exports.reorderGlobalClasses = async (req, res) => {
       return res.status(400).json({ message: 'Invalid data format' });
     }
 
-    // Process updates sequentially to avoid race conditions or use a bulk RPC if available.
-    // For simplicity, updating one by one.
     for (const cls of classes) {
       if (cls.id && cls.order_index !== undefined) {
         await supabase
@@ -115,5 +125,145 @@ exports.reorderGlobalClasses = async (req, res) => {
   } catch (error) {
     console.error('Error reordering global classes:', error);
     res.status(500).json({ message: 'Server error reordering global classes' });
+  }
+};
+
+// ==================== SCHOOL-SPECIFIC CLASS ENDPOINTS ====================
+
+// @desc    Get all imported/configured classes for a school
+// @route   GET /api/classes/school
+// @access  Private (Admin, Staff)
+exports.getSchoolClasses = async (req, res) => {
+  try {
+    const school_id = req.user.school_id;
+    if (!school_id) return res.status(400).json({ message: 'School ID required' });
+
+    const { data, error } = await supabase
+      .from('school_class_configs')
+      .select('*')
+      .eq('school_id', school_id)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    console.error('Error fetching school classes:', error);
+    res.status(500).json({ message: 'Server error fetching school classes' });
+  }
+};
+
+// @desc    Bulk import/upsert classes from global list for a school
+// @route   POST /api/classes/school/import
+// @access  Private (Admin)
+exports.importSchoolClasses = async (req, res) => {
+  try {
+    const school_id = req.user.school_id;
+    if (!school_id) return res.status(400).json({ message: 'School ID required' });
+
+    const { classes } = req.body;
+    if (!classes || !Array.isArray(classes) || classes.length === 0) {
+      return res.status(400).json({ message: 'No classes provided to import' });
+    }
+
+    const rows = classes.map(cls => {
+      const secList = Array.isArray(cls.sections) 
+        ? cls.sections 
+        : (cls.sections ? String(cls.sections).split(',').map(s => s.trim()).filter(Boolean) : ['A']);
+      
+      const sections_data = cls.sections_data && Array.isArray(cls.sections_data) && cls.sections_data.length > 0
+        ? cls.sections_data
+        : secList.map(s => ({ name: s, capacity: 40 }));
+
+      return {
+        school_id,
+        class_level: cls.class_level || cls.name,
+        medium: cls.medium || 'English',
+        has_semester: cls.has_semester || false,
+        has_sections: secList.length > 0,
+        sections: secList.join(','),
+        sections_data
+      };
+    });
+
+    const { data, error } = await supabase
+      .from('school_class_configs')
+      .upsert(rows, { onConflict: 'school_id, class_level' })
+      .select();
+
+    if (error) throw error;
+    res.status(200).json({ message: `Successfully imported ${rows.length} classes`, data });
+  } catch (error) {
+    console.error('Error importing classes for school:', error);
+    res.status(500).json({ message: 'Server error importing classes' });
+  }
+};
+
+// @desc    Update a school's class config (sections, medium, capacity)
+// @route   PUT /api/classes/school/:className
+// @access  Private (Admin)
+exports.updateSchoolClass = async (req, res) => {
+  try {
+    const school_id = req.user.school_id;
+    if (!school_id) return res.status(400).json({ message: 'School ID required' });
+
+    const className = decodeURIComponent(req.params.className);
+    const { medium, has_semester, sections, sections_data } = req.body;
+
+    const secList = Array.isArray(sections)
+      ? sections
+      : (sections ? String(sections).split(',').map(s => s.trim()).filter(Boolean) : []);
+
+    const updateData = {};
+    if (medium !== undefined) updateData.medium = medium;
+    if (has_semester !== undefined) updateData.has_semester = has_semester;
+    if (sections !== undefined) {
+      updateData.sections = secList.join(',');
+      updateData.has_sections = secList.length > 0;
+    }
+    if (sections_data !== undefined) {
+      updateData.sections_data = sections_data;
+    }
+
+    const { data, error } = await supabase
+      .from('school_class_configs')
+      .update(updateData)
+      .eq('school_id', school_id)
+      .eq('class_level', className)
+      .select();
+
+    if (error) throw error;
+    res.json(data && data[0] ? data[0] : { message: 'Updated successfully' });
+  } catch (error) {
+    console.error('Error updating school class:', error);
+    res.status(500).json({ message: 'Server error updating school class' });
+  }
+};
+
+// @desc    Delete an imported class from school configuration
+// @route   DELETE /api/classes/school/:className
+// @access  Private (Admin)
+exports.deleteSchoolClass = async (req, res) => {
+  try {
+    const school_id = req.user.school_id;
+    if (!school_id) return res.status(400).json({ message: 'School ID required' });
+
+    const className = decodeURIComponent(req.params.className);
+
+    const { error } = await supabase
+      .from('school_class_configs')
+      .delete()
+      .eq('school_id', school_id)
+      .eq('class_level', className);
+
+    if (error) throw error;
+
+    // Clean up associated subjects for this class
+    await supabase.from('school_subjects').delete().eq('school_id', school_id).eq('class_level', className);
+    await supabase.from('school_elective_groups').delete().eq('school_id', school_id).eq('class_level', className);
+
+    res.json({ message: 'Class removed from school successfully' });
+  } catch (error) {
+    console.error('Error deleting school class:', error);
+    res.status(500).json({ message: 'Server error deleting school class' });
   }
 };

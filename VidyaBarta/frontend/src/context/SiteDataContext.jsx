@@ -239,6 +239,7 @@ export const SiteDataProvider = ({ children }) => {
   const [admissionFee, setAdmissionFee] = useState(500);
   const [loading, setLoading] = useState(true);
   const [globalClasses, setGlobalClasses] = useState([]);
+  const [schoolClasses, setSchoolClasses] = useState([]);
 
 
 
@@ -288,20 +289,22 @@ export const SiteDataProvider = ({ children }) => {
         }
           
         const adminToken = localStorage.getItem('adminToken');
-        const staffToken = localStorage.getItem('staffToken');
-        const studentToken = localStorage.getItem('studentToken');
-        const token = adminToken || staffToken || studentToken;
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const headers = adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {};
+
         const endpointUrl = `${API_URL}/content?target=${encodeURIComponent(targetDomain)}&timestamp=${new Date().getTime()}`;
         console.log(`Fetching from endpoint: ${endpointUrl}`);
         
-        const [res, classesRes] = await Promise.all([
+        const [res, classesRes, schoolClassesRes] = await Promise.all([
           axios.get(endpointUrl, { headers }),
-          axios.get(`${API_URL}/subjects/global?target=${encodeURIComponent(targetDomain)}`, { headers }).catch(() => ({ data: [] }))
+          axios.get(`${API_URL}/classes/global`, { headers }).catch(() => ({ data: [] })),
+          adminToken ? axios.get(`${API_URL}/classes/school`, { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
         ]);
 
         if (classesRes && classesRes.data && Array.isArray(classesRes.data)) {
           setGlobalClasses(classesRes.data);
+        }
+        if (schoolClassesRes && schoolClassesRes.data && Array.isArray(schoolClassesRes.data)) {
+          setSchoolClasses(schoolClassesRes.data);
         }
 
         const legacyData = mapSupabaseToLegacy(res.data);
@@ -566,6 +569,9 @@ export const SiteDataProvider = ({ children }) => {
     <SiteDataContext.Provider value={{
       loading,
       globalClasses,
+      setGlobalClasses,
+      schoolClasses,
+      setSchoolClasses,
       videos, setVideos: wrapSetVideos,
       highlights, setHighlights: wrapSetHighlights,
       gallery, setGallery: wrapSetGallery,

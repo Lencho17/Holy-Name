@@ -21,7 +21,7 @@ import AdminPayroll from './AdminPayroll';
 import AdminAnnouncements from './AdminAnnouncements';
 import StudentProfileViewer from './StudentProfileViewer';
 import SchoolAdminsManager from './SchoolAdminsManager';
-import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn, FaPaperPlane, FaDatabase, FaTree } from 'react-icons/fa';
+import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn, FaPaperPlane, FaDatabase, FaTree, FaLayerGroup } from 'react-icons/fa';
 import ExamManagement from './ExamManagement';
 import AdmitCardPanel from './AdmitCardPanel';
 import ResultsPortal from './ResultsPortal';
@@ -34,6 +34,7 @@ import CommunicationHub from './CommunicationHub';
 import WalletDashboard from './WalletDashboard';
 import DomainManager from './DomainManager';
 import ClassSubjectConfig from './ClassSubjectConfig';
+import ManageSchoolClasses from './ManageSchoolClasses';
 import ConfirmModal from './ConfirmModal';
 import SystemLogs from './SystemLogs';
 import OnlineUsersWidget from './OnlineUsersWidget';
@@ -115,12 +116,33 @@ function AdminPage() {
   }, []);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, careerPage, setCareerPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL, globalClasses } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, careerPage, setCareerPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL, globalClasses, schoolClasses, setSchoolClasses } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
     ? (raw_API_URL.startsWith('http') ? raw_API_URL : (raw_API_URL.startsWith('/') ? raw_API_URL : `/api`))
     : '/api';
+
+  // Active Classes list prioritized from school's imported classes, falling back to globalClasses
+  const activeClassList = React.useMemo(() => {
+    if (schoolClasses && schoolClasses.length > 0) {
+      return schoolClasses.map(c => {
+        const secs = c.sections_data && c.sections_data.length > 0
+          ? c.sections_data.map(s => s.name)
+          : (c.sections ? c.sections.split(',').map(s => s.trim()).filter(Boolean) : ['A']);
+        return { name: c.class_level, sections: secs };
+      });
+    }
+    if (globalClasses && globalClasses.length > 0) {
+      return globalClasses.map(c => {
+        const secs = Array.isArray(c.sections) 
+          ? c.sections 
+          : (c.sections ? String(c.sections).split(',').map(s => s.trim()).filter(Boolean) : ['A', 'B', 'C']);
+        return { name: c.name, sections: secs };
+      });
+    }
+    return [];
+  }, [schoolClasses, globalClasses]);
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
@@ -8782,6 +8804,7 @@ function AdminPage() {
             )}
           </SidebarItem>
 
+          <SidebarItem active={activeTab === 'classesSections'} onClick={() => { setActiveTab('classesSections'); setIsSidebarOpen(false); }} icon={FaLayerGroup} label="Classes & Sections" />
           <SidebarItem active={activeTab === 'classSubjects'} onClick={() => { setActiveTab('classSubjects'); setIsSidebarOpen(false); }} icon={FaBookOpen} label="Subject Selection" />
           <SidebarItem active={isAcademicsActive} icon={FaGraduationCap} label="Exams & Academics">
             <SubItem active={activeTab === 'timetables'} onClick={() => { setActiveTab('timetables'); setIsSidebarOpen(false); }} label="Class Timetables" />
@@ -8947,8 +8970,12 @@ function AdminPage() {
           )}
 
 
+          {activeTab === 'classesSections' && (
+            <ManageSchoolClasses API_URL={API_URL} />
+          )}
+
           {activeTab === 'classSubjects' && (
-            <ClassSubjectConfig API_URL={API_URL} />
+            <ClassSubjectConfig API_URL={API_URL} onNavigateToClasses={() => setActiveTab('classesSections')} />
           )}
 
           {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}
@@ -9118,23 +9145,35 @@ function AdminPage() {
                   <label className="block text-xs font-bold text-gray-500 mb-1">Class</label>
                   <select 
                     value={studentClassFilter}
-                    onChange={(e) => setStudentClassFilter(e.target.value)}
-                    className="w-full p-2 border rounded-lg text-sm"
+                    onChange={(e) => {
+                      setStudentClassFilter(e.target.value);
+                      setStudentSectionFilter('');
+                    }}
+                    className="w-full p-2 border rounded-lg text-sm bg-white"
                   >
                     <option value="">All Classes</option>
-                    {globalClasses?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    {activeClassList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">Section</label>
-                  <select 
-                    value={studentSectionFilter}
-                    onChange={(e) => setStudentSectionFilter(e.target.value)}
-                    className="w-full p-2 border rounded-lg text-sm"
-                  >
-                    <option value="">All Sections</option>
-                    {['A', 'B', 'C', 'D'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  {(() => {
+                    const selectedClsObj = activeClassList.find(c => c.name === studentClassFilter);
+                    const availableFilterSecs = selectedClsObj && selectedClsObj.sections && selectedClsObj.sections.length > 0
+                      ? selectedClsObj.sections
+                      : Array.from(new Set(activeClassList.flatMap(c => c.sections || [])));
+                    const finalSecs = availableFilterSecs.length > 0 ? availableFilterSecs : ['A', 'B', 'C', 'D'];
+                    return (
+                      <select 
+                        value={studentSectionFilter}
+                        onChange={(e) => setStudentSectionFilter(e.target.value)}
+                        className="w-full p-2 border rounded-lg text-sm bg-white"
+                      >
+                        <option value="">All Sections</option>
+                        {finalSecs.map(s => <option key={s} value={s}>Section {s}</option>)}
+                      </select>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">Sort By</label>
@@ -9168,14 +9207,41 @@ function AdminPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Class / Grade</label>
-                          <select required className="w-full p-3 border rounded-xl bg-white" value={newStudentForm.classLevel} onChange={e => setNewStudentForm({...newStudentForm, classLevel: e.target.value})}>
+                          <select 
+                            required 
+                            className="w-full p-3 border rounded-xl bg-white" 
+                            value={newStudentForm.classLevel} 
+                            onChange={e => {
+                              const val = e.target.value;
+                              const clsObj = activeClassList.find(c => c.name === val);
+                              const defaultSec = clsObj && clsObj.sections && clsObj.sections.length > 0 ? clsObj.sections[0] : 'A';
+                              setNewStudentForm({ ...newStudentForm, classLevel: val, section: defaultSec });
+                            }}
+                          >
                             <option value="">Select Class</option>
-                            {globalClasses?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                            {activeClassList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                           </select>
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Section</label>
-                          <input type="text" className="w-full p-3 border rounded-xl" value={newStudentForm.section} onChange={e => setNewStudentForm({...newStudentForm, section: e.target.value})} placeholder="e.g. A" />
+                          {(() => {
+                            const clsObj = activeClassList.find(c => c.name === newStudentForm.classLevel);
+                            const availableSecs = clsObj && clsObj.sections && clsObj.sections.length > 0
+                              ? clsObj.sections
+                              : ['A', 'B', 'C', 'D'];
+                            return (
+                              <select 
+                                required
+                                className="w-full p-3 border rounded-xl bg-white" 
+                                value={newStudentForm.section || availableSecs[0]} 
+                                onChange={e => setNewStudentForm({ ...newStudentForm, section: e.target.value })}
+                              >
+                                {availableSecs.map(s => (
+                                  <option key={s} value={s}>Section {s}</option>
+                                ))}
+                              </select>
+                            );
+                          })()}
                         </div>
                       </div>
                       <div>

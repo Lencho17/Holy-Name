@@ -33,6 +33,10 @@ const AlumniSection = () => {
     return () => cancelAnimationFrame(animationFrameId);
   }, [isHovered]);
 
+  if (!alumni || alumni.length === 0) {
+    return null;
+  }
+
   // We duplicate the alumni array to create a seamless loop
   const baseAlumni =
     alumni.length < 5

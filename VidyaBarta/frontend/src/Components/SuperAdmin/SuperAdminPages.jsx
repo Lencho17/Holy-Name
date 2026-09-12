@@ -21,6 +21,7 @@ import { FaSpinner, FaTrash, FaEdit, FaPlus } from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 import { ManageSchools } from './ManageSchools';
+import { sortClasses } from '../../utils/classOrder';
 
 // Premium Page Wrapper
 const PageWrapper = ({ title, children }) => (
@@ -1481,7 +1482,7 @@ export const GlobalClasses = () => {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/classes/global`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setGlobalClasses(await res.json());
+      if (res.ok) setGlobalClasses(sortClasses(await res.json(), c => c.name));
     } catch (err) {
       console.error(err);
     } finally {

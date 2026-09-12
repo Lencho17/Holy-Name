@@ -14,6 +14,7 @@ import {
   FaUsers
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { sortClasses } from '../utils/classOrder';
 
 const ManageSchoolClasses = ({ API_URL }) => {
   const [schoolClasses, setSchoolClasses] = useState([]);
@@ -40,11 +41,11 @@ const ManageSchoolClasses = ({ API_URL }) => {
 
       if (schoolRes.ok) {
         const data = await schoolRes.json();
-        setSchoolClasses(data || []);
+        setSchoolClasses(sortClasses(data || [], c => c.class_level));
       }
       if (globalRes.ok) {
         const data = await globalRes.json();
-        setGlobalClasses(data || []);
+        setGlobalClasses(sortClasses(data || [], c => c.name));
       }
     } catch (err) {
       console.error('Error loading classes:', err);

@@ -4,6 +4,7 @@ import axios from "axios";
 import { QRCodeSVG } from 'qrcode.react';
 import { FaLaptop, FaBuilding, FaClipboardList, FaGraduationCap, FaPhoneAlt, FaEnvelope, FaCheckCircle, FaSearch, FaExclamationCircle, FaIdBadge, FaCalendarAlt, FaUserGraduate, FaFileAlt, FaUserCheck, FaClipboardCheck, FaPrint, FaShieldAlt, FaBriefcase, FaUser, FaUsers, FaMapMarkerAlt } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
+import { sortClasses } from "../utils/classOrder";
 
 function AdmissionForm() {
   const { schoolProfile, API_URL: ctxApiUrl } = useContext(SiteDataContext);
@@ -162,7 +163,7 @@ function AdmissionForm() {
   const [subjectConfigs, setSubjectConfigs] = useState([]);
   useEffect(() => {
     axios.get(`${apiBase}/subjects/mapping`, { headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` } })
-      .then(res => setSubjectConfigs(res.data))
+      .then(res => setSubjectConfigs(sortClasses(res.data || [], c => c.class_level)))
       .catch(err => console.error("Failed to load subject configs:", err));
   }, [apiBase]);
   

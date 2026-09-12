@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { sortClasses } = require('../utils/classOrder');
 
 // @desc    Get all global classes
 // @route   GET /api/classes/global
@@ -12,7 +13,7 @@ exports.getGlobalClasses = async (req, res) => {
       .order('created_at', { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+    res.json(sortClasses(data || [], c => c.name));
   } catch (error) {
     console.error('Error getting global classes:', error);
     res.status(500).json({ message: 'Server error fetching global classes' });
@@ -179,7 +180,7 @@ exports.getSchoolClasses = async (req, res) => {
       .order('created_at', { ascending: true });
 
     if (error) throw error;
-    res.json(data || []);
+    res.json(sortClasses(data || [], c => c.class_level));
   } catch (error) {
     console.error('Error fetching school classes:', error);
     res.status(500).json({ message: 'Server error fetching school classes' });

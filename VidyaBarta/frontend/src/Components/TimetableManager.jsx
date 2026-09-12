@@ -4,6 +4,7 @@ import { FaCalendarAlt, FaSpinner, FaSave, FaPlus, FaClock, FaTrash, FaExclamati
 import { FiEdit2, FiX } from 'react-icons/fi';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { sortClasses } from '../utils/classOrder';
 
 const TimetableManager = ({ apiUrl, token }) => {
   const [classesData, setClassesData] = useState([]);
@@ -34,7 +35,7 @@ const TimetableManager = ({ apiUrl, token }) => {
         axios.get(`${apiUrl}/timetables/all`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       
-      setClassesData(classRes.data || []);
+      setClassesData(sortClasses(classRes.data || [], c => c.class_level));
       setTeachers(staffRes.data || []);
       setAllTimetables(timeRes.data || []);
     } catch (err) {

@@ -39,6 +39,7 @@ import ConfirmModal from './ConfirmModal';
 import SystemLogs from './SystemLogs';
 import OnlineUsersWidget from './OnlineUsersWidget';
 import { HumanReadableLog, parseLogDetails } from '../utils/logFormatter';
+import { sortClasses, DEFAULT_SCHOOL_CLASSES } from '../utils/classOrder';
 
 const SidebarItem = ({ active, onClick, icon: Icon, label, children }) => {
   const [isOpen, ReactSetIsOpen] = React.useState(false);
@@ -162,28 +163,28 @@ function AdminPage() {
     const sClasses = (localSchoolClasses && localSchoolClasses.length > 0) ? localSchoolClasses : (schoolClasses || []);
     const gClasses = (localGlobalClasses && localGlobalClasses.length > 0) ? localGlobalClasses : (globalClasses || []);
 
+    let list = [];
     if (sClasses.length > 0) {
-      return sClasses.map(c => {
+      list = sClasses.map(c => {
         const secs = c.sections_data && c.sections_data.length > 0
           ? c.sections_data.map(s => s.name)
           : (c.sections ? c.sections.split(',').map(s => s.trim()).filter(Boolean) : ['A']);
-        return { name: c.class_level, sections: secs.length > 0 ? secs : ['A', 'B', 'C'] };
+        return { name: (c.class_level || '').trim(), sections: secs.length > 0 ? secs : ['A', 'B', 'C'] };
       });
-    }
-    if (gClasses.length > 0) {
-      return gClasses.map(c => {
+    } else if (gClasses.length > 0) {
+      list = gClasses.map(c => {
         const secs = Array.isArray(c.sections) 
           ? c.sections 
           : (c.sections ? String(c.sections).split(',').map(s => s.trim()).filter(Boolean) : ['A', 'B', 'C']);
-        return { name: c.name, sections: secs.length > 0 ? secs : ['A', 'B', 'C'] };
+        return { name: (c.name || '').trim(), sections: secs.length > 0 ? secs : ['A', 'B', 'C'] };
       });
+    } else {
+      list = DEFAULT_SCHOOL_CLASSES.map(name => ({
+        name,
+        sections: ['A', 'B', 'C']
+      }));
     }
-    // Reliable default school classes list so dropdown is NEVER empty
-    const defaultClasses = ['PRE-NURSERY', 'KG-I', 'KG-II', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI-Science', 'XI-Arts', 'XI-Com', 'XII-Science', 'XII-Arts', 'XII-Com'];
-    return defaultClasses.map(name => ({
-      name,
-      sections: ['A', 'B', 'C']
-    }));
+    return sortClasses(list, c => c.name);
   }, [localSchoolClasses, schoolClasses, localGlobalClasses, globalClasses]);
 
   // --- Auth & Role ---

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiEdit2 } from 'react-icons/fi';
+import { sortClasses } from '../utils/classOrder';
 const CATEGORIES = ['MIL', 'Elective', 'Minor', 'Grading Sets'];
 
 const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) => {
@@ -101,7 +102,7 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
       
       const resSchoolClasses = await fetch(`${API_URL}/classes/school`, { headers: { Authorization: `Bearer ${token}` } });
       const schoolClassesData = await resSchoolClasses.json();
-      setSchoolClasses(schoolClassesData || []);
+      setSchoolClasses(sortClasses(schoolClassesData || [], c => c.class_level));
       
       setLoading(false);
     } catch (err) {

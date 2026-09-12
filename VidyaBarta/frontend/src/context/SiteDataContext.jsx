@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { sortClasses } from '../utils/classOrder';
 
 export const SiteDataContext = createContext();
 
@@ -301,10 +302,10 @@ export const SiteDataProvider = ({ children }) => {
         ]);
 
         if (classesRes && classesRes.data && Array.isArray(classesRes.data)) {
-          setGlobalClasses(classesRes.data);
+          setGlobalClasses(sortClasses(classesRes.data, c => c.name));
         }
         if (schoolClassesRes && schoolClassesRes.data && Array.isArray(schoolClassesRes.data)) {
-          setSchoolClasses(schoolClassesRes.data);
+          setSchoolClasses(sortClasses(schoolClassesRes.data, c => c.class_level));
         }
 
         const legacyData = mapSupabaseToLegacy(res.data);

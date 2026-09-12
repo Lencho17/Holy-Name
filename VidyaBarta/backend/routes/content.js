@@ -17,8 +17,8 @@ const getAggregatedContent = async (schoolId) => {
     if (schoolId) {
       return query.eq('school_id', schoolId);
     } else {
-      // For the main Holy Name site, school_id will be NULL
-      return query.is('school_id', null);
+      // Default to Holy Name school ID or NULL
+      return query.or('school_id.eq.b0fbd2ff-17c1-4b04-8a0d-0167cce6020a,school_id.is.null');
     }
   };
   const [
@@ -146,25 +146,25 @@ const getAggregatedContent = async (schoolId) => {
 
 router.get('/', optionalProtect, async (req, res) => {
   try {
-    const domain = req.query.domain;
+    const domain = req.query.domain || req.query.target;
     let schoolId = null;
 
-    if (domain && !['vidyabarta.com', 'www.vidyabarta.com', 'localhost', '127.0.0.1'].includes(domain) && !domain.includes('vercel.app') && !domain.startsWith('student.')) {
-      // Clean domain of www. for flexible matching
-      const cleanDomain = domain.replace(/^www\./, '');
+    if (domain && !['vidyabarta.com', 'www.vidyabarta.com'].includes(domain) && !domain.startsWith('student.')) {
+      // Clean domain of www. and port for flexible matching
+      const cleanDomain = domain.replace(/^www\./, '').split(':')[0].toLowerCase();
+      const slug = cleanDomain.replace(/\.vidyabarta\.com$/, '').replace(/\.vercel\.app$/, '');
       const wwwDomain = `www.${cleanDomain}`;
       
-      // Find school by subdomain or custom_domain
+      // Find school by subdomain, subdomain slug, or custom_domain
       const { data: school } = await supabase
         .from('schools')
         .select('id')
-        .or(`subdomain.eq.${cleanDomain},custom_domain.eq.${cleanDomain},custom_domain.eq.${wwwDomain}`)
-        .single();
+        .or(`subdomain.eq.${cleanDomain},subdomain.eq.${slug}.vidyabarta.com,subdomain.eq.${slug},custom_domain.eq.${cleanDomain},custom_domain.eq.${wwwDomain}`)
+        .limit(1)
+        .maybeSingle();
       
       if (school) {
         schoolId = school.id;
-      } else {
-        return res.status(404).json({ error: "School not found", isNotFound: true });
       }
     }
 
@@ -175,12 +175,30 @@ router.get('/', optionalProtect, async (req, res) => {
       // Check if it's a student token
       try {
         const token = req.headers.authorization.split(' ')[1];
-        const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
-        if (decoded.school_id) {
-          schoolId = decoded.school_id;
+        if (token !== 'hardcoded-superadmin-token') {
+          const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+          if (decoded && decoded.school_id) {
+            schoolId = decoded.school_id;
+          }
         }
       } catch (err) {
         // Not a valid token, ignore
+      }
+    }
+
+    // Fallback if schoolId still not resolved: default to Holy Name High School
+    if (!schoolId) {
+      const { data: defaultSchool } = await supabase
+        .from('schools')
+        .select('id')
+        .or('subdomain.ilike.%holyname%,name.ilike.%Holy Name%')
+        .limit(1)
+        .maybeSingle();
+      if (defaultSchool) {
+        schoolId = defaultSchool.id;
+      } else {
+        const { data: anySchool } = await supabase.from('schools').select('id').limit(1).maybeSingle();
+        if (anySchool) schoolId = anySchool.id;
       }
     }
 

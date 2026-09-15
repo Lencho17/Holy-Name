@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
 const { sortClasses } = require('../utils/classOrder');
+const { seedDefaultSubjectsForSchool, normalizeClassLevel } = require('../utils/defaultClassSubjects');
 
 // @desc    Get all global classes
 // @route   GET /api/classes/global
@@ -226,6 +227,15 @@ exports.importSchoolClasses = async (req, res) => {
       .select();
 
     if (error) throw error;
+
+    // Auto-seed default subjects for the imported classes from Holy Name template
+    const importedClassNames = rows.map(r => r.class_level);
+    try {
+      await seedDefaultSubjectsForSchool(supabase, school_id, importedClassNames);
+    } catch (seedErr) {
+      console.error('Error auto-seeding default subjects during import:', seedErr);
+    }
+
     res.status(200).json({ message: `Successfully imported ${rows.length} classes`, data });
   } catch (error) {
     console.error('Error importing classes for school:', error);
@@ -293,8 +303,9 @@ exports.deleteSchoolClass = async (req, res) => {
     if (error) throw error;
 
     // Clean up associated subjects for this class
-    await supabase.from('school_subjects').delete().eq('school_id', school_id).eq('class_level', className);
-    await supabase.from('school_elective_groups').delete().eq('school_id', school_id).eq('class_level', className);
+    const normClass = normalizeClassLevel(className);
+    await supabase.from('school_subjects').delete().eq('school_id', school_id).in('class_level', [className, normClass]);
+    await supabase.from('school_elective_groups').delete().eq('school_id', school_id).in('class_level', [className, normClass]);
 
     res.json({ message: 'Class removed from school successfully' });
   } catch (error) {

@@ -294,6 +294,7 @@ function App() {
             <Route path="domain-requests" element={<SA.DomainRequests />} />
             <Route path="global-subjects" element={<SA.GlobalSubjects />} />
             <Route path="global-classes" element={<SA.GlobalClasses />} />
+            <Route path="default-exams" element={<SA.DefaultExams />} />
             
             <Route path="staff-management" element={<Navigate to="staff" replace />} />
             <Route path="staff-management/roles" element={<SA.RolePermission />} />

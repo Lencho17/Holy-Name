@@ -1653,3 +1653,4 @@ export const GlobalClasses = () => {
   );
 };
 
+export { default as DefaultExams } from './DefaultExams';

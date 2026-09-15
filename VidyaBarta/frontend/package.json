@@ -13,6 +13,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@reticlehq/browser": "^2.14.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.13.6",
@@ -35,6 +36,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@reticlehq/react": "^2.14.0",
+    "@reticlehq/vite-plugin": "^2.14.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

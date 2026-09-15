@@ -25,25 +25,126 @@ router.get('/', protectAnyStaff, async (req, res) => {
   }
 });
 
+// Get all available default exam templates (with their routine subjects) for schools to use
+router.get('/default-templates', protectAnyStaff, async (req, res) => {
+  try {
+    const { data: templates, error } = await supabase
+      .from('default_exams')
+      .select('*, default_exam_timetables(*)')
+      .eq('is_active', true)
+      .order('order_index', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(templates || []);
+  } catch (err) {
+    console.error('[GET DEFAULT TEMPLATES ERROR]:', err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// Helper to generate working dates (skipping Sundays)
+const getWorkingDates = (startDateStr, endDateStr) => {
+  const dates = [];
+  if (!startDateStr) return dates;
+  let curr = new Date(startDateStr);
+  const end = endDateStr ? new Date(endDateStr) : new Date(startDateStr);
+  
+  if (isNaN(curr.getTime())) return dates;
+
+  while (curr <= end) {
+    if (curr.getDay() !== 0) { // Skip Sundays
+      dates.push(curr.toISOString().split('T')[0]);
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+  return dates;
+};
+
 // Create a new exam (admin only, attaches school_id)
 router.post('/', protect, async (req, res) => {
   try {
-    const { name, type, class_levels, class_level, start_date, end_date } = req.body;
+    const { name, type, class_levels, class_level, start_date, end_date, default_exam_id } = req.body;
     const { school_id } = req.user;
     
-    const classes = class_levels || [class_level];
+    const classes = class_levels || (class_level ? [class_level] : []);
+    if (classes.length === 0) {
+      return res.status(400).json({ message: 'At least one class level is required' });
+    }
     
     const inserts = classes.map(c => ({
-      name, type, class_level: c, start_date, end_date, school_id
+      name, 
+      type: type || 'Offline', 
+      class_level: c, 
+      start_date: start_date || null, 
+      end_date: end_date || null, 
+      school_id,
+      default_exam_id: default_exam_id || null
     }));
     
-    const { data: exams, error } = await supabase
+    const { data: createdExams, error } = await supabase
       .from('exams')
       .insert(inserts)
       .select();
 
     if (error) throw error;
-    res.status(201).json(exams);
+
+    // If a default exam template was selected, pre-generate the routine into exam_timetable
+    if (default_exam_id && createdExams && createdExams.length > 0) {
+      const { data: defaultTimetable, error: ttError } = await supabase
+        .from('default_exam_timetables')
+        .select('*')
+        .eq('default_exam_id', default_exam_id)
+        .order('order_index', { ascending: true });
+
+      if (!ttError && defaultTimetable && defaultTimetable.length > 0) {
+        const workingDates = getWorkingDates(start_date, end_date);
+        const timetableInserts = [];
+
+        for (const exam of createdExams) {
+          defaultTimetable.forEach((item, idx) => {
+            // Assign date from available dates or fallback to start_date or last available date
+            let assignedDate = null;
+            if (workingDates.length > 0) {
+              assignedDate = workingDates[idx] || workingDates[workingDates.length - 1];
+            } else if (start_date) {
+              assignedDate = start_date;
+            }
+
+            timetableInserts.push({
+              exam_id: exam.id,
+              school_id,
+              class_level: exam.class_level,
+              subject: item.subject,
+              sub_subject: item.sub_subject || null,
+              exam_date: assignedDate,
+              start_time: item.start_time || '09:00',
+              end_time: item.end_time || '12:00',
+              total_marks: item.total_marks || 100,
+              passing_marks: item.passing_marks || 40,
+              has_practical: item.has_practical || false,
+              theory_marks: item.theory_marks || null,
+              theory_passing_marks: item.theory_passing_marks || null,
+              practical_marks: item.practical_marks || null,
+              practical_passing_marks: item.practical_passing_marks || null,
+              is_finalized: false
+            });
+          });
+        }
+
+        if (timetableInserts.length > 0) {
+          const { error: insertTtError } = await supabase
+            .from('exam_timetable')
+            .insert(timetableInserts);
+
+          if (insertTtError) {
+            console.error('[AUTO PRESET TIMETABLE ERROR]:', insertTtError);
+          }
+        }
+      }
+    }
+
+    res.status(201).json(createdExams);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message || 'Server Error', details: err });

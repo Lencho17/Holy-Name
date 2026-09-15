@@ -3,6 +3,7 @@ const supabase = require('../config/supabase');
 const bcrypt = require('bcryptjs');
 const { protect, authorize } = require('../middleware/auth');
 const { upload, uploadToCloudinary } = require('../middleware/upload');
+const { CANONICAL_CLASSES, seedDefaultSubjectsForSchool } = require('../utils/defaultClassSubjects');
 
 const router = express.Router();
 
@@ -186,7 +187,22 @@ router.post('/schools', protect, async (req, res) => {
           phone: phone,
           office_address: address
         });
-      if (settingsError) console.error('[CREATE SETTINGS ERROR]:', settingsError);
+    }
+    // Provision default classes and subjects from Holy Name template
+    try {
+      const classRows = CANONICAL_CLASSES.map(clsName => ({
+        school_id: newSchool.id,
+        class_level: clsName,
+        medium: 'English',
+        has_semester: false,
+        has_sections: true,
+        sections: 'A,B,C',
+        sections_data: [{ name: 'A', capacity: 40 }, { name: 'B', capacity: 40 }, { name: 'C', capacity: 40 }]
+      }));
+      await supabase.from('school_class_configs').upsert(classRows, { onConflict: 'school_id, class_level' });
+      await seedDefaultSubjectsForSchool(supabase, newSchool.id);
+    } catch (clsErr) {
+      console.error('[PROVISION DEFAULT CLASSES & SUBJECTS ERROR]:', clsErr);
     }
 
     res.status(201).json({ school: newSchool, admin: newAdmin });
@@ -625,6 +641,220 @@ router.post('/domains/:id/reject', protect, authorize('superadmin'), async (req,
   } catch (err) {
     console.error('Domain rejection error:', err);
     res.status(500).json({ message: 'Failed to reject domain request' });
+  }
+});
+
+// ==========================================
+// DEFAULT EXAMS & TIMETABLES (SUPER ADMIN)
+// ==========================================
+
+// GET /api/superadmin/default-exams
+router.get('/default-exams', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
+    }
+
+    const { data: defaultExams, error } = await supabase
+      .from('default_exams')
+      .select('*, default_exam_timetables(*)')
+      .order('order_index', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(defaultExams || []);
+  } catch (error) {
+    console.error('[GET DEFAULT EXAMS ERROR]:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// POST /api/superadmin/default-exams
+router.post('/default-exams', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
+    }
+
+    const { name, type, description, class_levels, default_start_time, default_end_time, timetableData } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: 'Exam name is required' });
+    }
+
+    const { data: newExam, error: insertError } = await supabase
+      .from('default_exams')
+      .insert({
+        name,
+        type: type || 'Offline',
+        description: description || null,
+        class_levels: class_levels || [],
+        default_start_time: default_start_time || '09:00',
+        default_end_time: default_end_time || '12:00'
+      })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+
+    // If initial timetable data was provided
+    if (timetableData && Array.isArray(timetableData) && timetableData.length > 0) {
+      const timetableRows = timetableData.map((item, idx) => ({
+        default_exam_id: newExam.id,
+        subject: item.subject,
+        sub_subject: item.sub_subject || null,
+        class_level: item.class_level || null,
+        order_index: item.order_index ?? idx,
+        day_offset: item.day_offset ?? idx,
+        start_time: item.start_time || newExam.default_start_time || '09:00',
+        end_time: item.end_time || newExam.default_end_time || '12:00',
+        total_marks: item.total_marks || 100,
+        passing_marks: item.passing_marks || 40,
+        has_practical: item.has_practical || false,
+        theory_marks: item.theory_marks || null,
+        theory_passing_marks: item.theory_passing_marks || null,
+        practical_marks: item.practical_marks || null,
+        practical_passing_marks: item.practical_passing_marks || null
+      }));
+
+      await supabase.from('default_exam_timetables').insert(timetableRows);
+    }
+
+    // Fetch full object with timetables
+    const { data: fullExam } = await supabase
+      .from('default_exams')
+      .select('*, default_exam_timetables(*)')
+      .eq('id', newExam.id)
+      .single();
+
+    res.status(201).json(fullExam || newExam);
+  } catch (error) {
+    console.error('[CREATE DEFAULT EXAM ERROR]:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// PUT /api/superadmin/default-exams/:id
+router.put('/default-exams/:id', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
+    }
+
+    const { name, type, description, class_levels, default_start_time, default_end_time, is_active } = req.body;
+
+    const { data: updatedExam, error } = await supabase
+      .from('default_exams')
+      .update({
+        name,
+        type: type || 'Offline',
+        description: description || null,
+        class_levels: class_levels || [],
+        default_start_time: default_start_time || '09:00',
+        default_end_time: default_end_time || '12:00',
+        is_active: is_active ?? true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(updatedExam);
+  } catch (error) {
+    console.error('[UPDATE DEFAULT EXAM ERROR]:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// DELETE /api/superadmin/default-exams/:id
+router.delete('/default-exams/:id', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
+    }
+
+    const { error } = await supabase
+      .from('default_exams')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ message: 'Default exam deleted successfully' });
+  } catch (error) {
+    console.error('[DELETE DEFAULT EXAM ERROR]:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// GET /api/superadmin/default-exams/:id/timetable
+router.get('/default-exams/:id/timetable', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
+    }
+
+    const { data: timetables, error } = await supabase
+      .from('default_exam_timetables')
+      .select('*')
+      .eq('default_exam_id', req.params.id)
+      .order('order_index', { ascending: true });
+
+    if (error) throw error;
+    res.json(timetables || []);
+  } catch (error) {
+    console.error('[GET DEFAULT EXAM TIMETABLE ERROR]:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// POST /api/superadmin/default-exams/:id/timetable (save routine)
+router.post('/default-exams/:id/timetable', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
+    }
+
+    const { timetableData } = req.body;
+    const defaultExamId = req.params.id;
+
+    // Delete existing items for this default exam
+    await supabase.from('default_exam_timetables').delete().eq('default_exam_id', defaultExamId);
+
+    if (timetableData && Array.isArray(timetableData) && timetableData.length > 0) {
+      const inserts = timetableData.map((t, idx) => ({
+        default_exam_id: defaultExamId,
+        subject: t.subject,
+        sub_subject: t.sub_subject || null,
+        class_level: t.class_level || null,
+        order_index: t.order_index ?? idx,
+        day_offset: t.day_offset ?? idx,
+        start_time: t.start_time || '09:00',
+        end_time: t.end_time || '12:00',
+        total_marks: t.total_marks || 100,
+        passing_marks: t.passing_marks || 40,
+        has_practical: t.has_practical || false,
+        theory_marks: t.theory_marks || null,
+        theory_passing_marks: t.theory_passing_marks || null,
+        practical_marks: t.practical_marks || null,
+        practical_passing_marks: t.practical_passing_marks || null
+      }));
+
+      const { error } = await supabase.from('default_exam_timetables').insert(inserts);
+      if (error) throw error;
+    }
+
+    const { data: updatedList, error: fetchError } = await supabase
+      .from('default_exam_timetables')
+      .select('*')
+      .eq('default_exam_id', defaultExamId)
+      .order('order_index', { ascending: true });
+
+    if (fetchError) throw fetchError;
+    res.json({ message: 'Default exam timetable saved successfully', timetable: updatedList });
+  } catch (error) {
+    console.error('[SAVE DEFAULT EXAM TIMETABLE ERROR]:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

@@ -1,4 +1,46 @@
 const supabase = require('../config/supabase');
+const { 
+  CANONICAL_CLASSES, 
+  normalizeClassLevel, 
+  getHolyNameDefaultSubjects, 
+  seedDefaultSubjectsForSchool 
+} = require('../utils/defaultClassSubjects');
+const { sortClasses } = require('../utils/classOrder');
+
+// Helper to resolve school_id from request
+const resolveSchoolId = async (req) => {
+  let school_id = req.user?.school_id || req.query?.school_id || req.body?.school_id;
+  if (!school_id && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      if (token !== 'hardcoded-superadmin-token') {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded?.school_id) school_id = decoded.school_id;
+        else if (decoded?.id) {
+          const { data: admin } = await supabase.from('admins').select('school_id').eq('id', decoded.id).maybeSingle();
+          if (admin?.school_id) school_id = admin.school_id;
+        }
+      }
+    } catch (e) {}
+  }
+  if (!school_id && req.user?.id) {
+    const { data: admin } = await supabase.from('admins').select('school_id').eq('id', req.user.id).maybeSingle();
+    if (admin?.school_id) school_id = admin.school_id;
+  }
+  if (!school_id) {
+    const targetDomain = req.query?.target;
+    if (targetDomain) {
+      const { data: school } = await supabase.from('schools').select('id').or(`subdomain.eq.${targetDomain},custom_domain.eq.${targetDomain}`).maybeSingle();
+      if (school) school_id = school.id;
+    }
+  }
+  if (!school_id) {
+    const { data: firstSchool } = await supabase.from('schools').select('id').limit(1).maybeSingle();
+    if (firstSchool) school_id = firstSchool.id;
+  }
+  return school_id;
+};
 
 // @desc    Get all global subjects
 // @route   GET /api/subjects/global
@@ -215,7 +257,7 @@ exports.createClassSubjectMapping = async (req, res) => {
 // @access  Private (Admin)
 exports.getClassSubjectMappings = async (req, res) => {
   try {
-    const school_id = req.user.school_id;
+    const school_id = await resolveSchoolId(req);
     if (!school_id) return res.status(403).json({ message: 'School ID is required' });
 
     // 1. Fetch class configs
@@ -242,31 +284,35 @@ exports.getClassSubjectMappings = async (req, res) => {
     // Combine them into a structured format
     const classesMap = {};
     
-    // Initialize all standard classes
-    const standardClasses = ['PRE-NURSERY', 'KG-1', 'KG-2', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI (Science)', 'XI (Arts)', 'XI (Commerce)', 'XII (Science)', 'XII (Arts)', 'XII (Commerce)'];
-    standardClasses.forEach(c => {
+    // Initialize all canonical standard classes
+    CANONICAL_CLASSES.forEach(c => {
       classesMap[c] = { class_level: c, medium: '', has_semester: false, sections: '', core_subjects: [], elective_groups: [] };
     });
 
-    configs.forEach(c => {
-      if (classesMap[c.class_level]) {
-        classesMap[c.class_level] = { ...classesMap[c.class_level], ...c, core_subjects: [], elective_groups: [] };
+    (configs || []).forEach(c => {
+      const normClass = normalizeClassLevel(c.class_level);
+      if (classesMap[normClass]) {
+        classesMap[normClass] = { ...classesMap[normClass], ...c, class_level: normClass, core_subjects: [], elective_groups: [] };
       } else {
         classesMap[c.class_level] = { ...c, core_subjects: [], elective_groups: [] };
       }
     });
 
     const groupsMap = {};
-    groups.forEach(g => {
+    (groups || []).forEach(g => {
       g.subjects = [];
       groupsMap[g.id] = g;
-      if (classesMap[g.class_level]) {
+      const normClass = normalizeClassLevel(g.class_level);
+      if (classesMap[normClass]) {
+        classesMap[normClass].elective_groups.push(g);
+      } else if (classesMap[g.class_level]) {
         classesMap[g.class_level].elective_groups.push(g);
       }
     });
 
-    subjects.forEach(s => {
-      const cls = classesMap[s.class_level];
+    (subjects || []).forEach(s => {
+      const normClass = normalizeClassLevel(s.class_level);
+      const cls = classesMap[normClass] || classesMap[s.class_level];
       if (!cls) return;
       if (s.is_core) {
         cls.core_subjects.push(s);
@@ -275,7 +321,36 @@ exports.getClassSubjectMappings = async (req, res) => {
       }
     });
 
-    res.json(Object.values(classesMap));
+    // Check for any classes that have no subjects configured:
+    // If not configured, populate default subjects from Holy Name template
+    const defaultTemplate = await getHolyNameDefaultSubjects(supabase);
+    const classesNeedingSeed = [];
+
+    Object.keys(classesMap).forEach(clsKey => {
+      const clsObj = classesMap[clsKey];
+      const hasConfiguredSubjects = (clsObj.core_subjects && clsObj.core_subjects.length > 0) ||
+        (clsObj.elective_groups && clsObj.elective_groups.some(g => g.subjects && g.subjects.length > 0));
+
+      if (!hasConfiguredSubjects) {
+        const normKey = normalizeClassLevel(clsKey);
+        const def = defaultTemplate[normKey];
+        if (def && (def.core_subjects.length > 0 || def.elective_groups.length > 0)) {
+          clsObj.core_subjects = def.core_subjects;
+          clsObj.elective_groups = def.elective_groups;
+          classesNeedingSeed.push(normKey);
+        }
+      }
+    });
+
+    // Asynchronously persist defaults for classes that needed them so DB is seeded
+    if (classesNeedingSeed.length > 0) {
+      seedDefaultSubjectsForSchool(supabase, school_id, classesNeedingSeed).catch(e => {
+        console.error('Background seeding default subjects error:', e);
+      });
+    }
+
+    const result = sortClasses(Object.values(classesMap), c => c.class_level);
+    res.json(result);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });

@@ -11,6 +11,8 @@ import autoTable from 'jspdf-autotable';
 import { FaDownload, FaExclamationTriangle } from 'react-icons/fa';
 import ReadmissionVerification from './ReadmissionVerification';
 import StudentProfile from './StudentProfile';
+import AdmitCardPreviewModal from './AdmitCardPreviewModal';
+import { generateSingleAdmitCardPDF } from '../utils/admitCardPdfGenerator';
 
 function StudentPortal() {
   const { API_URL, schoolProfile } = useContext(SiteDataContext);
@@ -24,6 +26,9 @@ function StudentPortal() {
   const [fees, setFees] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
+  const [myAdmitCards, setMyAdmitCards] = useState([]);
+  const [previewCardData, setPreviewCardData] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showUdiseBanner, setShowUdiseBanner] = useState(true);
   const [udiseProfile, setUdiseProfile] = useState(null);
@@ -43,7 +48,7 @@ function StudentPortal() {
 
     const fetchPortalData = async () => {
       try {
-        const [gradesRes, noticesRes, coursesRes, assignmentsRes, feesRes, transactionsRes, upcomingExamsRes, udiseRes] = await Promise.all([
+        const [gradesRes, noticesRes, coursesRes, assignmentsRes, feesRes, transactionsRes, upcomingExamsRes, udiseRes, admitCardsRes] = await Promise.all([
           axios.get(`${API_URL}/student-portal/grades`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/notices`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/courses`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -51,7 +56,8 @@ function StudentPortal() {
           axios.get(`${API_URL}/student-portal/fees`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/transactions`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/upcoming-exams`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/udise`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null }))
+          axios.get(`${API_URL}/student-portal/udise`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null })),
+          axios.get(`${API_URL}/admit-cards/student/my-cards`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: [] } }))
         ]);
         
         const gradesData = Array.isArray(gradesRes.data) ? gradesRes.data : [];
@@ -94,6 +100,7 @@ function StudentPortal() {
         setFees(Array.isArray(feesRes.data) ? feesRes.data : []);
         setTransactions(Array.isArray(transactionsRes.data) ? transactionsRes.data : []);
         setUpcomingExams(Array.isArray(upcomingExamsRes.data) ? upcomingExamsRes.data : []);
+        setMyAdmitCards(admitCardsRes?.data?.data || []);
         setUdiseProfile(udiseRes.data);
         if (udiseRes.data) {
           setShowUdiseBanner(false);
@@ -705,12 +712,63 @@ function StudentPortal() {
                         <h3 className="text-2xl font-bold mt-4 text-indigo-100">No upcoming exams scheduled</h3>
                       )}
                     </div>
-                    {upcomingExams.length > 0 && (
-                      <button className="mt-6 md:mt-0 relative z-10 bg-white text-blue-700 px-6 py-2.5 rounded-lg font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2">
-                        <span className="material-symbols-outlined">badge</span>
-                        Admit Card
-                      </button>
-                    )}
+                    {/* Admit Cards Actions & Multi-Exam Status */}
+                    <div className="mt-6 md:mt-0 relative z-10 flex flex-col gap-2 max-w-sm w-full">
+                      {myAdmitCards && myAdmitCards.length > 0 ? (
+                        myAdmitCards.map((card) => {
+                          const isReleased = card.status === 'released';
+                          const isWithheld = card.status === 'withheld';
+                          return (
+                            <div key={card.examId} className="bg-white/15 backdrop-blur-md p-3 rounded-xl border border-white/20 flex items-center justify-between gap-3 text-white">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-bold truncate">{card.examName}</div>
+                                <div className="text-[11px] text-indigo-200 mt-0.5">
+                                  {isReleased && <span className="text-emerald-300 font-bold">✓ Released</span>}
+                                  {isWithheld && <span className="text-rose-300 font-bold">⚠ Withheld (Due: ₹{card.outstandingFee})</span>}
+                                  {!isReleased && !isWithheld && <span className="text-amber-200">Pending Release</span>}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {isReleased && card.cardData && (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setPreviewCardData(card.cardData);
+                                        setIsPreviewOpen(true);
+                                      }}
+                                      className="bg-white text-blue-900 px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-slate-100 transition-all cursor-pointer"
+                                      title="Preview Admit Card"
+                                    >
+                                      View
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const doc = generateSingleAdmitCardPDF(card.cardData);
+                                        doc.save(`AdmitCard_${student?.student_name || 'Student'}_${card.examName}.pdf`.replace(/\s+/g, '_'));
+                                      }}
+                                      className="bg-emerald-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-all cursor-pointer"
+                                      title="Download PDF"
+                                    >
+                                      PDF
+                                    </button>
+                                  </>
+                                )}
+                                {isWithheld && (
+                                  <button
+                                    onClick={() => setActiveTab('fees')}
+                                    className="bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                  >
+                                    Pay Dues
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-xs text-indigo-200 italic">No active examination admit cards issued</div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Exam Schedule Table Card */}
@@ -974,6 +1032,13 @@ function StudentPortal() {
           )}
         </main>
       </div>
+
+      {/* 1:1 Authentic Admit Card Preview Modal */}
+      <AdmitCardPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        cardData={previewCardData}
+      />
     </div>
   );
 }

@@ -101,16 +101,16 @@ function StudentPortal() {
     const fetchPortalData = async () => {
       try {
         const [gradesRes, noticesRes, coursesRes, assignmentsRes, feesRes, transactionsRes, upcomingExamsRes, udiseRes, admitCardsRes, notifRes] = await Promise.all([
-          axios.get(`${API_URL}/student-portal/grades`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/notices`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/courses`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/assignments`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/fees`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/transactions`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/upcoming-exams`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_URL}/student-portal/udise`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null })),
-          axios.get(`${API_URL}/admit-cards/student/my-cards`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: [] } })),
-          axios.get(`${API_URL}/student-portal/notifications`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { notifications: [], unreadCount: 0 } }))
+          axios.get(`${API_URL}/student-portal/grades?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/student-portal/notices?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/student-portal/courses?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/student-portal/assignments?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/student-portal/fees?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/student-portal/transactions?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/student-portal/upcoming-exams?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+          axios.get(`${API_URL}/student-portal/udise?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null })),
+          axios.get(`${API_URL}/admit-cards/student/my-cards?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: [] } })),
+          axios.get(`${API_URL}/student-portal/notifications?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { notifications: [], unreadCount: 0 } }))
         ]);
 
         setNotifications(notifRes?.data?.notifications || []);

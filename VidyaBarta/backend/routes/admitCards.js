@@ -801,7 +801,7 @@ router.get('/student/my-cards', protectStudent, async (req, res) => {
     // Fetch all exams for the student's school
     const { data: exams, error: exErr } = await supabase
       .from('exams')
-      .select('id, name, class_level, start_date, end_date, academic_year, status')
+      .select('id, name, class_level, start_date, end_date, status')
       .eq('school_id', student.school_id)
       .order('start_date', { ascending: false });
 

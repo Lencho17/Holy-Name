@@ -280,6 +280,11 @@ function App() {
         <Route path="dashboard" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
         <Route path="udise-form" element={<Suspense fallback={<SuspenseFallback />}><UdiseStudentForm /></Suspense>} />
         <Route path="student-udise-form" element={<Suspense fallback={<SuspenseFallback />}><UdiseStudentForm /></Suspense>} />
+        <Route path="admission" element={<Suspense fallback={<SuspenseFallback />}><Admission /></Suspense>} />
+        <Route path="admission/form" element={<Suspense fallback={<SuspenseFallback />}><AdmissionForm /></Suspense>} />
+        <Route path="admission/checkout/:refNum" element={<Suspense fallback={<SuspenseFallback />}><AdmissionCheckout /></Suspense>} />
+        <Route path="admission-tracker" element={<Suspense fallback={<SuspenseFallback />}><AdmissionTracker /></Suspense>} />
+        <Route path="payment-status" element={<Suspense fallback={<SuspenseFallback />}><PaymentStatus /></Suspense>} />
         
         <Route path="admin/*" element={<ProtectedRoute role="admin" />}>
           <Route path="*" element={<Suspense fallback={<SuspenseFallback />}><AdminPage /></Suspense>} />

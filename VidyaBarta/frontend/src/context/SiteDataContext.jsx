@@ -297,8 +297,8 @@ export const SiteDataProvider = ({ children }) => {
         
         const [res, classesRes, schoolClassesRes] = await Promise.all([
           axios.get(endpointUrl, { headers }),
-          axios.get(`${API_URL}/classes/global`, { headers }).catch(() => ({ data: [] })),
-          adminToken ? axios.get(`${API_URL}/classes/school`, { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
+          axios.get(`${API_URL}/classes/global?t=${Date.now()}`, { headers }).catch(() => ({ data: [] })),
+          adminToken ? axios.get(`${API_URL}/classes/school?t=${Date.now()}`, { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
         ]);
 
         if (classesRes && classesRes.data && Array.isArray(classesRes.data)) {

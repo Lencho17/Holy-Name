@@ -103,9 +103,12 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 };
-// Set Vary: Origin to prevent proxies/CDNs (e.g. Vercel) from caching CORS headers across multiple origins
+// Set Vary: Origin and disable cache on API CORS headers to prevent proxies/CDNs (e.g. Vercel) from caching CORS headers across multiple origins
 app.use((req, res, next) => {
   res.header('Vary', 'Origin');
+  res.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.header('Pragma', 'no-cache');
+  res.header('Expires', '0');
   next();
 });
 app.use(cors(corsOptions));

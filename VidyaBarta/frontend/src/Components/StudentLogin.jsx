@@ -23,7 +23,7 @@ function StudentLogin() {
   useEffect(() => {
     const fetchSchools = async () => {
       try {
-        const { data } = await axios.get(`${API_URL}/student-auth/schools`);
+        const { data } = await axios.get(`${API_URL}/student-auth/schools?t=${Date.now()}`);
         setSchools(data);
         if (data.length > 0) setSchoolId(data[0].id);
       } catch (error) {

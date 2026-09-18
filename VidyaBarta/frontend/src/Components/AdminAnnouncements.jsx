@@ -355,7 +355,7 @@ const AdminAnnouncements = ({ initialTab = 'school_broadcasts', onTabChange }) =
             }`}
           >
             <FaBuilding />
-            <span>VidyaBarta Platform Notices (From SuperAdmin)</span>
+            <span>VidyaBarta Notices</span>
             {unreadPlatformCount > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse">
                 {unreadPlatformCount} New
@@ -884,12 +884,12 @@ const AdminAnnouncements = ({ initialTab = 'school_broadcasts', onTabChange }) =
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-black text-gray-900 tracking-tight">VidyaBarta HQ Platform Notices</h2>
+                  <h2 className="text-2xl font-black text-gray-900 tracking-tight">VidyaBarta Notices</h2>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800 border border-purple-200">
                     Lifetime Archive
                   </span>
                 </div>
-                <p className="text-sm text-gray-500">Official platform advisories, maintenance updates, and release circulars from SuperAdmin.</p>
+                <p className="text-sm text-gray-500">Official advisories, maintenance updates, and circulars.</p>
               </div>
             </div>
 
@@ -967,15 +967,15 @@ const AdminAnnouncements = ({ initialTab = 'school_broadcasts', onTabChange }) =
           {platformLoading ? (
             <div className="p-16 text-center text-gray-400 bg-white rounded-3xl border border-gray-100">
               <FaSpinner className="animate-spin text-3xl mx-auto mb-3 text-indigo-500" />
-              <p className="font-bold text-gray-700">Loading VidyaBarta platform notices...</p>
+              <p className="font-bold text-gray-700">Loading VidyaBarta notices...</p>
             </div>
           ) : filteredPlatformNotices.length === 0 ? (
             <div className="p-16 text-center bg-white rounded-3xl border border-gray-100 text-gray-400 space-y-3">
               <FaBuilding className="text-4xl text-gray-300 mx-auto" />
-              <p className="font-bold text-gray-700 text-base">No Platform Notices Found</p>
+              <p className="font-bold text-gray-700 text-base">No VidyaBarta Notices Found</p>
               <p className="text-xs text-gray-500 max-w-md mx-auto">
                 {platformNotices.length === 0
-                  ? 'There are currently no platform-wide announcements from VidyaBarta HQ for your school.'
+                  ? 'There are currently no announcements from VidyaBarta for your school.'
                   : 'No notices match your search or filter criteria. Try clearing your filters.'}
               </p>
             </div>

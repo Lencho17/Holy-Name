@@ -92,12 +92,17 @@ async function getMatchingStudents(schoolId, filters = {}) {
 /**
  * Generate school announcement email HTML
  */
-function generateAnnouncementEmailHtml({ schoolName, studentName, title, message, category, priority, admissionId, grade }) {
+function generateAnnouncementEmailHtml({ schoolName, studentName, title, message, category, priority, admissionId, grade, portalUrl }) {
   const isUrgent = priority === 'Urgent' || priority === 'High';
   const headerColor = isUrgent ? '#DC2626' : '#2563EB';
   const badgeBg = isUrgent ? '#FEE2E2' : '#DBEAFE';
   const badgeColor = isUrgent ? '#991B1B' : '#1E40AF';
-  const portalUrl = process.env.CLIENT_URL || 'https://holynamehsschool.in';
+  
+  // Resolve clean public portalUrl (ensuring no internal vercel preview domains leak)
+  let cleanPortalUrl = (portalUrl || process.env.CLIENT_URL || 'https://vidyabarta.com').trim().replace(/\/$/, '');
+  if (cleanPortalUrl.includes('vercel.app')) {
+    cleanPortalUrl = 'https://vidyabarta.com';
+  }
 
   return `
   <!DOCTYPE html>
@@ -155,7 +160,7 @@ ${message}
 
         <!-- CTA Button -->
         <div style="text-align: center; margin: 32px 0 16px;">
-          <a href="${portalUrl}/student-login" style="display: inline-block; background-color: ${headerColor}; color: #FFFFFF; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+          <a href="${cleanPortalUrl}/student-login" style="display: inline-block; background-color: ${headerColor}; color: #FFFFFF; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
             Access Student Portal &rarr;
           </a>
         </div>
@@ -343,6 +348,17 @@ exports.createAnnouncement = async (req, res) => {
       const emailRecipients = matchedStudents.filter(s => s.email && s.email.includes('@'));
       emailSkippedCount = matchedStudents.length - emailRecipients.length;
 
+      // Determine canonical portal URL for student email CTA
+      let canonicalPortalUrl = 'https://vidyabarta.com';
+      const origin = req.headers?.origin || (req.headers?.referer ? new URL(req.headers.referer).origin : null);
+      if (origin && origin.includes('vidyabarta.com')) {
+        canonicalPortalUrl = 'https://vidyabarta.com';
+      } else if (origin && !origin.includes('vercel.app') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+        canonicalPortalUrl = origin;
+      } else if (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('vercel.app') && !process.env.CLIENT_URL.includes('localhost')) {
+        canonicalPortalUrl = process.env.CLIENT_URL.trim().replace(/\/$/, '');
+      }
+
       // Send emails concurrently in batches of 5 to respect rate limits
       for (let i = 0; i < emailRecipients.length; i += 5) {
         const batch = emailRecipients.slice(i, i + 5);
@@ -357,7 +373,8 @@ exports.createAnnouncement = async (req, res) => {
                 category,
                 priority,
                 admissionId: student.admission_id,
-                grade: student.grade
+                grade: student.grade,
+                portalUrl: canonicalPortalUrl
               });
 
               await sendEmail({

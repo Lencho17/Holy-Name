@@ -244,6 +244,12 @@ function App() {
   const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
   const hasTestDomain = localStorage.getItem('test_domain') !== null;
   const isSuperAdminPath = window.location.pathname.startsWith('/superadmin');
+
+  // Canonical domain redirect: ensure traffic hitting temporary Vercel preview domains redirects to production vidyabarta.com
+  if (typeof window !== 'undefined' && (hostname === 'vidyabarta20.vercel.app' || hostname === 'vidyabarta.vercel.app')) {
+    window.location.replace(`https://vidyabarta.com${window.location.pathname}${window.location.search}${window.location.hash}`);
+    return null;
+  }
   
   // Determine if we should show the SaaS Landing Page
   // We show SaaS if domain is vidyabarta.com OR www.vidyabarta.com OR (localhost without test_domain)
@@ -266,6 +272,14 @@ function App() {
         {/* Universal Central Login */}
         <Route path="login" element={<Suspense fallback={<SuspenseFallback />}><Login /></Suspense>} />
         <Route path="staff-signup" element={<Suspense fallback={<SuspenseFallback />}><StaffSignUp /></Suspense>} />
+        
+        {/* Student Portal Central Routes */}
+        <Route path="student-login" element={<Suspense fallback={<SuspenseFallback />}><StudentLogin /></Suspense>} />
+        <Route path="student-portal" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
+        <Route path="student/*" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
+        <Route path="dashboard" element={<Suspense fallback={<SuspenseFallback />}><StudentPortal /></Suspense>} />
+        <Route path="udise-form" element={<Suspense fallback={<SuspenseFallback />}><UdiseStudentForm /></Suspense>} />
+        <Route path="student-udise-form" element={<Suspense fallback={<SuspenseFallback />}><UdiseStudentForm /></Suspense>} />
         
         <Route path="admin/*" element={<ProtectedRoute role="admin" />}>
           <Route path="*" element={<Suspense fallback={<SuspenseFallback />}><AdminPage /></Suspense>} />

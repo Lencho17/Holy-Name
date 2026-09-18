@@ -901,13 +901,8 @@ function StudentPortal() {
                       <span className="material-symbols-outlined text-2xl">campaign</span>
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Announcements & Notices</h2>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          Lifetime Archive
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-500">Permanent record of all school broadcasts, academic notices, circulars, and fee alerts.</p>
+                      <h2 className="text-2xl font-black text-gray-900 tracking-tight">Announcements & Notices</h2>
+                      <p className="text-sm text-gray-500">Official school broadcasts, academic notices, circulars, and fee alerts.</p>
                     </div>
                   </div>
 
@@ -937,7 +932,7 @@ function StudentPortal() {
                 {/* Filter Pills */}
                 <div className="flex flex-wrap items-center gap-2 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60">
                   {[
-                    { id: 'all', label: `All Lifetime (${notifications.length})` },
+                    { id: 'all', label: `All (${notifications.length})` },
                     { id: 'unread', label: `Unread (${unreadNotifCount})` },
                     { id: 'fees', label: 'Fee Notices' },
                     { id: 'academic', label: 'Academic' },

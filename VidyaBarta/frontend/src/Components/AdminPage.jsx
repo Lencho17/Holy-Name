@@ -9060,7 +9060,7 @@ function AdminPage() {
                         }}
                         className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center justify-center gap-1.5 w-full"
                       >
-                        <span>Open Lifetime Platform Archive ({schoolNotifications.length})</span>
+                        <span>Open VidyaBarta Notices ({schoolNotifications.length})</span>
                         <span>&rarr;</span>
                       </button>
                     </div>

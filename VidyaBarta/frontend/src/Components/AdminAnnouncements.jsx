@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   FaBullhorn, FaTrash, FaEnvelope, FaBell, FaUsers, FaExclamationTriangle, 
   FaCheckCircle, FaSearch, FaFilter, FaPaperPlane, FaMagic, FaEye, FaTimes, FaSpinner,
-  FaCheckSquare, FaSquare, FaCheck, FaBuilding, FaExternalLinkAlt, FaInfoCircle, FaShieldAlt, FaCalendarAlt
+  FaCheckSquare, FaSquare, FaCheck, FaBuilding, FaExternalLinkAlt, FaInfoCircle, FaCalendarAlt
 } from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -365,12 +365,6 @@ const AdminAnnouncements = ({ initialTab = 'school_broadcasts', onTabChange }) =
               ({platformNotices.length})
             </span>
           </button>
-        </div>
-
-        {/* Lifetime Guarantee Pill */}
-        <div className="hidden md:flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-4 py-2 rounded-2xl font-semibold">
-          <FaShieldAlt className="text-emerald-600" />
-          <span>Lifetime Archive: Kept Forever</span>
         </div>
       </div>
 
@@ -756,9 +750,6 @@ const AdminAnnouncements = ({ initialTab = 'school_broadcasts', onTabChange }) =
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-black text-gray-900">Broadcast Archive</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    Lifetime
-                  </span>
                 </div>
                 <span className="text-xs font-bold text-gray-400">{announcements.length} Total Broadcasts</span>
               </div>
@@ -883,12 +874,7 @@ const AdminAnnouncements = ({ initialTab = 'school_broadcasts', onTabChange }) =
                 <FaBuilding size={26} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-black text-gray-900 tracking-tight">VidyaBarta Notices</h2>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800 border border-purple-200">
-                    Lifetime Archive
-                  </span>
-                </div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">VidyaBarta Notices</h2>
                 <p className="text-sm text-gray-500">Official advisories, maintenance updates, and circulars.</p>
               </div>
             </div>
@@ -1145,12 +1131,6 @@ const AdminAnnouncements = ({ initialTab = 'school_broadcasts', onTabChange }) =
                 </div>
               )}
 
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold flex items-center gap-2">
-                <FaShieldAlt className="text-emerald-600 flex-shrink-0" />
-                <span>
-                  <strong>Lifetime Retention:</strong> This official announcement remains permanently archived in your school's VidyaBarta records.
-                </span>
-              </div>
             </div>
 
             <div className="p-4 border-t border-gray-100 bg-gray-50 text-right">

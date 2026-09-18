@@ -1654,3 +1654,4 @@ export const GlobalClasses = () => {
 };
 
 export { default as DefaultExams } from './DefaultExams';
+export { default as SuperAdminAnnouncements } from './SuperAdminAnnouncements';

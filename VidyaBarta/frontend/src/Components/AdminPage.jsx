@@ -21,7 +21,7 @@ import AdminPayroll from './AdminPayroll';
 import AdminAnnouncements from './AdminAnnouncements';
 import StudentProfileViewer from './StudentProfileViewer';
 import SchoolAdminsManager from './SchoolAdminsManager';
-import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn, FaPaperPlane, FaDatabase, FaTree, FaLayerGroup } from 'react-icons/fa';
+import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn, FaPaperPlane, FaDatabase, FaTree, FaLayerGroup, FaBell } from 'react-icons/fa';
 import ExamManagement from './ExamManagement';
 import AdmitCardPanel from './AdmitCardPanel';
 import ResultsPortal from './ResultsPortal';
@@ -189,6 +189,57 @@ function AdminPage() {
 
   // --- Auth & Role ---
   const [adminUser, setAdminUser] = useState(null);
+
+  // --- Platform Notifications from SaaS SuperAdmin ---
+  const [schoolNotifications, setSchoolNotifications] = useState([]);
+  const [unreadSchoolNotifCount, setUnreadSchoolNotifCount] = useState(0);
+  const [isPlatformNotifOpen, setIsPlatformNotifOpen] = useState(false);
+  const [activePlatformBanner, setActivePlatformBanner] = useState(null);
+  const [selectedPlatformNotifModal, setSelectedPlatformNotifModal] = useState(null);
+
+  const fetchSchoolNotifications = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+      const res = await axios.get(`${API_URL}/system/school-notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const list = res.data?.notifications || [];
+      setSchoolNotifications(list);
+      setUnreadSchoolNotifCount(res.data?.unreadCount || 0);
+      const critical = list.find(n => !n.is_read && (n.priority === 'Critical' || n.priority === 'Important'));
+      setActivePlatformBanner(critical || null);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    fetchSchoolNotifications();
+  }, []);
+
+  const handleMarkSchoolNotifRead = async (id) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${API_URL}/system/school-notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSchoolNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      setUnreadSchoolNotifCount(prev => Math.max(0, prev - 1));
+      if (activePlatformBanner?.id === id) setActivePlatformBanner(null);
+    } catch (e) {}
+  };
+
+  const handleMarkAllSchoolNotifRead = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${API_URL}/system/school-notifications/mark-all-read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSchoolNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadSchoolNotifCount(0);
+      setActivePlatformBanner(null);
+    } catch (e) {}
+  };
+
   const [admins, setAdmins] = useState([]);
   const [pendingStaff, setPendingStaff] = useState([]);
   const [students, setStudents] = useState([]);
@@ -8913,7 +8964,97 @@ function AdminPage() {
           
           <div className="flex-1" />
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 sm:gap-6">
+            
+            {/* SaaS SuperAdmin Platform Notification Bell */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsPlatformNotifOpen(!isPlatformNotifOpen)}
+                className="relative p-2.5 rounded-xl text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors focus:outline-none"
+                title="VidyaBarta Platform Alerts"
+              >
+                <FaBell size={18} />
+                {unreadSchoolNotifCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-pulse">
+                    {unreadSchoolNotifCount > 9 ? '9+' : unreadSchoolNotifCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Platform Announcements Flyout */}
+              {isPlatformNotifOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setIsPlatformNotifOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-scale-in">
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-gray-900 text-sm">Platform Broadcasts</span>
+                        <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                          VidyaBarta SaaS
+                        </span>
+                      </div>
+                      {unreadSchoolNotifCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllSchoolNotifRead}
+                          className="text-xs font-bold text-blue-600 hover:underline"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                      {schoolNotifications.length === 0 ? (
+                        <div className="text-center py-10 px-4 text-gray-400">
+                          <FaBullhorn className="text-3xl mx-auto mb-2 opacity-40 text-gray-400" />
+                          <p className="text-xs font-semibold">No platform broadcasts right now.</p>
+                        </div>
+                      ) : (
+                        schoolNotifications.slice(0, 10).map(n => {
+                          const isCritical = n.priority === 'Critical' || n.priority === 'Urgent';
+                          return (
+                            <div
+                              key={n.id}
+                              onClick={() => {
+                                setSelectedPlatformNotifModal(n);
+                                setIsPlatformNotifOpen(false);
+                                if (!n.is_read) handleMarkSchoolNotifRead(n.id);
+                              }}
+                              className={`p-4 hover:bg-slate-50 cursor-pointer transition-colors ${
+                                !n.is_read ? 'bg-blue-50/40' : ''
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1 mb-1">
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                  isCritical ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {n.category || 'Platform Notice'}
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(n.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                </span>
+                              </div>
+                              <p className={`text-xs ${!n.is_read ? 'font-black text-gray-900' : 'font-semibold text-gray-700'}`}>
+                                {n.title}
+                              </p>
+                              <p className="text-[11px] text-gray-500 line-clamp-2 mt-1 leading-relaxed">
+                                {n.message}
+                              </p>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
                 <p className="text-body-sm font-semibold text-neutral">{adminUser?.name || 'Admin User'}</p>
@@ -8933,6 +9074,47 @@ function AdminPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-slate-50">
+
+          {/* Urgent Platform Alert Banner from SuperAdmin */}
+          {activePlatformBanner && (
+            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-indigo-700 text-white shadow-lg flex items-center justify-between gap-4 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
+                  <FaBullhorn />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-white/25 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
+                      Platform Announcement
+                    </span>
+                    <span className="text-xs font-bold text-white/90">
+                      {activePlatformBanner.title}
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/80 line-clamp-1 mt-0.5">
+                    {activePlatformBanner.message}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlatformNotifModal(activePlatformBanner)}
+                  className="px-3.5 py-1.5 bg-white text-red-600 text-xs font-black rounded-xl hover:bg-white/90 shadow-sm"
+                >
+                  View Details
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMarkSchoolNotifRead(activePlatformBanner.id)}
+                  className="text-white/80 hover:text-white p-1 text-xs"
+                  title="Dismiss Banner"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'dashboard' && renderDashboard()}
 
@@ -11187,6 +11369,65 @@ function AdminPage() {
       onConfirm={handleConfirmDeleteStudent}
       onCancel={() => !isDeletingStudent && setStudentToDelete(null)}
     />
+
+    {/* Platform Announcement Detail Modal */}
+    {selectedPlatformNotifModal && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-scale-in">
+          <div className={`p-6 text-white ${
+            selectedPlatformNotifModal.priority === 'Critical' || selectedPlatformNotifModal.priority === 'Urgent'
+              ? 'bg-gradient-to-r from-red-600 to-rose-700'
+              : 'bg-gradient-to-r from-blue-700 to-indigo-800'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full">
+                {selectedPlatformNotifModal.category || 'Platform Notice'}
+              </span>
+              <span className="text-xs text-white/80">
+                {new Date(selectedPlatformNotifModal.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
+            </div>
+            <h3 className="text-xl font-black text-white leading-snug">
+              {selectedPlatformNotifModal.title}
+            </h3>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+              {selectedPlatformNotifModal.message}
+            </div>
+
+            {selectedPlatformNotifModal.action_url && (
+              <div className="text-center pt-2">
+                <a
+                  href={selectedPlatformNotifModal.action_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block px-5 py-2.5 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  {selectedPlatformNotifModal.action_label || 'View Resource'} &rarr;
+                </a>
+              </div>
+            )}
+
+            <div className="text-xs text-gray-400 flex items-center justify-between pt-2 border-t border-gray-100">
+              <span>VidyaBarta SaaS Platform</span>
+              <span>Official System Broadcast</span>
+            </div>
+          </div>
+
+          <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setSelectedPlatformNotifModal(null)}
+              className="px-6 py-2.5 bg-gray-200 text-gray-800 font-bold text-xs rounded-xl hover:bg-gray-300 transition-colors shadow-sm"
+            >
+              Close Notice
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
   </div>
   );

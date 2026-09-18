@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { 
   FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, 
-  FiDollarSign, FiUsers, FiSettings, FiMonitor, FiChevronDown, FiMenu, FiGlobe, FiBook, FiCalendar
+  FiDollarSign, FiUsers, FiSettings, FiMonitor, FiChevronDown, FiMenu, FiGlobe, FiBook, FiCalendar, FiBell
 } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
 
@@ -110,6 +110,7 @@ const SuperAdminLayout = () => {
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
           <SidebarItem to="/superadmin" icon={FiHome} label="Dashboard" />
           <SidebarItem to="/superadmin/schools" icon={FiBriefcase} label="Schools" />
+          <SidebarItem to="/superadmin/announcements" icon={FiBell} label="School Broadcasts" />
           <SidebarItem to="/superadmin/pricing" icon={FiCreditCard} label="Pricing Plans" />
           <SidebarItem to="/superadmin/packages" icon={FiBox} label="Package" />
           <SidebarItem to="/superadmin/subscription" icon={FiCreditCard} label="Subscription" />

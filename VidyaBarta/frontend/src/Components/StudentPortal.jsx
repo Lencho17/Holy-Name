@@ -43,12 +43,64 @@ function StudentPortal() {
   const [grievanceForm, setGrievanceForm] = useState({ exam_id: '', subject: '', complaint: '' });
   const [expandedMenu, setExpandedMenu] = useState('timetable_group');
 
+  // In-Site Notifications State
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState(false);
+  const [selectedNotifModal, setSelectedNotifModal] = useState(null);
+  const [noticeCategoryFilter, setNoticeCategoryFilter] = useState('all');
+  const [announcementSearch, setAnnouncementSearch] = useState('');
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/student-portal/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(res.data.notifications || []);
+      setUnreadNotifCount(res.data.unreadCount || 0);
+    } catch (e) {
+      console.error('Failed to load notifications', e);
+    }
+  };
+
+  const handleMarkNotificationRead = async (id) => {
+    try {
+      await axios.put(`${API_URL}/student-portal/notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      setUnreadNotifCount(prev => Math.max(0, prev - 1));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await axios.put(`${API_URL}/student-portal/notifications/mark-all-read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadNotifCount(0);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOpenNotification = (notif) => {
+    setSelectedNotifModal(notif);
+    setIsNotifDropdownOpen(false);
+    if (!notif.is_read) {
+      handleMarkNotificationRead(notif.id);
+    }
+  };
+
   useEffect(() => {
     if (!token) return;
 
     const fetchPortalData = async () => {
       try {
-        const [gradesRes, noticesRes, coursesRes, assignmentsRes, feesRes, transactionsRes, upcomingExamsRes, udiseRes, admitCardsRes] = await Promise.all([
+        const [gradesRes, noticesRes, coursesRes, assignmentsRes, feesRes, transactionsRes, upcomingExamsRes, udiseRes, admitCardsRes, notifRes] = await Promise.all([
           axios.get(`${API_URL}/student-portal/grades`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/notices`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/courses`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -57,8 +109,12 @@ function StudentPortal() {
           axios.get(`${API_URL}/student-portal/transactions`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/upcoming-exams`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_URL}/student-portal/udise`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: null })),
-          axios.get(`${API_URL}/admit-cards/student/my-cards`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: [] } }))
+          axios.get(`${API_URL}/admit-cards/student/my-cards`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { data: [] } })),
+          axios.get(`${API_URL}/student-portal/notifications`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { notifications: [], unreadCount: 0 } }))
         ]);
+
+        setNotifications(notifRes?.data?.notifications || []);
+        setUnreadNotifCount(notifRes?.data?.unreadCount || 0);
         
         const gradesData = Array.isArray(gradesRes.data) ? gradesRes.data : [];
         const uniqueExamIds = [...new Set(gradesData.map(g => g.exam_id))];
@@ -240,7 +296,7 @@ function StudentPortal() {
               { id: 'profile', icon: 'person', label: 'My Profile', disabled: mustPayReadmission },
               { id: 'courses', icon: 'menu_book', label: 'Courses', disabled: mustPayReadmission },
               { id: 'fees', icon: 'payments', label: 'Fees' },
-              { id: 'notices', icon: 'notifications', label: 'Notices', disabled: mustPayReadmission },
+              { id: 'notices', icon: 'campaign', label: 'Announcements', badge: unreadNotifCount, disabled: mustPayReadmission },
               { id: 'timetable_group', icon: 'calendar_month', label: 'Timetable', disabled: mustPayReadmission, subItems: [
                 { id: 'timetable', label: 'Class Timetable' },
                 { id: 'exam_timetable', label: 'Exam Time Table' }
@@ -268,11 +324,18 @@ function StudentPortal() {
                     <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                     <span>{item.label}</span>
                   </div>
-                  {item.subItems && (
-                    <span className={`material-symbols-outlined text-[18px] transition-transform ${expandedMenu === item.id ? 'rotate-180' : ''}`}>
-                      expand_more
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {item.badge > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-600 text-white shadow-xs">
+                        {item.badge}
+                      </span>
+                    )}
+                    {item.subItems && (
+                      <span className={`material-symbols-outlined text-[18px] transition-transform ${expandedMenu === item.id ? 'rotate-180' : ''}`}>
+                        expand_more
+                      </span>
+                    )}
+                  </div>
                 </a>
                 {item.subItems && expandedMenu === item.id && (
                   <div className="ml-9 mt-1 flex flex-col gap-1">
@@ -339,9 +402,112 @@ function StudentPortal() {
             <h2 className="font-bold text-gray-800 mr-4 hidden md:block bg-gray-50 px-4 py-1.5 rounded-full border border-gray-200 shadow-sm text-sm">
               {schoolProfile?.name || 'VidyaBarta Platform'}
             </h2>
-            <button className={`${glassButton} rounded-full p-2.5 flex items-center justify-center text-gray-600 hover:text-indigo-600`}>
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-            </button>
+            
+            {/* Notification Bell Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotifDropdownOpen(!isNotifDropdownOpen)}
+                className={`${glassButton} relative rounded-full p-2.5 flex items-center justify-center text-gray-600 hover:text-indigo-600 focus:outline-none transition-colors`}
+                title="Notifications"
+              >
+                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-pulse">
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Popover Dropdown */}
+              {isNotifDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsNotifDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-scale-in">
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/70">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-gray-900 text-sm">Notifications</span>
+                        {unreadNotifCount > 0 && (
+                          <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {unreadNotifCount} new
+                          </span>
+                        )}
+                      </div>
+                      {unreadNotifCount > 0 && (
+                        <button
+                          onClick={handleMarkAllNotificationsRead}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                      {notifications.length === 0 ? (
+                        <div className="text-center py-10 px-4 text-gray-400">
+                          <span className="material-symbols-outlined text-4xl mb-1 opacity-40">notifications_off</span>
+                          <p className="text-xs font-medium">No notifications yet</p>
+                        </div>
+                      ) : (
+                        notifications.slice(0, 8).map(n => (
+                          <div
+                            key={n.id}
+                            onClick={() => handleOpenNotification(n)}
+                            className={`p-3.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3 ${
+                              !n.is_read ? 'bg-blue-50/30' : ''
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold ${
+                              n.priority === 'Urgent' 
+                                ? 'bg-red-100 text-red-600' 
+                                : n.category === 'Fee Reminder'
+                                ? 'bg-amber-100 text-amber-600'
+                                : 'bg-blue-100 text-blue-600'
+                            }`}>
+                              <span className="material-symbols-outlined text-[16px]">
+                                {n.priority === 'Urgent' ? 'warning' : n.category === 'Fee Reminder' ? 'payments' : 'info'}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1 mb-0.5">
+                                <p className={`text-xs truncate ${!n.is_read ? 'font-black text-gray-900' : 'font-semibold text-gray-700'}`}>
+                                  {n.title}
+                                </p>
+                                {!n.is_read && (
+                                  <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed">
+                                {n.message}
+                              </p>
+                              <span className="text-[10px] text-gray-400 mt-1 block">
+                                {new Date(n.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
+                      <button
+                        onClick={() => {
+                          setIsNotifDropdownOpen(false);
+                          setActiveTab('notices');
+                        }}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                      >
+                        View All Announcements &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <button className={`${glassButton} rounded-full p-2.5 flex items-center justify-center text-gray-600 hover:text-indigo-600`}>
               <span className="material-symbols-outlined text-[20px]">settings</span>
             </button>
@@ -557,25 +723,67 @@ function StudentPortal() {
               {/* Bento Dashboard Grid */}
               <div className="grid grid-cols-12 gap-6">
                 
-                {/* Recent Announcements */}
+                {/* Recent Announcements (Lifetime Archive) */}
                 <div className={`col-span-12 md:col-span-4 ${glassCard} p-6 flex flex-col`}>
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-gray-800 text-lg">Announcements</h3>
-                    <button onClick={() => setActiveTab('notices')} className="text-indigo-600 text-sm font-semibold hover:underline">View All</button>
+                  <div className="flex justify-between items-center mb-5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-gray-800 text-lg">Announcements</h3>
+                      {unreadNotifCount > 0 && (
+                        <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                          {unreadNotifCount} New
+                        </span>
+                      )}
+                    </div>
+                    <button onClick={() => setActiveTab('notices')} className="text-indigo-600 text-xs font-bold hover:underline flex items-center gap-1">
+                      View All &rarr;
+                    </button>
                   </div>
-                  <div className="flex flex-col gap-4 flex-1">
-                    {notices.length > 0 ? notices.slice(0, 3).map((notice, idx) => (
-                      <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow relative overflow-hidden group">
-                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${getBorderColorForNotice(idx).replace('border-', 'bg-')}`}></div>
-                        <p className="text-xs font-semibold text-gray-500 mb-1">
-                          {new Date(notice.date || notice.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
-                        </p>
-                        <p className="text-sm text-gray-800 font-bold leading-tight group-hover:text-indigo-700 transition-colors">{notice.title}</p>
-                      </div>
-                    )) : (
+                  <div className="flex flex-col gap-3 flex-1">
+                    {notifications.length > 0 ? (
+                      notifications.slice(0, 3).map((n) => {
+                        const isUrgent = n.priority === 'Urgent';
+                        return (
+                          <div 
+                            key={n.id} 
+                            onClick={() => handleOpenNotification(n)}
+                            className="p-3.5 bg-gray-50/90 hover:bg-blue-50/50 rounded-xl border border-gray-100 hover:border-blue-200 transition-all cursor-pointer relative overflow-hidden group"
+                          >
+                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                              isUrgent ? 'bg-red-500' : n.category === 'Fee Reminder' ? 'bg-amber-500' : 'bg-blue-600'
+                            }`} />
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">
+                                {n.category || 'Announcement'}
+                              </span>
+                              <span className="text-[11px] font-semibold text-gray-400">
+                                {new Date(n.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-800 font-bold leading-tight group-hover:text-blue-700 transition-colors line-clamp-1">
+                              {n.title}
+                            </p>
+                            {!n.is_read && (
+                              <span className="inline-block mt-1 text-[9px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded">
+                                New
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : notices.length > 0 ? (
+                      notices.slice(0, 3).map((notice, idx) => (
+                        <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow relative overflow-hidden group">
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${getBorderColorForNotice(idx).replace('border-', 'bg-')}`}></div>
+                          <p className="text-xs font-semibold text-gray-500 mb-1">
+                            {new Date(notice.date || notice.created_at).toLocaleDateString('en-GB').replace(/\//g, '-')}
+                          </p>
+                          <p className="text-sm text-gray-800 font-bold leading-tight group-hover:text-indigo-700 transition-colors">{notice.title}</p>
+                        </div>
+                      ))
+                    ) : (
                       <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-6">
                         <span className="material-symbols-outlined text-4xl mb-2 opacity-50">campaign</span>
-                        <p className="text-sm">No recent announcements.</p>
+                        <p className="text-sm">No announcements yet.</p>
                       </div>
                     )}
                   </div>
@@ -633,39 +841,180 @@ function StudentPortal() {
               </div>
             </>
           ) : activeTab === 'notices' ? (
-            <div className={`${glassCard} p-8 min-h-[600px]`}>
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-2xl">campaign</span>
+            <div className={`${glassCard} p-6 sm:p-8 min-h-[600px] space-y-6`}>
+              {/* Header with Lifetime Archive Stats */}
+              <div className="flex flex-col gap-4 border-b border-gray-100 pb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+                      <span className="material-symbols-outlined text-2xl">campaign</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Announcements & Notices</h2>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          Lifetime Archive
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500">Permanent record of all school broadcasts, academic notices, circulars, and fee alerts.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                    {/* Search Bar */}
+                    <div className="relative flex-1 sm:w-64">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                      <input 
+                        type="text" 
+                        value={announcementSearch}
+                        onChange={(e) => setAnnouncementSearch(e.target.value)}
+                        placeholder="Search announcements..." 
+                        className="w-full pl-9 pr-8 py-2 bg-slate-100/80 hover:bg-slate-100 focus:bg-white text-xs font-semibold text-gray-800 rounded-xl border border-slate-200/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                      />
+                      {announcementSearch && (
+                        <button 
+                          onClick={() => setAnnouncementSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Notice Board</h2>
-                  <p className="text-sm text-gray-500">Official communications and announcements.</p>
+
+                {/* Filter Pills */}
+                <div className="flex flex-wrap items-center gap-2 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60">
+                  {[
+                    { id: 'all', label: `All Lifetime (${notifications.length})` },
+                    { id: 'unread', label: `Unread (${unreadNotifCount})` },
+                    { id: 'fees', label: 'Fee Notices' },
+                    { id: 'academic', label: 'Academic' },
+                    { id: 'school', label: 'School Circulars' }
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setNoticeCategoryFilter(f.id)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        noticeCategoryFilter === f.id
+                          ? 'bg-white text-blue-700 shadow-sm border border-gray-200'
+                          : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-              
+
+              {/* Announcements & Notifications Section */}
               <div className="space-y-4">
-                {notices.map((notice, idx) => (
-                  <div key={idx} className="p-5 bg-white border border-gray-200 rounded-xl hover:shadow-sm transition-all group relative overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                {/* 1. Student Targeted In-Site Announcements */}
+                {notifications
+                  .filter(n => {
+                    if (noticeCategoryFilter === 'unread') return !n.is_read;
+                    if (noticeCategoryFilter === 'fees') return n.category === 'Fee Reminder';
+                    if (noticeCategoryFilter === 'academic') return n.category === 'Academic';
+                    if (noticeCategoryFilter === 'school') return false; // Show only school notices
+                    if (announcementSearch.trim()) {
+                      const q = announcementSearch.toLowerCase().trim();
+                      const titleMatch = n.title?.toLowerCase().includes(q);
+                      const msgMatch = n.message?.toLowerCase().includes(q);
+                      const catMatch = n.category?.toLowerCase().includes(q);
+                      if (!titleMatch && !msgMatch && !catMatch) return false;
+                    }
+                    return true;
+                  })
+                  .map((n) => {
+                    const isUrgent = n.priority === 'Urgent';
+                    const isFee = n.category === 'Fee Reminder';
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => handleOpenNotification(n)}
+                        className={`p-5 rounded-2xl border transition-all cursor-pointer group relative overflow-hidden ${
+                          !n.is_read
+                            ? 'bg-blue-50/40 border-blue-200 shadow-sm hover:border-blue-300'
+                            : 'bg-white border-gray-200 hover:shadow-md'
+                        }`}
+                      >
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                          isUrgent ? 'bg-red-500' : isFee ? 'bg-amber-500' : 'bg-blue-500'
+                        }`} />
+
+                        <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                              isUrgent 
+                                ? 'bg-red-100 text-red-700' 
+                                : isFee 
+                                ? 'bg-amber-100 text-amber-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {n.category || 'Announcement'}
+                            </span>
+                            {isUrgent && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-red-600 text-white flex items-center gap-1">
+                                ⚠️ URGENT
+                              </span>
+                            )}
+                            {!n.is_read && (
+                              <span className="bg-blue-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                New
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs font-semibold text-gray-500">
+                            {new Date(n.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+
+                        <h3 className="text-base font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-1.5">
+                          {n.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap line-clamp-3">
+                          {n.message}
+                        </p>
+
+                        <div className="mt-3 flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
+                          <span className="font-semibold text-gray-500">From: School Administration</span>
+                          <span className="text-indigo-600 font-bold group-hover:underline flex items-center gap-1">
+                            Read Full Message &rarr;
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {/* 2. School Wide General Circulars (if filter allows) */}
+                {noticeCategoryFilter !== 'unread' && noticeCategoryFilter !== 'fees' && notices.map((notice, idx) => (
+                  <div key={`notice-${idx}`} className="p-5 bg-white border border-gray-200 rounded-2xl hover:shadow-sm transition-all group relative overflow-hidden">
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-400 opacity-60" />
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{notice.title}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-700">
+                          Official Circular
+                        </span>
+                        <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{notice.title}</h3>
+                      </div>
                       <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-3 py-1 rounded-full border border-gray-200">
-                        {new Date(notice.date || notice.created_at).toLocaleDateString('en-GB').replace(/\//g, '-').replace(/\//g, '-')}
+                        {new Date(notice.date || notice.created_at).toLocaleDateString('en-GB').replace(/\//g, '-')}
                       </span>
                     </div>
                     {notice.description && <p className="text-sm text-gray-600 mt-2 leading-relaxed">{notice.description}</p>}
                     {notice.pdf_link && (
-                      <a href={notice.pdf_link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 mt-4 text-sm text-indigo-600 font-bold hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors">
-                        <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span> View Document
+                      <a href={notice.pdf_link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 mt-3 text-xs text-indigo-600 font-bold hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100">
+                        <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span> Download Document
                       </a>
                     )}
                   </div>
                 ))}
-                {notices.length === 0 && (
+
+                {notifications.length === 0 && notices.length === 0 && (
                   <div className="text-center py-20 text-gray-400">
-                    <span className="material-symbols-outlined text-5xl mb-4 opacity-50">inbox</span>
-                    <p>No notices available right now.</p>
+                    <span className="material-symbols-outlined text-5xl mb-3 opacity-40">inbox</span>
+                    <p className="font-bold text-gray-600">No Announcements Available</p>
+                    <p className="text-xs text-gray-400 mt-1">You are all caught up with your school notifications.</p>
                   </div>
                 )}
               </div>
@@ -1039,6 +1388,54 @@ function StudentPortal() {
         onClose={() => setIsPreviewOpen(false)}
         cardData={previewCardData}
       />
+
+      {/* Notification Detail Modal */}
+      {selectedNotifModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-scale-in">
+            <div className={`p-6 text-white ${
+              selectedNotifModal.priority === 'Urgent'
+                ? 'bg-gradient-to-r from-red-600 to-rose-700'
+                : selectedNotifModal.category === 'Fee Reminder'
+                ? 'bg-gradient-to-r from-amber-600 to-orange-600'
+                : 'bg-gradient-to-r from-blue-600 to-indigo-700'
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full">
+                  {selectedNotifModal.category || 'Announcement'}
+                </span>
+                <span className="text-xs text-white/80">
+                  {new Date(selectedNotifModal.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+              <h3 className="text-xl font-black text-white leading-snug">
+                {selectedNotifModal.title}
+              </h3>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {selectedNotifModal.message}
+              </div>
+
+              <div className="text-xs text-gray-400 flex items-center justify-between pt-2">
+                <span>Official School Notice</span>
+                <span>Audience: Direct / Class Target</span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedNotifModal(null)}
+                className="px-6 py-2.5 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                Close Notice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

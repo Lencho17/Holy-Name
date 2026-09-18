@@ -153,4 +153,78 @@ router.post('/heartbeat', protectAnyUser, async (req, res) => {
   }
 });
 
+// ==================== SCHOOL ADMIN NOTIFICATIONS (FROM SAAS SUPERADMIN) ====================
+
+// GET /api/system/school-notifications
+// Get platform notifications for current school
+router.get('/school-notifications', protect, async (req, res) => {
+  try {
+    const schoolId = req.user?.school_id || null;
+    let query = supabase
+      .from('school_notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+
+    const { data: notifications, error } = await query;
+    if (error) throw error;
+
+    const unreadCount = (notifications || []).filter(n => !n.is_read).length;
+
+    res.json({
+      notifications: notifications || [],
+      unreadCount
+    });
+  } catch (error) {
+    console.error('[SCHOOL NOTIFICATIONS ERROR]:', error);
+    res.status(500).json({ message: 'Failed to fetch school notifications' });
+  }
+});
+
+// PUT /api/system/school-notifications/:id/read
+router.put('/school-notifications/:id/read', protect, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('school_notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ message: 'Marked as read', notification: data });
+  } catch (error) {
+    console.error('[MARK READ ERROR]:', error);
+    res.status(500).json({ message: 'Failed to mark as read' });
+  }
+});
+
+// PUT /api/system/school-notifications/mark-all-read
+router.put('/school-notifications/mark-all-read', protect, async (req, res) => {
+  try {
+    const schoolId = req.user?.school_id || null;
+    let query = supabase
+      .from('school_notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('is_read', false);
+
+    if (schoolId) {
+      query = query.eq('school_id', schoolId);
+    }
+
+    const { error } = await query;
+    if (error) throw error;
+
+    res.json({ message: 'All platform notifications marked as read' });
+  } catch (error) {
+    console.error('[MARK ALL READ ERROR]:', error);
+    res.status(500).json({ message: 'Failed to mark all as read' });
+  }
+});
+
 module.exports = router;
+

@@ -46,6 +46,8 @@ const classesRoutes = require('./routes/classes');
 const subjectsRoutes = require('./routes/subjects');
 const grievancesRoutes = require('./routes/grievances');
 const systemRoutes = require('./routes/system');
+const announcementsRoutes = require('./routes/announcements');
+const superadminAnnouncementsRoutes = require('./routes/superadminAnnouncements');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -179,6 +181,8 @@ app.use('/api/saas-settings', apiLimiter, saasSettingsRoutes);
 app.use('/api/bulk-upload', apiLimiter, bulkUploadRoutes);
 app.use('/api/holidays', apiLimiter, holidayRoutes);
 app.use('/api/system', apiLimiter, systemRoutes);
+app.use('/api/announcements', apiLimiter, announcementsRoutes);
+app.use('/api/superadmin/announcements', apiLimiter, superadminAnnouncementsRoutes);
 
 // Dynamic Favicon Route for Googlebot
 app.use('/api/favicon', require('./routes/favicon'));

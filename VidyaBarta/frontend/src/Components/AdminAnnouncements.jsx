@@ -1,23 +1,96 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import axios from 'axios';
-import { FaBullhorn, FaTrash } from 'react-icons/fa';
+import { 
+  FaBullhorn, FaTrash, FaEnvelope, FaBell, FaUsers, FaExclamationTriangle, 
+  FaCheckCircle, FaSearch, FaFilter, FaPaperPlane, FaMagic, FaEye, FaTimes, FaSpinner
+} from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
+
+const QUICK_TEMPLATES = [
+  {
+    label: 'Fee Payment Reminder',
+    category: 'Fee Reminder',
+    priority: 'High',
+    fee_status: 'due',
+    title: 'Urgent: School Fee Payment Pending',
+    message: 'Dear Student & Parents,\n\nThis is a gentle reminder that the school fees for the current academic session remain pending. Please clear all outstanding dues at the earliest via the Student Portal or the school accounts desk to ensure uninterrupted access to academic services.\n\nThank you for your cooperation.\nSchool Accounts Section'
+  },
+  {
+    label: 'Admission Fee Due',
+    category: 'Fee Reminder',
+    priority: 'High',
+    fee_status: 'admission_fee_pending',
+    title: 'Reminder: Complete Admission Fee Payment',
+    message: 'Dear Student & Parents,\n\nYour admission fee for the current academic year is currently recorded as unpaid. Please visit the Student Portal to complete your admission payment and verify your student profile.\n\nRegards,\nAdmissions Office'
+  },
+  {
+    label: 'Emergency Holiday Notice',
+    category: 'Holiday',
+    priority: 'Urgent',
+    fee_status: 'all',
+    title: 'Holiday Notice: School Remains Closed Tomorrow',
+    message: 'Dear Students & Parents,\n\nPlease be informed that the school shall remain closed tomorrow due to unavoidable circumstances / weather advisory. Regular classes will resume on the following working day as per regular timetable.\n\nRegards,\nPrincipal Office'
+  },
+  {
+    label: 'Upcoming Examination Schedule',
+    category: 'Academic',
+    priority: 'Normal',
+    fee_status: 'all',
+    title: 'Notice: Upcoming Term Examinations & Timetable',
+    message: 'Dear Students,\n\nThe upcoming term examination schedule has been officially finalized. Please check your Student Portal under "Upcoming Exams" and download your revised timetable. Ensure all preparation is on track.\n\nBest Wishes,\nAcademic Council'
+  }
+];
+
+const STANDARD_CLASSES = ['All', 'Nursery', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 const AdminAnnouncements = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ title: '', message: '', target_class: 'All' });
+  const [submitting, setSubmitting] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
+  const [classesList, setClassesList] = useState(STANDARD_CLASSES);
+
+  // Form State
+  const [form, setForm] = useState({
+    title: '',
+    message: '',
+    target_class: 'All',
+    target_section: 'All',
+    target_fee_status: 'all',
+    category: 'General',
+    priority: 'Normal',
+    channels: ['in_app', 'email']
+  });
+
+  // Selected individual student IDs (if specific)
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [studentSearchKeyword, setStudentSearchKeyword] = useState('');
+
+  // Live Recipient Preview State
+  const [previewData, setPreviewData] = useState({ totalCount: 0, emailReadyCount: 0, missingEmailCount: 0, students: [] });
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [selectedAnnouncementDetail, setSelectedAnnouncementDetail] = useState(null);
 
   useEffect(() => {
     fetchAnnouncements();
+    fetchClasses();
   }, []);
+
+  // Whenever filters change, update live recipient counter
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchRecipientPreview();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [form.target_class, form.target_section, form.target_fee_status, selectedStudentIds, studentSearchKeyword]);
 
   const fetchAnnouncements = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/staff/admin/announcements`, { headers: { Authorization: `Bearer ${token}` } });
-      setAnnouncements(res.data);
+      const res = await axios.get(`${API_URL}/announcements`, { headers: { Authorization: `Bearer ${token}` } });
+      setAnnouncements(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to fetch announcements', err);
     } finally {
@@ -25,124 +98,593 @@ const AdminAnnouncements = () => {
     }
   };
 
+  const fetchClasses = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/classes/school`);
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        const names = ['All', ...res.data.map(c => c.class_name || c.name)];
+        setClassesList([...new Set(names)]);
+      }
+    } catch (e) {
+      // Fallback to standard classes
+    }
+  };
+
+  const fetchRecipientPreview = async () => {
+    try {
+      setPreviewLoading(true);
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams({
+        class_level: form.target_class,
+        section: form.target_section,
+        fee_status: form.target_fee_status
+      });
+
+      if (studentSearchKeyword.trim()) {
+        params.append('search', studentSearchKeyword.trim());
+      }
+      if (selectedStudentIds.length > 0) {
+        params.append('student_ids', selectedStudentIds.join(','));
+      }
+
+      const res = await axios.get(`${API_URL}/announcements/preview-recipients?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPreviewData(res.data);
+    } catch (err) {
+      console.error('Failed to preview recipients', err);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleApplyTemplate = (tpl) => {
+    setForm(prev => ({
+      ...prev,
+      title: tpl.title,
+      message: tpl.message,
+      category: tpl.category,
+      priority: tpl.priority,
+      target_fee_status: tpl.fee_status
+    }));
+  };
+
+  const handleToggleChannel = (channel) => {
+    setForm(prev => {
+      const exists = prev.channels.includes(channel);
+      if (exists && prev.channels.length === 1) {
+        alert('At least one delivery channel must be selected.');
+        return prev;
+      }
+      return {
+        ...prev,
+        channels: exists ? prev.channels.filter(c => c !== channel) : [...prev.channels, channel]
+      };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.title.trim() || !form.message.trim()) {
+      return alert('Please enter both title and message.');
+    }
+
+    if (previewData.totalCount === 0) {
+      return alert('No students match the current criteria. Please broaden your filters.');
+    }
+
+    const confirmMsg = `Send announcement to ${previewData.totalCount} students?\n` +
+      `• In-App Notifications: ${form.channels.includes('in_app') ? 'Yes' : 'No'}\n` +
+      `• Email Broadcast: ${form.channels.includes('email') ? `${previewData.emailReadyCount} emails will be sent` : 'No'}`;
+
+    if (!window.confirm(confirmMsg)) return;
+
     try {
+      setSubmitting(true);
       const token = localStorage.getItem('adminToken');
-      await axios.post(`${API_URL}/staff/admin/announcements`, form, { headers: { Authorization: `Bearer ${token}` } });
-      alert('Announcement sent successfully!');
-      setForm({ title: '', message: '', target_class: 'All' });
+      const payload = {
+        ...form,
+        target_student_ids: selectedStudentIds
+      };
+
+      const res = await axios.post(`${API_URL}/announcements`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      alert(`Broadcast successful! Delivered to ${res.data.summary?.total_recipients || previewData.totalCount} students.`);
+      setForm({
+        title: '',
+        message: '',
+        target_class: 'All',
+        target_section: 'All',
+        target_fee_status: 'all',
+        category: 'General',
+        priority: 'Normal',
+        channels: ['in_app', 'email']
+      });
+      setSelectedStudentIds([]);
+      setStudentSearchKeyword('');
       fetchAnnouncements();
     } catch (err) {
-      alert('Failed to send announcement');
+      alert(err.response?.data?.message || 'Failed to send announcement');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this announcement?')) return;
+    if (!window.confirm('Delete this announcement and all associated student notifications?')) return;
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.delete(`${API_URL}/staff/admin/announcements/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(`${API_URL}/announcements/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       fetchAnnouncements();
     } catch (err) {
       alert('Failed to delete announcement');
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading announcements...</div>;
-
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="bg-yellow-100 p-3 rounded-lg text-yellow-600">
-          <FaBullhorn size={24} />
+    <div className="space-y-8 max-w-7xl mx-auto pb-16">
+      
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+            <FaBullhorn size={26} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight">School Broadcast Center</h2>
+            <p className="text-sm text-gray-500">Dispatch targeted in-site notifications and email announcements to students.</p>
+          </div>
         </div>
-        <h2 className="text-2xl font-bold text-gray-800">School Announcements</h2>
+
+        {/* Live Audience Counter Pill */}
+        <div className="flex items-center gap-3 bg-blue-50/80 border border-blue-100 px-4 py-2.5 rounded-2xl">
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+          <span className="text-sm font-bold text-blue-900">
+            {previewLoading ? (
+              <span className="flex items-center gap-1.5"><FaSpinner className="animate-spin text-xs" /> Calculating...</span>
+            ) : (
+              <span>Targeting <strong>{previewData.totalCount}</strong> Students</span>
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowPreviewModal(true)}
+            className="text-xs font-bold text-blue-700 hover:text-blue-800 underline ml-1"
+          >
+            Preview List
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">New Broadcast</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Target Audience</label>
-                <select 
-                  className="w-full p-3 border rounded-xl bg-gray-50"
-                  value={form.target_class}
-                  onChange={(e) => setForm({...form, target_class: e.target.value})}
+      {/* Main Grid: Composer on Left, History on Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Column: Broadcast Composer (7 cols) */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
+            
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                <FaPaperPlane className="text-blue-600 text-base" /> Compose Broadcast
+              </h3>
+              
+              {/* Quick Template Dropdown */}
+              <div className="relative inline-block text-left group">
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-xl transition-colors"
                 >
-                  <option value="All">All Staff & Classes</option>
-                  <option value="Staff Only">Staff Only</option>
-                  <option value="10-A">Class 10-A</option>
-                  <option value="10-B">Class 10-B</option>
-                  <option value="9-A">Class 9-A</option>
-                </select>
+                  <FaMagic className="text-amber-500 text-xs" /> Quick Templates
+                </button>
+                <div className="absolute right-0 mt-1 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 hidden group-hover:block z-20">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-3 py-1">Choose Template</p>
+                  {QUICK_TEMPLATES.map((tpl, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleApplyTemplate(tpl)}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Title</label>
-                <input 
-                  required
-                  type="text" 
-                  placeholder="e.g. Holiday on Friday"
-                  className="w-full p-3 border rounded-xl bg-gray-50"
-                  value={form.title}
-                  onChange={(e) => setForm({...form, title: e.target.value})}
-                />
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* Audience Targeting Filter Card */}
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <FaFilter className="text-blue-500" /> Target Audience Filters
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Class Filter */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Class / Grade</label>
+                    <select
+                      className="w-full p-2.5 text-sm font-semibold border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      value={form.target_class}
+                      onChange={e => setForm({ ...form, target_class: e.target.value })}
+                    >
+                      {classesList.map(c => (
+                        <option key={c} value={c}>{c === 'All' ? 'All Classes' : `Class ${c}`}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Section Filter */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Section</label>
+                    <select
+                      className="w-full p-2.5 text-sm font-semibold border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      value={form.target_section}
+                      onChange={e => setForm({ ...form, target_section: e.target.value })}
+                    >
+                      <option value="All">All Sections</option>
+                      <option value="A">Section A</option>
+                      <option value="B">Section B</option>
+                      <option value="C">Section C</option>
+                      <option value="D">Section D</option>
+                    </select>
+                  </div>
+
+                  {/* Fee Status Filter */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Fee Status</label>
+                    <select
+                      className="w-full p-2.5 text-sm font-semibold border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      value={form.target_fee_status}
+                      onChange={e => setForm({ ...form, target_fee_status: e.target.value })}
+                    >
+                      <option value="all">All Students</option>
+                      <option value="due">⚠️ Fee Defaulters / Any Dues</option>
+                      <option value="admission_fee_pending">Admission Fee Pending</option>
+                      <option value="admission_fee_paid">Admission Fee Paid</option>
+                      <option value="all_clear">✓ All Clear (Fees Paid)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Individual Student Search */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 flex justify-between">
+                    <span>Search Specific Student (Optional)</span>
+                    {studentSearchKeyword && (
+                      <button 
+                        type="button" 
+                        onClick={() => setStudentSearchKeyword('')} 
+                        className="text-[11px] text-red-500 hover:underline"
+                      >
+                        Clear Search
+                      </button>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                    <input
+                      type="text"
+                      placeholder="Filter by Student Name or Admission ID..."
+                      className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      value={studentSearchKeyword}
+                      onChange={e => setStudentSearchKeyword(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Delivery Channels */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-2">Delivery Channels</label>
+                  <div className="flex flex-wrap gap-3">
+                    <label className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                      form.channels.includes('in_app')
+                        ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
+                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={form.channels.includes('in_app')}
+                        onChange={() => handleToggleChannel('in_app')}
+                      />
+                      <FaBell className={form.channels.includes('in_app') ? 'text-blue-600' : 'text-gray-400'} />
+                      <span>In-Site Notification (Bell & Notices)</span>
+                    </label>
+
+                    <label className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                      form.channels.includes('email')
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={form.channels.includes('email')}
+                        onChange={() => handleToggleChannel('email')}
+                      />
+                      <FaEnvelope className={form.channels.includes('email') ? 'text-indigo-600' : 'text-gray-400'} />
+                      <span>Email Broadcast ({previewData.emailReadyCount} Ready)</span>
+                    </label>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Message</label>
-                <textarea 
-                  required
-                  rows="IV"
-                  placeholder="Type your message here..."
-                  className="w-full p-3 border rounded-xl bg-gray-50"
-                  value={form.message}
-                  onChange={(e) => setForm({...form, message: e.target.value})}
-                ></textarea>
+
+              {/* Message Details */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
+                    <select
+                      className="w-full p-3 text-sm font-semibold border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      value={form.category}
+                      onChange={e => setForm({ ...form, category: e.target.value })}
+                    >
+                      <option value="General">General Announcement</option>
+                      <option value="Fee Reminder">Fee Reminder</option>
+                      <option value="Urgent Notice">Urgent Notice</option>
+                      <option value="Academic">Academic & Exams</option>
+                      <option value="Holiday">Holiday & Closure</option>
+                      <option value="Event">School Event</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Priority</label>
+                    <select
+                      className="w-full p-3 text-sm font-semibold border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                      value={form.priority}
+                      onChange={e => setForm({ ...form, priority: e.target.value })}
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="High">High Priority</option>
+                      <option value="Urgent">⚠️ Urgent (Critical)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Announcement Title</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="e.g. Important Notice Regarding Term Exam Registration"
+                    className="w-full p-3 text-sm font-semibold border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                    value={form.title}
+                    onChange={e => setForm({ ...form, title: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1 flex justify-between">
+                    <span>Message Body</span>
+                    <span className="text-gray-400 font-normal">{form.message.length} characters</span>
+                  </label>
+                  <textarea
+                    required
+                    rows="6"
+                    placeholder="Compose announcement message here..."
+                    className="w-full p-3.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none leading-relaxed"
+                    value={form.message}
+                    onChange={e => setForm({ ...form, message: e.target.value })}
+                  />
+                </div>
               </div>
-              <button type="submit" className="w-full bg-blue-600 text-white font-bold p-3 rounded-xl hover:bg-blue-700 transition-colors">
-                Send Announcement
+
+              {/* Submit Button with Dynamic Audience Counter */}
+              <button
+                type="submit"
+                disabled={submitting || previewData.totalCount === 0}
+                className="w-full py-4 px-6 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2.5 text-sm"
+              >
+                {submitting ? (
+                  <>
+                    <FaSpinner className="animate-spin text-base" /> Broadcasting to Students...
+                  </>
+                ) : (
+                  <>
+                    <FaPaperPlane /> Send Broadcast to {previewData.totalCount} Students
+                  </>
+                )}
               </button>
+
             </form>
           </div>
         </div>
 
-        <div className="md:col-span-2">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 min-h-[500px]">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Past Announcements</h3>
-            {announcements.length === 0 ? (
-              <p className="text-gray-500 text-center py-10">No announcements yet.</p>
-            ) : (
-              <div className="space-y-4">
-                {announcements.map((a) => (
-                  <div key={a.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50 relative group">
-                    <button 
-                      onClick={() => handleDelete(a.id)}
-                      className="absolute top-4 right-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+        {/* Right Column: Broadcast History (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-sm border border-gray-100 min-h-[550px] flex flex-col">
+            <div className="flex flex-col gap-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-gray-900">Broadcast Archive</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Lifetime
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-gray-400">{announcements.length} Total Broadcasts</span>
+              </div>
+              {announcements.length > 0 && (
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Search past announcements..."
+                    className="w-full pl-3 pr-8 py-1.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white text-xs font-semibold text-gray-800 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-100 transition-all outline-none"
+                  />
+                  {historySearch && (
+                    <button
+                      type="button"
+                      onClick={() => setHistorySearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
                     >
-                      <FaTrash />
+                      ✕
                     </button>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-md">
-                        Target: {a.target_class}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(a.created_at).toLocaleString()}
-                      </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                <FaSpinner className="animate-spin mr-2" /> Loading broadcast history...
+              </div>
+            ) : announcements.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-400">
+                <FaBullhorn className="text-gray-300 text-4xl mb-3" />
+                <p className="font-bold text-gray-600">No Announcements Sent Yet</p>
+                <p className="text-xs text-gray-400 mt-1 max-w-xs">Use the composer on the left to broadcast your first message to students.</p>
+              </div>
+            ) : (
+              <div className="space-y-3.5 overflow-y-auto max-h-[700px] pr-1">
+                {announcements
+                  .filter(a => {
+                    if (!historySearch.trim()) return true;
+                    const q = historySearch.toLowerCase().trim();
+                    return (
+                      a.title?.toLowerCase().includes(q) ||
+                      a.message?.toLowerCase().includes(q) ||
+                      a.target_class?.toLowerCase().includes(q) ||
+                      a.category?.toLowerCase().includes(q)
+                    );
+                  })
+                  .map(a => {
+                  const isUrgent = a.priority === 'Urgent';
+                  return (
+                    <div 
+                      key={a.id} 
+                      className="p-4 rounded-2xl border border-gray-100 bg-slate-50/70 hover:bg-white hover:shadow-md transition-all group relative"
+                    >
+                      <button
+                        onClick={() => handleDelete(a.id)}
+                        className="absolute top-4 right-4 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                        title="Delete Announcement"
+                      >
+                        <FaTrash size={13} />
+                      </button>
+
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className={`px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-md ${
+                          isUrgent ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {a.category || 'General'}
+                        </span>
+                        {isUrgent && (
+                          <span className="px-2 py-0.5 text-[10px] font-black bg-red-600 text-white rounded-md">
+                            URGENT
+                          </span>
+                        )}
+                        <span className="text-[11px] text-gray-400 ml-auto mr-5">
+                          {new Date(a.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      <h4 className="font-bold text-gray-900 text-base leading-snug mb-1">{a.title}</h4>
+                      <p className="text-gray-600 text-xs line-clamp-2 leading-relaxed whitespace-pre-wrap">{a.message}</p>
+
+                      {/* Meta Delivery Bar */}
+                      <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-gray-200/60 text-[11px] text-gray-500">
+                        <span className="font-semibold text-gray-700">
+                          Class: {a.target_class || 'All'}
+                        </span>
+                        {a.target_fee_status && a.target_fee_status !== 'all' && (
+                          <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold text-[10px]">
+                            {a.target_fee_status}
+                          </span>
+                        )}
+                        {a.stats && (
+                          <div className="flex items-center gap-2 ml-auto text-[10px] font-bold">
+                            {a.stats.in_app_count > 0 && (
+                              <span className="text-blue-600 flex items-center gap-0.5"><FaBell size={10} /> {a.stats.in_app_count} In-App</span>
+                            )}
+                            {a.stats.email_sent > 0 && (
+                              <span className="text-indigo-600 flex items-center gap-0.5"><FaEnvelope size={10} /> {a.stats.email_sent} Email</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <h4 className="font-bold text-gray-800 text-lg">{a.title}</h4>
-                    <p className="text-gray-600 mt-1 whitespace-pre-wrap">{a.message}</p>
-                    {a.staff && (
-                      <p className="text-xs text-gray-400 mt-3 font-medium">Posted by: {a.staff.name}</p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
+
       </div>
+
+      {/* Recipient Preview Modal */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-scale-in">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-gray-900">Target Recipients Preview</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {previewData.totalCount} students match current criteria ({previewData.emailReadyCount} with email)
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500"
+              >
+                <FaTimes size={14} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-2">
+              {previewData.students.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <FaUsers className="text-gray-300 text-4xl mx-auto mb-2" />
+                  <p className="font-bold">No matching students found</p>
+                  <p className="text-xs">Try adjusting your class, section, or fee status filters.</p>
+                </div>
+              ) : (
+                previewData.students.map(s => (
+                  <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                    <div>
+                      <p className="font-bold text-gray-900">{s.name}</p>
+                      <p className="text-gray-500 text-[11px]">Roll/ID: {s.admission_id || 'N/A'} • Class: {s.grade} {s.section || ''}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        s.fee_paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {s.fee_paid ? 'Fee Paid' : 'Fee Due'}
+                      </span>
+                      {s.has_email ? (
+                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                          <FaEnvelope size={9} /> Email Ready
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 bg-gray-100 px-2 py-0.5 rounded text-[10px] font-medium">
+                          No Email
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50 text-right">
+              <button
+                type="button"
+                onClick={() => setShowPreviewModal(false)}
+                className="px-5 py-2.5 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

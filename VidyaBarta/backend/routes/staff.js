@@ -600,42 +600,20 @@ router.delete('/admin/payroll/:id', protect, async (req, res) => {
   } catch (error) { res.status(500).json({ message: 'Server error' }); }
 });
 
+const { 
+  createAnnouncement: createStaffAdminAnnouncement, 
+  getAnnouncements: getStaffAdminAnnouncements, 
+  deleteAnnouncement: deleteStaffAdminAnnouncement 
+} = require('../controllers/announcementController');
+
 // Get All Announcements (Admin)
-router.get('/admin/announcements', protect, async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('announcements')
-      .select('*, staff:staff_id(name)')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json(data);
-  } catch (error) { res.status(500).json({ message: 'Server error' }); }
-});
+router.get('/admin/announcements', protect, getStaffAdminAnnouncements);
 
 // Create Announcement (Admin)
-router.post('/admin/announcements', protect, async (req, res) => {
-  try {
-    const { target_class, title, message } = req.body;
-    // For admin announcements, staff_id can be left null if your schema allows it, or we can fetch a specific admin ID if required.
-    // Assuming staff_id can be null for school-wide admin announcements.
-    const { data, error } = await supabase
-      .from('announcements')
-      .insert({ target_class, title, message })
-      .select()
-      .single();
-    if (error) throw error;
-    res.json(data);
-  } catch (error) { res.status(500).json({ message: 'Server error' }); }
-});
+router.post('/admin/announcements', protect, createStaffAdminAnnouncement);
 
 // Delete Announcement (Admin)
-router.delete('/admin/announcements/:id', protect, async (req, res) => {
-  try {
-    const { error } = await supabase.from('announcements').delete().eq('id', req.params.id);
-    if (error) throw error;
-    res.json({ message: 'Deleted successfully' });
-  } catch (error) { res.status(500).json({ message: 'Server error' }); }
-});
+router.delete('/admin/announcements/:id', protect, deleteStaffAdminAnnouncement);
 router.delete('/admin/exam-duties/:id', protect, async (req, res) => {
   try {
     const { error } = await supabase.from('staff_exam_duties').delete().eq('id', req.params.id);

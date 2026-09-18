@@ -363,4 +363,80 @@ router.post('/udise', protectStudent, async (req, res) => {
   }
 });
 
+// ==================== IN-SITE NOTIFICATIONS ====================
+
+// @route   GET /api/student-portal/notifications
+// @desc    Get student in-site announcements & notifications with unread count (lifetime)
+// @access  Private (Student)
+router.get('/notifications', protectStudent, async (req, res) => {
+  try {
+    const { data: notifications, error } = await supabase
+      .from('student_notifications')
+      .select('*')
+      .eq('student_id', req.student.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const unreadCount = (notifications || []).filter(n => !n.is_read).length;
+
+    res.json({
+      notifications: notifications || [],
+      unreadCount
+    });
+  } catch (error) {
+    console.error('Error fetching student notifications:', error);
+    res.status(500).json({ message: 'Server error fetching notifications' });
+  }
+});
+
+// @route   PUT /api/student-portal/notifications/:id/read
+// @desc    Mark single notification as read
+// @access  Private (Student)
+router.put('/notifications/:id/read', protectStudent, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('student_notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('student_id', req.student.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ message: 'Marked as read', notification: data });
+  } catch (error) {
+    console.error('Error marking notification read:', error);
+    res.status(500).json({ message: 'Server error marking notification read' });
+  }
+});
+
+// @route   PUT /api/student-portal/notifications/mark-all-read
+// @desc    Mark all notifications for this student as read
+// @access  Private (Student)
+router.put('/notifications/mark-all-read', protectStudent, async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('student_notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('student_id', req.student.id)
+      .eq('is_read', false);
+
+    if (error) throw error;
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    console.error('Error marking all notifications read:', error);
+    res.status(500).json({ message: 'Server error marking all read' });
+  }
+});
+
+// @route   DELETE /api/student-portal/notifications/:id
+// @desc    Disallow deleting official school announcements (kept for lifetime)
+// @access  Private (Student)
+router.delete('/notifications/:id', protectStudent, async (req, res) => {
+  return res.status(403).json({ 
+    message: 'Official school announcements remain in your portal for lifetime and cannot be removed.' 
+  });
+});
+
 module.exports = router;

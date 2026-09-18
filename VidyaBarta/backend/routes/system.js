@@ -163,8 +163,7 @@ router.get('/school-notifications', protect, async (req, res) => {
     let query = supabase
       .from('school_notifications')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .order('created_at', { ascending: false });
 
     if (schoolId) {
       query = query.eq('school_id', schoolId);

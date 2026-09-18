@@ -117,7 +117,7 @@ function AdminPage() {
   }, []);
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
-  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, careerPage, setCareerPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL, globalClasses, schoolClasses, setSchoolClasses } = useContext(SiteDataContext);
+  const { loading, schoolProfile, setSchoolProfile, gallery, setGallery, videos, setVideos, highlights, setHighlights, events, setEvents, faculty, setFaculty, principal, setPrincipal, notices, setNotices, notificationEmail, setNotificationEmail, isMaintenanceMode, setIsMaintenanceMode, banner, setBanner, socialLinks, setSocialLinks, alumni, setAlumni, centerOfExcellence, setCenterOfExcellence, stats, setStats, emeritus, setEmeritus, faqs, setFaqs, visionStatement, setVisionStatement, aimsAndObjectives, setAimsAndObjectives, headMistress, setHeadMistress, aboutPage, coursesPage, admissionPage, setAdmissionPage, admissionFields, setAdmissionFields, amenities, setAmenities, careerPage, setCareerPage, updateSiteContent, uploadImage, uploadEventPhotos, API_URL: raw_API_URL, globalClasses, setGlobalClasses, schoolClasses, setSchoolClasses } = useContext(SiteDataContext);
   
   // Defensive API_URL — ensure it points to the correct backend
   const API_URL = raw_API_URL 
@@ -139,14 +139,14 @@ function AdminPage() {
         const sData = await sRes.json();
         if (Array.isArray(sData)) {
           setLocalSchoolClasses(sData);
-          if (setSchoolClasses) setSchoolClasses(sData);
+          if (typeof setSchoolClasses === 'function') setSchoolClasses(sData);
         }
       }
       if (gRes.ok) {
         const gData = await gRes.json();
         if (Array.isArray(gData)) {
           setLocalGlobalClasses(gData);
-          if (setGlobalClasses) setGlobalClasses(gData);
+          if (typeof setGlobalClasses === 'function') setGlobalClasses(gData);
         }
       }
     } catch (err) {
@@ -8832,7 +8832,7 @@ function AdminPage() {
 
   const isFinanceActive = ['fees', 'payments', 'fines', 'wallet'].includes(activeTab);
   const isContentActive = ['schoolProfile', 'faculty', 'alumni', 'excellence', 'emeritus', 'careerAds', 'socialMedia', 'about', 'courses', 'faqs'].includes(activeTab);
-  const isDataActive = ['admission', 'students', 'studentAttendance', 'inquiries', 'jobApplications', 'staffLeaves', 'staffRequests', 'staffAssignments', 'staffPayroll', 'staffAnnouncements', 'staffAttendance', 'tenders', 'appointments', 'teachers'].includes(activeTab);
+  const isDataActive = ['admission', 'students', 'studentAttendance', 'inquiries', 'jobApplications', 'staffLeaves', 'staffRequests', 'staffAssignments', 'staffPayroll', 'staffAnnouncements', 'platformNotices', 'staffAttendance', 'tenders', 'appointments', 'teachers'].includes(activeTab);
   const isAcademicsActive = ['exams', 'admitCards', 'results', 'timetables', 'seats', 'certificates'].includes(activeTab);
   const isCommunicationActive = ['communication'].includes(activeTab);
   const isSystemActive = ['pendingAdmins', 'status', 'bulk', 'holidays', 'idCardViewer', 'domains'].includes(activeTab);
@@ -8932,6 +8932,7 @@ function AdminPage() {
              )}
              <SubItem active={activeTab === 'staffAssignments'} onClick={() => { setActiveTab('staffAssignments'); setIsSidebarOpen(false); }} label="Staff Assignments" />
              <SubItem active={activeTab === 'staffAnnouncements'} onClick={() => { setActiveTab('staffAnnouncements'); setIsSidebarOpen(false); }} label="Announcements" />
+             <SubItem active={activeTab === 'platformNotices'} onClick={() => { setActiveTab('platformNotices'); setIsSidebarOpen(false); }} label={unreadSchoolNotifCount > 0 ? `VidyaBarta Notices (${unreadSchoolNotifCount})` : 'VidyaBarta Notices'} />
              <SubItem active={activeTab === 'teachers'} onClick={() => { setActiveTab('teachers'); setIsSidebarOpen(false); }} label="Teachers Database" />
              <SubItem active={activeTab === 'students'} onClick={() => { setActiveTab('students'); setIsSidebarOpen(false); }} label="Students" />
              <SubItem active={activeTab === 'studentAttendance'} onClick={() => { setActiveTab('studentAttendance'); setIsSidebarOpen(false); }} label="Student Attendance" />
@@ -9050,6 +9051,19 @@ function AdminPage() {
                         })
                       )}
                     </div>
+                    <div className="p-3 border-t border-gray-100 bg-slate-50 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('platformNotices');
+                          setIsPlatformNotifOpen(false);
+                        }}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center justify-center gap-1.5 w-full"
+                      >
+                        <span>Open Lifetime Platform Archive ({schoolNotifications.length})</span>
+                        <span>&rarr;</span>
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
@@ -9141,8 +9155,12 @@ function AdminPage() {
           {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'staffLeaves' && <AdminStaffLeaves />}
           {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'staffRequests' && <AdminStaffRequests />}
           {activeTab === 'staffAssignments' && <AdminStaffAssignments />}
-          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && activeTab === 'staffPayroll' && <AdminPayroll />}
-          {activeTab === 'staffAnnouncements' && <AdminAnnouncements />}
+          {(activeTab === 'staffAnnouncements' || activeTab === 'platformNotices') && (
+            <AdminAnnouncements 
+              initialTab={activeTab === 'platformNotices' ? 'platform_notices' : 'school_broadcasts'}
+              onTabChange={(t) => setActiveTab(t === 'platform_notices' ? 'platformNotices' : 'staffAnnouncements')}
+            />
+          )}
           {activeTab === 'faculty' && renderFacultyTab()}
           { activeTab === 'alumni' && renderAlumniTab() }
           { activeTab === 'excellence' && renderExcellenceTab() }

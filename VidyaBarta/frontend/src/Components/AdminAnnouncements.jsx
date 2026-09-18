@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   FaBullhorn, FaTrash, FaEnvelope, FaBell, FaUsers, FaExclamationTriangle, 
   FaCheckCircle, FaSearch, FaFilter, FaPaperPlane, FaMagic, FaEye, FaTimes, FaSpinner,
-  FaCheckSquare, FaSquare, FaCheck
+  FaCheckSquare, FaSquare, FaCheck, FaBuilding, FaExternalLinkAlt, FaInfoCircle, FaShieldAlt, FaCalendarAlt
 } from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -45,12 +45,29 @@ const QUICK_TEMPLATES = [
 
 const STANDARD_CLASSES = ['All', 'Nursery', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
-const AdminAnnouncements = () => {
+const AdminAnnouncements = ({ initialTab = 'school_broadcasts', onTabChange }) => {
+  const [activeMainTab, setActiveMainTab] = useState(initialTab);
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const [classesList, setClassesList] = useState(STANDARD_CLASSES);
+
+  // Platform Announcements from SaaS SuperAdmin
+  const [platformNotices, setPlatformNotices] = useState([]);
+  const [platformLoading, setPlatformLoading] = useState(false);
+  const [platformSearch, setPlatformSearch] = useState('');
+  const [platformCategoryFilter, setPlatformCategoryFilter] = useState('All');
+  const [platformPriorityFilter, setPlatformPriorityFilter] = useState('All');
+  const [platformReadFilter, setPlatformReadFilter] = useState('all'); // 'all', 'unread', 'read'
+  const [selectedPlatformNotice, setSelectedPlatformNotice] = useState(null);
+  const [unreadPlatformCount, setUnreadPlatformCount] = useState(0);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveMainTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Form State
   const [form, setForm] = useState({
@@ -77,6 +94,7 @@ const AdminAnnouncements = () => {
   useEffect(() => {
     fetchAnnouncements();
     fetchClasses();
+    fetchPlatformNotices();
   }, []);
 
   // Whenever filters change, update live recipient counter
@@ -99,16 +117,71 @@ const AdminAnnouncements = () => {
     }
   };
 
+  const fetchPlatformNotices = async () => {
+    try {
+      setPlatformLoading(true);
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+      const res = await axios.get(`${API_URL}/system/school-notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const list = res.data?.notifications || [];
+      setPlatformNotices(list);
+      setUnreadPlatformCount(res.data?.unreadCount || 0);
+    } catch (err) {
+      console.error('Failed to load platform notices', err);
+    } finally {
+      setPlatformLoading(false);
+    }
+  };
+
+  const handleMarkPlatformRead = async (id) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${API_URL}/system/school-notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPlatformNotices(prev => prev.map(n => n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n));
+      setUnreadPlatformCount(prev => Math.max(0, prev - 1));
+      if (selectedPlatformNotice?.id === id) {
+        setSelectedPlatformNotice(prev => ({ ...prev, is_read: true }));
+      }
+    } catch (err) {
+      console.error('Failed to mark read', err);
+    }
+  };
+
+  const handleMarkAllPlatformRead = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${API_URL}/system/school-notifications/mark-all-read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPlatformNotices(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadPlatformCount(0);
+    } catch (err) {
+      console.error('Failed to mark all read', err);
+    }
+  };
+
   const fetchClasses = async () => {
     try {
-      const res = await axios.get(`${API_URL}/classes/school`);
+      const token = localStorage.getItem('adminToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_URL}/classes/school`, { headers });
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        const names = ['All', ...res.data.map(c => c.class_name || c.name)];
-        setClassesList([...new Set(names)]);
+        const extracted = res.data
+          .map(c => (c.class_level || c.name || c.class_name || '').toString().trim())
+          .filter(Boolean);
+        if (extracted.length > 0) {
+          setClassesList(['All', ...new Set(extracted)]);
+          return;
+        }
       }
     } catch (e) {
-      // Fallback to standard classes
+      console.warn('Fallback to standard classes', e);
     }
+    setClassesList(STANDARD_CLASSES);
   };
 
   const fetchRecipientPreview = async () => {
@@ -232,10 +305,78 @@ const AdminAnnouncements = () => {
     }
   };
 
+  const filteredPlatformNotices = platformNotices.filter(notice => {
+    if (platformCategoryFilter !== 'All' && notice.category !== platformCategoryFilter) return false;
+    if (platformPriorityFilter !== 'All' && notice.priority !== platformPriorityFilter) return false;
+    if (platformReadFilter === 'unread' && notice.is_read) return false;
+    if (platformReadFilter === 'read' && !notice.is_read) return false;
+    if (platformSearch.trim()) {
+      const q = platformSearch.toLowerCase().trim();
+      const matchTitle = notice.title?.toLowerCase().includes(q);
+      const matchMsg = notice.message?.toLowerCase().includes(q);
+      const matchCat = notice.category?.toLowerCase().includes(q);
+      if (!matchTitle && !matchMsg && !matchCat) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
       
-      {/* Page Header */}
+      {/* Top Tab Switcher: School Broadcasts to Students VS VidyaBarta Platform Notices */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2.5 rounded-3xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMainTab('school_broadcasts');
+              if (onTabChange) onTabChange('school_broadcasts');
+            }}
+            className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all ${
+              activeMainTab === 'school_broadcasts'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
+            }`}
+          >
+            <FaBullhorn />
+            <span>School Broadcasts to Students</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMainTab('platform_notices');
+              if (onTabChange) onTabChange('platform_notices');
+            }}
+            className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all relative ${
+              activeMainTab === 'platform_notices'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
+            }`}
+          >
+            <FaBuilding />
+            <span>VidyaBarta Platform Notices (From SuperAdmin)</span>
+            {unreadPlatformCount > 0 && (
+              <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                {unreadPlatformCount} New
+              </span>
+            )}
+            <span className="text-[10px] opacity-80 font-normal">
+              ({platformNotices.length})
+            </span>
+          </button>
+        </div>
+
+        {/* Lifetime Guarantee Pill */}
+        <div className="hidden md:flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-4 py-2 rounded-2xl font-semibold">
+          <FaShieldAlt className="text-emerald-600" />
+          <span>Lifetime Archive: Kept Forever</span>
+        </div>
+      </div>
+
+      {activeMainTab === 'school_broadcasts' ? (
+        <div className="space-y-8">
+          {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
@@ -320,9 +461,10 @@ const AdminAnnouncements = () => {
                       value={form.target_class}
                       onChange={e => setForm({ ...form, target_class: e.target.value })}
                     >
-                      {classesList.map(c => (
-                        <option key={c} value={c}>{c === 'All' ? 'All Classes' : `Class ${c}`}</option>
-                      ))}
+                      {classesList.filter(Boolean).map(c => {
+                        const label = c === 'All' ? 'All Classes' : (c.startsWith('Class ') ? c : `Class ${c}`);
+                        return <option key={c} value={c}>{label}</option>;
+                      })}
                     </select>
                   </div>
 
@@ -727,8 +869,302 @@ const AdminAnnouncements = () => {
             )}
           </div>
         </div>
-
       </div>
+    </div>
+  ) : (
+        /* ======================================================== */
+        /* VIDYABARTA PLATFORM NOTICES ARCHIVE (FROM SUPERADMIN) */
+        /* ======================================================== */
+        <div className="space-y-6">
+          {/* Header Card */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                <FaBuilding size={26} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-black text-gray-900 tracking-tight">VidyaBarta HQ Platform Notices</h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800 border border-purple-200">
+                    Lifetime Archive
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500">Official platform advisories, maintenance updates, and release circulars from SuperAdmin.</p>
+              </div>
+            </div>
+
+            {unreadPlatformCount > 0 && (
+              <button
+                type="button"
+                onClick={handleMarkAllPlatformRead}
+                className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-all border border-indigo-200 flex items-center gap-1.5"
+              >
+                <FaCheck />
+                <span>Mark All as Read ({unreadPlatformCount})</span>
+              </button>
+            )}
+          </div>
+
+          {/* Search and Filters Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+            <div className="relative flex-1">
+              <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+              <input
+                type="text"
+                value={platformSearch}
+                onChange={e => setPlatformSearch(e.target.value)}
+                placeholder="Search official platform notices by keyword..."
+                className="w-full pl-9 pr-4 py-2 text-xs font-semibold border border-gray-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+              />
+              {platformSearch && (
+                <button
+                  type="button"
+                  onClick={() => setPlatformSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={platformCategoryFilter}
+                onChange={e => setPlatformCategoryFilter(e.target.value)}
+                className="px-3 py-2 text-xs font-bold border border-gray-200 rounded-xl bg-slate-50 text-gray-700 outline-none"
+              >
+                <option value="All">All Categories</option>
+                <option value="Platform Update">Platform Update</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Billing">Billing & Subscription</option>
+                <option value="General">General Notice</option>
+              </select>
+
+              <select
+                value={platformPriorityFilter}
+                onChange={e => setPlatformPriorityFilter(e.target.value)}
+                className="px-3 py-2 text-xs font-bold border border-gray-200 rounded-xl bg-slate-50 text-gray-700 outline-none"
+              >
+                <option value="All">All Priorities</option>
+                <option value="Critical">⚠️ Critical / Urgent</option>
+                <option value="Important">Important</option>
+                <option value="Normal">Normal</option>
+              </select>
+
+              <select
+                value={platformReadFilter}
+                onChange={e => setPlatformReadFilter(e.target.value)}
+                className="px-3 py-2 text-xs font-bold border border-gray-200 rounded-xl bg-slate-50 text-gray-700 outline-none"
+              >
+                <option value="all">All Notices</option>
+                <option value="unread">Unread Only</option>
+                <option value="read">Read Only</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Notices Cards List */}
+          {platformLoading ? (
+            <div className="p-16 text-center text-gray-400 bg-white rounded-3xl border border-gray-100">
+              <FaSpinner className="animate-spin text-3xl mx-auto mb-3 text-indigo-500" />
+              <p className="font-bold text-gray-700">Loading VidyaBarta platform notices...</p>
+            </div>
+          ) : filteredPlatformNotices.length === 0 ? (
+            <div className="p-16 text-center bg-white rounded-3xl border border-gray-100 text-gray-400 space-y-3">
+              <FaBuilding className="text-4xl text-gray-300 mx-auto" />
+              <p className="font-bold text-gray-700 text-base">No Platform Notices Found</p>
+              <p className="text-xs text-gray-500 max-w-md mx-auto">
+                {platformNotices.length === 0
+                  ? 'There are currently no platform-wide announcements from VidyaBarta HQ for your school.'
+                  : 'No notices match your search or filter criteria. Try clearing your filters.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredPlatformNotices.map(notice => {
+                const isCritical = notice.priority === 'Critical' || notice.priority === 'Urgent';
+                const isImportant = notice.priority === 'Important';
+                return (
+                  <div
+                    key={notice.id}
+                    className={`bg-white rounded-3xl border transition-all p-6 shadow-sm hover:shadow-md relative overflow-hidden ${
+                      isCritical
+                        ? 'border-red-200 bg-red-50/10'
+                        : isImportant
+                        ? 'border-amber-200 bg-amber-50/10'
+                        : 'border-gray-100 hover:border-indigo-200'
+                    }`}
+                  >
+                    {/* Left Colored Accent Bar */}
+                    <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${
+                      isCritical ? 'bg-red-500' : isImportant ? 'bg-amber-500' : 'bg-indigo-500'
+                    }`} />
+
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          isCritical
+                            ? 'bg-red-100 text-red-700 border border-red-200'
+                            : isImportant
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                            : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                        }`}>
+                          {notice.category || 'Platform Advisory'}
+                        </span>
+
+                        {isCritical && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-600 text-white animate-pulse">
+                            CRITICAL
+                          </span>
+                        )}
+
+                        {!notice.is_read && (
+                          <span className="flex items-center gap-1 text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> NEW
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <FaCalendarAlt size={11} />
+                        <span>{new Date(notice.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+
+                    <h3 className="text-lg font-black text-gray-900 tracking-tight mb-2">
+                      {notice.title}
+                    </h3>
+
+                    <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed whitespace-pre-wrap mb-4">
+                      {notice.message}
+                    </p>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPlatformNotice(notice);
+                            if (!notice.is_read) handleMarkPlatformRead(notice.id);
+                          }}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
+                        >
+                          <FaEye />
+                          <span>Read Full Notice</span>
+                        </button>
+
+                        {notice.action_url && (
+                          <a
+                            href={notice.action_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 ml-3"
+                          >
+                            <FaExternalLinkAlt size={10} />
+                            <span>{notice.action_label || 'Open Link'}</span>
+                          </a>
+                        )}
+                      </div>
+
+                      {!notice.is_read ? (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkPlatformRead(notice.id)}
+                          className="text-xs font-bold text-gray-500 hover:text-indigo-600 flex items-center gap-1"
+                        >
+                          <FaCheck size={11} />
+                          <span>Mark as Read</span>
+                        </button>
+                      ) : (
+                        <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                          <FaCheckCircle size={12} />
+                          <span>Read</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Detailed Full Reading Modal for Platform Notice */}
+      {selectedPlatformNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-scale-in">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                  <FaBuilding size={18} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-indigo-700 uppercase tracking-wider">
+                      {selectedPlatformNotice.category || 'Platform Notice'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700">
+                      {selectedPlatformNotice.priority || 'Normal'} Priority
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Broadcasted: {new Date(selectedPlatformNotice.created_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPlatformNotice(null)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500"
+              >
+                <FaTimes size={14} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4">
+              <h2 className="text-xl font-black text-gray-900 tracking-tight">
+                {selectedPlatformNotice.title}
+              </h2>
+
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm leading-relaxed text-gray-800 whitespace-pre-wrap font-sans">
+                {selectedPlatformNotice.message}
+              </div>
+
+              {selectedPlatformNotice.action_url && (
+                <div className="pt-2 text-center">
+                  <a
+                    href={selectedPlatformNotice.action_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-500/25 transition-all"
+                  >
+                    <span>{selectedPlatformNotice.action_label || 'View Details'}</span>
+                    <FaExternalLinkAlt size={11} />
+                  </a>
+                </div>
+              )}
+
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold flex items-center gap-2">
+                <FaShieldAlt className="text-emerald-600 flex-shrink-0" />
+                <span>
+                  <strong>Lifetime Retention:</strong> This official announcement remains permanently archived in your school's VidyaBarta records.
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50 text-right">
+              <button
+                type="button"
+                onClick={() => setSelectedPlatformNotice(null)}
+                className="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recipient Preview Modal */}
       {showPreviewModal && (

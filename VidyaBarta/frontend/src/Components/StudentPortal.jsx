@@ -52,6 +52,11 @@ function StudentPortal() {
   const [noticeCategoryFilter, setNoticeCategoryFilter] = useState('all');
   const [announcementSearch, setAnnouncementSearch] = useState('');
 
+  const [portalSchool, setPortalSchool] = useState(null);
+
+  const displaySchoolName = schoolProfile?.name || student?.schoolName || portalSchool?.name || 'Holy Name High School';
+  const displaySchoolLogo = schoolProfile?.logo || student?.schoolLogo || portalSchool?.logo || '/Pictures/Logo.jpg';
+
   const fetchNotifications = async () => {
     try {
       const res = await axios.get(`${API_URL}/student-portal/notifications`, {
@@ -59,6 +64,9 @@ function StudentPortal() {
       });
       setNotifications(res.data.notifications || []);
       setUnreadNotifCount(res.data.unreadCount || 0);
+      if (res.data.school) {
+        setPortalSchool(res.data.school);
+      }
     } catch (e) {
       console.error('Failed to load notifications', e);
     }
@@ -116,6 +124,9 @@ function StudentPortal() {
 
         setNotifications(notifRes?.data?.notifications || []);
         setUnreadNotifCount(notifRes?.data?.unreadCount || 0);
+        if (notifRes?.data?.school) {
+          setPortalSchool(notifRes.data.school);
+        }
         
         const gradesData = Array.isArray(gradesRes.data) ? gradesRes.data : [];
         const uniqueExamIds = [...new Set(gradesData.map(g => g.exam_id))];
@@ -278,15 +289,27 @@ function StudentPortal() {
         <div className="p-6 flex flex-col gap-2">
           <div className="flex items-center gap-3 mb-8">
             <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center text-blue-600 shrink-0 overflow-hidden">
-              {schoolProfile?.logo ? (
-                <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-1" />
-              ) : (
-                <span className="material-symbols-outlined text-[24px]">school</span>
-              )}
+              {displaySchoolLogo ? (
+                <img 
+                  src={displaySchoolLogo} 
+                  alt="School Logo" 
+                  className="w-full h-full object-contain p-1"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <span 
+                className="material-symbols-outlined text-[24px]"
+                style={{ display: displaySchoolLogo ? 'none' : 'flex' }}
+              >
+                school
+              </span>
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="font-bold text-gray-900 text-lg leading-tight line-clamp-2" title={schoolProfile?.name || 'Student Portal'}>
-                {schoolProfile?.name || 'Student Portal'}
+              <h2 className="font-bold text-gray-900 text-lg leading-tight line-clamp-2" title={displaySchoolName}>
+                {displaySchoolName}
               </h2>
               <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider mt-0.5 truncate">Academic Session</p>
             </div>
@@ -813,11 +836,35 @@ function StudentPortal() {
                             <p className="text-sm text-gray-800 font-bold leading-tight group-hover:text-blue-700 transition-colors line-clamp-1">
                               {n.title}
                             </p>
-                            {!n.is_read && (
-                              <span className="inline-block mt-1 text-[9px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded">
-                                New
-                              </span>
-                            )}
+                            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-gray-100">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                                  {displaySchoolLogo ? (
+                                    <img 
+                                      src={displaySchoolLogo} 
+                                      alt={displaySchoolName} 
+                                      className="w-full h-full object-contain p-0.5" 
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <span 
+                                    className="material-symbols-outlined text-[10px] text-blue-600"
+                                    style={{ display: displaySchoolLogo ? 'none' : 'flex' }}
+                                  >
+                                    school
+                                  </span>
+                                </div>
+                                <span className="text-[11px] font-semibold text-gray-500 truncate max-w-[130px]">{displaySchoolName}</span>
+                              </div>
+                              {!n.is_read && (
+                                <span className="inline-block text-[9px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded shrink-0">
+                                  New
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })
@@ -1022,9 +1069,33 @@ function StudentPortal() {
                           {n.message}
                         </p>
 
-                        <div className="mt-3 flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
-                          <span className="font-semibold text-gray-500">From: School Administration</span>
-                          <span className="text-indigo-600 font-bold group-hover:underline flex items-center gap-1">
+                        <div className="mt-3 flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-gray-400 font-semibold text-[11px] shrink-0">From:</span>
+                            <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                              {displaySchoolLogo ? (
+                                <img 
+                                  src={displaySchoolLogo} 
+                                  alt={displaySchoolName} 
+                                  className="w-full h-full object-contain p-0.5" 
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <span 
+                                className="material-symbols-outlined text-[13px] text-blue-600"
+                                style={{ display: displaySchoolLogo ? 'none' : 'flex' }}
+                              >
+                                school
+                              </span>
+                            </div>
+                            <span className="font-bold text-gray-800 truncate max-w-[200px] sm:max-w-xs">
+                              {displaySchoolName}
+                            </span>
+                          </div>
+                          <span className="text-indigo-600 font-bold group-hover:underline flex items-center gap-1 shrink-0">
                             Read Full Message &rarr;
                           </span>
                         </div>
@@ -1048,11 +1119,38 @@ function StudentPortal() {
                       </span>
                     </div>
                     {notice.description && <p className="text-sm text-gray-600 mt-2 leading-relaxed">{notice.description}</p>}
-                    {notice.pdf_link && (
-                      <a href={notice.pdf_link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 mt-3 text-xs text-indigo-600 font-bold hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100">
-                        <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span> Download Document
-                      </a>
-                    )}
+                    <div className="mt-3 flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-gray-400 font-semibold text-[11px] shrink-0">From:</span>
+                        <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                          {displaySchoolLogo ? (
+                            <img 
+                              src={displaySchoolLogo} 
+                              alt={displaySchoolName} 
+                              className="w-full h-full object-contain p-0.5" 
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <span 
+                            className="material-symbols-outlined text-[13px] text-blue-600"
+                            style={{ display: displaySchoolLogo ? 'none' : 'flex' }}
+                          >
+                            school
+                          </span>
+                        </div>
+                        <span className="font-bold text-gray-800 truncate max-w-[200px] sm:max-w-xs">
+                          {displaySchoolName}
+                        </span>
+                      </div>
+                      {notice.pdf_link && (
+                        <a href={notice.pdf_link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-bold hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100 shrink-0">
+                          <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span> Download Document
+                        </a>
+                      )}
+                    </div>
                   </div>
                 ))}
 
@@ -1464,9 +1562,31 @@ function StudentPortal() {
                 {selectedNotifModal.message}
               </div>
 
-              <div className="text-xs text-gray-400 flex items-center justify-between pt-2">
-                <span>Official School Notice</span>
-                <span>Audience: Direct / Class Target</span>
+              <div className="text-xs text-gray-500 flex items-center justify-between pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-gray-400 font-medium">Issued by:</span>
+                  <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                    {displaySchoolLogo ? (
+                      <img 
+                        src={displaySchoolLogo} 
+                        alt={displaySchoolName} 
+                        className="w-full h-full object-contain p-0.5" 
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <span 
+                      className="material-symbols-outlined text-[14px] text-blue-600"
+                      style={{ display: displaySchoolLogo ? 'none' : 'flex' }}
+                    >
+                      school
+                    </span>
+                  </div>
+                  <span className="font-bold text-gray-800 truncate">{displaySchoolName}</span>
+                </div>
+                <span className="text-gray-400 shrink-0">Official Notice</span>
               </div>
             </div>
 

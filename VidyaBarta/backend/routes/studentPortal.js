@@ -378,11 +378,29 @@ router.get('/notifications', protectStudent, async (req, res) => {
 
     if (error) throw error;
 
+    let schoolInfo = null;
+    const targetSchoolId = req.student.school_id;
+    if (targetSchoolId) {
+      const { data: school } = await supabase
+        .from('schools')
+        .select('id, name, logo_url')
+        .eq('id', targetSchoolId)
+        .maybeSingle();
+      if (school) {
+        schoolInfo = {
+          id: school.id,
+          name: school.name,
+          logo: school.logo_url
+        };
+      }
+    }
+
     const unreadCount = (notifications || []).filter(n => !n.is_read).length;
 
     res.json({
       notifications: notifications || [],
-      unreadCount
+      unreadCount,
+      school: schoolInfo
     });
   } catch (error) {
     console.error('Error fetching student notifications:', error);

@@ -290,7 +290,9 @@ export const SiteDataProvider = ({ children }) => {
         }
           
         const adminToken = localStorage.getItem('adminToken');
-        const headers = adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {};
+        const studentToken = localStorage.getItem('studentToken');
+        const authToken = adminToken || studentToken;
+        const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
 
         const endpointUrl = `${API_URL}/content?domain=${encodeURIComponent(targetDomain)}&target=${encodeURIComponent(targetDomain)}&timestamp=${new Date().getTime()}`;
         console.log(`Fetching from endpoint: ${endpointUrl}`);

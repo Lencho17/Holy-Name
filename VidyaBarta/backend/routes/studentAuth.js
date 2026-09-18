@@ -108,8 +108,21 @@ router.post('/login', async (req, res) => {
       payload,
       process.env.JWT_SECRET,
       { expiresIn: '7d' }, // 1 week expiry
-      (err, token) => {
+      async (err, token) => {
         if (err) throw err;
+        let schoolName = null;
+        let schoolLogo = null;
+        if (student.school_id) {
+          const { data: school } = await supabase
+            .from('schools')
+            .select('name, logo_url')
+            .eq('id', student.school_id)
+            .maybeSingle();
+          if (school) {
+            schoolName = school.name;
+            schoolLogo = school.logo_url;
+          }
+        }
         res.json({
           token,
           student: {
@@ -120,6 +133,8 @@ router.post('/login', async (req, res) => {
             grade: student.grade,
             email: student.email,
             school_id: student.school_id,
+            schoolName,
+            schoolLogo,
             admissionFeePaid: student.admission_fee_paid || false,
             readmissionDeadline: student.readmission_deadline || null,
             readmissionVerified: student.readmission_verified || false,
@@ -215,28 +230,49 @@ router.post('/reset-password', async (req, res) => {
 // @route   GET /api/student-auth/profile
 // @desc    Get current student profile
 // @access  Private (Student)
-router.get('/profile', protectStudent, (req, res) => {
-  // req.student is populated by the protectStudent middleware
-  // Let's not send the password hash back
-  const { password, reset_password_token, reset_password_expires, ...studentProfile } = req.student;
-  
-  // Format for frontend
-  res.json({ 
-    student: {
-      ...studentProfile,
-      id: studentProfile.id,
-      name: studentProfile.student_name,
-      rollNumber: studentProfile.admission_id,
-      admissionId: studentProfile.admission_id,
-      grade: studentProfile.grade,
-      email: studentProfile.email,
-      school_id: studentProfile.school_id,
-      admissionFeePaid: studentProfile.admission_fee_paid || false,
-      readmissionDeadline: studentProfile.readmission_deadline || null,
-      readmissionVerified: studentProfile.readmission_verified || false,
-      status: studentProfile.enrollment_status
-    } 
-  });
+router.get('/profile', protectStudent, async (req, res) => {
+  try {
+    // req.student is populated by the protectStudent middleware
+    // Let's not send the password hash back
+    const { password, reset_password_token, reset_password_expires, ...studentProfile } = req.student;
+    
+    let schoolName = null;
+    let schoolLogo = null;
+    if (studentProfile.school_id) {
+      const { data: school } = await supabase
+        .from('schools')
+        .select('name, logo_url')
+        .eq('id', studentProfile.school_id)
+        .maybeSingle();
+      if (school) {
+        schoolName = school.name;
+        schoolLogo = school.logo_url;
+      }
+    }
+
+    // Format for frontend
+    res.json({ 
+      student: {
+        ...studentProfile,
+        id: studentProfile.id,
+        name: studentProfile.student_name,
+        rollNumber: studentProfile.admission_id,
+        admissionId: studentProfile.admission_id,
+        grade: studentProfile.grade,
+        email: studentProfile.email,
+        school_id: studentProfile.school_id,
+        schoolName,
+        schoolLogo,
+        admissionFeePaid: studentProfile.admission_fee_paid || false,
+        readmissionDeadline: studentProfile.readmission_deadline || null,
+        readmissionVerified: studentProfile.readmission_verified || false,
+        status: studentProfile.enrollment_status
+      } 
+    });
+  } catch (error) {
+    console.error('Error in student profile:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 module.exports = router;

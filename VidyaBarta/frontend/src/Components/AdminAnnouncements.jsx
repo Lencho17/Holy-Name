@@ -2,7 +2,8 @@ import React, { useState, useEffect, useId } from 'react';
 import axios from 'axios';
 import { 
   FaBullhorn, FaTrash, FaEnvelope, FaBell, FaUsers, FaExclamationTriangle, 
-  FaCheckCircle, FaSearch, FaFilter, FaPaperPlane, FaMagic, FaEye, FaTimes, FaSpinner
+  FaCheckCircle, FaSearch, FaFilter, FaPaperPlane, FaMagic, FaEye, FaTimes, FaSpinner,
+  FaCheckSquare, FaSquare, FaCheck
 } from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -153,7 +154,7 @@ const AdminAnnouncements = () => {
     setForm(prev => {
       const exists = prev.channels.includes(channel);
       if (exists && prev.channels.length === 1) {
-        alert('At least one delivery channel must be selected.');
+        alert('At least one delivery channel must remain selected.');
         return prev;
       }
       return {
@@ -161,6 +162,14 @@ const AdminAnnouncements = () => {
         channels: exists ? prev.channels.filter(c => c !== channel) : [...prev.channels, channel]
       };
     });
+  };
+
+  const handleSelectBothChannels = () => {
+    setForm(prev => ({ ...prev, channels: ['in_app', 'email'] }));
+  };
+
+  const handleSelectSingleChannel = (channel) => {
+    setForm(prev => ({ ...prev, channels: [channel] }));
   };
 
   const handleSubmit = async (e) => {
@@ -377,39 +386,142 @@ const AdminAnnouncements = () => {
                 </div>
 
                 {/* Delivery Channels */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-2">Delivery Channels</label>
-                  <div className="flex flex-wrap gap-3">
-                    <label className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      form.channels.includes('in_app')
-                        ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={form.channels.includes('in_app')}
-                        onChange={() => handleToggleChannel('in_app')}
-                      />
-                      <FaBell className={form.channels.includes('in_app') ? 'text-blue-600' : 'text-gray-400'} />
-                      <span>In-Site Notification (Bell & Notices)</span>
-                    </label>
+                <div className="space-y-3 pt-2">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700">
+                        Delivery Channels
+                      </label>
+                      <p className="text-[11px] text-gray-500">
+                        Choose one or both delivery channels for targeted students.
+                      </p>
+                    </div>
 
-                    <label className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      form.channels.includes('email')
-                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={form.channels.includes('email')}
-                        onChange={() => handleToggleChannel('email')}
-                      />
-                      <FaEnvelope className={form.channels.includes('email') ? 'text-indigo-600' : 'text-gray-400'} />
-                      <span>Email Broadcast ({previewData.emailReadyCount} Ready)</span>
-                    </label>
+                    {/* Quick Selection Presets */}
+                    <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={handleSelectBothChannels}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+                          form.channels.includes('in_app') && form.channels.includes('email')
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <FaCheck className="text-emerald-600" />
+                        <span>Both Channels</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSingleChannel('in_app')}
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all ${
+                          form.channels.length === 1 && form.channels.includes('in_app')
+                            ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        In-App Only
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSingleChannel('email')}
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all ${
+                          form.channels.length === 1 && form.channels.includes('email')
+                            ? 'bg-indigo-50 border-indigo-400 text-indigo-700 font-bold'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        Email Only
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Channel Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* In-App Channel */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChannel('in_app')}
+                      className={`text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                        form.channels.includes('in_app')
+                          ? 'bg-blue-50/70 border-blue-300 ring-1 ring-blue-300 shadow-sm'
+                          : 'bg-white border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="mt-0.5 text-lg">
+                        {form.channels.includes('in_app') ? (
+                          <FaCheckSquare className="text-blue-600 text-xl" />
+                        ) : (
+                          <FaSquare className="text-gray-300 text-xl" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <FaBell className={form.channels.includes('in_app') ? 'text-blue-600' : 'text-gray-400'} />
+                          <span className={`text-xs font-bold ${form.channels.includes('in_app') ? 'text-gray-900' : 'text-gray-500'}`}>
+                            Student Portal Notices & Bell Alerts
+                          </span>
+                          <span className={`text-[10px] ml-auto font-bold px-2 py-0.5 rounded-full ${
+                            form.channels.includes('in_app')
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {form.channels.includes('in_app') ? 'ACTIVE' : 'OFF'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                          Permanent in-site notices preserved for lifetime in student announcement feed & bell notifications.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Email Channel */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChannel('email')}
+                      className={`text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                        form.channels.includes('email')
+                          ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-300 shadow-sm'
+                          : 'bg-white border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="mt-0.5 text-lg">
+                        {form.channels.includes('email') ? (
+                          <FaCheckSquare className="text-indigo-600 text-xl" />
+                        ) : (
+                          <FaSquare className="text-gray-300 text-xl" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <FaEnvelope className={form.channels.includes('email') ? 'text-indigo-600' : 'text-gray-400'} />
+                          <span className={`text-xs font-bold ${form.channels.includes('email') ? 'text-indigo-950' : 'text-gray-500'}`}>
+                            Email Broadcast
+                          </span>
+                          <span className={`text-[10px] ml-auto font-bold px-2 py-0.5 rounded-full ${
+                            form.channels.includes('email')
+                              ? 'bg-indigo-100 text-indigo-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {form.channels.includes('email') ? `${previewData.emailReadyCount} RECIPIENTS` : 'OFF'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                          Direct HTML emails sent to verified student and parent inboxes with complete announcement details.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Summary Status Pill */}
+                  {form.channels.includes('in_app') && form.channels.includes('email') && (
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-800 flex items-center gap-2">
+                      <FaCheckCircle className="text-emerald-600 flex-shrink-0" />
+                      <span>
+                        <strong>Dual-Channel Broadcast Ready:</strong> Students will receive both permanent in-app portal notices AND direct email broadcasts.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

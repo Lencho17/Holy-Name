@@ -12,8 +12,11 @@ try {
 } catch (e) {}
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [reticle({ token: reticleToken }),react()],
+export default defineConfig(({ command }) => ({
+  plugins: [
+    ...(command === 'serve' ? [reticle({ token: reticleToken })] : []),
+    react()
+  ],
   server: {
     proxy: {
       '/api': {
@@ -31,4 +34,4 @@ export default defineConfig({
       }
     }
   }
-})
+}))

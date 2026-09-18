@@ -49,11 +49,11 @@ const auditLogger = async (req, res, next) => {
           const method = req.method;
           const endpoint = req.originalUrl.split('?')[0]; // strip query params
           
-          const logText = `${method} ${endpoint} | Payload: ${payloadStr}`;
-          
+          const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
           // Asynchronously log to admin_activity using AUDIT_LOG prefix
           supabase.from('admin_activity').insert({
-            admin_id: userId,
+            admin_id: isUUID(userId) ? userId : null,
             email: userEmail,
             action: `AUDIT_${method}`,
             ip_address: req.ip || req.headers['x-forwarded-for'] || 'Unknown IP',

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   FiSend, FiTrash2, FiMail, FiBell, FiAlertCircle, FiCheckCircle, 
-  FiGlobe, FiLayers, FiShield, FiCalendar, FiExternalLink, FiFilter, FiCheckSquare
+  FiGlobe, FiLayers, FiShield, FiCalendar, FiExternalLink, FiFilter, FiCheckSquare, FiSquare, FiCheck
 } from 'react-icons/fi';
 import { FaBullhorn, FaSpinner, FaMagic, FaSchool } from 'react-icons/fa';
 
@@ -158,7 +158,7 @@ const SuperAdminAnnouncements = () => {
     setForm(prev => {
       const exists = prev.channels.includes(channel);
       if (exists && prev.channels.length === 1) {
-        alert('At least one delivery channel must be selected.');
+        alert('At least one delivery channel must remain selected.');
         return prev;
       }
       return {
@@ -166,6 +166,14 @@ const SuperAdminAnnouncements = () => {
         channels: exists ? prev.channels.filter(c => c !== channel) : [...prev.channels, channel]
       };
     });
+  };
+
+  const handleSelectBothChannels = () => {
+    setForm(prev => ({ ...prev, channels: ['in_app', 'email'] }));
+  };
+
+  const handleSelectSingleChannel = (channel) => {
+    setForm(prev => ({ ...prev, channels: [channel] }));
   };
 
   const handleSubmit = async (e) => {
@@ -381,39 +389,142 @@ const SuperAdminAnnouncements = () => {
                 )}
 
                 {/* Delivery Channels */}
-                <div>
-                  <label className="block text-xs font-bold text-neutral mb-2">Delivery Channels</label>
-                  <div className="flex flex-wrap gap-3">
-                    <label className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      form.channels.includes('in_app')
-                        ? 'bg-primary/10 border-primary text-primary shadow-sm'
-                        : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-variant'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={form.channels.includes('in_app')}
-                        onChange={() => handleToggleChannel('in_app')}
-                      />
-                      <FiBell className={form.channels.includes('in_app') ? 'text-primary' : 'text-on-surface-variant'} />
-                      <span>School Admin Dashboard Alerts</span>
-                    </label>
+                <div className="space-y-3 pt-2">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-neutral">
+                        Delivery Channels
+                      </label>
+                      <p className="text-[11px] text-on-surface-variant">
+                        Select one or both channels to broadcast this announcement.
+                      </p>
+                    </div>
 
-                    <label className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      form.channels.includes('email')
-                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
-                        : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-variant'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={form.channels.includes('email')}
-                        onChange={() => handleToggleChannel('email')}
-                      />
-                      <FiMail className={form.channels.includes('email') ? 'text-indigo-600' : 'text-on-surface-variant'} />
-                      <span>Email Broadcast ({preview.totalEmailRecipients} Contacts)</span>
-                    </label>
+                    {/* Quick Selection Presets */}
+                    <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={handleSelectBothChannels}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+                          form.channels.includes('in_app') && form.channels.includes('email')
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm'
+                            : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-variant'
+                        }`}
+                      >
+                        <FiCheck className="text-emerald-600" />
+                        <span>Both Channels</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSingleChannel('in_app')}
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all ${
+                          form.channels.length === 1 && form.channels.includes('in_app')
+                            ? 'bg-primary/10 border-primary text-primary font-bold'
+                            : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-variant'
+                        }`}
+                      >
+                        In-App Only
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSingleChannel('email')}
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all ${
+                          form.channels.length === 1 && form.channels.includes('email')
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-bold'
+                            : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-variant'
+                        }`}
+                      >
+                        Email Only
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Channel Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* In-App Channel */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChannel('in_app')}
+                      className={`text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                        form.channels.includes('in_app')
+                          ? 'bg-primary/5 border-primary/40 ring-1 ring-primary/30 shadow-sm'
+                          : 'bg-surface border-outline-variant opacity-70 hover:opacity-100 hover:border-outline'
+                      }`}
+                    >
+                      <div className="mt-0.5 text-lg">
+                        {form.channels.includes('in_app') ? (
+                          <FiCheckSquare className="text-primary text-xl" />
+                        ) : (
+                          <FiSquare className="text-on-surface-variant text-xl" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <FiBell className={form.channels.includes('in_app') ? 'text-primary' : 'text-on-surface-variant'} />
+                          <span className={`text-xs font-bold ${form.channels.includes('in_app') ? 'text-neutral' : 'text-on-surface-variant'}`}>
+                            School Admin In-App Alerts
+                          </span>
+                          <span className={`text-[10px] ml-auto font-bold px-2 py-0.5 rounded-full ${
+                            form.channels.includes('in_app')
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-surface-variant text-on-surface-variant'
+                          }`}>
+                            {form.channels.includes('in_app') ? 'ACTIVE' : 'OFF'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                          Instant bell notifications & priority alert banner on partner school admin dashboards.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Email Channel */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChannel('email')}
+                      className={`text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                        form.channels.includes('email')
+                          ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-300 shadow-sm'
+                          : 'bg-surface border-outline-variant opacity-70 hover:opacity-100 hover:border-outline'
+                      }`}
+                    >
+                      <div className="mt-0.5 text-lg">
+                        {form.channels.includes('email') ? (
+                          <FiCheckSquare className="text-indigo-600 text-xl" />
+                        ) : (
+                          <FiSquare className="text-on-surface-variant text-xl" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <FiMail className={form.channels.includes('email') ? 'text-indigo-600' : 'text-on-surface-variant'} />
+                          <span className={`text-xs font-bold ${form.channels.includes('email') ? 'text-indigo-950' : 'text-on-surface-variant'}`}>
+                            Email Broadcast
+                          </span>
+                          <span className={`text-[10px] ml-auto font-bold px-2 py-0.5 rounded-full ${
+                            form.channels.includes('email')
+                              ? 'bg-indigo-100 text-indigo-700'
+                              : 'bg-surface-variant text-on-surface-variant'
+                          }`}>
+                            {form.channels.includes('email') ? `${preview.totalEmailRecipients} RECIPIENTS` : 'OFF'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                          Direct HTML broadcast to {preview.totalEmailRecipients} verified school principal & administrative inboxes.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Summary Status Pill */}
+                  {form.channels.includes('in_app') && form.channels.includes('email') && (
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-800 flex items-center gap-2">
+                      <FiCheckCircle className="text-emerald-600 flex-shrink-0" />
+                      <span>
+                        <strong>Dual-Channel Broadcast Ready:</strong> This announcement will deliver simultaneously to School Dashboards AND Email inboxes.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

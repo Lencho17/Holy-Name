@@ -217,6 +217,10 @@ exports.publishPlatformAnnouncement = async (req, res) => {
       return res.status(400).json({ message: 'No schools matched the selected targeting criteria' });
     }
 
+    // Validate created_by UUID safely
+    const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    const createdBy = isUUID(req.user?.id) ? req.user.id : null;
+
     // 1. Insert master record in platform_announcements
     const { data: announcement, error: insertErr } = await supabase
       .from('platform_announcements')
@@ -229,10 +233,10 @@ exports.publishPlatformAnnouncement = async (req, res) => {
         target_school_ids,
         target_package,
         target_status,
-        channels,
+        channels: Array.isArray(channels) && channels.length > 0 ? channels : ['in_app', 'email'],
         action_url,
         action_label,
-        created_by: req.user.id,
+        created_by: createdBy,
         stats: {
           schools_count: schools.length,
           admins_count: admins.length,

@@ -278,12 +278,13 @@ exports.createAnnouncement = async (req, res) => {
     }
 
     // 4. Create the announcement master record
+    const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
     const { data: announcement, error: announceError } = await supabase
       .from('announcements')
       .insert({
         school_id: schoolId,
         staff_id: validStaffId,
-        created_by: req.user?.id || null,
+        created_by: isUUID(req.user?.id) ? req.user.id : null,
         created_by_name: req.user?.name || req.user?.first_name || 'Administrator',
         title,
         message,

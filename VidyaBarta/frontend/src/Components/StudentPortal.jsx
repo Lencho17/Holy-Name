@@ -42,6 +42,7 @@ function StudentPortal() {
   const [showGrievanceForm, setShowGrievanceForm] = useState(false);
   const [grievanceForm, setGrievanceForm] = useState({ exam_id: '', subject: '', complaint: '' });
   const [expandedMenu, setExpandedMenu] = useState('timetable_group');
+  const [showEnrollmentModal, setShowEnrollmentModal] = useState(true);
 
   // In-Site Notifications State
   const [notifications, setNotifications] = useState([]);
@@ -515,11 +516,24 @@ function StudentPortal() {
         </header>
 
         {/* Admission / Readmission Fee Pending Popup/Banner */}
-        {student && !student.admissionFeePaid && student.admissionId && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-bounce-in">
+        {student && !student.admissionFeePaid && student.admissionId && showEnrollmentModal && (
+          <div 
+            onClick={(e) => { if (e.target === e.currentTarget) setShowEnrollmentModal(false); }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in"
+          >
+            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-bounce-in relative">
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setShowEnrollmentModal(false)}
+                className="absolute top-4 right-4 w-9 h-9 bg-black/20 hover:bg-black/40 text-white rounded-full flex items-center justify-center transition-all z-20 text-sm font-black"
+                title="Close and browse portal"
+              >
+                ✕
+              </button>
+
               {/* Banner header */}
-              <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-white text-center">
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-white text-center relative">
                 <div className="text-5xl mb-3">🎓</div>
                 <h2 className="text-2xl font-black">
                   {student.readmissionDeadline ? "Readmission Due" : "Complete Your Enrollment"}
@@ -556,19 +570,56 @@ function StudentPortal() {
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => navigate(`/admission/checkout/${student.admissionId}`)}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black py-4 rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
-                >
-                  Continue to Payment →
-                </button>
-                <p className="text-xs text-gray-400 text-center mt-3">You can browse the portal after completing payment</p>
+                <div className="space-y-2">
+                  <button 
+                    type="button"
+                    onClick={() => navigate(`/admission/checkout/${student.admissionId}`)}
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black py-4 rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-base"
+                  >
+                    <span>Continue to Payment</span>
+                    <span>&rarr;</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowEnrollmentModal(false)}
+                    className="w-full text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 py-3 rounded-xl transition-all border border-gray-200 text-center"
+                  >
+                    Remind Me Later / Browse Portal &rarr;
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 text-center mt-3">You can browse your timetable, announcements, and results anytime</p>
               </div>
             </div>
           </div>
         )}
 
         <main className="p-8 max-w-[1440px] w-full mx-auto flex-1">
+          {/* Non-blocking reminder banner when modal is dismissed */}
+          {!showEnrollmentModal && student && !student.admissionFeePaid && student.admissionId && (
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-5 py-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md animate-fade-in">
+              <div className="flex items-center gap-3 text-xs sm:text-sm font-bold">
+                <span className="text-xl">🎓</span>
+                <span>Admission fee payment is pending. Complete your kit selection and enrollment.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={() => navigate(`/admission/checkout/${student.admissionId}`)}
+                  className="bg-white text-orange-600 hover:bg-orange-50 text-xs font-black px-4 py-2 rounded-xl transition-all shadow-sm"
+                >
+                  Complete Payment &rarr;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEnrollmentModal(true)}
+                  className="text-white/80 hover:text-white text-xs font-bold underline px-2 py-1"
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          )}
           {mustPayReadmission && activeTab !== 'fees' ? (
             <div className="bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded mb-6 flex items-start gap-3">
               <span className="material-symbols-outlined mt-1 flex-shrink-0">warning</span>

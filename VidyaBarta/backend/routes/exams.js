@@ -43,7 +43,10 @@ router.get('/default-templates', protectAnyStaff, async (req, res) => {
   }
 });
 
-// Helper to generate working dates (skipping Sundays)
+const crypto = require('crypto');
+const { normalizeClassLevel, getHolyNameDefaultSubjects } = require('../utils/defaultClassSubjects');
+
+// Helper to generate working dates (Monday to Saturday, skipping Sundays)
 const getWorkingDates = (startDateStr, endDateStr) => {
   const dates = [];
   if (!startDateStr) return dates;
@@ -53,7 +56,7 @@ const getWorkingDates = (startDateStr, endDateStr) => {
   if (isNaN(curr.getTime())) return dates;
 
   while (curr <= end) {
-    if (curr.getDay() !== 0) { // Skip Sundays
+    if (curr.getDay() !== 0) { // 0 is Sunday - skip
       dates.push(curr.toISOString().split('T')[0]);
     }
     curr.setDate(curr.getDate() + 1);
@@ -61,107 +64,457 @@ const getWorkingDates = (startDateStr, endDateStr) => {
   return dates;
 };
 
-// Create a new exam (admin only, attaches school_id)
+// Helper to retrieve school's eligible subjects for a class based on category
+const getClassEligibleSubjects = async (school_id, class_level, category) => {
+  const normClass = normalizeClassLevel(class_level);
+  
+  // 1. Query school_subjects for this class and school
+  const { data: schoolSubs, error: subErr } = await supabase
+    .from('school_subjects')
+    .select('id, class_level, subject_id, is_core, elective_group_id, is_divided, parts, subjects(id, name, code, marking_system)')
+    .eq('school_id', school_id);
+
+  if (subErr) throw subErr;
+
+  // 2. Query elective groups for this school
+  const { data: groups, error: grpErr } = await supabase
+    .from('school_elective_groups')
+    .select('*')
+    .eq('school_id', school_id);
+
+  if (grpErr) throw grpErr;
+
+  const groupMap = {};
+  (groups || []).forEach(g => {
+    groupMap[g.id] = g.group_name;
+  });
+
+  // Filter subjects for the specific class level
+  const classRows = (schoolSubs || []).filter(s => normalizeClassLevel(s.class_level) === normClass);
+
+  let eligibleList = [];
+
+  if (classRows.length > 0) {
+    classRows.forEach(s => {
+      const subName = s.subjects?.name;
+      if (!subName) return;
+      const grpName = s.elective_group_id ? groupMap[s.elective_group_id] : null;
+      const markingSystem = s.subjects?.marking_system || 'Marking';
+      const isGrading = markingSystem === 'Grade' || grpName === 'Grading Sets';
+
+      // Check category eligibility
+      if (category === 'periodic_assessment') {
+        // Periodic Assessment: ONLY Core, Elective, and MIL
+        const isElective = grpName === 'Elective';
+        const isMIL = grpName === 'MIL';
+        if (s.is_core || isElective || isMIL) {
+          eligibleList.push({
+            subject_id: s.subject_id,
+            name: subName,
+            code: s.subjects?.code,
+            is_core: !!s.is_core,
+            group_name: grpName,
+            marking_system: markingSystem,
+            is_grading: isGrading,
+            is_divided: !!s.is_divided,
+            parts: s.parts || [],
+            total_marks: 50,
+            passing_marks: 20
+          });
+        }
+      } else {
+        // Terminal Examination: ALL subjects
+        eligibleList.push({
+          subject_id: s.subject_id,
+          name: subName,
+          code: s.subjects?.code,
+          is_core: !!s.is_core,
+          group_name: grpName,
+          marking_system: markingSystem,
+          is_grading: isGrading,
+          is_divided: !!s.is_divided,
+          parts: s.parts || [],
+          total_marks: 100,
+          passing_marks: 40
+        });
+      }
+    });
+  } else {
+    // Fallback: Check Holy Name default template
+    const defTemplate = await getHolyNameDefaultSubjects(supabase);
+    const defClass = defTemplate[normClass];
+    if (defClass) {
+      const allDef = [
+        ...(defClass.core_subjects || []).map(s => ({ ...s, is_core: true, group_name: null })),
+        ...((defClass.elective_groups || []).flatMap(g => (g.subjects || []).map(s => ({ ...s, is_core: false, group_name: g.group_name }))))
+      ];
+
+      allDef.forEach(s => {
+        const subName = s.name || s.subjects?.name;
+        if (!subName) return;
+        const grpName = s.group_name;
+        const markingSystem = s.marking_system || s.subjects?.marking_system || 'Marking';
+        const isGrading = markingSystem === 'Grade' || grpName === 'Grading Sets';
+
+        if (category === 'periodic_assessment') {
+          const isElective = grpName === 'Elective';
+          const isMIL = grpName === 'MIL';
+          if (s.is_core || isElective || isMIL) {
+            eligibleList.push({
+              subject_id: s.subject_id,
+              name: subName,
+              code: s.code || s.subjects?.code,
+              is_core: !!s.is_core,
+              group_name: grpName,
+              marking_system: markingSystem,
+              is_grading: isGrading,
+              is_divided: !!s.is_divided,
+              parts: s.parts || [],
+              total_marks: 50,
+              passing_marks: 20
+            });
+          }
+        } else {
+          eligibleList.push({
+            subject_id: s.subject_id,
+            name: subName,
+            code: s.code || s.subjects?.code,
+            is_core: !!s.is_core,
+            group_name: grpName,
+            marking_system: markingSystem,
+            is_grading: isGrading,
+            is_divided: !!s.is_divided,
+            parts: s.parts || [],
+            total_marks: 100,
+            passing_marks: 40
+          });
+        }
+      });
+    }
+  }
+
+  // Deduplicate by name if any duplicates exist
+  const seen = new Set();
+  return eligibleList.filter(item => {
+    const key = item.name.toUpperCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+// Create a new exam (admin only, attaches school_id, atomic with rollback)
 router.post('/', protect, async (req, res) => {
+  let createdExams = [];
+  let logical_exam_id = null;
   try {
-    const { name, type, class_levels, class_level, start_date, end_date, default_exam_id } = req.body;
+    const { 
+      name, 
+      type, 
+      class_levels, 
+      class_level, 
+      target_class, 
+      start_date, 
+      end_date, 
+      default_exam_id,
+      category: clientCategory,
+      two_exams_per_day,
+      shift1_start_time,
+      shift1_end_time,
+      shift2_start_time,
+      shift2_end_time,
+      single_start_time,
+      single_end_time
+    } = req.body;
     const { school_id } = req.user;
-    
-    const classes = class_levels || (class_level ? [class_level] : []);
-    if (classes.length === 0) {
-      return res.status(400).json({ message: 'At least one class level is required' });
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Exam name is required' });
+    }
+
+    if (!start_date || !end_date) {
+      return res.status(400).json({ message: 'Start date and end date are required' });
+    }
+
+    if (start_date > end_date) {
+      return res.status(400).json({ message: 'Start date cannot be after end date' });
+    }
+
+    if (!default_exam_id) {
+      return res.status(400).json({ message: 'A default exam template (default_exam_id) is required' });
+    }
+
+    // 1. Authoritative Template Verification
+    const { data: template, error: tmplError } = await supabase
+      .from('default_exams')
+      .select('*')
+      .eq('id', default_exam_id)
+      .eq('is_active', true)
+      .single();
+
+    if (tmplError || !template) {
+      return res.status(404).json({ message: 'Selected default exam template not found or inactive' });
+    }
+
+    const templateCategory = template.category || 'periodic_assessment';
+    if (clientCategory && clientCategory !== templateCategory) {
+      return res.status(400).json({ message: `Category mismatch: template requires '${templateCategory}'` });
+    }
+
+    // 2. Class Expansion: Ensure class_level is strictly the actual class, never "all"
+    let targetClasses = [];
+    const requested = class_levels || (class_level ? [class_level] : []);
+    if (requested.length === 0 && target_class) {
+      if (target_class === 'all') requested.push('all');
+      else requested.push(target_class);
     }
     
-    const inserts = classes.map(c => ({
-      name, 
-      type: type || 'Offline', 
-      class_level: c, 
-      start_date: start_date || null, 
-      end_date: end_date || null, 
+    if (requested.includes('all') || target_class === 'all') {
+      const { data: configs } = await supabase
+        .from('school_class_configs')
+        .select('class_level')
+        .eq('school_id', school_id);
+
+      if (configs && configs.length > 0) {
+        targetClasses = configs.map(c => normalizeClassLevel(c.class_level)).filter(Boolean);
+      } else {
+        const { data: mappedClasses } = await supabase
+          .from('school_subjects')
+          .select('class_level')
+          .eq('school_id', school_id);
+        const unique = [...new Set((mappedClasses || []).map(m => normalizeClassLevel(m.class_level)))];
+        targetClasses = unique.length > 0 ? unique : ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+      }
+    } else {
+      targetClasses = requested.map(c => normalizeClassLevel(c)).filter(Boolean);
+    }
+
+    targetClasses = [...new Set(targetClasses)];
+    if (targetClasses.length === 0) {
+      return res.status(400).json({ message: 'At least one valid class level is required' });
+    }
+
+    // 3. Calculate Working Dates (skipping Sundays)
+    const workingDates = getWorkingDates(start_date, end_date);
+    const D = workingDates.length;
+    if (D === 0) {
+      return res.status(400).json({ 
+        code: 'NO_WORKING_DAYS',
+        message: 'The selected date range contains no working days (Monday-Saturday). Please select a valid date range.' 
+      });
+    }
+
+    // 4. Phase 1: Pre-Validation Across ALL Targeted Classes (Independent Capacity & Subject Check)
+    const classSubjectsMap = {};
+    for (const c of targetClasses) {
+      const eligibleSubs = await getClassEligibleSubjects(school_id, c, templateCategory);
+      const N_c = eligibleSubs.length;
+
+      if (N_c === 0 && targetClasses.length === 1) {
+        return res.status(400).json({ 
+          code: 'NO_SUBJECTS', 
+          message: `No eligible subjects found for Class ${c}. Please configure subjects for this class first.` 
+        });
+      }
+
+      // Hard check: even at 2 exams per day, does it fit?
+      if (2 * D < N_c) {
+        return res.status(400).json({
+          code: 'INSUFFICIENT_DAYS_ABSOLUTE',
+          message: `There aren't enough days to conduct all the exams. The selected date range provides only ${D} working days and a maximum capacity of ${2 * D} exams, but Class ${c} requires ${N_c} subjects. Please select a proper date range.`,
+          class_level: c,
+          working_days: D,
+          required_subjects: N_c,
+          max_capacity: 2 * D
+        });
+      }
+
+      // Warning check: if 1 exam per day is insufficient and two_exams_per_day was not confirmed
+      if (D < N_c && !two_exams_per_day) {
+        return res.status(400).json({
+          code: 'REQUIRES_TWO_EXAMS_PER_DAY',
+          message: `The selected date range has fewer working days (${D}) than the number of required subjects (${N_c}) for Class ${c}. Would you like to conduct a maximum of two exams per day?`,
+          class_level: c,
+          working_days: D,
+          required_subjects: N_c,
+          slots_needed: 2
+        });
+      }
+
+      classSubjectsMap[c] = eligibleSubs;
+    }
+
+    // 5. Phase 2: Atomic Execution with Rollback
+    logical_exam_id = crypto.randomUUID();
+
+    const singleStart = single_start_time || '08:30';
+    const singleEnd = single_end_time || '10:30';
+    const s1Start = shift1_start_time || '08:30';
+    const s1End = shift1_end_time || '10:30';
+    const s2Start = shift2_start_time || '11:30';
+    const s2End = shift2_end_time || '13:30';
+
+    const examInserts = targetClasses.map(c => ({
+      name: name.trim(),
+      type: type || template.type || 'Offline',
+      class_level: c, // Strictly actual class string!
+      start_date: start_date || null,
+      end_date: end_date || null,
       school_id,
-      default_exam_id: default_exam_id || null
+      default_exam_id: template.id,
+      category: templateCategory,
+      logical_exam_id
     }));
-    
-    const { data: createdExams, error } = await supabase
+
+    // Insert exams
+    const { data: insertedExams, error: examError } = await supabase
       .from('exams')
-      .insert(inserts)
+      .insert(examInserts)
       .select();
 
-    if (error) throw error;
+    if (examError) throw examError;
+    createdExams = insertedExams;
 
-    // If a default exam template was selected, pre-generate the routine into exam_timetable
-    if (default_exam_id && createdExams && createdExams.length > 0) {
-      const { data: defaultTimetable, error: ttError } = await supabase
-        .from('default_exam_timetables')
-        .select('*')
-        .eq('default_exam_id', default_exam_id)
-        .order('order_index', { ascending: true });
+    // Generate timetable rows per class
+    const timetableInserts = [];
 
-      if (!ttError && defaultTimetable && defaultTimetable.length > 0) {
-        const workingDates = getWorkingDates(start_date, end_date);
-        const timetableInserts = [];
+    for (const ex of createdExams) {
+      let subs = [...(classSubjectsMap[ex.class_level] || [])];
 
-        for (const exam of createdExams) {
-          defaultTimetable.forEach((item, idx) => {
-            // Assign date from available dates or fallback to start_date or last available date
-            let assignedDate = null;
-            if (workingDates.length > 0) {
-              assignedDate = workingDates[idx] || workingDates[workingDates.length - 1];
-            } else if (start_date) {
-              assignedDate = start_date;
-            }
+      // Grading priority rule for terminal_examination:
+      // All grading subjects MUST be scheduled first before non-grading subjects!
+      if (templateCategory === 'terminal_examination') {
+        subs.sort((a, b) => {
+          if (a.is_grading && !b.is_grading) return -1;
+          if (!a.is_grading && b.is_grading) return 1;
+          return 0;
+        });
+      }
 
+      subs.forEach((item, idx) => {
+        let assignedDate = null;
+        let startTime = singleStart;
+        let endTime = singleEnd;
+
+        if (two_exams_per_day) {
+          const dayIdx = Math.floor(idx / 2);
+          const isSlot2 = idx % 2 === 1;
+          assignedDate = workingDates[dayIdx] || workingDates[workingDates.length - 1];
+          startTime = isSlot2 ? s2Start : s1Start;
+          endTime = isSlot2 ? s2End : s1End;
+        } else {
+          assignedDate = workingDates[idx] || workingDates[workingDates.length - 1];
+          startTime = singleStart;
+          endTime = singleEnd;
+        }
+
+        if (item.is_divided && item.parts && item.parts.length > 0) {
+          item.parts.forEach(p => {
             timetableInserts.push({
-              exam_id: exam.id,
+              exam_id: ex.id,
               school_id,
-              class_level: exam.class_level,
-              subject: item.subject,
-              sub_subject: item.sub_subject || null,
+              class_level: ex.class_level,
+              subject: item.name,
+              sub_subject: p.name + (p.sub_code ? ` (${p.sub_code})` : ''),
               exam_date: assignedDate,
-              start_time: item.start_time || '09:00',
-              end_time: item.end_time || '12:00',
-              total_marks: item.total_marks || 100,
-              passing_marks: item.passing_marks || 40,
-              has_practical: item.has_practical || false,
-              theory_marks: item.theory_marks || null,
-              theory_passing_marks: item.theory_passing_marks || null,
-              practical_marks: item.practical_marks || null,
-              practical_passing_marks: item.practical_passing_marks || null,
+              start_time: startTime,
+              end_time: endTime,
+              total_marks: item.total_marks,
+              passing_marks: item.passing_marks,
+              has_practical: false,
               is_finalized: false
             });
           });
+        } else {
+          timetableInserts.push({
+            exam_id: ex.id,
+            school_id,
+            class_level: ex.class_level,
+            subject: item.name,
+            sub_subject: null,
+            exam_date: assignedDate,
+            start_time: startTime,
+            end_time: endTime,
+            total_marks: item.total_marks,
+            passing_marks: item.passing_marks,
+            has_practical: false,
+            is_finalized: false
+          });
         }
-
-        if (timetableInserts.length > 0) {
-          const { error: insertTtError } = await supabase
-            .from('exam_timetable')
-            .insert(timetableInserts);
-
-          if (insertTtError) {
-            console.error('[AUTO PRESET TIMETABLE ERROR]:', insertTtError);
-          }
-        }
-      }
+      });
     }
 
-    res.status(201).json(createdExams);
+    if (timetableInserts.length > 0) {
+      const { error: ttError } = await supabase
+        .from('exam_timetable')
+        .insert(timetableInserts);
+
+      if (ttError) throw ttError;
+    }
+
+    res.status(201).json({
+      logical_exam_id,
+      exams: createdExams
+    });
   } catch (err) {
-    console.error(err);
+    console.error('[CREATE EXAMS ERROR]:', err);
+    // Atomic rollback: clean up any partially created exams or timetables
+    if (logical_exam_id) {
+      try {
+        if (createdExams && createdExams.length > 0) {
+          const ids = createdExams.map(e => e.id);
+          await supabase.from('exam_timetable').delete().in('exam_id', ids);
+        }
+        await supabase.from('exams').delete().eq('logical_exam_id', logical_exam_id);
+      } catch (rbErr) {
+        console.error('[ROLLBACK ERROR]:', rbErr);
+      }
+    }
     res.status(500).json({ message: err.message || 'Server Error', details: err });
   }
 });
 
-// Delete an exam group (all classes with the same name)
+// Delete a logical exam group (all classes for this logical_exam_id)
+router.delete('/logical/:logicalExamId', protect, async (req, res) => {
+  try {
+    const { school_id } = req.user;
+    const { logicalExamId } = req.params;
+
+    const { data: toDel } = await supabase
+      .from('exams')
+      .select('id')
+      .eq('logical_exam_id', logicalExamId)
+      .eq('school_id', school_id);
+
+    if (toDel && toDel.length > 0) {
+      const ids = toDel.map(e => e.id);
+      await supabase.from('exam_timetable').delete().in('exam_id', ids);
+      await supabase.from('exams').delete().eq('logical_exam_id', logicalExamId).eq('school_id', school_id);
+    }
+
+    res.json({ message: 'Logical exam group deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// Delete an exam group by name (legacy support)
 router.delete('/group/:name', protect, async (req, res) => {
   try {
     const { school_id } = req.user;
-    const { error } = await supabase
+    const { data: toDel } = await supabase
       .from('exams')
-      .delete()
+      .select('id')
       .eq('name', req.params.name)
       .eq('school_id', school_id);
 
-    if (error) throw error;
+    if (toDel && toDel.length > 0) {
+      const ids = toDel.map(e => e.id);
+      await supabase.from('exam_timetable').delete().in('exam_id', ids);
+      await supabase.from('exams').delete().eq('name', req.params.name).eq('school_id', school_id);
+    }
+
     res.json({ message: 'Exam group deleted successfully' });
   } catch (err) {
     console.error(err);
@@ -385,6 +738,32 @@ router.post('/:id/finalize', protect, async (req, res) => {
 });
 
 
+// Get eligible subjects for an exam instance (by class and exam category)
+router.get('/:id/eligible-subjects', protectAnyStaff, async (req, res) => {
+  try {
+    const { school_id } = req.user;
+    const { data: exam, error } = await supabase
+      .from('exams')
+      .select('id, school_id, class_level, category')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error || !exam) {
+      return res.status(404).json({ message: 'Exam not found' });
+    }
+
+    if (school_id && exam.school_id && exam.school_id !== school_id) {
+      return res.status(403).json({ message: 'Access denied: mismatched school_id' });
+    }
+
+    const eligible = await getClassEligibleSubjects(exam.school_id, exam.class_level, exam.category || 'periodic_assessment');
+    res.json(eligible);
+  } catch (err) {
+    console.error('[GET ELIGIBLE SUBJECTS ERROR]:', err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 // Get exam timetable
 router.get('/:id/timetable', protectAnyUser, async (req, res) => {
   try {
@@ -402,63 +781,234 @@ router.get('/:id/timetable', protectAnyUser, async (req, res) => {
   }
 });
 
-// Save exam timetable (Bulk)
+// Save exam timetable (Bulk Draft Save)
 router.post('/:id/timetable', protect, async (req, res) => {
   try {
     const { timetableData } = req.body;
     const { school_id } = req.user;
     
-    // First, delete existing timetable for this exam
-    await supabase.from('exam_timetable').delete().eq('exam_id', req.params.id);
-    
+    // 1. Verify exam ownership
+    const { data: exam, error: exErr } = await supabase
+      .from('exams')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('school_id', school_id)
+      .single();
+
+    if (exErr || !exam) {
+      return res.status(404).json({ message: 'Exam not found or access denied' });
+    }
+
     if (timetableData && timetableData.length > 0) {
+      // Validate dates
+      const dailyCounts = {};
+      for (const t of timetableData) {
+        if (t.exam_date) {
+          const d = new Date(t.exam_date);
+          if (d.getDay() === 0) {
+            return res.status(400).json({ message: `Cannot schedule exam on Sunday (${t.exam_date})` });
+          }
+          if (exam.start_date && exam.end_date && (t.exam_date < exam.start_date || t.exam_date > exam.end_date)) {
+            return res.status(400).json({ message: `Date ${t.exam_date} is outside the exam period (${exam.start_date} to ${exam.end_date})` });
+          }
+          dailyCounts[t.exam_date] = (dailyCounts[t.exam_date] || 0) + 1;
+          if (dailyCounts[t.exam_date] > 2) {
+            return res.status(400).json({ message: `Maximum 2 exams allowed on ${t.exam_date}` });
+          }
+        }
+      }
+
+      // First, delete existing timetable for this exam
+      await supabase.from('exam_timetable').delete().eq('exam_id', req.params.id);
+
       const inserts = timetableData.map(t => ({
         exam_id: req.params.id,
         school_id,
-        class_level: t.class_level,
+        class_level: t.class_level || exam.class_level,
         subject: t.subject,
         sub_subject: t.sub_subject || null,
         exam_date: t.exam_date || null,
         start_time: t.start_time || null,
         end_time: t.end_time || null,
-        total_marks: t.total_marks || 100,
-        passing_marks: t.passing_marks || 30,
+        total_marks: t.total_marks || (exam.category === 'periodic_assessment' ? 50 : 100),
+        passing_marks: t.passing_marks || (exam.category === 'periodic_assessment' ? 20 : 40),
         has_practical: t.has_practical || false,
         theory_marks: t.theory_marks || null,
         theory_passing_marks: t.theory_passing_marks || null,
         practical_marks: t.practical_marks || null,
         practical_passing_marks: t.practical_passing_marks || null,
         room_number: t.room_number || null,
-        is_finalized: t.is_finalized || false
+        is_finalized: false
       }));
       
       const { error } = await supabase.from('exam_timetable').insert(inserts);
       if (error) throw error;
+    } else {
+      await supabase.from('exam_timetable').delete().eq('exam_id', req.params.id);
     }
     
     res.json({ message: 'Timetable saved successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server Error' });
+    res.status(500).json({ message: err.message || 'Server Error' });
   }
 });
 
-// Finalize exam timetable for a specific class
+// Finalize exam timetable for a specific class (Strict Server-Side Validation Gate)
 router.put('/:id/timetable/finalize', protect, async (req, res) => {
   try {
+    const { school_id } = req.user;
     const { class_level } = req.body;
-    const { error } = await supabase
+
+    // 1. Verify exam ownership
+    const { data: exam, error: exErr } = await supabase
+      .from('exams')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('school_id', school_id)
+      .single();
+
+    if (exErr || !exam) {
+      return res.status(404).json({ message: 'Exam not found or access denied' });
+    }
+
+    const targetClass = class_level || exam.class_level;
+
+    // 2. Fetch current timetable rows
+    const { data: ttRows, error: ttErr } = await supabase
+      .from('exam_timetable')
+      .select('*')
+      .eq('exam_id', req.params.id)
+      .eq('class_level', targetClass)
+      .order('exam_date', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (ttErr) throw ttErr;
+
+    if (!ttRows || ttRows.length === 0) {
+      return res.status(400).json({ 
+        code: 'EMPTY_TIMETABLE', 
+        message: `Cannot finalize: No subjects found in timetable for Class ${targetClass}` 
+      });
+    }
+
+    // 3. Fetch class eligible subjects
+    const eligibleSubs = await getClassEligibleSubjects(school_id, targetClass, exam.category);
+    const eligibleNames = new Set(eligibleSubs.map(s => s.name.toUpperCase()));
+    const scheduledNames = new Set(ttRows.map(r => r.subject.toUpperCase()));
+
+    // Validation 1: Completeness - All required eligible subjects must be scheduled
+    const missing = [...eligibleNames].filter(name => !scheduledNames.has(name));
+    if (missing.length > 0) {
+      return res.status(400).json({
+        code: 'MISSING_SUBJECTS',
+        message: `Cannot finalize: Missing required eligible subjects: ${missing.join(', ')}`,
+        missing
+      });
+    }
+
+    // Validation 2: Subject Eligibility - No forbidden subjects outside the category pool
+    const forbidden = [...scheduledNames].filter(name => !eligibleNames.has(name));
+    if (forbidden.length > 0) {
+      return res.status(400).json({
+        code: 'FORBIDDEN_SUBJECTS',
+        message: `Cannot finalize: Forbidden subjects not permitted in ${exam.category}: ${forbidden.join(', ')}`,
+        forbidden
+      });
+    }
+
+    // Validation 3: Daily Limit, Sundays, Valid Dates and Times
+    const dailyCounts = {};
+    for (const r of ttRows) {
+      if (!r.exam_date) {
+        return res.status(400).json({
+          code: 'UNSCHEDULED_DATE',
+          message: `Cannot finalize: Subject '${r.subject}' has no exam date scheduled.`
+        });
+      }
+
+      const d = new Date(r.exam_date);
+      if (d.getDay() === 0) {
+        return res.status(400).json({
+          code: 'SUNDAY_SCHEDULED',
+          message: `Cannot finalize: Exam for '${r.subject}' is scheduled on a Sunday (${r.exam_date}).`
+        });
+      }
+
+      if (exam.start_date && exam.end_date && (r.exam_date < exam.start_date || r.exam_date > exam.end_date)) {
+        return res.status(400).json({
+          code: 'DATE_OUT_OF_RANGE',
+          message: `Cannot finalize: Date ${r.exam_date} for '${r.subject}' is outside the exam period (${exam.start_date} to ${exam.end_date}).`
+        });
+      }
+
+      dailyCounts[r.exam_date] = (dailyCounts[r.exam_date] || 0) + 1;
+      if (dailyCounts[r.exam_date] > 2) {
+        return res.status(400).json({
+          code: 'DAILY_LIMIT_EXCEEDED',
+          message: `Cannot finalize: More than 2 exams scheduled on ${r.exam_date}.`
+        });
+      }
+
+      if (r.start_time && r.end_time && r.start_time >= r.end_time) {
+        return res.status(400).json({
+          code: 'INVALID_TIMES',
+          message: `Cannot finalize: Start time (${r.start_time}) must be earlier than end time (${r.end_time}) for subject '${r.subject}'.`
+        });
+      }
+    }
+
+    // Validation 4: Grading Priority Rule for terminal_examination
+    if (exam.category === 'terminal_examination') {
+      const gradingSubsMap = new Map(eligibleSubs.map(s => [s.name.toUpperCase(), !!s.is_grading]));
+      const gradingRows = ttRows.filter(r => gradingSubsMap.get(r.subject.toUpperCase()));
+      const nonGradingRows = ttRows.filter(r => !gradingSubsMap.get(r.subject.toUpperCase()));
+
+      if (gradingRows.length > 0 && nonGradingRows.length > 0) {
+        let latestGradingTime = null;
+        let latestGradingSubject = '';
+        for (const gr of gradingRows) {
+          const dtStr = `${gr.exam_date}T${gr.start_time || '00:00:00'}`;
+          if (!latestGradingTime || dtStr > latestGradingTime) {
+            latestGradingTime = dtStr;
+            latestGradingSubject = gr.subject;
+          }
+        }
+
+        let earliestNonGradingTime = null;
+        let earliestNonGradingSubject = '';
+        for (const ngr of nonGradingRows) {
+          const dtStr = `${ngr.exam_date}T${ngr.start_time || '00:00:00'}`;
+          if (!earliestNonGradingTime || dtStr < earliestNonGradingTime) {
+            earliestNonGradingTime = dtStr;
+            earliestNonGradingSubject = ngr.subject;
+          }
+        }
+
+        if (earliestNonGradingTime <= latestGradingTime) {
+          return res.status(400).json({
+            code: 'GRADING_PRIORITY_VIOLATION',
+            message: `Cannot finalize: All grading subjects must be conducted before any non-grading subjects. Non-grading subject '${earliestNonGradingSubject}' is scheduled on or before grading subject '${latestGradingSubject}'.`
+          });
+        }
+      }
+    }
+
+    // 4. Update status to finalized
+    const { error: finError } = await supabase
       .from('exam_timetable')
       .update({ is_finalized: true })
       .eq('exam_id', req.params.id)
-      .eq('class_level', class_level);
+      .eq('class_level', targetClass);
 
-    if (error) throw error;
-    res.json({ message: 'Timetable finalized' });
+    if (finError) throw finError;
+
+    res.json({ message: 'Exam timetable finalized successfully' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server Error' });
+    console.error('[FINALIZE ERROR]:', err);
+    res.status(500).json({ message: err.message || 'Server Error' });
   }
 });
 
 module.exports = router;
+

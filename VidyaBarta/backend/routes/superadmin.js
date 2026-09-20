@@ -676,10 +676,14 @@ router.post('/default-exams', protect, async (req, res) => {
       return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
     }
 
-    const { name, type, description, class_levels, default_start_time, default_end_time, timetableData } = req.body;
+    const { name, type, description, class_levels, default_start_time, default_end_time, timetableData, category } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: 'Exam name is required' });
+    }
+
+    if (!category || !['periodic_assessment', 'terminal_examination'].includes(category)) {
+      return res.status(400).json({ message: "Category is required and must be either 'periodic_assessment' or 'terminal_examination'" });
     }
 
     const { data: newExam, error: insertError } = await supabase
@@ -689,8 +693,9 @@ router.post('/default-exams', protect, async (req, res) => {
         type: type || 'Offline',
         description: description || null,
         class_levels: class_levels || [],
-        default_start_time: default_start_time || '09:00',
-        default_end_time: default_end_time || '12:00'
+        default_start_time: default_start_time || '08:30',
+        default_end_time: default_end_time || '10:30',
+        category
       })
       .select()
       .single();
@@ -706,10 +711,10 @@ router.post('/default-exams', protect, async (req, res) => {
         class_level: item.class_level || null,
         order_index: item.order_index ?? idx,
         day_offset: item.day_offset ?? idx,
-        start_time: item.start_time || newExam.default_start_time || '09:00',
-        end_time: item.end_time || newExam.default_end_time || '12:00',
-        total_marks: item.total_marks || 100,
-        passing_marks: item.passing_marks || 40,
+        start_time: item.start_time || newExam.default_start_time || '08:30',
+        end_time: item.end_time || newExam.default_end_time || '10:30',
+        total_marks: item.total_marks || (category === 'periodic_assessment' ? 50 : 100),
+        passing_marks: item.passing_marks || (category === 'periodic_assessment' ? 20 : 40),
         has_practical: item.has_practical || false,
         theory_marks: item.theory_marks || null,
         theory_passing_marks: item.theory_passing_marks || null,
@@ -741,20 +746,29 @@ router.put('/default-exams/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
     }
 
-    const { name, type, description, class_levels, default_start_time, default_end_time, is_active } = req.body;
+    const { name, type, description, class_levels, default_start_time, default_end_time, is_active, category } = req.body;
+
+    if (category && !['periodic_assessment', 'terminal_examination'].includes(category)) {
+      return res.status(400).json({ message: "Category must be either 'periodic_assessment' or 'terminal_examination'" });
+    }
+
+    const updatePayload = {
+      name,
+      type: type || 'Offline',
+      description: description || null,
+      class_levels: class_levels || [],
+      default_start_time: default_start_time || '08:30',
+      default_end_time: default_end_time || '10:30',
+      is_active: is_active ?? true,
+      updated_at: new Date().toISOString()
+    };
+    if (category) {
+      updatePayload.category = category;
+    }
 
     const { data: updatedExam, error } = await supabase
       .from('default_exams')
-      .update({
-        name,
-        type: type || 'Offline',
-        description: description || null,
-        class_levels: class_levels || [],
-        default_start_time: default_start_time || '09:00',
-        default_end_time: default_end_time || '12:00',
-        is_active: is_active ?? true,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', req.params.id)
       .select()
       .single();

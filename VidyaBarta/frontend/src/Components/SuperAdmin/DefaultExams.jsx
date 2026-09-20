@@ -234,10 +234,11 @@ export const DefaultExams = () => {
   const [examForm, setExamForm] = useState({
     name: '',
     type: 'Offline',
+    category: 'periodic_assessment',
     description: '',
     class_levels: [],
-    default_start_time: '09:00',
-    default_end_time: '12:00'
+    default_start_time: '08:30',
+    default_end_time: '10:30'
   });
 
   const sensors = useSensors(
@@ -300,10 +301,11 @@ export const DefaultExams = () => {
     setExamForm({
       name: '',
       type: 'Offline',
+      category: 'periodic_assessment',
       description: '',
       class_levels: globalClasses.map(c => c.name),
-      default_start_time: '09:00',
-      default_end_time: '12:00'
+      default_start_time: '08:30',
+      default_end_time: '10:30'
     });
     setShowExamModal(true);
   };
@@ -313,10 +315,11 @@ export const DefaultExams = () => {
     setExamForm({
       name: exam.name || '',
       type: exam.type || 'Offline',
+      category: exam.category || 'periodic_assessment',
       description: exam.description || '',
       class_levels: exam.class_levels || [],
-      default_start_time: exam.default_start_time?.substring(0, 5) || '09:00',
-      default_end_time: exam.default_end_time?.substring(0, 5) || '12:00'
+      default_start_time: exam.default_start_time?.substring(0, 5) || '08:30',
+      default_end_time: exam.default_end_time?.substring(0, 5) || '10:30'
     });
     setShowExamModal(true);
   };
@@ -584,6 +587,7 @@ export const DefaultExams = () => {
               <thead>
                 <tr className="bg-surface-variant/30 text-on-surface-variant text-xs font-semibold uppercase tracking-wider border-b border-outline-variant">
                   <th className="p-4 pl-6">Exam Name</th>
+                  <th className="p-4">Category</th>
                   <th className="p-4">Type</th>
                   <th className="p-4">Default Timing</th>
                   <th className="p-4">Routine Sequence</th>
@@ -604,6 +608,18 @@ export const DefaultExams = () => {
                       </td>
 
                       <td className="p-4">
+                        {exam.category === 'terminal_examination' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                            Terminal Examination
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                            Periodic Assessment
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="p-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-secondary/10 text-secondary">
                           {exam.type || 'Offline'}
                         </span>
@@ -612,7 +628,7 @@ export const DefaultExams = () => {
                       <td className="p-4 text-on-surface-variant text-xs font-medium">
                         <span className="flex items-center gap-1.5">
                           <FiClock className="text-primary" />
-                          {exam.default_start_time?.substring(0, 5) || '09:00'} - {exam.default_end_time?.substring(0, 5) || '12:00'}
+                          {exam.default_start_time?.substring(0, 5) || '08:30'} - {exam.default_end_time?.substring(0, 5) || '10:30'}
                         </span>
                       </td>
 
@@ -711,6 +727,26 @@ export const DefaultExams = () => {
                   onChange={(e) => setExamForm({ ...examForm, name: e.target.value })}
                   className="w-full px-4 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-medium"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral uppercase tracking-wider mb-2">
+                  Exam Category *
+                </label>
+                <select
+                  value={examForm.category}
+                  onChange={(e) => setExamForm({ ...examForm, category: e.target.value })}
+                  className="w-full px-3 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-semibold"
+                >
+                  <option value="periodic_assessment">Periodic Assessment</option>
+                  <option value="terminal_examination">Terminal Examination</option>
+                </select>
+                <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1.5">
+                  <FiInfo className="text-primary flex-shrink-0" />
+                  {examForm.category === 'terminal_examination'
+                    ? 'Terminal Examination: Consists of All subjects including Grading & Minor (100 Marks)'
+                    : 'Periodic Assessment: Consists of Core, Elective, and MIL subjects only (50 Marks)'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

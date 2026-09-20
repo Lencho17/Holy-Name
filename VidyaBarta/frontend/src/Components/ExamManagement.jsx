@@ -538,13 +538,15 @@ const ExamManagement = ({ apiUrl, token }) => {
   const switchClass = async (targetExam) => {
     setSelectedClassExam(targetExam);
 
+    let eligibleSubs = [];
     // 1. Fetch eligible subjects computed by backend for this class and category
     try {
-      const { data: eligibleSubs } = await axios.get(
+      const { data } = await axios.get(
         `${apiUrl}/exams/${targetExam.id}/eligible-subjects`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setAvailableSubjects(eligibleSubs || []);
+      eligibleSubs = data || [];
+      setAvailableSubjects(eligibleSubs);
     } catch (err) {
       console.error('Error fetching eligible subjects:', err);
     }
@@ -579,8 +581,7 @@ const ExamManagement = ({ apiUrl, token }) => {
           start_time: item.start_time?.substring(0, 5) || '08:30',
           end_time: item.end_time?.substring(0, 5) || '10:30',
           is_divided: matchedMeta?.is_divided || false,
-          subjectMeta: matchedMeta || null,
-          papers: []
+          subjectMeta: matchedMeta || null
         });
       });
       setTimetableData(grouped);

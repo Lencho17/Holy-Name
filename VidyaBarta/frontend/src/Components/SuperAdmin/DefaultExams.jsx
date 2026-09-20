@@ -228,7 +228,6 @@ const SortableRoutineItem = ({
 export const DefaultExams = () => {
   const [defaultExams, setDefaultExams] = useState([]);
   const [globalSubjects, setGlobalSubjects] = useState([]);
-  const [globalClasses, setGlobalClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Modal states
@@ -245,7 +244,6 @@ export const DefaultExams = () => {
     type: 'Offline',
     category: 'periodic_assessment',
     description: '',
-    class_levels: [],
     default_start_time: '08:30',
     default_end_time: '10:30'
   });
@@ -268,10 +266,9 @@ export const DefaultExams = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [examsRes, subjectsRes, classesRes] = await Promise.all([
+      const [examsRes, subjectsRes] = await Promise.all([
         fetch(`${API_URL}/superadmin/default-exams`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/subjects/global`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/classes/global`, { headers: getAuthHeaders() }).catch(() => null)
+        fetch(`${API_URL}/subjects/global`, { headers: getAuthHeaders() })
       ]);
 
       if (examsRes.ok) {
@@ -281,18 +278,6 @@ export const DefaultExams = () => {
       if (subjectsRes && subjectsRes.ok) {
         const subjectsData = await subjectsRes.json();
         setGlobalSubjects(subjectsData);
-      }
-      if (classesRes && classesRes.ok) {
-        const classesData = await classesRes.json();
-        setGlobalClasses(classesData);
-      } else {
-        // Fallback canonical classes
-        setGlobalClasses([
-          { name: 'PPE-NURSERY' }, { name: 'KG-I' }, { name: 'KG-II' },
-          { name: 'I' }, { name: 'II' }, { name: 'III' }, { name: 'IV' }, { name: 'V' },
-          { name: 'VI' }, { name: 'VII' }, { name: 'VIII' }, { name: 'IX' }, { name: 'X' },
-          { name: 'XI' }, { name: 'XII' }
-        ]);
       }
     } catch (err) {
       console.error('Error fetching default exams data:', err);
@@ -312,7 +297,6 @@ export const DefaultExams = () => {
       type: 'Offline',
       category: 'periodic_assessment',
       description: '',
-      class_levels: globalClasses.map(c => c.name),
       default_start_time: '08:30',
       default_end_time: '10:30'
     });
@@ -326,7 +310,6 @@ export const DefaultExams = () => {
       type: exam.type || 'Offline',
       category: exam.category || 'periodic_assessment',
       description: exam.description || '',
-      class_levels: exam.class_levels || [],
       default_start_time: exam.default_start_time?.substring(0, 5) || '08:30',
       default_end_time: exam.default_end_time?.substring(0, 5) || '10:30'
     });
@@ -503,12 +486,7 @@ export const DefaultExams = () => {
     }
   };
 
-  const toggleClassLevel = (clsName) => {
-    const current = new Set(examForm.class_levels);
-    if (current.has(clsName)) current.delete(clsName);
-    else current.add(clsName);
-    setExamForm({ ...examForm, class_levels: Array.from(current) });
-  };
+
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8">
@@ -611,7 +589,6 @@ export const DefaultExams = () => {
                   <th className="p-4">Type</th>
                   <th className="p-4">Default Timing</th>
                   <th className="p-4">Routine Sequence</th>
-                  <th className="p-4">Applicable Classes</th>
                   <th className="p-4 pr-6 text-right">Actions</th>
                 </tr>
               </thead>
@@ -662,26 +639,7 @@ export const DefaultExams = () => {
                         </button>
                       </td>
 
-                      <td className="p-4">
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {(!exam.class_levels || exam.class_levels.length === 0) ? (
-                            <span className="text-xs text-on-surface-variant font-medium">All Classes</span>
-                          ) : (
-                            <>
-                              {exam.class_levels.slice(0, 3).map((cls, i) => (
-                                <span key={i} className="px-2 py-0.5 text-[11px] font-semibold bg-surface-variant rounded border border-outline-variant text-neutral">
-                                  {cls}
-                                </span>
-                              ))}
-                              {exam.class_levels.length > 3 && (
-                                <span className="px-1.5 py-0.5 text-[10px] text-on-surface-variant">
-                                  +{exam.class_levels.length - 3} more
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
+
 
                       <td className="p-4 pr-6 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -822,50 +780,7 @@ export const DefaultExams = () => {
                 />
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-neutral uppercase tracking-wider">
-                    Applicable Classes
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setExamForm({ ...examForm, class_levels: globalClasses.map(c => c.name) })}
-                      className="text-xs text-primary hover:underline font-semibold"
-                    >
-                      Select All
-                    </button>
-                    <span className="text-xs text-on-surface-variant">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setExamForm({ ...examForm, class_levels: [] })}
-                      className="text-xs text-rose-500 hover:underline font-semibold"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
 
-                <div className="p-3 bg-surface-variant/30 rounded-xl border border-outline-variant flex flex-wrap gap-2 max-h-36 overflow-y-auto custom-scrollbar">
-                  {globalClasses.map((cls) => {
-                    const isSelected = examForm.class_levels.includes(cls.name);
-                    return (
-                      <button
-                        type="button"
-                        key={cls.name}
-                        onClick={() => toggleClassLevel(cls.name)}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                          isSelected
-                            ? 'bg-primary text-white shadow-sm'
-                            : 'bg-surface text-on-surface-variant hover:bg-surface-variant border border-outline-variant/60'
-                        }`}
-                      >
-                        {cls.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
               <div className="pt-4 border-t border-outline-variant flex justify-end gap-3">
                 <button

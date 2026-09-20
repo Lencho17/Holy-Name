@@ -328,6 +328,9 @@ const ExamManagement = ({ apiUrl, token }) => {
     shift2_end_time: '13:30'
   });
 
+  const [classSelectionMode, setClassSelectionMode] = useState('all'); // 'all' | 'custom'
+  const [selectedClassLevels, setSelectedClassLevels] = useState([]);
+
   const { globalClasses } = useContext(SiteDataContext);
   const allClasses = (globalClasses?.map((c) => c.name) || [
     'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'
@@ -438,6 +441,10 @@ const ExamManagement = ({ apiUrl, token }) => {
     if (!newExam.start_date || !newExam.end_date) return alert('Please select start and end dates');
     if (newExam.start_date > newExam.end_date) return alert('Start date cannot be after end date');
 
+    if (classSelectionMode === 'custom' && selectedClassLevels.length === 0) {
+      return alert('Please select at least one class for this exam');
+    }
+
     const twoExams = forceTwoExams !== null ? forceTwoExams : newExam.two_exams_per_day;
 
     try {
@@ -446,7 +453,8 @@ const ExamManagement = ({ apiUrl, token }) => {
         `${apiUrl}/exams`,
         {
           name: newExam.name.trim(),
-          target_class: newExam.target_class,
+          target_class: classSelectionMode === 'all' ? 'all' : (selectedClassLevels.length === 1 ? selectedClassLevels[0] : 'custom'),
+          class_levels: classSelectionMode === 'all' ? ['all'] : selectedClassLevels,
           type: newExam.type,
           start_date: newExam.start_date,
           end_date: newExam.end_date,
@@ -880,6 +888,8 @@ const ExamManagement = ({ apiUrl, token }) => {
             <button
               onClick={() => {
                 setShowCreate(true);
+                setClassSelectionMode('all');
+                setSelectedClassLevels([]);
                 if (defaultTemplates.length > 0) {
                   handleTemplateSelection(defaultTemplates[0].id);
                 }
@@ -1287,26 +1297,114 @@ const ExamManagement = ({ apiUrl, token }) => {
                 />
               </div>
 
-              {/* Targeted Class Dropdown */}
+              {/* Targeted Classes Selector */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
-                  Targeted Class *
-                </label>
-                <select
-                  value={newExam.target_class}
-                  onChange={(e) => setNewExam({ ...newExam, target_class: e.target.value })}
-                  className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-semibold text-sm shadow-sm"
-                >
-                  <option value="all" className="text-slate-900 bg-white py-1">All Available Classes (Expands across all school classes)</option>
-                  {allClasses.map((c) => (
-                    <option key={c} value={c} className="text-slate-900 bg-white py-1">
-                      Class {c}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Selecting "All Available Classes" creates distinct class instances linked under one unified exam event.
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Targeted Classes *
+                  </label>
+                  <span className="text-[11px] text-indigo-600 font-bold bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                    {classSelectionMode === 'all'
+                      ? 'All Classes Selected'
+                      : `${selectedClassLevels.length} Class${selectedClassLevels.length === 1 ? '' : 'es'} Selected`}
+                  </span>
+                </div>
+
+                {/* Mode Selector Tabs */}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClassSelectionMode('all');
+                      setNewExam((prev) => ({ ...prev, target_class: 'all' }));
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      classSelectionMode === 'all'
+                        ? 'bg-white text-indigo-600 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    All Available Classes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClassSelectionMode('custom');
+                      if (selectedClassLevels.length === 0) {
+                        setSelectedClassLevels(allClasses.slice(0, 4));
+                      }
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      classSelectionMode === 'custom'
+                        ? 'bg-white text-indigo-600 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Select Specific Classes
+                  </button>
+                </div>
+
+                {classSelectionMode === 'all' ? (
+                  <div className="p-3.5 bg-indigo-50/60 border border-indigo-100 rounded-xl text-xs text-indigo-900">
+                    <span className="font-bold">All Available Classes ({allClasses.length}): </span>
+                    <span className="text-slate-600">Class {allClasses.join(', ')}</span>
+                    <p className="text-[11px] text-indigo-600 mt-1">
+                      Distinct class exam instances will be automatically generated and linked under one unified exam event.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between text-xs pb-1.5 border-b border-slate-200">
+                      <span className="text-slate-500 font-semibold text-[11px]">Click classes to include:</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClassLevels([...allClasses])}
+                          className="text-xs text-indigo-600 hover:underline font-bold"
+                        >
+                          Select All
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClassLevels([])}
+                          className="text-xs text-rose-500 hover:underline font-bold"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto custom-scrollbar pt-1">
+                      {allClasses.map((cls) => {
+                        const isSelected = selectedClassLevels.includes(cls);
+                        return (
+                          <button
+                            type="button"
+                            key={cls}
+                            onClick={() => {
+                              setSelectedClassLevels((prev) =>
+                                prev.includes(cls) ? prev.filter((c) => c !== cls) : [...prev, cls]
+                              );
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-500/20'
+                                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                            }`}
+                          >
+                            {isSelected && <span className="text-[10px]">✓</span>}
+                            <span>Class {cls}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedClassLevels.length === 0 && (
+                      <p className="text-[11px] text-rose-500 font-semibold pt-1">
+                        Please select at least one class for this exam.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Type and Date Range */}

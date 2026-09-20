@@ -832,6 +832,17 @@ router.post('/default-exams/:id/timetable', protect, async (req, res) => {
     const { timetableData } = req.body;
     const defaultExamId = req.params.id;
 
+    // Fetch exam category to enforce proper default marks (50 for periodic, 100 for terminal)
+    const { data: examData } = await supabase
+      .from('default_exams')
+      .select('category, default_start_time, default_end_time')
+      .eq('id', defaultExamId)
+      .single();
+
+    const isPeriodic = examData?.category === 'periodic_assessment';
+    const categoryDefaultTotal = isPeriodic ? 50 : 100;
+    const categoryDefaultPass = isPeriodic ? 20 : 40;
+
     // Delete existing items for this default exam
     await supabase.from('default_exam_timetables').delete().eq('default_exam_id', defaultExamId);
 
@@ -843,10 +854,10 @@ router.post('/default-exams/:id/timetable', protect, async (req, res) => {
         class_level: t.class_level || null,
         order_index: t.order_index ?? idx,
         day_offset: t.day_offset ?? idx,
-        start_time: t.start_time || '09:00',
-        end_time: t.end_time || '12:00',
-        total_marks: t.total_marks || 100,
-        passing_marks: t.passing_marks || 40,
+        start_time: t.start_time || examData?.default_start_time || '08:30',
+        end_time: t.end_time || examData?.default_end_time || '10:30',
+        total_marks: t.total_marks || categoryDefaultTotal,
+        passing_marks: t.passing_marks || categoryDefaultPass,
         has_practical: t.has_practical || false,
         theory_marks: t.theory_marks || null,
         theory_passing_marks: t.theory_passing_marks || null,

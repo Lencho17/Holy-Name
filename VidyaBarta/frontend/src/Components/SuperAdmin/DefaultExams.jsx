@@ -28,7 +28,8 @@ const SortableRoutineItem = ({
   index, 
   globalSubjects, 
   onUpdate, 
-  onRemove 
+  onRemove,
+  examCategory
 }) => {
   const {
     attributes,
@@ -43,40 +44,43 @@ const SortableRoutineItem = ({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 50 : 1,
-    opacity: isDragging ? 0.75 : 1
+    opacity: isDragging ? 0.8 : 1
   };
+
+  const isPeriodic = examCategory === 'periodic_assessment';
 
   return (
     <div 
       ref={setNodeRef} 
       style={style} 
-      className={`p-4 mb-3 rounded-xl border transition-all duration-200 ${
+      className={`p-4 mb-3.5 rounded-2xl border transition-all duration-200 ${
         isDragging 
-          ? 'bg-primary/5 border-primary shadow-xl scale-[1.01]' 
-          : 'bg-surface border-outline-variant/60 hover:border-outline-variant shadow-sm'
+          ? 'bg-indigo-50/70 border-indigo-500 shadow-xl scale-[1.01] z-30' 
+          : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
       }`}
     >
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+      <div className="flex flex-col xl:flex-row xl:items-center gap-3.5">
         {/* Drag Handle & Day Indicator */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button 
             type="button" 
             {...attributes} 
             {...listeners} 
-            className="cursor-grab active:cursor-grabbing p-2 text-on-surface-variant hover:text-primary hover:bg-surface-variant/50 rounded-lg transition"
+            className="cursor-grab active:cursor-grabbing p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition"
             title="Drag to reorder day"
           >
             <FiMove className="text-base" />
           </button>
-          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary whitespace-nowrap">
+          <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap">
             Day {index + 1}
           </span>
         </div>
 
-        {/* Subject selection */}
-        <div className="flex-1 w-full md:w-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">
+        {/* Fields Row */}
+        <div className="flex-1 flex flex-wrap lg:flex-nowrap items-center gap-3">
+          {/* Subject selection */}
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
               Subject Name
             </label>
             <div className="relative">
@@ -86,7 +90,7 @@ const SortableRoutineItem = ({
                 placeholder="e.g. English, Mathematics..."
                 value={item.subject}
                 onChange={(e) => onUpdate(index, 'subject', e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-background border border-outline-variant rounded-lg focus:outline-none focus:border-primary text-on-surface font-medium"
+                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-slate-900 font-semibold shadow-sm placeholder-slate-400"
               />
               <datalist id={`subjects-list-${index}`}>
                 {globalSubjects.map((s) => (
@@ -96,62 +100,67 @@ const SortableRoutineItem = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">
+          {/* Start Time */}
+          <div className="w-36 shrink-0">
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
               Start Time
             </label>
             <input
               type="time"
-              value={item.start_time?.substring(0, 5) || '09:00'}
+              value={item.start_time?.substring(0, 5) || '08:30'}
               onChange={(e) => onUpdate(index, 'start_time', e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-background border border-outline-variant rounded-lg focus:outline-none focus:border-primary text-on-surface font-medium"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-slate-900 font-medium shadow-sm cursor-pointer"
             />
           </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">
+          {/* End Time */}
+          <div className="w-36 shrink-0">
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
               End Time
             </label>
             <input
               type="time"
-              value={item.end_time?.substring(0, 5) || '12:00'}
+              value={item.end_time?.substring(0, 5) || '10:30'}
               onChange={(e) => onUpdate(index, 'end_time', e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-background border border-outline-variant rounded-lg focus:outline-none focus:border-primary text-on-surface font-medium"
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-slate-900 font-medium shadow-sm cursor-pointer"
             />
           </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">
+          {/* Total & Pass Marks */}
+          <div className="shrink-0">
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 text-center">
               Total / Pass
             </label>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
               <input
                 type="number"
-                placeholder="Total"
-                value={item.total_marks || ''}
+                placeholder={isPeriodic ? '50' : '100'}
+                value={item.total_marks ?? ''}
                 onChange={(e) => onUpdate(index, 'total_marks', parseInt(e.target.value) || 0)}
-                className="w-1/2 px-2.5 py-2 text-sm bg-background border border-outline-variant rounded-lg focus:outline-none focus:border-primary text-on-surface font-medium text-center"
+                className="w-16 px-2 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-slate-900 font-bold text-center shadow-sm"
+                title="Total Marks"
               />
-              <span className="text-on-surface-variant text-xs">/</span>
+              <span className="text-slate-400 font-bold text-xs">/</span>
               <input
                 type="number"
-                placeholder="Pass"
-                value={item.passing_marks || ''}
+                placeholder={isPeriodic ? '20' : '40'}
+                value={item.passing_marks ?? ''}
                 onChange={(e) => onUpdate(index, 'passing_marks', parseInt(e.target.value) || 0)}
-                className="w-1/2 px-2.5 py-2 text-sm bg-background border border-outline-variant rounded-lg focus:outline-none focus:border-primary text-on-surface font-medium text-center"
+                className="w-16 px-2 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-slate-900 font-bold text-center shadow-sm"
+                title="Passing Marks"
               />
             </div>
           </div>
         </div>
 
         {/* Practical toggle & Delete */}
-        <div className="flex items-center gap-3 self-end md:self-center mt-2 md:mt-0">
-          <label className="flex items-center gap-1.5 cursor-pointer text-xs text-on-surface-variant select-none">
+        <div className="flex items-center gap-3 shrink-0 self-end xl:self-center pt-2 xl:pt-0">
+          <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 select-none bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition shadow-sm">
             <input 
               type="checkbox"
               checked={item.has_practical || false}
               onChange={(e) => onUpdate(index, 'has_practical', e.target.checked)}
-              className="rounded text-primary focus:ring-primary border-outline-variant"
+              className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 w-4 h-4 cursor-pointer"
             />
             <span>Practical</span>
           </label>
@@ -159,7 +168,7 @@ const SortableRoutineItem = ({
           <button
             type="button"
             onClick={() => onRemove(index)}
-            className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
+            className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition border border-transparent hover:border-rose-100"
             title="Remove subject"
           >
             <FiTrash2 className="text-base" />
@@ -169,45 +178,45 @@ const SortableRoutineItem = ({
 
       {/* Practical marks details if enabled */}
       {item.has_practical && (
-        <div className="mt-3 pt-3 border-t border-outline-variant/40 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-surface-variant/30 p-2.5 rounded-lg">
+        <div className="mt-3.5 pt-3.5 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
           <div>
-            <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Theory Marks</label>
+            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Theory Marks</label>
             <input 
               type="number" 
-              placeholder="e.g. 70" 
+              placeholder={isPeriodic ? '35' : '70'} 
               value={item.theory_marks || ''} 
               onChange={e => onUpdate(index, 'theory_marks', parseInt(e.target.value) || 0)}
-              className="w-full px-2.5 py-1 text-xs bg-background border border-outline-variant rounded font-medium"
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold shadow-sm"
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Theory Pass</label>
+            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Theory Pass</label>
             <input 
               type="number" 
-              placeholder="e.g. 28" 
+              placeholder={isPeriodic ? '14' : '28'} 
               value={item.theory_passing_marks || ''} 
               onChange={e => onUpdate(index, 'theory_passing_marks', parseInt(e.target.value) || 0)}
-              className="w-full px-2.5 py-1 text-xs bg-background border border-outline-variant rounded font-medium"
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold shadow-sm"
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Practical Marks</label>
+            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Practical Marks</label>
             <input 
               type="number" 
-              placeholder="e.g. 30" 
+              placeholder={isPeriodic ? '15' : '30'} 
               value={item.practical_marks || ''} 
               onChange={e => onUpdate(index, 'practical_marks', parseInt(e.target.value) || 0)}
-              className="w-full px-2.5 py-1 text-xs bg-background border border-outline-variant rounded font-medium"
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold shadow-sm"
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-on-surface-variant uppercase mb-1">Practical Pass</label>
+            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Practical Pass</label>
             <input 
               type="number" 
-              placeholder="e.g. 12" 
+              placeholder={isPeriodic ? '6' : '12'} 
               value={item.practical_passing_marks || ''} 
               onChange={e => onUpdate(index, 'practical_passing_marks', parseInt(e.target.value) || 0)}
-              className="w-full px-2.5 py-1 text-xs bg-background border border-outline-variant rounded font-medium"
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold shadow-sm"
             />
           </div>
         </div>
@@ -339,14 +348,18 @@ export const DefaultExams = () => {
         if (!res.ok) throw new Error('Failed to update default exam');
       } else {
         // POST create with default initial subjects if available
+        const isPeriodic = examForm.category === 'periodic_assessment';
+        const defaultTotal = isPeriodic ? 50 : 100;
+        const defaultPass = isPeriodic ? 20 : 40;
+
         const defaultSubjectsList = globalSubjects.slice(0, 6).map((s, idx) => ({
           subject: s.name,
           order_index: idx,
           day_offset: idx,
           start_time: examForm.default_start_time,
           end_time: examForm.default_end_time,
-          total_marks: 100,
-          passing_marks: 40
+          total_marks: defaultTotal,
+          passing_marks: defaultPass
         }));
 
         const res = await fetch(`${API_URL}/superadmin/default-exams`, {
@@ -386,6 +399,7 @@ export const DefaultExams = () => {
   // Open Routine Builder
   const openRoutineBuilder = async (exam) => {
     setActiveRoutineExam(exam);
+    const isPeriodic = exam.category === 'periodic_assessment';
     try {
       const res = await fetch(`${API_URL}/superadmin/default-exams/${exam.id}/timetable`, {
         headers: getAuthHeaders()
@@ -394,6 +408,8 @@ export const DefaultExams = () => {
         const data = await res.json();
         const formatted = (data || []).map((item, idx) => ({
           ...item,
+          total_marks: isPeriodic && item.total_marks === 100 ? 50 : (item.total_marks || (isPeriodic ? 50 : 100)),
+          passing_marks: isPeriodic && item.passing_marks === 40 ? 20 : (item.passing_marks || (isPeriodic ? 20 : 40)),
           _tempId: item.id || `routine-${idx}-${Date.now()}`
         }));
         setRoutineItems(formatted);
@@ -414,6 +430,10 @@ export const DefaultExams = () => {
     const existingNames = new Set(routineItems.map(r => r.subject?.toUpperCase()));
     const suggested = globalSubjects.find(s => !existingNames.has(s.name?.toUpperCase()));
 
+    const isPeriodic = activeRoutineExam?.category === 'periodic_assessment';
+    const defaultTotal = isPeriodic ? 50 : 100;
+    const defaultPass = isPeriodic ? 20 : 40;
+
     setRoutineItems([
       ...routineItems,
       {
@@ -421,10 +441,10 @@ export const DefaultExams = () => {
         subject: suggested ? suggested.name : '',
         order_index: nextIdx,
         day_offset: nextIdx,
-        start_time: activeRoutineExam?.default_start_time || '09:00',
-        end_time: activeRoutineExam?.default_end_time || '12:00',
-        total_marks: 100,
-        passing_marks: 40,
+        start_time: activeRoutineExam?.default_start_time || '08:30',
+        end_time: activeRoutineExam?.default_end_time || '10:30',
+        total_marks: defaultTotal,
+        passing_marks: defaultPass,
         has_practical: false,
         theory_marks: null,
         theory_passing_marks: null,
@@ -869,49 +889,78 @@ export const DefaultExams = () => {
 
       {/* CONFIGURE DEFAULT ROUTINE MODAL (DRAG & DROP) */}
       {showRoutineModal && activeRoutineExam && (
-        <div className="fixed inset-0 bg-secondary/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface w-full max-w-4xl rounded-2xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-5xl xl:max-w-6xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="p-6 border-b border-outline-variant flex items-center justify-between bg-surface-variant/20">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
               <div>
-                <h3 className="text-lg font-bold font-headline text-neutral flex items-center gap-2">
-                  <FiCalendar className="text-primary" />
+                <h3 className="text-xl font-bold font-headline text-slate-900 flex items-center gap-2.5">
+                  <FiCalendar className="text-indigo-600" />
                   Configure Default Routine: {activeRoutineExam.name}
                 </h3>
-                <p className="text-xs text-on-surface-variant mt-1">
-                  Drag and drop subjects to set the default exam sequence (Day 1, Day 2, etc.). When a school admin creates an exam and enters start and end dates, these subjects will be pre-allocated automatically.
+                <p className="text-xs text-slate-500 mt-1">
+                  Drag and drop subjects to set the default exam sequence (Day 1, Day 2, etc.). When a school admin creates an exam, these subjects will be scheduled automatically.
                 </p>
+                <div className="flex flex-wrap items-center gap-2.5 mt-3">
+                  {activeRoutineExam.category === 'periodic_assessment' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      Periodic Assessment (50 Marks Standard)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                      Terminal Examination (100 Marks Standard)
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const isPeriodic = activeRoutineExam.category === 'periodic_assessment';
+                      const targetTotal = isPeriodic ? 50 : 100;
+                      const targetPass = isPeriodic ? 20 : 40;
+                      setRoutineItems(routineItems.map(item => ({
+                        ...item,
+                        total_marks: targetTotal,
+                        passing_marks: targetPass
+                      })));
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 shadow-sm transition cursor-pointer"
+                    title="Sync all subjects to standard category marks"
+                  >
+                    ⚡ Sync Standard Marks ({activeRoutineExam.category === 'periodic_assessment' ? '50 / 20' : '100 / 40'})
+                  </button>
+                </div>
               </div>
               <button
                 onClick={() => setShowRoutineModal(false)}
-                className="p-2 text-on-surface-variant hover:text-neutral rounded-lg hover:bg-surface-variant"
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition"
               >
-                <FiX className="text-lg" />
+                <FiX className="text-xl" />
               </button>
             </div>
 
             {/* Modal Body: Drag and drop routine builder */}
-            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-4">
+            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-4 bg-slate-50/30">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Default Subject Sequence ({routineItems.length} {routineItems.length === 1 ? 'day' : 'days'})
                 </span>
                 <button
                   type="button"
                   onClick={handleAddRoutineSubject}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl text-xs font-bold transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold transition shadow-sm"
                 >
                   <FiPlus /> Add Subject
                 </button>
               </div>
 
               {routineItems.length === 0 ? (
-                <div className="p-8 border-2 border-dashed border-outline-variant rounded-2xl text-center space-y-3">
-                  <p className="text-sm text-on-surface-variant">No subjects added to this routine yet.</p>
+                <div className="p-8 border-2 border-dashed border-slate-200 bg-white rounded-2xl text-center space-y-3">
+                  <p className="text-sm text-slate-500">No subjects added to this routine yet.</p>
                   <button
                     type="button"
                     onClick={handleAddRoutineSubject}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700"
                   >
                     <FiPlus /> Add First Subject
                   </button>
@@ -935,6 +984,7 @@ export const DefaultExams = () => {
                           globalSubjects={globalSubjects}
                           onUpdate={handleUpdateRoutineItem}
                           onRemove={handleRemoveRoutineItem}
+                          examCategory={activeRoutineExam?.category}
                         />
                       ))}
                     </div>

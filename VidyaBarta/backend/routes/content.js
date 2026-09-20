@@ -17,8 +17,8 @@ const getAggregatedContent = async (schoolId) => {
     if (schoolId) {
       return query.eq('school_id', schoolId);
     } else {
-      // Default to Holy Name school ID or NULL
-      return query.or('school_id.eq.b0fbd2ff-17c1-4b04-8a0d-0167cce6020a,school_id.is.null');
+      // For central SaaS domain with no specific school, only match global records
+      return query.is('school_id', null);
     }
   };
   const [
@@ -186,8 +186,12 @@ router.get('/', optionalProtect, async (req, res) => {
       }
     }
 
-    // Fallback if schoolId still not resolved: default to Holy Name High School
-    if (!schoolId) {
+    // Clean domain check for central SaaS domain
+    const cleanDomain = (domain || '').replace(/^www\./, '').split(':')[0].toLowerCase();
+    const isCentralSaaS = cleanDomain === 'vidyabarta.com' || cleanDomain.startsWith('student.');
+
+    // Fallback if schoolId still not resolved: only fall back for tenant domains/subdomains, NOT the central SaaS portal
+    if (!schoolId && !isCentralSaaS) {
       const { data: defaultSchool } = await supabase
         .from('schools')
         .select('id')
@@ -203,7 +207,7 @@ router.get('/', optionalProtect, async (req, res) => {
     }
 
     const now = Date.now();
-    const cacheKey = schoolId || 'main';
+    const cacheKey = schoolId || 'saas_root';
     
     // Serve from cache if available and not expired
     if (contentCache[cacheKey] && (now - contentCache[cacheKey].lastFetched < CACHE_TTL)) {

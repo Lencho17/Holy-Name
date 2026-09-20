@@ -6,6 +6,21 @@ import { SiteDataContext } from "../context/SiteDataContext";
 
 function Login() {
   const { schoolProfile } = useContext(SiteDataContext);
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const hasTestDomain = Boolean(typeof window !== 'undefined' && localStorage.getItem('test_domain'));
+  const isCentralSaaS = (
+    hostname === 'vidyabarta.com' ||
+    hostname === 'www.vidyabarta.com' ||
+    (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) ||
+    (isLocalhost && !hasTestDomain)
+  );
+
+  const displayLogo = (!isCentralSaaS && schoolProfile?.logo) ? schoolProfile.logo : "/logo.png";
+  const displaySchoolName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : "VidyaBarta Systems";
+  const portalHeading = (!isCentralSaaS && schoolProfile?.name) ? `${schoolProfile.name} Portal` : "System Portal";
+  const copyrightName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : "VidyaBarta Systems";
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -186,17 +201,17 @@ function Login() {
         
         {/* Top Right Logo */}
         <div className="absolute top-8 right-8 xl:top-12 xl:right-12">
-          {schoolProfile?.logo ? (
-             <img src={schoolProfile.logo} alt={schoolProfile.name} className="h-auto w-32 md:w-40 xl:w-48 object-contain" />
-          ) : (
-             <img src="/logo.png" alt="VidyaBarta" className="h-auto w-40 md:w-48 xl:w-56 object-contain" />
-          )}
+          <img 
+            src={displayLogo} 
+            alt={displaySchoolName} 
+            className="h-auto w-36 md:w-44 xl:w-52 object-contain" 
+          />
         </div>
 
         <div className="w-full max-w-md mt-10 lg:mt-0">
           
           <div className="mb-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight font-headline">{schoolProfile?.name ? "Portal Login" : "System Portal"}</h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight font-headline">{portalHeading}</h2>
             <p className="text-slate-500 text-base">Enter your credentials to access the dashboard.</p>
           </div>
 
@@ -382,7 +397,7 @@ function Login() {
 
           {/* Footer */}
           <p className="text-center text-slate-500 text-sm mt-16">
-            &copy; {new Date().getFullYear()} {schoolProfile?.name || "VidyaBarta Systems"}. All rights reserved.
+            &copy; {new Date().getFullYear()} {copyrightName}. All rights reserved.
           </p>
         </div>
       </div>

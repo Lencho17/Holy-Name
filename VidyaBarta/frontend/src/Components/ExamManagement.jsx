@@ -135,48 +135,48 @@ const SortableTimetableCard = ({
                   : [{ name: '', marks: '', passing_marks: '' }]
               });
             }}
-            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium"
+            className="w-full border border-slate-300 p-2.5 rounded-xl text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-semibold shadow-sm"
           >
-            <option value="">-- Select Subject --</option>
+            <option value="" className="text-slate-900 bg-white">-- Select Subject --</option>
             {availableSubjects.map((s) => (
-              <option key={s.name} value={s.name}>
+              <option key={s.name} value={s.name} className="text-slate-900 bg-white py-1">
                 {s.name} {s.is_grading ? '(Grading)' : ''}
               </option>
             ))}
             {group.subject && !availableSubjects.some((s) => s.name === group.subject) && (
-              <option value={group.subject}>{group.subject}</option>
+              <option value={group.subject} className="text-slate-900 bg-white">{group.subject}</option>
             )}
           </select>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-600 mb-1.5">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
             Total Marks <span className="text-rose-500">*</span>
           </label>
           <input
             type="number"
             value={group.total_marks || ''}
             onChange={(e) => onUpdateField(idx, { total_marks: parseInt(e.target.value) || 0 })}
-            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            className="w-full border border-slate-300 p-2.5 rounded-xl text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-medium shadow-sm"
             placeholder="Total Marks"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-600 mb-1.5">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
             Passing Marks <span className="text-rose-500">*</span>
           </label>
           <input
             type="number"
             value={group.passing_marks || ''}
             onChange={(e) => onUpdateField(idx, { passing_marks: parseInt(e.target.value) || 0 })}
-            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            className="w-full border border-slate-300 p-2.5 rounded-xl text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-medium shadow-sm"
             placeholder="Passing Marks"
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-xs font-bold text-gray-600 mb-1.5 flex items-center gap-1.5">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
             <FaCalendarAlt className="text-indigo-600 text-xs" />
             Exam Date
           </label>
@@ -184,7 +184,7 @@ const SortableTimetableCard = ({
             type="date"
             value={group.exam_date || ''}
             onChange={(e) => onUpdateField(idx, { exam_date: e.target.value })}
-            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            className="w-full border border-slate-300 p-2.5 rounded-xl text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-medium shadow-sm cursor-pointer"
           />
         </div>
       </div>
@@ -192,7 +192,7 @@ const SortableTimetableCard = ({
       {/* Second Row: Start Time & End Time */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div>
-          <label className="block text-xs font-bold text-gray-600 mb-1.5 flex items-center gap-1.5">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
             <FiClock className="text-indigo-600 text-xs" />
             Start Time
           </label>
@@ -200,11 +200,11 @@ const SortableTimetableCard = ({
             type="time"
             value={group.start_time?.substring(0, 5) || '08:30'}
             onChange={(e) => onUpdateField(idx, { start_time: e.target.value })}
-            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            className="w-full border border-slate-300 p-2.5 rounded-xl text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-medium shadow-sm cursor-pointer"
           />
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-600 mb-1.5 flex items-center gap-1.5">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
             <FiClock className="text-indigo-600 text-xs" />
             End Time
           </label>
@@ -212,7 +212,7 @@ const SortableTimetableCard = ({
             type="time"
             value={group.end_time?.substring(0, 5) || '10:30'}
             onChange={(e) => onUpdateField(idx, { end_time: e.target.value })}
-            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            className="w-full border border-slate-300 p-2.5 rounded-xl text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-medium shadow-sm cursor-pointer"
           />
         </div>
       </div>
@@ -255,38 +255,38 @@ const SortableTimetableCard = ({
 
       {/* Practical Marks Split */}
       {group.has_practical && (
-        <div className="flex flex-col gap-3 mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <div className="flex flex-col gap-3 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
           <div className="flex items-center gap-4">
-            <label className="text-xs font-bold text-gray-600 w-24">Marks Split:</label>
+            <label className="text-xs font-bold text-slate-600 w-24">Marks Split:</label>
             <input
               type="number"
               value={group.theory_marks || ''}
               onChange={(e) => onUpdateField(idx, { theory_marks: parseInt(e.target.value) || '' })}
-              className="border-gray-300 border p-2 rounded text-xs w-24 bg-white"
+              className="border-slate-300 border p-2 rounded-lg text-xs w-24 bg-white text-slate-900 font-medium"
               placeholder="Theory"
             />
             <input
               type="number"
               value={group.practical_marks || ''}
               onChange={(e) => onUpdateField(idx, { practical_marks: parseInt(e.target.value) || '' })}
-              className="border-gray-300 border p-2 rounded text-xs w-24 bg-white"
+              className="border-slate-300 border p-2 rounded-lg text-xs w-24 bg-white text-slate-900 font-medium"
               placeholder="Practical"
             />
           </div>
           <div className="flex items-center gap-4">
-            <label className="text-xs font-bold text-gray-600 w-24">Passing Marks:</label>
+            <label className="text-xs font-bold text-slate-600 w-24">Passing Marks:</label>
             <input
               type="number"
               value={group.theory_passing_marks || ''}
               onChange={(e) => onUpdateField(idx, { theory_passing_marks: parseInt(e.target.value) || '' })}
-              className="border-gray-300 border p-2 rounded text-xs w-24 bg-white"
+              className="border-slate-300 border p-2 rounded-lg text-xs w-24 bg-white text-slate-900 font-medium"
               placeholder="Th. Pass"
             />
             <input
               type="number"
               value={group.practical_passing_marks || ''}
               onChange={(e) => onUpdateField(idx, { practical_passing_marks: parseInt(e.target.value) || '' })}
-              className="border-gray-300 border p-2 rounded text-xs w-24 bg-white"
+              className="border-slate-300 border p-2 rounded-lg text-xs w-24 bg-white text-slate-900 font-medium"
               placeholder="Pr. Pass"
             />
           </div>
@@ -295,25 +295,25 @@ const SortableTimetableCard = ({
 
       {/* Papers List if Divided */}
       {group.is_divided && (
-        <div className="space-y-2 mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="text-xs font-bold text-gray-600 mb-2">Paper Breakdown</div>
+        <div className="space-y-2 mb-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="text-xs font-bold text-slate-600 mb-2">Paper Breakdown</div>
           {group.papers.map((paper, pIdx) => (
             <div key={pIdx} className="flex items-center gap-3">
-              <div className="flex-1 text-xs font-bold text-gray-700 bg-white p-2 rounded border border-gray-200">
+              <div className="flex-1 text-xs font-bold text-slate-700 bg-white p-2 rounded-lg border border-slate-200">
                 {paper.name} {paper.sub_code ? `(${paper.sub_code})` : ''}
               </div>
               <input
                 type="number"
                 value={paper.marks || ''}
                 onChange={(e) => onUpdatePaper(idx, pIdx, 'marks', e.target.value)}
-                className="w-24 border border-gray-300 p-2 rounded text-xs bg-white"
+                className="w-24 border border-slate-300 p-2 rounded-lg text-xs bg-white text-slate-900 font-medium"
                 placeholder="Total Marks"
               />
               <input
                 type="number"
                 value={paper.passing_marks || ''}
                 onChange={(e) => onUpdatePaper(idx, pIdx, 'passing_marks', e.target.value)}
-                className="w-24 border border-gray-300 p-2 rounded text-xs bg-white"
+                className="w-24 border border-slate-300 p-2 rounded-lg text-xs bg-white text-slate-900 font-medium"
                 placeholder="Pass Marks"
               />
             </div>
@@ -1298,17 +1298,17 @@ const ExamManagement = ({ apiUrl, token }) => {
 
             <form onSubmit={handleCreateExam} className="space-y-4">
               {/* Template Selection */}
-              <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-3">
-                <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
                   Select SuperAdmin Exam Template *
                 </label>
                 <select
                   value={selectedTemplateId}
                   onChange={(e) => handleTemplateSelection(e.target.value)}
-                  className="w-full border border-indigo-200 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-semibold text-sm"
+                  className="w-full border border-slate-300 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white text-slate-900 font-semibold text-sm shadow-sm"
                 >
                   {defaultTemplates.map((t) => (
-                    <option key={t.id} value={t.id}>
+                    <option key={t.id} value={t.id} className="text-slate-900 bg-white py-1">
                       {t.name} ({t.category === 'terminal_examination' ? 'Terminal Examination' : 'Periodic Assessment'})
                     </option>
                   ))}
@@ -1316,19 +1316,19 @@ const ExamManagement = ({ apiUrl, token }) => {
 
                 {/* Inherited Category Banner (Read-only) */}
                 {selectedTemplate && (
-                  <div className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+                  <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
                     selectedTemplate.category === 'terminal_examination'
                       ? 'bg-purple-50 border-purple-200 text-purple-900'
                       : 'bg-blue-50 border-blue-200 text-blue-900'
                   }`}>
-                    <FiInfo className="text-base shrink-0 mt-0.5" />
+                    <FiInfo className="text-base shrink-0 mt-0.5 text-indigo-600" />
                     <div>
-                      <div className="font-bold mb-0.5">
+                      <div className="font-bold mb-0.5 text-slate-900">
                         {selectedTemplate.category === 'terminal_examination'
                           ? 'Terminal Examination (100 Marks)'
                           : 'Periodic Assessment (50 Marks)'}
                       </div>
-                      <p className="opacity-90 leading-relaxed">
+                      <p className="text-slate-600 leading-relaxed">
                         {selectedTemplate.category === 'terminal_examination'
                           ? 'Covers all subjects (Core, Elective, MIL, Minor, and Grading Sets). Grading subjects will be scheduled first.'
                           : 'Covers only Core, Elective, and MIL subjects configured by the school for each class.'}
@@ -1340,35 +1340,35 @@ const ExamManagement = ({ apiUrl, token }) => {
 
               {/* Exam Name */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">Exam Name *</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Exam Name *</label>
                 <input
                   required
                   type="text"
                   value={newExam.name}
                   onChange={(e) => setNewExam({ ...newExam, name: e.target.value })}
-                  className="w-full border border-gray-300 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm"
+                  className="w-full border border-slate-300 bg-white text-slate-900 placeholder-slate-400 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-medium text-sm shadow-sm"
                   placeholder="e.g. Half Yearly Examination 2026"
                 />
               </div>
 
               {/* Targeted Class Dropdown */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
                   Targeted Class *
                 </label>
                 <select
                   value={newExam.target_class}
                   onChange={(e) => setNewExam({ ...newExam, target_class: e.target.value })}
-                  className="w-full border border-gray-300 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-sm bg-white"
+                  className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-semibold text-sm shadow-sm"
                 >
-                  <option value="all">All Available Classes (Expands across all school classes)</option>
+                  <option value="all" className="text-slate-900 bg-white py-1">All Available Classes (Expands across all school classes)</option>
                   {allClasses.map((c) => (
-                    <option key={c} value={c}>
+                    <option key={c} value={c} className="text-slate-900 bg-white py-1">
                       Class {c}
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-gray-500 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   Selecting "All Available Classes" creates distinct class instances linked under one unified exam event.
                 </p>
               </div>
@@ -1376,48 +1376,48 @@ const ExamManagement = ({ apiUrl, token }) => {
               {/* Type and Date Range */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">Exam Type</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Exam Type</label>
                   <select
                     value={newExam.type}
                     onChange={(e) => setNewExam({ ...newExam, type: e.target.value })}
-                    className="w-full border border-gray-300 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium"
+                    className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm font-medium shadow-sm"
                   >
-                    <option value="Offline">Offline</option>
-                    <option value="Online">Online</option>
+                    <option value="Offline" className="text-slate-900 bg-white">Offline</option>
+                    <option value="Online" className="text-slate-900 bg-white">Online</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">Start Date *</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Start Date *</label>
                   <input
                     required
                     type="date"
                     value={newExam.start_date}
                     onChange={(e) => setNewExam({ ...newExam, start_date: e.target.value })}
-                    className="w-full border border-gray-300 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium"
+                    className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm font-medium shadow-sm cursor-pointer"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">End Date *</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">End Date *</label>
                   <input
                     required
                     type="date"
                     value={newExam.end_date}
                     onChange={(e) => setNewExam({ ...newExam, end_date: e.target.value })}
-                    className="w-full border border-gray-300 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium"
+                    className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm font-medium shadow-sm cursor-pointer"
                   />
                 </div>
               </div>
 
               {/* Working Days & Schedule Guidance */}
               {newExam.start_date && newExam.end_date && (
-                <div className="text-[11px] bg-gray-50 p-3 rounded-xl border border-gray-200 text-gray-700 space-y-1">
+                <div className="text-[11px] bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 text-slate-700 space-y-1">
                   <div className="flex items-center gap-2 font-bold text-indigo-700">
                     <FiCalendar />
                     <span>Working Days: {calculatedWorkingDays} days (Excluding Sundays)</span>
                   </div>
-                  <p className="text-gray-500">
+                  <p className="text-slate-500">
                     Default timing: Single exam per day (08:30 - 10:30). If any targeted class requires more exams than working days, the system will prompt you to schedule up to two exams per day.
                   </p>
                 </div>
@@ -1467,38 +1467,38 @@ const ExamManagement = ({ apiUrl, token }) => {
               <div className="text-xs font-bold text-gray-700 uppercase">Configured Shifts (Max 2 per day)</div>
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <label className="block text-gray-500 mb-1">Shift 1 (Morning)</label>
-                  <div className="flex items-center gap-1">
+                  <label className="block text-slate-600 font-medium mb-1">Shift 1 (Morning)</label>
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="time"
                       value={newExam.shift1_start_time}
                       onChange={(e) => setNewExam({ ...newExam, shift1_start_time: e.target.value })}
-                      className="border p-1.5 rounded w-full bg-white text-xs"
+                      className="border border-slate-300 p-2 rounded-lg w-full bg-white text-slate-900 text-xs shadow-sm font-medium"
                     />
-                    <span>-</span>
+                    <span className="text-slate-400 font-bold">-</span>
                     <input
                       type="time"
                       value={newExam.shift1_end_time}
                       onChange={(e) => setNewExam({ ...newExam, shift1_end_time: e.target.value })}
-                      className="border p-1.5 rounded w-full bg-white text-xs"
+                      className="border border-slate-300 p-2 rounded-lg w-full bg-white text-slate-900 text-xs shadow-sm font-medium"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-gray-500 mb-1">Shift 2 (Afternoon)</label>
-                  <div className="flex items-center gap-1">
+                  <label className="block text-slate-600 font-medium mb-1">Shift 2 (Afternoon)</label>
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="time"
                       value={newExam.shift2_start_time}
                       onChange={(e) => setNewExam({ ...newExam, shift2_start_time: e.target.value })}
-                      className="border p-1.5 rounded w-full bg-white text-xs"
+                      className="border border-slate-300 p-2 rounded-lg w-full bg-white text-slate-900 text-xs shadow-sm font-medium"
                     />
-                    <span>-</span>
+                    <span className="text-slate-400 font-bold">-</span>
                     <input
                       type="time"
                       value={newExam.shift2_end_time}
                       onChange={(e) => setNewExam({ ...newExam, shift2_end_time: e.target.value })}
-                      className="border p-1.5 rounded w-full bg-white text-xs"
+                      className="border border-slate-300 p-2 rounded-lg w-full bg-white text-slate-900 text-xs shadow-sm font-medium"
                     />
                   </div>
                 </div>

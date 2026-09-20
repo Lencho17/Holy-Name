@@ -48,8 +48,7 @@ const SortableTimetableCard = ({
   availableSubjects,
   examCategory,
   onUpdateField,
-  onRemove,
-  onUpdatePaper
+  onRemove
 }) => {
   const {
     attributes,
@@ -130,9 +129,7 @@ const SortableTimetableCard = ({
                 total_marks: defTotal,
                 passing_marks: defPass,
                 is_divided: selSubj?.is_divided || false,
-                papers: selSubj?.is_divided && selSubj?.parts?.length > 0
-                  ? selSubj.parts.map((p) => ({ name: p.name, sub_code: p.sub_code || '', marks: '', passing_marks: '' }))
-                  : [{ name: '', marks: '', passing_marks: '' }]
+                papers: []
               });
             }}
             className="w-full border border-slate-300 p-2.5 rounded-xl text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-semibold shadow-sm"
@@ -217,37 +214,26 @@ const SortableTimetableCard = ({
         </div>
       </div>
 
-      {/* Toggles: Divide Subject & Include Practical */}
-      <div className="flex flex-wrap gap-6 items-center mb-3 pt-2 border-t border-gray-100">
-        {group.subjectMeta?.is_divided && (
-          <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={group.is_divided}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                let papers = [{ name: '', marks: '', passing_marks: '' }];
-                if (checked && group.subjectMeta.parts?.length > 0) {
-                  papers = group.subjectMeta.parts.map((p) => ({
-                    name: p.name,
-                    sub_code: p.sub_code || '',
-                    marks: '',
-                    passing_marks: ''
-                  }));
-                }
-                onUpdateField(idx, { is_divided: checked, papers });
-              }}
-              className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-            />
-            <span>Divide Subject Papers</span>
-          </label>
-        )}
-        <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer select-none">
+      {/* Subject Marking Sections info & Practical toggle */}
+      <div className="flex flex-wrap gap-4 items-center justify-between mb-3 pt-3 border-t border-slate-100">
+        <div>
+          {group.subjectMeta?.is_divided && group.subjectMeta.parts?.length > 0 && (
+            <div className="flex items-center gap-2 text-xs bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+              <span className="font-bold text-slate-700">Marking Sections:</span>
+              <span className="text-slate-600 font-medium">
+                {group.subjectMeta.parts.map((p) => (p.name || '') + (p.sub_code ? ` (${p.sub_code})` : '')).join(', ')}
+              </span>
+              <span className="text-slate-400 text-[11px]">(Sections for marking system)</span>
+            </div>
+          )}
+        </div>
+
+        <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition shadow-sm">
           <input
             type="checkbox"
             checked={group.has_practical || false}
             onChange={(e) => onUpdateField(idx, { has_practical: e.target.checked })}
-            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer border-slate-300"
           />
           <span>Include Practical</span>
         </label>
@@ -290,34 +276,6 @@ const SortableTimetableCard = ({
               placeholder="Pr. Pass"
             />
           </div>
-        </div>
-      )}
-
-      {/* Papers List if Divided */}
-      {group.is_divided && (
-        <div className="space-y-2 mb-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-          <div className="text-xs font-bold text-slate-600 mb-2">Paper Breakdown</div>
-          {group.papers.map((paper, pIdx) => (
-            <div key={pIdx} className="flex items-center gap-3">
-              <div className="flex-1 text-xs font-bold text-slate-700 bg-white p-2 rounded-lg border border-slate-200">
-                {paper.name} {paper.sub_code ? `(${paper.sub_code})` : ''}
-              </div>
-              <input
-                type="number"
-                value={paper.marks || ''}
-                onChange={(e) => onUpdatePaper(idx, pIdx, 'marks', e.target.value)}
-                className="w-24 border border-slate-300 p-2 rounded-lg text-xs bg-white text-slate-900 font-medium"
-                placeholder="Total Marks"
-              />
-              <input
-                type="number"
-                value={paper.passing_marks || ''}
-                onChange={(e) => onUpdatePaper(idx, pIdx, 'passing_marks', e.target.value)}
-                className="w-24 border border-slate-300 p-2 rounded-lg text-xs bg-white text-slate-900 font-medium"
-                placeholder="Pass Marks"
-              />
-            </div>
-          ))}
         </div>
       )}
     </div>
@@ -593,34 +551,29 @@ const ExamManagement = ({ apiUrl, token }) => {
       (tt || []).forEach((item, idx) => {
         let existing = grouped.find((g) => g.subject === item.subject);
         if (existing) {
-          existing.is_divided = true;
-          existing.papers.push({ name: item.sub_subject || '', marks: item.total_marks || '' });
-        } else {
-          grouped.push({
-            _dragId: `item-${idx}-${item.subject || 'sub'}-${Date.now()}`,
-            subject: item.subject,
-            is_grading: item.is_grading || false,
-            total_marks: item.total_marks || (targetExam.category === 'periodic_assessment' ? 50 : 100),
-            passing_marks: item.passing_marks || (targetExam.category === 'periodic_assessment' ? 20 : 40),
-            has_practical: item.has_practical || false,
-            theory_marks: item.theory_marks || '',
-            theory_passing_marks: item.theory_passing_marks || '',
-            practical_marks: item.practical_marks || '',
-            practical_passing_marks: item.practical_passing_marks || '',
-            exam_date: item.exam_date ? item.exam_date.substring(0, 10) : '',
-            start_time: item.start_time?.substring(0, 5) || '08:30',
-            end_time: item.end_time?.substring(0, 5) || '10:30',
-            is_divided: !!item.sub_subject,
-            subjectMeta: null,
-            papers: [
-              {
-                name: item.sub_subject || '',
-                marks: item.total_marks || '',
-                passing_marks: item.passing_marks || ''
-              }
-            ]
-          });
+          // Do not duplicate subject cards for sub_subjects
+          return;
         }
+
+        const matchedMeta = (eligibleSubs || []).find((s) => s.name === item.subject);
+        grouped.push({
+          _dragId: `item-${idx}-${item.subject || 'sub'}-${Date.now()}`,
+          subject: item.subject,
+          is_grading: item.is_grading || !!matchedMeta?.is_grading || false,
+          total_marks: item.total_marks || (targetExam.category === 'periodic_assessment' ? 50 : 100),
+          passing_marks: item.passing_marks || (targetExam.category === 'periodic_assessment' ? 20 : 40),
+          has_practical: item.has_practical || false,
+          theory_marks: item.theory_marks || '',
+          theory_passing_marks: item.theory_passing_marks || '',
+          practical_marks: item.practical_marks || '',
+          practical_passing_marks: item.practical_passing_marks || '',
+          exam_date: item.exam_date ? item.exam_date.substring(0, 10) : '',
+          start_time: item.start_time?.substring(0, 5) || '08:30',
+          end_time: item.end_time?.substring(0, 5) || '10:30',
+          is_divided: matchedMeta?.is_divided || false,
+          subjectMeta: matchedMeta || null,
+          papers: []
+        });
       });
       setTimetableData(grouped);
     } catch (err) {
@@ -662,8 +615,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         start_time: '08:30',
         end_time: '10:30',
         is_divided: false,
-        subjectMeta: null,
-        papers: [{ name: '', marks: '', passing_marks: '' }]
+        subjectMeta: null
       }
     ]);
   };
@@ -671,12 +623,6 @@ const ExamManagement = ({ apiUrl, token }) => {
   const handleUpdateField = (index, updates) => {
     const updated = [...timetableData];
     updated[index] = { ...updated[index], ...updates };
-    setTimetableData(updated);
-  };
-
-  const handleUpdatePaper = (groupIndex, paperIndex, field, val) => {
-    const updated = [...timetableData];
-    updated[groupIndex].papers[paperIndex][field] = val;
     setTimetableData(updated);
   };
 
@@ -738,32 +684,23 @@ const ExamManagement = ({ apiUrl, token }) => {
     if (!selectedClassExam) return;
     setSavingTimetable(true);
     try {
-      const flatData = [];
-      timetableData.forEach((g) => {
-        g.papers.forEach((p) => {
-          flatData.push({
-            class_level: selectedClassExam.class_level,
-            subject: g.subject,
-            is_grading: g.is_grading || false,
-            total_marks: g.is_divided ? parseInt(p.marks) || 0 : g.total_marks,
-            passing_marks: g.is_divided
-              ? p.passing_marks
-                ? parseInt(p.passing_marks)
-                : Math.round(((parseInt(p.marks) || 0) / g.total_marks) * g.passing_marks)
-              : g.passing_marks,
-            has_practical: g.has_practical,
-            theory_marks: g.theory_marks || null,
-            theory_passing_marks: g.theory_passing_marks || null,
-            practical_marks: g.practical_marks || null,
-            practical_passing_marks: g.practical_passing_marks || null,
-            sub_subject: g.is_divided ? (p.sub_code ? `${p.name} (${p.sub_code})` : p.name) : '',
-            exam_date: g.exam_date || null,
-            start_time: g.start_time || '08:30',
-            end_time: g.end_time || '10:30',
-            room_number: ''
-          });
-        });
-      });
+      const flatData = timetableData.map((g) => ({
+        class_level: selectedClassExam.class_level,
+        subject: g.subject,
+        is_grading: g.is_grading || false,
+        total_marks: parseInt(g.total_marks) || (selectedClassExam.category === 'periodic_assessment' ? 50 : 100),
+        passing_marks: parseInt(g.passing_marks) || (selectedClassExam.category === 'periodic_assessment' ? 20 : 40),
+        has_practical: g.has_practical || false,
+        theory_marks: g.theory_marks || null,
+        theory_passing_marks: g.theory_passing_marks || null,
+        practical_marks: g.practical_marks || null,
+        practical_passing_marks: g.practical_passing_marks || null,
+        sub_subject: null,
+        exam_date: g.exam_date || null,
+        start_time: g.start_time || '08:30',
+        end_time: g.end_time || '10:30',
+        room_number: ''
+      }));
 
       await axios.post(
         `${apiUrl}/exams/${selectedClassExam.id}/timetable`,
@@ -1232,7 +1169,6 @@ const ExamManagement = ({ apiUrl, token }) => {
                         examCategory={selectedClassExam.category}
                         onUpdateField={handleUpdateField}
                         onRemove={handleRemoveRow}
-                        onUpdatePaper={handleUpdatePaper}
                       />
                     ))}
                   </div>

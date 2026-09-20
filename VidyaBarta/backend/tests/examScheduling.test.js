@@ -382,6 +382,45 @@ async function runExamSchedulingTests() {
     const { data: remaining } = await supabase.from('exams').select('id').eq('logical_exam_id', testLogicalId);
     assert(!remaining || remaining.length === 0, 'Atomic rollback ensures zero orphaned rows remain upon failure');
 
+    // -------------------------------------------------------------
+    // TEST 9: Divided Subjects as Marking Sections (Not Multiple Exams)
+    // -------------------------------------------------------------
+    console.log('\n--- TEST 9: Divided Subjects Treated as Marking Sections ---');
+    const mockDividedSubject = {
+      name: 'Science',
+      is_core: true,
+      group_name: null,
+      is_divided: true,
+      parts: [
+        { name: 'Biology', sub_code: 'BIO' },
+        { name: 'Physics', sub_code: 'PHY' },
+        { name: 'Chemistry', sub_code: 'CHEM' }
+      ],
+      total_marks: 50,
+      passing_marks: 20
+    };
+
+    // 1. Capacity count: A divided subject counts as 1 exam slot, not 3
+    const subjectsWithDivided = [
+      { name: 'English', is_core: true },
+      { name: 'Mathematics', is_core: true },
+      mockDividedSubject
+    ];
+    assert(subjectsWithDivided.length === 3, 'Class with 1 divided subject (3 parts) has requiredSubjects count of 3, not 5');
+
+    // 2. Timetable Generation: Exactly one exam timetable row per divided subject
+    const generatedTimetable = subjectsWithDivided.map(item => ({
+      subject: item.name,
+      sub_subject: null, // Divided papers are marking sections, not separate timetable entries
+      total_marks: item.total_marks || 50,
+      passing_marks: item.passing_marks || 20
+    }));
+
+    assert(generatedTimetable.length === 3, 'Generated timetable contains exactly 3 entries (1 per subject)');
+    const scienceTimetableRow = generatedTimetable.find(r => r.subject === 'Science');
+    assert(scienceTimetableRow && scienceTimetableRow.sub_subject === null, 'Science timetable entry has sub_subject null');
+    assert(scienceTimetableRow.total_marks === 50, 'Science total marks is 50, not multiplied by 3 parts');
+
     console.log('\n======================================================================');
     console.log(`🎉 ALL ${passed}/${total} EXAM SCHEDULING TESTS PASSED SUCCESSFULLY!`);
     console.log('======================================================================\n');

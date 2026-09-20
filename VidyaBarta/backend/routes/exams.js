@@ -408,39 +408,22 @@ router.post('/', protect, async (req, res) => {
           endTime = singleEnd;
         }
 
-        if (item.is_divided && item.parts && item.parts.length > 0) {
-          item.parts.forEach(p => {
-            timetableInserts.push({
-              exam_id: ex.id,
-              school_id,
-              class_level: ex.class_level,
-              subject: item.name,
-              sub_subject: p.name + (p.sub_code ? ` (${p.sub_code})` : ''),
-              exam_date: assignedDate,
-              start_time: startTime,
-              end_time: endTime,
-              total_marks: item.total_marks,
-              passing_marks: item.passing_marks,
-              has_practical: false,
-              is_finalized: false
-            });
-          });
-        } else {
-          timetableInserts.push({
-            exam_id: ex.id,
-            school_id,
-            class_level: ex.class_level,
-            subject: item.name,
-            sub_subject: null,
-            exam_date: assignedDate,
-            start_time: startTime,
-            end_time: endTime,
-            total_marks: item.total_marks,
-            passing_marks: item.passing_marks,
-            has_practical: false,
-            is_finalized: false
-          });
-        }
+        // Divided subjects/papers are marking sections, NOT separate exams.
+        // Insert exactly one timetable row per subject.
+        timetableInserts.push({
+          exam_id: ex.id,
+          school_id,
+          class_level: ex.class_level,
+          subject: item.name,
+          sub_subject: null,
+          exam_date: assignedDate,
+          start_time: startTime,
+          end_time: endTime,
+          total_marks: item.total_marks,
+          passing_marks: item.passing_marks,
+          has_practical: false,
+          is_finalized: false
+        });
       });
     }
 

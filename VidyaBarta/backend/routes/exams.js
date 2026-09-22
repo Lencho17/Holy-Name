@@ -1149,6 +1149,13 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
 
     if (finError) throw finError;
 
+    res.json({ message: 'Exam timetable finalized successfully' });
+  } catch (err) {
+    console.error('[FINALIZE ERROR]:', err);
+    res.status(500).json({ message: err.message || 'Server Error' });
+  }
+});
+
 // Helper to calculate next grade for promotion
 const getNextClassLevel = (currentClass) => {
   const progression = ['Nursery', 'KG-I', 'KG-II', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];

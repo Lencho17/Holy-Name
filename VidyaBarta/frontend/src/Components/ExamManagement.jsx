@@ -12,6 +12,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { exportExamRoutineExcelWithImage } from '../utils/excelImageExport';
 import {
   DndContext,
   closestCenter,
@@ -844,7 +845,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         ? `${allTtRows[0].start_time.substring(0, 5)} - ${allTtRows[0].end_time.substring(0, 5)}`
         : '08:30 AM - 10:30 AM';
 
-      let headerStartY = 10;
+      let currentY = 8;
 
       // School Logo
       if (schoolProfile?.logo) {
@@ -869,34 +870,41 @@ const ExamManagement = ({ apiUrl, token }) => {
           });
 
           if (imgBase64) {
-            doc.addImage(imgBase64, 'PNG', 12, 8, 18, 18);
+            doc.addImage(imgBase64, 'PNG', 12, 7, 20, 20);
           }
         } catch (imgErr) {
           console.warn('Could not load logo for PDF:', imgErr);
         }
       }
 
-      // Headings
+      // Headings with dynamic sequential Y calculation to completely prevent overlaps
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(15);
       doc.setTextColor(30, 41, 59);
-      doc.text(schoolName, pageWidth / 2, headerStartY + 3, { align: 'center' });
+      doc.text(schoolName, pageWidth / 2, currentY, { align: 'center' });
+      currentY += 5.5;
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setTextColor(100, 116, 139);
-      doc.text(schoolAddress, pageWidth / 2, headerStartY + 8, { align: 'center' });
+      const addressLines = doc.splitTextToSize(schoolAddress || '', 200);
+      doc.text(addressLines, pageWidth / 2, currentY, { align: 'center' });
+      currentY += (addressLines.length * 3.8) + 2.5;
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
       doc.setTextColor(49, 46, 129);
-      doc.text(examName, pageWidth / 2, headerStartY + 14, { align: 'center' });
+      doc.text(examName, pageWidth / 2, currentY, { align: 'center' });
+      currentY += 5;
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(51, 65, 85);
       const subInfo = `Exam Period: ${startDate} to ${endDate}   |   Exam Timings: ${examTiming} (1-Shift Session)   |   Total Classes: ${sortedClasses.length}`;
-      doc.text(subInfo, pageWidth / 2, headerStartY + 19, { align: 'center' });
+      doc.text(subInfo, pageWidth / 2, currentY, { align: 'center' });
+      currentY += 4.5;
+
+      const tableStartY = Math.max(currentY, 28);
 
       // Table Matrix
       const tableHeaders = ['Date & Day', ...sortedClasses.map((c) => `Class ${c}`)];
@@ -933,8 +941,8 @@ const ExamManagement = ({ apiUrl, token }) => {
       autoTable(doc, {
         head: [tableHeaders],
         body: tableBody,
-        startY: headerStartY + 23,
-        margin: { left: 8, right: 8, top: headerStartY + 23, bottom: 8 },
+        startY: tableStartY,
+        margin: { left: 8, right: 8, top: tableStartY, bottom: 8 },
         theme: 'grid',
         tableWidth: 'auto',
         styles: {
@@ -1025,60 +1033,15 @@ const ExamManagement = ({ apiUrl, token }) => {
         }
       });
 
-      const schoolName = schoolProfile?.name || 'HOLY NAME HIGHER SECONDARY SCHOOL';
-      const schoolAddress = schoolProfile?.officeAddress || 'Sivasagar, Assam - 785640';
-      const examName = `${logicalGroup.name.toUpperCase()} - EXAMINATION ROUTINE`;
-      const startDate = logicalGroup.start_date || sortedDates[0];
-      const endDate = logicalGroup.end_date || sortedDates[sortedDates.length - 1];
-      const examTiming = (allTtRows[0]?.start_time && allTtRows[0]?.end_time)
-        ? `${allTtRows[0].start_time.substring(0, 5)} - ${allTtRows[0].end_time.substring(0, 5)}`
-        : '08:30 AM - 10:30 AM';
-
-      const totalCols = sortedClasses.length + 1;
-
-      const wsData = [
-        [schoolName],
-        [schoolAddress],
-        [examName],
-        [`Exam Period: ${startDate} to ${endDate}   |   Exam Timings: ${examTiming} (1-Shift Session)`],
-        [],
-        ['Date & Day', ...sortedClasses.map((c) => `Class ${c}`)]
-      ];
-
-      sortedDates.forEach((d) => {
-        const dateObj = new Date(d);
-        const dayName = isNaN(dateObj.getTime())
-          ? ''
-          : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-        const dateFormatted = `${d} (${dayName})`;
-
-        const row = [dateFormatted];
-        sortedClasses.forEach((c) => {
-          const subs = matrix[d][c] || [];
-          row.push(subs.length > 0 ? subs.join(', ') : '—');
-        });
-        wsData.push(row);
+      await exportExamRoutineExcelWithImage({
+        schoolProfile,
+        logicalGroup,
+        sortedDates,
+        sortedClasses,
+        matrix,
+        allTtRows,
+        filename: `Exam_Routine_${(logicalGroup.name || 'Exam').replace(/\s+/g, '_')}_Master.xlsx`
       });
-
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-      ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
-        { s: { r: 2, c: 0 }, e: { r: 2, c: totalCols - 1 } },
-        { s: { r: 3, c: 0 }, e: { r: 3, c: totalCols - 1 } }
-      ];
-
-      const colWidths = [{ wch: 18 }];
-      sortedClasses.forEach(() => {
-        colWidths.push({ wch: 18 });
-      });
-      ws['!cols'] = colWidths;
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Master Routine');
-
-      XLSX.writeFile(wb, `Exam_Routine_${logicalGroup.name}_Master.xlsx`);
     } catch (err) {
       console.error('[EXPORT MASTER EXCEL ERROR]:', err);
       alert('Failed to generate Excel file: ' + (err.message || 'Unknown error'));

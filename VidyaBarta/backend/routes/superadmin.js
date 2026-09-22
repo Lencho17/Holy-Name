@@ -648,6 +648,36 @@ router.post('/domains/:id/reject', protect, authorize('superadmin'), async (req,
 // DEFAULT EXAMS & TIMETABLES (SUPER ADMIN)
 // ==========================================
 
+// Fixed System Exam Templates
+const FIXED_EXAM_TEMPLATES = [
+  { name: 'Periodic Assessment', type: 'Offline', category: 'periodic_assessment', default_start_time: '08:30:00', default_end_time: '10:30:00' },
+  { name: 'Terminal Assessment', type: 'Offline', category: 'terminal_examination', default_start_time: '08:30:00', default_end_time: '11:30:00' }
+];
+
+// Helper to ensure strictly the 2 fixed templates exist in DB
+const ensureFixedDefaultExams = async () => {
+  try {
+    const { data: existing } = await supabase.from('default_exams').select('*');
+    if (!existing || existing.length === 0) {
+      await supabase.from('default_exams').insert(FIXED_EXAM_TEMPLATES);
+    } else {
+      // Sync names and enforce type 'Offline'
+      for (const fixed of FIXED_EXAM_TEMPLATES) {
+        const found = existing.find(e => e.category === fixed.category);
+        if (found) {
+          if (found.name !== fixed.name || found.type !== 'Offline') {
+            await supabase.from('default_exams').update({ name: fixed.name, type: 'Offline' }).eq('id', found.id);
+          }
+        } else {
+          await supabase.from('default_exams').insert([fixed]);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[ENSURE FIXED DEFAULT EXAMS ERROR]:', err.message);
+  }
+};
+
 // GET /api/superadmin/default-exams
 router.get('/default-exams', protect, async (req, res) => {
   try {
@@ -655,11 +685,14 @@ router.get('/default-exams', protect, async (req, res) => {
       return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
     }
 
+    await ensureFixedDefaultExams();
+
     const { data: defaultExams, error } = await supabase
       .from('default_exams')
       .select('*, default_exam_timetables(*)')
+      .in('name', ['Periodic Assessment', 'Terminal Assessment'])
       .order('order_index', { ascending: true })
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
     res.json(defaultExams || []);
@@ -669,70 +702,16 @@ router.get('/default-exams', protect, async (req, res) => {
   }
 });
 
-// POST /api/superadmin/default-exams
+// POST /api/superadmin/default-exams - LOCKED to strictly the two fixed templates
 router.post('/default-exams', protect, async (req, res) => {
   try {
     if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
     }
 
-    const { name, type, description, class_levels, default_start_time, default_end_time, timetableData, category } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ message: 'Exam name is required' });
-    }
-
-    if (!category || !['periodic_assessment', 'terminal_examination'].includes(category)) {
-      return res.status(400).json({ message: "Category is required and must be either 'periodic_assessment' or 'terminal_examination'" });
-    }
-
-    const { data: newExam, error: insertError } = await supabase
-      .from('default_exams')
-      .insert({
-        name,
-        type: type || 'Offline',
-        description: description || null,
-        class_levels: class_levels || [],
-        default_start_time: default_start_time || '08:30',
-        default_end_time: default_end_time || '10:30',
-        category
-      })
-      .select()
-      .single();
-
-    if (insertError) throw insertError;
-
-    // If initial timetable data was provided
-    if (timetableData && Array.isArray(timetableData) && timetableData.length > 0) {
-      const timetableRows = timetableData.map((item, idx) => ({
-        default_exam_id: newExam.id,
-        subject: item.subject,
-        sub_subject: item.sub_subject || null,
-        class_level: item.class_level || null,
-        order_index: item.order_index ?? idx,
-        day_offset: item.day_offset ?? idx,
-        start_time: item.start_time || newExam.default_start_time || '08:30',
-        end_time: item.end_time || newExam.default_end_time || '10:30',
-        total_marks: item.total_marks || (category === 'periodic_assessment' ? 50 : 100),
-        passing_marks: item.passing_marks || (category === 'periodic_assessment' ? 20 : 40),
-        has_practical: item.has_practical || false,
-        theory_marks: item.theory_marks || null,
-        theory_passing_marks: item.theory_passing_marks || null,
-        practical_marks: item.practical_marks || null,
-        practical_passing_marks: item.practical_passing_marks || null
-      }));
-
-      await supabase.from('default_exam_timetables').insert(timetableRows);
-    }
-
-    // Fetch full object with timetables
-    const { data: fullExam } = await supabase
-      .from('default_exams')
-      .select('*, default_exam_timetables(*)')
-      .eq('id', newExam.id)
-      .single();
-
-    res.status(201).json(fullExam || newExam);
+    return res.status(400).json({ 
+      message: "Exam templates are strictly fixed to 'Periodic Assessment' and 'Terminal Assessment' (Offline). Custom template creation is disabled." 
+    });
   } catch (error) {
     console.error('[CREATE DEFAULT EXAM ERROR]:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -746,25 +725,32 @@ router.put('/default-exams/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
     }
 
-    const { name, type, description, class_levels, default_start_time, default_end_time, is_active, category } = req.body;
+    const { description, class_levels, default_start_time, default_end_time, is_active } = req.body;
 
-    if (category && !['periodic_assessment', 'terminal_examination'].includes(category)) {
-      return res.status(400).json({ message: "Category must be either 'periodic_assessment' or 'terminal_examination'" });
+    // Check existing exam
+    const { data: currentExam, error: fetchErr } = await supabase
+      .from('default_exams')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchErr || !currentExam) {
+      return res.status(404).json({ message: 'Default exam template not found' });
     }
 
+    // Name is locked to the fixed canonical template names
+    const canonicalName = currentExam.category === 'periodic_assessment' ? 'Periodic Assessment' : 'Terminal Assessment';
+
     const updatePayload = {
-      name,
-      type: type || 'Offline',
+      name: canonicalName,
+      type: 'Offline',
       description: description || null,
       class_levels: class_levels || [],
       default_start_time: default_start_time || '08:30',
-      default_end_time: default_end_time || '10:30',
+      default_end_time: default_end_time || (currentExam.category === 'periodic_assessment' ? '10:30' : '11:30'),
       is_active: is_active ?? true,
       updated_at: new Date().toISOString()
     };
-    if (category) {
-      updatePayload.category = category;
-    }
 
     const { data: updatedExam, error } = await supabase
       .from('default_exams')
@@ -781,20 +767,16 @@ router.put('/default-exams/:id', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/superadmin/default-exams/:id
+// DELETE /api/superadmin/default-exams/:id - DISABLED for fixed templates
 router.delete('/default-exams/:id', protect, async (req, res) => {
   try {
     if (req.user.role !== 'developer' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Forbidden: Superadmin access only' });
     }
 
-    const { error } = await supabase
-      .from('default_exams')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) throw error;
-    res.json({ message: 'Default exam deleted successfully' });
+    return res.status(400).json({ 
+      message: "Default exam templates ('Periodic Assessment' and 'Terminal Assessment') are fixed system templates and cannot be deleted." 
+    });
   } catch (error) {
     console.error('[DELETE DEFAULT EXAM ERROR]:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaFileAlt, FaDownload, FaSpinner, FaTable, FaClipboardList, FaExclamationCircle } from 'react-icons/fa';
+import { FaFileAlt, FaDownload, FaSpinner, FaTable, FaClipboardList, FaExclamationCircle, FaGraduationCap } from 'react-icons/fa';
 import ExamReportSpreadsheet from './ExamReportSpreadsheet';
+import MarksheetGenerator from './MarksheetGenerator';
 
 const ResultsPortal = ({ apiUrl, token }) => {
-  const [activeTab, setActiveTab] = useState('spreadsheet'); // 'spreadsheet' | 'workflow'
+  const [activeTab, setActiveTab] = useState('marksheets'); // 'marksheets' | 'spreadsheet' | 'workflow'
   const [exams, setExams] = useState([]);
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -109,22 +110,32 @@ const ResultsPortal = ({ apiUrl, token }) => {
   return (
     <div className="space-y-6">
       {/* Top Tab Bar */}
-      <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex gap-2">
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-2">
+        <button
+          onClick={() => setActiveTab('marksheets')}
+          className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${
+            activeTab === 'marksheets'
+              ? 'bg-emerald-700 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <FaGraduationCap className="text-base" /> Marksheet Generation Facility
+        </button>
         <button
           onClick={() => setActiveTab('spreadsheet')}
           className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${
             activeTab === 'spreadsheet'
-              ? 'bg-primary text-white shadow-sm'
+              ? 'bg-emerald-700 text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-50'
           }`}
         >
-          <FaTable /> Excel Marks Spreadsheet & Reports
+          <FaTable /> Excel Marks Spreadsheet & Entry
         </button>
         <button
           onClick={() => setActiveTab('workflow')}
           className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${
             activeTab === 'workflow'
-              ? 'bg-primary text-white shadow-sm'
+              ? 'bg-emerald-700 text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-50'
           }`}
         >
@@ -132,7 +143,9 @@ const ResultsPortal = ({ apiUrl, token }) => {
         </button>
       </div>
 
-      {activeTab === 'spreadsheet' ? (
+      {activeTab === 'marksheets' ? (
+        <MarksheetGenerator apiUrl={apiUrl} token={token} />
+      ) : activeTab === 'spreadsheet' ? (
         <ExamReportSpreadsheet apiUrl={apiUrl} token={token} />
       ) : (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">

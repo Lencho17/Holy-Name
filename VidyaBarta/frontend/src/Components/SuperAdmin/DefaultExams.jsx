@@ -307,75 +307,32 @@ export const DefaultExams = () => {
     setEditingExam(exam);
     setExamForm({
       name: exam.name || '',
-      type: exam.type || 'Offline',
+      type: 'Offline',
       category: exam.category || 'periodic_assessment',
       description: exam.description || '',
       default_start_time: exam.default_start_time?.substring(0, 5) || '08:30',
-      default_end_time: exam.default_end_time?.substring(0, 5) || '10:30'
+      default_end_time: exam.default_end_time?.substring(0, 5) || (exam.category === 'periodic_assessment' ? '10:30' : '11:30')
     });
     setShowExamModal(true);
   };
 
   const handleSaveExam = async (e) => {
     e.preventDefault();
-    if (!examForm.name.trim()) return alert('Please enter exam name');
+    if (!editingExam) return;
 
     try {
-      if (editingExam) {
-        // PUT update
-        const res = await fetch(`${API_URL}/superadmin/default-exams/${editingExam.id}`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(examForm)
-        });
-        if (!res.ok) throw new Error('Failed to update default exam');
-      } else {
-        // POST create with default initial subjects if available
-        const isPeriodic = examForm.category === 'periodic_assessment';
-        const defaultTotal = isPeriodic ? 50 : 100;
-        const defaultPass = isPeriodic ? 20 : 40;
-
-        const defaultSubjectsList = globalSubjects.slice(0, 6).map((s, idx) => ({
-          subject: s.name,
-          order_index: idx,
-          day_offset: idx,
-          start_time: examForm.default_start_time,
-          end_time: examForm.default_end_time,
-          total_marks: defaultTotal,
-          passing_marks: defaultPass
-        }));
-
-        const res = await fetch(`${API_URL}/superadmin/default-exams`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            ...examForm,
-            timetableData: defaultSubjectsList
-          })
-        });
-        if (!res.ok) throw new Error('Failed to create default exam');
-      }
+      const res = await fetch(`${API_URL}/superadmin/default-exams/${editingExam.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(examForm)
+      });
+      if (!res.ok) throw new Error('Failed to update default exam');
 
       setShowExamModal(false);
       fetchInitialData();
     } catch (err) {
       console.error(err);
       alert(err.message || 'Error saving default exam');
-    }
-  };
-
-  const handleDeleteExam = async (examId) => {
-    if (!window.confirm('Are you sure you want to delete this default exam template? This action cannot be undone.')) return;
-    try {
-      const res = await fetch(`${API_URL}/superadmin/default-exams/${examId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      if (!res.ok) throw new Error('Failed to delete');
-      setDefaultExams(defaultExams.filter(e => e.id !== examId));
-    } catch (err) {
-      console.error(err);
-      alert('Failed to delete default exam');
     }
   };
 
@@ -500,17 +457,14 @@ export const DefaultExams = () => {
             Default Exams & Timetables
           </h1>
           <p className="text-on-surface-variant text-body-sm mt-1">
-            Create standardized exam templates and default subject routines that schools can immediately adopt.
+            Standardized offline exam templates configured strictly for Periodic Assessment and Terminal Assessment.
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white font-medium text-sm rounded-xl shadow-md shadow-primary/20 transition-all duration-200"
-        >
-          <FiPlus className="text-lg" />
-          Create Default Exam
-        </button>
+        <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 shadow-sm">
+          <FiCheckCircle className="text-emerald-600 text-base" />
+          <span>Strictly 2 Fixed Offline Templates</span>
+        </div>
       </div>
 
       {/* Metrics Cards */}
@@ -520,8 +474,8 @@ export const DefaultExams = () => {
             <FiLayers />
           </div>
           <div>
-            <div className="text-2xl font-bold text-neutral">{defaultExams.length}</div>
-            <div className="text-xs font-medium text-on-surface-variant">Default Exams Configured</div>
+            <div className="text-2xl font-bold text-neutral">2 Fixed Templates</div>
+            <div className="text-xs font-medium text-on-surface-variant">Periodic & Terminal Assessment</div>
           </div>
         </div>
 
@@ -543,9 +497,9 @@ export const DefaultExams = () => {
           </div>
           <div>
             <div className="text-2xl font-bold text-neutral">
-              {defaultExams.filter(e => e.is_active !== false).length} Active
+              Offline Only
             </div>
-            <div className="text-xs font-medium text-on-surface-variant">Live Template Availability</div>
+            <div className="text-xs font-medium text-on-surface-variant">Standardized Examination Mode</div>
           </div>
         </div>
       </div>
@@ -553,31 +507,15 @@ export const DefaultExams = () => {
       {/* Table of Default Exams */}
       <div className="bg-surface border border-outline-variant rounded-2xl shadow-sm overflow-hidden">
         <div className="p-5 border-b border-outline-variant flex items-center justify-between">
-          <h2 className="text-base font-bold text-neutral">All Default Exam Templates</h2>
-          <span className="text-xs text-on-surface-variant">
-            {defaultExams.length} {defaultExams.length === 1 ? 'template' : 'templates'} found
+          <h2 className="text-base font-bold text-neutral">Offline Default Exam Templates</h2>
+          <span className="text-xs text-on-surface-variant font-semibold">
+            2 Fixed System Templates
           </span>
         </div>
 
         {loading ? (
           <div className="p-12 text-center text-on-surface-variant animate-pulse">
             Loading default exams...
-          </div>
-        ) : defaultExams.length === 0 ? (
-          <div className="p-12 text-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto text-2xl">
-              <FiInfo />
-            </div>
-            <h3 className="text-base font-bold text-neutral">No Default Exams Yet</h3>
-            <p className="text-sm text-on-surface-variant max-w-md mx-auto">
-              Create your first default exam template (such as Half Yearly or Annual Exam) so schools can automatically schedule routines.
-            </p>
-            <button
-              onClick={openCreateModal}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover shadow-sm"
-            >
-              <FiPlus /> Create Exam Template
-            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -598,7 +536,10 @@ export const DefaultExams = () => {
                   return (
                     <tr key={exam.id} className="hover:bg-surface-variant/20 transition-colors">
                       <td className="p-4 pl-6">
-                        <div className="font-bold text-neutral">{exam.name}</div>
+                        <div className="font-bold text-neutral flex items-center gap-2">
+                          {exam.name}
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded">Fixed</span>
+                        </div>
                         {exam.description && (
                           <div className="text-xs text-on-surface-variant line-clamp-1 mt-0.5">{exam.description}</div>
                         )}
@@ -607,18 +548,18 @@ export const DefaultExams = () => {
                       <td className="p-4">
                         {exam.category === 'terminal_examination' ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
-                            Terminal Examination
+                            Terminal Examination (100 Marks)
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-                            Periodic Assessment
+                            Periodic Assessment (50 Marks)
                           </span>
                         )}
                       </td>
 
                       <td className="p-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-secondary/10 text-secondary">
-                          {exam.type || 'Offline'}
+                          Offline
                         </span>
                       </td>
 
@@ -639,8 +580,6 @@ export const DefaultExams = () => {
                         </button>
                       </td>
 
-
-
                       <td className="p-4 pr-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -653,16 +592,9 @@ export const DefaultExams = () => {
                           <button
                             onClick={() => openEditModal(exam)}
                             className="p-2 text-on-surface-variant hover:text-neutral hover:bg-surface-variant rounded-lg transition"
-                            title="Edit Exam"
+                            title="Edit Timings & Settings"
                           >
                             <FiEdit2 className="text-base" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteExam(exam.id)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition"
-                            title="Delete Exam"
-                          >
-                            <FiTrash2 className="text-base" />
                           </button>
                         </div>
                       </td>
@@ -675,14 +607,14 @@ export const DefaultExams = () => {
         )}
       </div>
 
-      {/* CREATE / EDIT DEFAULT EXAM MODAL */}
+      {/* EDIT DEFAULT EXAM MODAL */}
       {showExamModal && (
         <div className="fixed inset-0 bg-secondary/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-surface w-full max-w-xl rounded-2xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-outline-variant flex items-center justify-between bg-surface-variant/20">
               <h3 className="text-lg font-bold font-headline text-neutral flex items-center gap-2">
                 <FiCalendar className="text-primary" />
-                {editingExam ? 'Edit Default Exam' : 'Create Default Exam Template'}
+                Configure {editingExam?.name}
               </h3>
               <button
                 onClick={() => setShowExamModal(false)}
@@ -695,36 +627,26 @@ export const DefaultExams = () => {
             <form onSubmit={handleSaveExam} className="p-6 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
               <div>
                 <label className="block text-xs font-bold text-neutral uppercase tracking-wider mb-2">
-                  Exam Name *
+                  Exam Name (Fixed System Template)
                 </label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Half Yearly Examination, Annual Examination, Unit Test 1"
+                  disabled
                   value={examForm.name}
-                  onChange={(e) => setExamForm({ ...examForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-medium"
+                  className="w-full px-4 py-2.5 text-sm bg-slate-100 border border-outline-variant rounded-xl text-slate-700 font-bold cursor-not-allowed select-none"
                 />
+                <p className="text-[11px] text-slate-500 mt-1">This template name is fixed system-wide for offline examinations.</p>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-neutral uppercase tracking-wider mb-2">
-                  Exam Category *
+                  Exam Category & Default Marks
                 </label>
-                <select
-                  value={examForm.category}
-                  onChange={(e) => setExamForm({ ...examForm, category: e.target.value })}
-                  className="w-full px-3 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-semibold"
-                >
-                  <option value="periodic_assessment">Periodic Assessment</option>
-                  <option value="terminal_examination">Terminal Examination</option>
-                </select>
-                <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1.5">
-                  <FiInfo className="text-primary flex-shrink-0" />
+                <div className="px-4 py-2.5 text-sm bg-slate-100 border border-outline-variant rounded-xl text-slate-800 font-semibold select-none">
                   {examForm.category === 'terminal_examination'
-                    ? 'Terminal Examination: Consists of All subjects including Grading & Minor (100 Marks)'
-                    : 'Periodic Assessment: Consists of Core, Elective, and MIL subjects only (50 Marks)'}
-                </p>
+                    ? 'Terminal Examination (All subjects including Grading • 100 Marks / 40 Pass)'
+                    : 'Periodic Assessment (Core, Elective, MIL • 50 Marks / 20 Pass)'}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -732,14 +654,12 @@ export const DefaultExams = () => {
                   <label className="block text-xs font-bold text-neutral uppercase tracking-wider mb-2">
                     Exam Type
                   </label>
-                  <select
-                    value={examForm.type}
-                    onChange={(e) => setExamForm({ ...examForm, type: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-medium"
-                  >
-                    <option value="Offline">Offline</option>
-                    <option value="Online">Online</option>
-                  </select>
+                  <input
+                    type="text"
+                    disabled
+                    value="Offline"
+                    className="w-full px-3 py-2.5 text-sm bg-slate-100 border border-outline-variant rounded-xl text-slate-700 font-bold cursor-not-allowed select-none"
+                  />
                 </div>
 
                 <div>
@@ -750,7 +670,7 @@ export const DefaultExams = () => {
                     type="time"
                     value={examForm.default_start_time}
                     onChange={(e) => setExamForm({ ...examForm, default_start_time: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-medium"
+                    className="w-full px-3 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-medium cursor-pointer"
                   />
                 </div>
 
@@ -762,7 +682,7 @@ export const DefaultExams = () => {
                     type="time"
                     value={examForm.default_end_time}
                     onChange={(e) => setExamForm({ ...examForm, default_end_time: e.target.value })}
-                    className="w-full px-3 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-medium"
+                    className="w-full px-3 py-2.5 text-sm bg-background border border-outline-variant rounded-xl focus:outline-none focus:border-primary text-on-surface font-medium cursor-pointer"
                   />
                 </div>
               </div>
@@ -780,8 +700,6 @@ export const DefaultExams = () => {
                 />
               </div>
 
-
-
               <div className="pt-4 border-t border-outline-variant flex justify-end gap-3">
                 <button
                   type="button"
@@ -794,7 +712,7 @@ export const DefaultExams = () => {
                   type="submit"
                   className="px-6 py-2.5 text-sm font-medium bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 transition"
                 >
-                  {editingExam ? 'Update Exam Template' : 'Create & Proceed to Routine'}
+                  Save Settings
                 </button>
               </div>
             </form>

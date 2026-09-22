@@ -1236,6 +1236,8 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         .sort((a, b) => (a.subjects?.order_index || 999) - (b.subjects?.order_index || 999));
     }
 
+    const isKgOrPrimary = /^(KG|NURSERY|LKG|UKG|PPE|CLASS\s*(I|II|III|1|2|3)|GRADE\s*(I|II|III|1|2|3)|(I|II|III|1|2|3))\b/i.test(class_level.trim());
+
     // Build grading and scholastic sets
     const gradingSubjectSet = new Set();
     const configScholasticSubs = [];
@@ -1244,7 +1246,10 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     schoolSubjects.forEach(s => {
       const subName = s.subjects?.name ? s.subjects.name.toUpperCase().trim() : null;
       if (!subName) return;
-      const isGrading = s.subjects?.marking_system === 'Grade' || s.subjects?.marking_system === 'grades';
+      const isKnownGradingSubject = isKgOrPrimary && [
+        'CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DRILL/GAMES', 'DRILL', 'GAMES', 'DICTATION', 'HANDWRITING', 'READING'
+      ].includes(subName);
+      const isGrading = s.subjects?.marking_system === 'Grade' || s.subjects?.marking_system === 'grades' || isKnownGradingSubject;
       if (isGrading) {
         gradingSubjectSet.add(subName);
         if (!configGradingSubs.includes(subName)) configGradingSubs.push(subName);
@@ -1256,7 +1261,10 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     timetables.forEach(t => {
       const subName = t.subject ? t.subject.toUpperCase().trim() : null;
       if (!subName) return;
-      if (t.is_grading) {
+      const isKnownGradingSubject = isKgOrPrimary && [
+        'CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DRILL/GAMES', 'DRILL', 'GAMES', 'DICTATION', 'HANDWRITING', 'READING'
+      ].includes(subName);
+      if (t.is_grading || isKnownGradingSubject) {
         gradingSubjectSet.add(subName);
         if (!configGradingSubs.includes(subName)) configGradingSubs.push(subName);
       }
@@ -1290,13 +1298,26 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
       gradingSubjectsList.splice(attIdx + 1, 0, 'CONDUCT');
     }
 
-    // Fallback for KG/Nursery only if no other grading subjects were configured by school
-    const isKgOrNursery = /^(KG|NURSERY|LKG|UKG|PPE)/i.test(class_level.trim());
-    if (gradingSubjectsList.length <= 2 && isKgOrNursery) {
-      const kgDefaults = ['CRAFT', 'DRAWING', 'CONVERSATION', 'DRILL/GAMES', 'DICTATION'];
-      kgDefaults.forEach(d => {
+    // Fallback for KG/Primary (Class I to III) only if no other grading subjects were configured by school
+    if (gradingSubjectsList.length <= 2 && isKgOrPrimary) {
+      const primaryDefaults = ['CRAFT', 'DRAWING', 'CONVERSATION', 'DRILL/GAMES', 'DICTATION'];
+      primaryDefaults.forEach(d => {
         if (!gradingSubjectsList.includes(d)) gradingSubjectsList.push(d);
       });
+    }
+
+    // Scholastic defaults for Class I to III if no subjects exist in DB yet
+    if (scholasticSubjects.length === 0) {
+      if (/^(KG|NURSERY|LKG|UKG|PPE)/i.test(class_level.trim())) {
+        scholasticSubjects = ['ENGLISH I', 'ENGLISH II', 'MATHEMATICS', 'ENVIRONMENTAL STUDIES', 'GENERAL KNOWLEDGE'];
+      } else if (/^(CLASS\s*(I|II|III|1|2|3)|GRADE\s*(I|II|III|1|2|3)|(I|II|III|1|2|3))\b/i.test(class_level.trim())) {
+        scholasticSubjects = [
+          'ENGLISH I', 'ENGLISH II', 'ASSAMESE', 'HINDI', 'MATHEMATICS',
+          'GENERAL SCIENCE', 'SOCIAL SCIENCE', 'MORAL SCIENCE', 'GENERAL KNOWLEDGE'
+        ];
+      } else {
+        scholasticSubjects = ['ENGLISH', 'MATHEMATICS', 'SCIENCE', 'SOCIAL SCIENCE', 'REGIONAL LANGUAGE'];
+      }
     }
 
     const classSubjects = [...scholasticSubjects, ...gradingSubjectsList.filter(g => !['ATTENDANCE', 'CONDUCT'].includes(g))];
@@ -1472,6 +1493,20 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
 
         const gradeInfo = finalScore != null ? calculateGrade(finalScore) : { grade: '—', remarks: 'Pending' };
 
+        // Specimen Scheme (20% all Unit Tests + 30% Half-Yearly + 50% Annual Exam)
+        const utAvgPct = (ut1Pct != null && ut2Pct != null) ? ((ut1Pct + ut2Pct) / 2) : (ut1Pct ?? ut2Pct);
+        const utAll20Wt = utAvgPct != null ? (utAvgPct * 0.20) : null;
+        const annual50Wt = term2Pct != null ? (term2Pct * 0.50) : null;
+        let score50Scheme = null;
+        let earned50 = 0;
+        let total50Wt = 0;
+        if (utAll20Wt != null) { total50Wt += 20; earned50 += utAll20Wt; }
+        if (term1Wt != null) { total50Wt += 30; earned50 += term1Wt; }
+        if (annual50Wt != null) { total50Wt += 50; earned50 += annual50Wt; }
+        if (total50Wt > 0) {
+          score50Scheme = total50Wt === 100 ? earned50.toFixed(1) : ((earned50 / total50Wt) * 100).toFixed(1);
+        }
+
         return {
           sl: sIdx + 1,
           subject: subName,
@@ -1483,6 +1518,9 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           ut2Wt: ut2Wt != null ? ut2Wt.toFixed(1) : '—',
           term2Raw: term2Obt != null ? `${term2Obt}/${term2Max}` : '—',
           term2Wt: term2Wt != null ? term2Wt.toFixed(1) : '—',
+          utAll20Wt: utAll20Wt != null ? utAll20Wt.toFixed(1) : '—',
+          annual50Wt: annual50Wt != null ? annual50Wt.toFixed(1) : '—',
+          score50Scheme: score50Scheme != null ? score50Scheme : '—',
           finalScore: finalScore != null ? finalScore : '—',
           grade: gradeInfo.grade,
           remarks: gradeInfo.remarks
@@ -1558,6 +1596,12 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           subjects: annualSubjects,
           gradingSubjects: annualGradingSubjects,
           appearingSubjectsCount: annualSubjects.filter(s => s.finalScore !== '—').length,
+          appearingCounts: {
+            ut1: ut1 ? (ut1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || 7) : 7,
+            term1: term1 ? (term1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || 9) : 9,
+            ut2: ut2 ? (ut2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || 7) : 7,
+            term2: term2 ? (term2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || 9) : 9
+          },
           totalObtained: validAnnualScores.reduce((a, b) => a + b, 0).toFixed(1),
           totalMax: validAnnualScores.length * 100,
           percentage: annualAvg,

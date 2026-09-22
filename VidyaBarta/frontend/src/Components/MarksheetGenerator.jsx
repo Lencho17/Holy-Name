@@ -61,7 +61,8 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
   const [selectedType, setSelectedType] = useState('annual'); 
   // 'annual' | 'ut1' | 'term1' | 'ut2' | 'term2'
   const [viewMode, setViewMode] = useState('single'); // 'single' | 'broadsheet'
-  const [paperOrientation, setPaperOrientation] = useState('landscape'); // 'landscape' | 'portrait'
+  const [paperOrientation, setPaperOrientation] = useState('portrait'); // 'landscape' | 'portrait'
+  const [promotionScheme, setPromotionScheme] = useState('specimen'); // 'specimen' (20/30/50%) | 'four_exam' (20/30/20/30%)
   const [studentIndex, setStudentIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -369,7 +370,27 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           doc.text(String(s.date_of_birth || 'N/A'), 210, 42.5);
 
           // 7. Multi-Exam Tabulation Grid with Grouped Super-Headers
-          const tableHeaders = [
+          const isSpecimenScheme = promotionScheme === 'specimen';
+
+          const tableHeaders = isSpecimenScheme ? [
+            [
+              { content: 'SL', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+              { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+              { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
+              { content: 'PROMOTION CRITERIA', colSpan: 4, styles: { halign: 'center', fillColor: [20, 83, 45] } },
+              { content: 'GRADE', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+            ],
+            [
+              { content: `${examNames.ut1}\nPM:20/50`, styles: { halign: 'center' } },
+              { content: `${examNames.term1}\nPM:40/100`, styles: { halign: 'center' } },
+              { content: `${examNames.ut2}\nPM:20/50`, styles: { halign: 'center' } },
+              { content: `${examNames.term2}\nPM:40/100`, styles: { halign: 'center' } },
+              { content: '20% Marks\nof all the Unit Test', styles: { halign: 'center' } },
+              { content: '30% Marks\nof Half-Yearly Exam', styles: { halign: 'center' } },
+              { content: '50% of\nAnnual Exam', styles: { halign: 'center' } },
+              { content: 'TOTAL\n(/100)', styles: { halign: 'center', fontStyle: 'bold' } }
+            ]
+          ] : [
             [
               { content: 'SL', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
               { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
@@ -386,35 +407,56 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               { content: `30% Marks\n${examNames.term1}`, styles: { halign: 'center' } },
               { content: `20% Marks\n${examNames.ut2}`, styles: { halign: 'center' } },
               { content: `30% Marks\n${examNames.term2}`, styles: { halign: 'center' } },
-              { content: `TOTAL\n(/100)`, styles: { halign: 'center', fontStyle: 'bold' } }
+              { content: 'TOTAL\n(/100)', styles: { halign: 'center', fontStyle: 'bold' } }
             ]
           ];
 
-          const tableBody = (item.annual?.subjects || []).map((sub) => [
-            sub.sl,
-            sub.subject,
-            sub.ut1Raw ? sub.ut1Raw : '—',
-            sub.term1Raw ? sub.term1Raw : '—',
-            sub.ut2Raw ? sub.ut2Raw : '—',
-            sub.term2Raw ? sub.term2Raw : '—',
-            sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—',
-            sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
-            sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—',
-            sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—',
-            sub.finalScore ?? '—',
-            sub.grade || '—'
-          ]);
+          const tableBody = (item.annual?.subjects || []).map((sub) => {
+            if (isSpecimenScheme) {
+              return [
+                sub.sl,
+                sub.subject,
+                sub.ut1Raw ? sub.ut1Raw : '—',
+                sub.term1Raw ? sub.term1Raw : '—',
+                sub.ut2Raw ? sub.ut2Raw : '—',
+                sub.term2Raw ? sub.term2Raw : '—',
+                sub.utAll20Wt != null && sub.utAll20Wt !== '—' ? sub.utAll20Wt : (sub.ut1Wt || '—'),
+                sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
+                sub.annual50Wt != null && sub.annual50Wt !== '—' ? sub.annual50Wt : (sub.term2Wt || '—'),
+                sub.score50Scheme != null && sub.score50Scheme !== '—' ? sub.score50Scheme : (sub.finalScore ?? '—'),
+                sub.grade || '—'
+              ];
+            } else {
+              return [
+                sub.sl,
+                sub.subject,
+                sub.ut1Raw ? sub.ut1Raw : '—',
+                sub.term1Raw ? sub.term1Raw : '—',
+                sub.ut2Raw ? sub.ut2Raw : '—',
+                sub.term2Raw ? sub.term2Raw : '—',
+                sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—',
+                sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
+                sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—',
+                sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—',
+                sub.finalScore ?? '—',
+                sub.grade || '—'
+              ];
+            }
+          });
 
           // Summary Rows matching Sample
-          const appearingCount = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || 0;
+          const appCounts = item.annual?.appearingCounts || { ut1: 7, term1: 9, ut2: 7, term2: 9 };
+          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || 9;
+          const critColsSpan = isSpecimenScheme ? 3 : 4;
+
           tableBody.push([
             { content: 'APPEARING SUBJECTS', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
-            { content: String(appearingCount), styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: String(appearingCount), styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: String(appearingCount), styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: String(appearingCount), styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: '—', colSpan: 4, styles: { halign: 'center' } },
-            { content: `${appearingCount} Subs`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
+            { content: String(appCounts.ut1 || 7), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appCounts.term1 || 9), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appCounts.ut2 || 7), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appCounts.term2 || 9), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
+            { content: `${appSubsTotal} Subs`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
 
           tableBody.push([
@@ -423,7 +465,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: String(item.term1?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
             { content: String(item.ut2?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
             { content: String(item.term2?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: '—', colSpan: 4, styles: { halign: 'center' } },
+            { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
             { content: `${item.annual?.totalObtained || 0}`, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } },
             { content: `/ ${item.annual?.totalMax || 0}`, styles: { halign: 'center', fontStyle: 'normal' } }
           ]);
@@ -434,7 +476,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: item.term1 ? `${item.term1.percentage}%` : '—', styles: { halign: 'center' } },
             { content: item.ut2 ? `${item.ut2.percentage}%` : '—', styles: { halign: 'center' } },
             { content: item.term2 ? `${item.term2.percentage}%` : '—', styles: { halign: 'center' } },
-            { content: '—', colSpan: 4, styles: { halign: 'center' } },
+            { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
             { content: `${item.annual?.percentage || 0}%`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
 
@@ -444,7 +486,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: `#${item.term1?.rank || 1}`, styles: { halign: 'center' } },
             { content: `#${item.ut2?.rank || 1}`, styles: { halign: 'center' } },
             { content: `#${item.term2?.rank || 1}`, styles: { halign: 'center' } },
-            { content: '—', colSpan: 4, styles: { halign: 'center' } },
+            { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
             { content: `#${item.annual?.rank || 1}`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [67, 56, 202] } }
           ]);
 
@@ -454,9 +496,36 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: item.term1?.status || '—', styles: { halign: 'center' } },
             { content: item.ut2?.status || '—', styles: { halign: 'center' } },
             { content: item.term2?.status || '—', styles: { halign: 'center' } },
-            { content: 'ANNUAL PROMOTION', colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 253, 244] } },
+            { content: 'ANNUAL PROMOTION', colSpan: critColsSpan, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 253, 244] } },
             { content: item.annual?.promotion || 'PROMOTED', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45], fillColor: [240, 253, 244] } }
           ]);
+
+          const landColStyles = isSpecimenScheme ? {
+            0: { cellWidth: 8 },
+            1: { cellWidth: 50, halign: 'left', fontStyle: 'bold' },
+            2: { cellWidth: 24 },
+            3: { cellWidth: 24 },
+            4: { cellWidth: 24 },
+            5: { cellWidth: 24 },
+            6: { cellWidth: 26 },
+            7: { cellWidth: 26 },
+            8: { cellWidth: 26 },
+            9: { cellWidth: 23, fontStyle: 'bold', textColor: [20, 83, 45] },
+            10: { cellWidth: 14, fontStyle: 'bold', textColor: [67, 56, 202] }
+          } : {
+            0: { cellWidth: 8 },
+            1: { cellWidth: 46, halign: 'left', fontStyle: 'bold' },
+            2: { cellWidth: 23 },
+            3: { cellWidth: 23 },
+            4: { cellWidth: 23 },
+            5: { cellWidth: 23 },
+            6: { cellWidth: 21 },
+            7: { cellWidth: 21 },
+            8: { cellWidth: 21 },
+            9: { cellWidth: 21 },
+            10: { cellWidth: 23, fontStyle: 'bold', textColor: [20, 83, 45] },
+            11: { cellWidth: 16, fontStyle: 'bold', textColor: [67, 56, 202] }
+          };
 
           autoTable(doc, {
             head: tableHeaders,
@@ -479,20 +548,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               fillColor: [30, 41, 59],
               textColor: [255, 255, 255]
             },
-            columnStyles: {
-              0: { cellWidth: 8 },
-              1: { cellWidth: 46, halign: 'left', fontStyle: 'bold' },
-              2: { cellWidth: 23 },
-              3: { cellWidth: 23 },
-              4: { cellWidth: 23 },
-              5: { cellWidth: 23 },
-              6: { cellWidth: 21 },
-              7: { cellWidth: 21 },
-              8: { cellWidth: 21 },
-              9: { cellWidth: 21 },
-              10: { cellWidth: 23, fontStyle: 'bold', textColor: [20, 83, 45] },
-              11: { cellWidth: 16, fontStyle: 'bold', textColor: [67, 56, 202] }
-            }
+            columnStyles: landColStyles
           });
 
           let currentY = doc.lastAutoTable.finalY + 3;
@@ -629,145 +685,190 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
           doc.setFontSize(7);
           doc.setFont('helvetica', 'italic');
-          doc.setTextColor(153, 27, 27);
           doc.text('This is a Digitally signed document and does not require any Physical Signature', 148.5, bannerY + 4.3, { align: 'center' });
 
         } else if (selectedType === 'annual') {
           // =========================================================================
-          // PORTRAIT 2-PAGE FRONT & BACK MARKSHEET (210mm x 297mm)
+          // PORTRAIT 1-PAGE SPECIMEN MARKSHEET (210mm x 297mm) - MATCHING CLASS I TO III SPECIMEN
           // =========================================================================
 
-          // --- PAGE 1: SCHOLASTIC PERFORMANCE & STUDENT PARTICULARS ---
-          doc.setDrawColor(20, 83, 45);
-          doc.setLineWidth(1.2);
+          // 1. Double Outer Page Border
+          doc.setDrawColor(20, 83, 45); // Outer border
+          doc.setLineWidth(1.1);
           doc.rect(8, 8, 194, 281);
-          doc.setDrawColor(187, 247, 208);
-          doc.setLineWidth(0.5);
+          doc.setDrawColor(187, 247, 208); // Inner light border
+          doc.setLineWidth(0.4);
           doc.rect(10, 10, 190, 277);
 
-          // Watermark
+          // 2. Watermark Seal
           doc.setFontSize(38);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(245, 248, 246);
           doc.text(watermarkText, 105, 140, { align: 'center', angle: 30 });
 
-          // Logo
+          // 3. School Logo (Left: x=14, y=12, w=20, h=20)
           if (logoBase64) {
             try {
-              doc.addImage(logoBase64, 'PNG', 14, 13, 20, 20);
+              doc.addImage(logoBase64, 'PNG', 14, 12, 20, 20);
             } catch (err) {}
           }
 
-          // Student Photo Box (Top-Right)
+          // 4. Student Photo Box (Top-Right: x=168, y=12, w=24, h=28)
           if (studentPhotoBase64) {
             try {
-              doc.addImage(studentPhotoBase64, 'JPEG', 174, 13, 19, 23);
+              doc.addImage(studentPhotoBase64, 'JPEG', 168, 12, 24, 28);
               doc.setDrawColor(20, 83, 45);
-              doc.rect(174, 13, 19, 23);
+              doc.setLineWidth(0.4);
+              doc.rect(168, 12, 24, 28);
             } catch (e) {
               doc.setDrawColor(203, 213, 225);
-              doc.rect(174, 13, 19, 23);
+              doc.rect(168, 12, 24, 28);
               doc.setFontSize(6);
               doc.setTextColor(148, 163, 184);
-              doc.text('PHOTO', 183.5, 25, { align: 'center' });
+              doc.text('PHOTO', 180, 25, { align: 'center' });
             }
           } else {
+            // Frame for student photo matching specimen
             doc.setDrawColor(203, 213, 225);
-            doc.rect(174, 13, 19, 23);
-            doc.setFontSize(6);
-            doc.setTextColor(148, 163, 184);
-            doc.text('Photo of the\nstudent', 183.5, 24, { align: 'center' });
+            doc.setLineWidth(0.4);
+            doc.rect(168, 12, 24, 28);
+            doc.rect(170, 14, 20, 24);
+            doc.setFontSize(6.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            doc.text('Photo of the\nstudent', 180, 24, { align: 'center' });
           }
 
-          // Header
+          // 5. School Header & Title (Center: x=105)
+          // "PROGRESS REPORT CARD" badge
+          doc.setFillColor(239, 246, 255);
+          doc.roundedRect(68, 12, 74, 5.2, 1, 1, 'FD');
+          doc.setDrawColor(59, 130, 246);
+          doc.roundedRect(68, 12, 74, 5.2, 1, 1, 'S');
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(30, 64, 175);
-          doc.text('PROGRESS REPORT CARD', 105, 15, { align: 'center' });
+          doc.text('PROGRESS REPORT CARD', 105, 15.8, { align: 'center' });
 
-          doc.setFontSize(13);
+          // School Name
+          doc.setFontSize(12.5);
           doc.setTextColor(20, 83, 45);
-          doc.text(schoolName, 105, 20, { align: 'center' });
+          doc.text(schoolName, 105, 21.5, { align: 'center' });
 
-          doc.setFontSize(7.5);
+          // Address & Contact Info
+          doc.setFontSize(7);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(71, 85, 105);
-          doc.text(schoolAddress, 105, 24, { align: 'center' });
-          doc.text(contactInfo, 105, 27.5, { align: 'center' });
+          doc.text(schoolAddress, 105, 25.2, { align: 'center' });
+          doc.text(contactInfo, 105, 28.5, { align: 'center' });
 
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(180, 83, 9);
-          doc.text(academicYearStr, 105, 31.5, { align: 'center' });
-
-          // Student Particulars (Dotted layout)
-          let py = 38;
+          // Academic Year with Yellow Highlight Box
           doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text('ACADEMIC YEAR: ', 93, 33);
+          const acYear = schoolProfile?.academicYear || schoolProfile?.session || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+          doc.setFillColor(254, 240, 138); // Yellow highlight
+          doc.rect(94, 30.2, 24, 4.2, 'F');
+          doc.setTextColor(113, 63, 18);
+          doc.text(acYear, 106, 33, { align: 'center' });
+
+          // 6. Student Particulars (Dotted layout style matching specimen)
+          let py = 38;
+          doc.setFontSize(7.2);
           doc.setTextColor(30, 41, 59);
 
+          // SL NO
           doc.setFont('helvetica', 'bold');
           doc.text('SL NO:', 14, py);
           doc.setFont('helvetica', 'normal');
-          doc.text(`${s.roll_number || '01'}...........................................................................................................................`, 26, py);
-          py += 5;
+          doc.text(`${s.roll_number || '01'}.....................................................................................................................................................`, 26, py);
+          py += 4.2;
 
+          // NAME
           doc.setFont('helvetica', 'bold');
           doc.text('NAME:', 14, py);
           doc.setFont('helvetica', 'bold');
-          doc.text(`${(s.student_name || s.name || '').toUpperCase()}..........................................................................................................`, 26, py);
-          py += 5;
+          doc.text(`${(s.student_name || s.name || '').toUpperCase()}...............................................................................................................................`, 26, py);
+          py += 4.2;
 
+          // CLASS, SEC, ROLL
           doc.setFont('helvetica', 'bold');
           doc.text('CLASS:', 14, py);
           doc.setFont('helvetica', 'normal');
-          doc.text(`${selectedClass}.........`, 26, py);
+          doc.text(`${selectedClass}.......................`, 27, py);
 
           doc.setFont('helvetica', 'bold');
-          doc.text('SEC:', 50, py);
+          doc.text('SEC:', 58, py);
           doc.setFont('helvetica', 'normal');
-          doc.text(`${s.section || 'A'}.........`, 58, py);
+          doc.text(`${s.section || 'A'}.........................`, 66, py);
 
           doc.setFont('helvetica', 'bold');
-          doc.text('ROLL:', 82, py);
+          doc.text('ROLL:', 98, py);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(20, 83, 45);
-          doc.text(`${s.roll_number || '—'}........................................................`, 93, py);
-          py += 5;
+          doc.text(`${s.roll_number || '—'}........................................................................`, 108, py);
+          py += 4.2;
 
-          doc.setFontSize(7.5);
-          doc.setFont('helvetica', 'bold');
+          // STUDENT ID
           doc.setTextColor(30, 41, 59);
+          doc.setFont('helvetica', 'bold');
           doc.text('STUDENT ID:', 14, py);
           doc.setFont('helvetica', 'normal');
-          doc.text(`${s.admission_id || s.admissionId || '—'}...................................................................................................................`, 34, py);
-          py += 5;
+          doc.text(`${s.admission_id || s.admissionId || '—'}.................................................................................................................................`, 34, py);
+          py += 4.2;
 
+          // FATHER'S NAME
           doc.setFont('helvetica', 'bold');
           doc.text("FATHER'S NAME:", 14, py);
           doc.setFont('helvetica', 'normal');
-          doc.text(`${(s.guardian_name || s.father_name || 'N/A').toUpperCase()}....................................................................................................`, 40, py);
-          py += 5;
+          doc.text(`${(s.guardian_name || s.father_name || 'N/A').toUpperCase()}..................................................................................................................`, 40, py);
+          py += 4.2;
 
+          // DATE OF BIRTH
           doc.setFont('helvetica', 'bold');
           doc.text('DATE OF BIRTH:', 14, py);
           doc.setFont('helvetica', 'normal');
-          doc.text(`${s.date_of_birth || 'N/A'}....................................................................................................................`, 39, py);
-          py += 5;
+          doc.text(`${s.date_of_birth || 'N/A'}..................................................................................................................................`, 39, py);
+          py += 4.5;
 
+          // EXAMINATION with Yellow Highlight Box
           doc.setFont('helvetica', 'bold');
           doc.text('EXAMINATION:', 14, py);
+          const examBannerTitle = marksheetMeta.title;
+          const examTextWidth = doc.getTextWidth(examBannerTitle);
           doc.setFillColor(254, 240, 138); // Yellow highlight
-          doc.rect(38, py - 3.5, 60, 4.5, 'F');
+          doc.rect(38, py - 3.4, examTextWidth + 6, 4.4, 'F');
           doc.setTextColor(30, 41, 59);
-          doc.text(marksheetMeta.title, 40, py);
-          py += 7;
+          doc.text(examBannerTitle, 41, py);
+          py += 6.5;
 
-          // Main Table for Portrait
-          const portHeaders = [
+          // 7. Multi-Exam Tabulation Grid with Grouped Super-Headers
+          const isSpecimenScheme = promotionScheme === 'specimen';
+
+          const portHeaders = isSpecimenScheme ? [
             [
               { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
               { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
-              { content: 'PROMOTION CRITERIA', colSpan: 4, styles: { halign: 'center', fillColor: [20, 83, 45] } }
+              { content: 'PROMOTION CRITERIA', colSpan: 4, styles: { halign: 'center', fillColor: [20, 83, 45] } },
+              { content: 'GRADE', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+            ],
+            [
+              { content: `${examNames.ut1}\nPM:20/50`, styles: { halign: 'center' } },
+              { content: `${examNames.term1}\nPM:40/100`, styles: { halign: 'center' } },
+              { content: `${examNames.ut2}\nPM:20/50`, styles: { halign: 'center' } },
+              { content: `${examNames.term2}\nPM:40/100`, styles: { halign: 'center' } },
+              { content: '20% Marks\nof all the Unit Test', styles: { halign: 'center' } },
+              { content: '30% Marks\nof Half-Yearly Exam', styles: { halign: 'center' } },
+              { content: '50% of\nAnnual Exam', styles: { halign: 'center' } },
+              { content: 'TOTAL\n(/100)', styles: { halign: 'center', fontStyle: 'bold' } }
+            ]
+          ] : [
+            [
+              { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+              { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
+              { content: 'PROMOTION CRITERIA', colSpan: 5, styles: { halign: 'center', fillColor: [20, 83, 45] } },
+              { content: 'GRADE', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
             ],
             [
               { content: `${examNames.ut1}\nPM:20/50`, styles: { halign: 'center' } },
@@ -777,30 +878,55 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               { content: `20% Marks\n${examNames.ut1}`, styles: { halign: 'center' } },
               { content: `30% Marks\n${examNames.term1}`, styles: { halign: 'center' } },
               { content: `20% Marks\n${examNames.ut2}`, styles: { halign: 'center' } },
-              { content: `30% Marks\n${examNames.term2}`, styles: { halign: 'center' } }
+              { content: `30% Marks\n${examNames.term2}`, styles: { halign: 'center' } },
+              { content: 'TOTAL\n(/100)', styles: { halign: 'center', fontStyle: 'bold' } }
             ]
           ];
 
-          const portBody = (item.annual?.subjects || []).map(sub => [
-            sub.subject,
-            sub.ut1Raw ? sub.ut1Raw : '—',
-            sub.term1Raw ? sub.term1Raw : '—',
-            sub.ut2Raw ? sub.ut2Raw : '—',
-            sub.term2Raw ? sub.term2Raw : '—',
-            sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—',
-            sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
-            sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—',
-            sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—'
-          ]);
+          const portBody = (item.annual?.subjects || []).map((sub) => {
+            if (isSpecimenScheme) {
+              return [
+                sub.subject,
+                sub.ut1Raw ? sub.ut1Raw : '—',
+                sub.term1Raw ? sub.term1Raw : '—',
+                sub.ut2Raw ? sub.ut2Raw : '—',
+                sub.term2Raw ? sub.term2Raw : '—',
+                sub.utAll20Wt != null && sub.utAll20Wt !== '—' ? sub.utAll20Wt : (sub.ut1Wt || '—'),
+                sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
+                sub.annual50Wt != null && sub.annual50Wt !== '—' ? sub.annual50Wt : (sub.term2Wt || '—'),
+                sub.score50Scheme != null && sub.score50Scheme !== '—' ? sub.score50Scheme : (sub.finalScore ?? '—'),
+                sub.grade || '—'
+              ];
+            } else {
+              return [
+                sub.subject,
+                sub.ut1Raw ? sub.ut1Raw : '—',
+                sub.term1Raw ? sub.term1Raw : '—',
+                sub.ut2Raw ? sub.ut2Raw : '—',
+                sub.term2Raw ? sub.term2Raw : '—',
+                sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—',
+                sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
+                sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—',
+                sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—',
+                sub.finalScore ?? '—',
+                sub.grade || '—'
+              ];
+            }
+          });
 
-          const appCount = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || 0;
+          // Summary Rows matching Sample
+          const appCounts = item.annual?.appearingCounts || { ut1: 7, term1: 9, ut2: 7, term2: 9 };
+          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || 9;
+          const portCritSpan = isSpecimenScheme ? 3 : 4;
+
           portBody.push([
             { content: 'APPEARING SUBJECTS', styles: { halign: 'left', fontStyle: 'bold' } },
-            { content: String(appCount), styles: { halign: 'center' } },
-            { content: String(appCount), styles: { halign: 'center' } },
-            { content: String(appCount), styles: { halign: 'center' } },
-            { content: String(appCount), styles: { halign: 'center' } },
-            { content: '—', colSpan: 4, styles: { halign: 'center' } }
+            { content: String(appCounts.ut1 || 7), styles: { halign: 'center' } },
+            { content: String(appCounts.term1 || 9), styles: { halign: 'center' } },
+            { content: String(appCounts.ut2 || 7), styles: { halign: 'center' } },
+            { content: String(appCounts.term2 || 9), styles: { halign: 'center' } },
+            { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
+            { content: `${appSubsTotal} Subs`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
 
           portBody.push([
@@ -809,7 +935,9 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: String(item.term1?.totalObtained ?? '—'), styles: { halign: 'center' } },
             { content: String(item.ut2?.totalObtained ?? '—'), styles: { halign: 'center' } },
             { content: String(item.term2?.totalObtained ?? '—'), styles: { halign: 'center' } },
-            { content: `${item.annual?.totalObtained || 0} / ${item.annual?.totalMax || 0}`, colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
+            { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
+            { content: `${item.annual?.totalObtained || 0}`, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } },
+            { content: `/ ${item.annual?.totalMax || 0}`, styles: { halign: 'center', fontStyle: 'normal' } }
           ]);
 
           portBody.push([
@@ -818,7 +946,8 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: item.term1 ? `${item.term1.percentage}%` : '—', styles: { halign: 'center' } },
             { content: item.ut2 ? `${item.ut2.percentage}%` : '—', styles: { halign: 'center' } },
             { content: item.term2 ? `${item.term2.percentage}%` : '—', styles: { halign: 'center' } },
-            { content: `${item.annual?.percentage || 0}%`, colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
+            { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
+            { content: `${item.annual?.percentage || 0}%`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
 
           portBody.push([
@@ -827,7 +956,8 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: `#${item.term1?.rank || 1}`, styles: { halign: 'center' } },
             { content: `#${item.ut2?.rank || 1}`, styles: { halign: 'center' } },
             { content: `#${item.term2?.rank || 1}`, styles: { halign: 'center' } },
-            { content: `#${item.annual?.rank || 1}`, colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', textColor: [67, 56, 202] } }
+            { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
+            { content: `#${item.annual?.rank || 1}`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [67, 56, 202] } }
           ]);
 
           portBody.push([
@@ -836,18 +966,45 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: item.term1?.status || '—', styles: { halign: 'center' } },
             { content: item.ut2?.status || '—', styles: { halign: 'center' } },
             { content: item.term2?.status || '—', styles: { halign: 'center' } },
-            { content: item.annual?.promotion || 'PROMOTED', colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45], fillColor: [240, 253, 244] } }
+            { content: 'ANNUAL PROMOTION', colSpan: portCritSpan, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 253, 244] } },
+            { content: item.annual?.promotion || 'PROMOTED', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45], fillColor: [240, 253, 244] } }
           ]);
+
+          const portColStyles = isSpecimenScheme ? {
+            0: { halign: 'left', fontStyle: 'bold', cellWidth: 42 },
+            1: { cellWidth: 15.5 },
+            2: { cellWidth: 15.5 },
+            3: { cellWidth: 15.5 },
+            4: { cellWidth: 15.5 },
+            5: { cellWidth: 16 },
+            6: { cellWidth: 16 },
+            7: { cellWidth: 16 },
+            8: { cellWidth: 16, fontStyle: 'bold', textColor: [20, 83, 45] },
+            9: { cellWidth: 14, fontStyle: 'bold', textColor: [67, 56, 202] }
+          } : {
+            0: { halign: 'left', fontStyle: 'bold', cellWidth: 40 },
+            1: { cellWidth: 15 },
+            2: { cellWidth: 15 },
+            3: { cellWidth: 15 },
+            4: { cellWidth: 15 },
+            5: { cellWidth: 14 },
+            6: { cellWidth: 14 },
+            7: { cellWidth: 14 },
+            8: { cellWidth: 14 },
+            9: { cellWidth: 13, fontStyle: 'bold', textColor: [20, 83, 45] },
+            10: { cellWidth: 13, fontStyle: 'bold', textColor: [67, 56, 202] }
+          };
 
           autoTable(doc, {
             head: portHeaders,
             body: portBody,
-            startY: py + 2,
+            startY: py,
             margin: { left: 14, right: 14 },
+            tableWidth: 182,
             theme: 'grid',
             styles: {
-              fontSize: 7,
-              cellPadding: 1.3,
+              fontSize: 6.5,
+              cellPadding: 1.1,
               halign: 'center',
               valign: 'middle',
               textColor: [30, 41, 59],
@@ -855,75 +1012,56 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               lineWidth: 0.15
             },
             headStyles: {
-              fontSize: 6.8,
+              fontSize: 6.2,
               fontStyle: 'bold',
               fillColor: [30, 41, 59],
               textColor: [255, 255, 255]
             },
-            columnStyles: {
-              0: { halign: 'left', fontStyle: 'bold', cellWidth: 42 },
-              1: { cellWidth: 17.5 },
-              2: { cellWidth: 17.5 },
-              3: { cellWidth: 17.5 },
-              4: { cellWidth: 17.5 },
-              5: { cellWidth: 17.5 },
-              6: { cellWidth: 17.5 },
-              7: { cellWidth: 17.5 },
-              8: { cellWidth: 17.5 }
-            }
+            columnStyles: portColStyles
           });
 
-          // Remarks label at bottom of page 1
-          doc.setFontSize(8.5);
+          let currentY = doc.lastAutoTable.finalY + 2.5;
+
+          // 8. Centered RED REMARKS Label
+          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(220, 38, 38);
-          doc.text('REMARKS', 105, 280, { align: 'center' });
+          doc.text('REMARKS', 105, currentY + 2.5, { align: 'center' });
+          currentY += 4.5;
 
-          // --- PAGE 2: BACK SIDE - REMARKS, GRADING SUBJECTS & VERIFICATION ---
-          doc.addPage();
-
-          // Border for Page 2
-          doc.setDrawColor(20, 83, 45);
-          doc.setLineWidth(1.2);
-          doc.rect(8, 8, 194, 281);
-          doc.setDrawColor(187, 247, 208);
-          doc.setLineWidth(0.5);
-          doc.rect(10, 10, 190, 277);
-
-          let p2Y = 16;
-
-          // 4-Exam Remarks Boxes at Top of Page 2 (Width: 182mm / 4 = 44mm each)
-          const p2BoxW = 43.5;
-          const p2Remarks = [
-            { name: examNames.ut1, text: item.annual?.examRemarks?.ut1 || 'Good effort in Periodic Assessment I.' },
-            { name: examNames.term1, text: item.annual?.examRemarks?.term1 || 'Satisfactory mid-term completion.' },
-            { name: examNames.ut2, text: item.annual?.examRemarks?.ut2 || 'Steady progress in Periodic Assessment II.' },
+          // 9. 4-Exam Remarks Boxes side by side (Width: 182mm / 4 = 43.5mm each)
+          const pBoxW = 43.5;
+          const portRemarks = [
+            { name: examNames.ut1, text: item.annual?.examRemarks?.ut1 || 'Good effort.' },
+            { name: examNames.term1, text: item.annual?.examRemarks?.term1 || 'Satisfactory progress.' },
+            { name: examNames.ut2, text: item.annual?.examRemarks?.ut2 || 'Steady improvement.' },
             { name: examNames.term2, text: item.annual?.examRemarks?.term2 || studentRemark }
           ];
 
-          p2Remarks.forEach((rm, rIdx) => {
+          portRemarks.forEach((rm, rIdx) => {
             const bx = 14 + (rIdx * 46);
             doc.setFillColor(248, 250, 252);
-            doc.rect(bx, p2Y, p2BoxW, 20, 'FD');
+            doc.rect(bx, currentY, pBoxW, 12, 'FD');
             doc.setDrawColor(203, 213, 225);
-            doc.rect(bx, p2Y, p2BoxW, 20, 'S');
+            doc.rect(bx, currentY, pBoxW, 12, 'S');
 
-            doc.setFontSize(7);
+            doc.setFontSize(6.2);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(30, 41, 59);
-            doc.text(rm.name, bx + 2, p2Y + 4);
+            doc.text(rm.name, bx + 1.8, currentY + 3.2);
 
-            doc.setFontSize(6.5);
+            doc.setFontSize(5.8);
             doc.setFont('helvetica', 'italic');
             doc.setTextColor(71, 85, 105);
-            const rmLines = doc.splitTextToSize(`"${rm.text}"`, p2BoxW - 4);
-            doc.text(rmLines, bx + 2, p2Y + 9);
+            const rmLines = doc.splitTextToSize(`"${rm.text}"`, pBoxW - 3.6);
+            doc.text(rmLines, bx + 1.8, currentY + 7);
           });
 
-          p2Y += 26;
+          currentY += 14.5;
 
-          // Grading Subjects Table on Page 2
-          const p2GradingBody = (item.annual?.gradingSubjects || []).map(gs => [
+          // 10. Left: GRADING SUBJECTS Table | Right: Principal Signature & Barcode
+          const lowerStartY = currentY;
+          const gradingBody = (item.annual?.gradingSubjects || []).map(gs => [
             gs.subject,
             gs.halfYearly || 'GOOD',
             gs.annual || 'GOOD'
@@ -934,14 +1072,14 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               [{ content: 'GRADING SUBJECTS', colSpan: 3, styles: { halign: 'center', fillColor: [51, 65, 85] } }],
               ['SUBJECTS', 'HALF-YEARLY', 'ANNUAL']
             ],
-            body: p2GradingBody,
-            startY: p2Y,
-            margin: { left: 14, right: 100 },
-            tableWidth: 92,
+            body: gradingBody,
+            startY: lowerStartY,
+            margin: { left: 14, right: 112 },
+            tableWidth: 84,
             theme: 'grid',
             styles: {
-              fontSize: 7,
-              cellPadding: 1.8,
+              fontSize: 6.2,
+              cellPadding: 0.9,
               halign: 'center',
               valign: 'middle',
               textColor: [30, 41, 59],
@@ -949,75 +1087,82 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               lineWidth: 0.15
             },
             headStyles: {
-              fontSize: 7,
+              fontSize: 6.2,
               fontStyle: 'bold',
               fillColor: [71, 85, 105],
               textColor: [255, 255, 255]
             },
             columnStyles: {
-              0: { halign: 'left', fontStyle: 'bold', cellWidth: 42 },
-              1: { cellWidth: 25 },
-              2: { cellWidth: 25, fontStyle: 'bold', textColor: [20, 83, 45] }
+              0: { halign: 'left', fontStyle: 'bold', cellWidth: 40 },
+              1: { cellWidth: 22 },
+              2: { cellWidth: 22, fontStyle: 'bold', textColor: [20, 83, 45] }
             }
           });
 
-          const p2GradEndY = doc.lastAutoTable.finalY;
+          const gradingEndY = doc.lastAutoTable.finalY;
 
-          // Class Teacher Name
-          doc.setFontSize(8);
+          // Class Teacher Name Line below grading table
+          doc.setFontSize(6.8);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(30, 41, 59);
-          doc.text('CLASS TEACHER NAME: ....................................................', 14, p2GradEndY + 8);
+          doc.text('CLASS TEACHER NAME: ....................................................', 14, gradingEndY + 4.5);
 
-          // Right of Page 2: Principal Signature & Barcode
-          const p2RightX = 112;
-          const p2RightW = 84;
+          // Right Side: Principal Signature Box & Barcode Box (x = 104, w = 92)
+          const pRightX = 104;
+          const pRightW = 92;
 
-          // Principal Signature Frame
+          // Principal Signature Box (Outer rect with inner inset border)
           doc.setFillColor(248, 250, 252);
-          doc.rect(p2RightX, p2Y, p2RightW, 26, 'FD');
+          doc.rect(pRightX, lowerStartY, pRightW, 17, 'FD');
           doc.setDrawColor(203, 213, 225);
-          doc.rect(p2RightX, p2Y, p2RightW, 26, 'S');
-          doc.setFontSize(8.5);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(30, 41, 59);
-          doc.text('PRINCIPAL SIGNATURE', p2RightX + (p2RightW / 2), p2Y + 12, { align: 'center' });
-          doc.setFontSize(6.5);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(148, 163, 184);
-          doc.text('(Verified & Official Seal)', p2RightX + (p2RightW / 2), p2Y + 18, { align: 'center' });
-
-          // Barcode Box
-          const p2BcY = p2Y + 31;
-          doc.setFillColor(254, 243, 199);
-          doc.rect(p2RightX, p2BcY, p2RightW, 20, 'FD');
-          doc.setDrawColor(251, 191, 36);
-          doc.rect(p2RightX, p2BcY, p2RightW, 20, 'S');
-
-          const bcCode2 = `${s.admission_id || s.admissionId || 'HNSS'}-${s.roll_number || '01'}`;
-          doc.setFillColor(30, 41, 59);
-          const p2BarX = p2RightX + 12;
-          for (let b = 0; b < 32; b++) {
-            const bw = (b % 3 === 0) ? 1.4 : 0.6;
-            const bx = p2BarX + (b * 1.9);
-            doc.rect(bx, p2BcY + 3, bw, 9, 'F');
-          }
-          doc.setFontSize(7);
-          doc.setFont('courier', 'bold');
-          doc.setTextColor(30, 41, 59);
-          doc.text(`*${bcCode2}*`, p2RightX + (p2RightW / 2), p2BcY + 16, { align: 'center' });
-
-          // Bottom Digital Signed Document Disclaimer Banner
-          const p2BannerY = Math.max(p2GradEndY + 18, p2BcY + 28);
-          doc.setFillColor(254, 242, 242);
-          doc.roundedRect(14, p2BannerY, 182, 8.5, 1, 1, 'FD');
-          doc.setDrawColor(248, 113, 113);
-          doc.roundedRect(14, p2BannerY, 182, 8.5, 1, 1, 'S');
+          doc.rect(pRightX, lowerStartY, pRightW, 17, 'S');
+          doc.rect(pRightX + 1.5, lowerStartY + 1.5, pRightW - 3, 14, 'S');
 
           doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text('PRINCIPAL SIGNATURE', pRightX + (pRightW / 2), lowerStartY + 8, { align: 'center' });
+          doc.setFontSize(5.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(148, 163, 184);
+          doc.text('(Verified & School Seal Affixed)', pRightX + (pRightW / 2), lowerStartY + 12.5, { align: 'center' });
+
+          // Barcode Box
+          const bcBoxY = lowerStartY + 19.5;
+          doc.setFillColor(254, 243, 199);
+          doc.rect(pRightX, bcBoxY, pRightW, 15.5, 'FD');
+          doc.setDrawColor(251, 191, 36);
+          doc.rect(pRightX, bcBoxY, pRightW, 15.5, 'S');
+
+          doc.setFontSize(6.2);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(113, 63, 18);
+          doc.text('BARCODE IF POSSIBLE', pRightX + 4, bcBoxY + 3.8);
+
+          // Draw vector barcode bars in PDF
+          const bcCode = `${s.admission_id || s.admissionId || 'HNSS'}-${s.roll_number || '01'}`;
+          doc.setFillColor(30, 41, 59);
+          const barStartX = pRightX + 14;
+          for (let b = 0; b < 36; b++) {
+            const bw = (b % 3 === 0) ? 1.2 : 0.55;
+            const bx = barStartX + (b * 1.8);
+            doc.rect(bx, bcBoxY + 5.2, bw, 6, 'F');
+          }
+          doc.setFontSize(6.5);
+          doc.setFont('courier', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text(`*${bcCode}*`, pRightX + (pRightW / 2), bcBoxY + 13.5, { align: 'center' });
+
+          // 11. Bottom Digital Declaration Banner (Single A4 Page, y = 276mm)
+          doc.setFillColor(254, 242, 242);
+          doc.roundedRect(14, 276, 182, 6, 1, 1, 'FD');
+          doc.setDrawColor(248, 113, 113);
+          doc.roundedRect(14, 276, 182, 6, 1, 1, 'S');
+
+          doc.setFontSize(7);
           doc.setFont('helvetica', 'italic');
           doc.setTextColor(153, 27, 27);
-          doc.text('This is a Digitally signed document and does not require any Physical Signature', 105, p2BannerY + 5.5, { align: 'center' });
+          doc.text('This is a Digitally signed document and does not require any Physical Signature', 105, 280.2, { align: 'center' });
         } else {
           // =========================================================================
           // SINGLE EXAM REPORT CARD (1-PAGE PORTRAIT, 210mm x 297mm)
@@ -1432,22 +1577,46 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           {viewMode === 'single' && selectedType === 'annual' && (
             <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
               <button
+                onClick={() => setPaperOrientation('portrait')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  paperOrientation === 'portrait' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Single-Page Portrait Specimen View (Sample Style)"
+              >
+                Portrait (1-Page)
+              </button>
+              <button
                 onClick={() => setPaperOrientation('landscape')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                   paperOrientation === 'landscape' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                 }`}
                 title="Single-Page Landscape Consolidated View"
               >
-                Landscape
+                Landscape (1-Page)
+              </button>
+            </div>
+          )}
+
+          {/* Promotion Scheme Toggle */}
+          {viewMode === 'single' && selectedType === 'annual' && (
+            <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
+              <button
+                onClick={() => setPromotionScheme('specimen')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  promotionScheme === 'specimen' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Specimen Scheme (20% All Unit Tests + 30% Half-Yearly + 50% Annual Exam)"
+              >
+                Specimen (20/30/50%)
               </button>
               <button
-                onClick={() => setPaperOrientation('portrait')}
+                onClick={() => setPromotionScheme('four_exam')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  paperOrientation === 'portrait' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  promotionScheme === 'four_exam' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="2-Page Front & Back Portrait View (Sample Style)"
+                title="4-Exam Weighted Scheme (20% PA1 + 30% Term1 + 20% PA2 + 30% Term2)"
               >
-                Portrait (Front & Back)
+                4-Exam (20/30/20/30%)
               </button>
             </div>
           )}
@@ -1839,18 +2008,15 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-800 text-white font-bold text-center text-[11px]">
-                        <th rowSpan={2} className="p-2.5 border-r border-slate-700 w-10">SL</th>
-                        <th rowSpan={2} className="p-2.5 border-r border-slate-700 text-left min-w-[150px]">SUBJECT</th>
+                        <th rowSpan={2} className="p-2 border-r border-slate-700 w-10">SL</th>
+                        <th rowSpan={2} className="p-2 border-r border-slate-700 text-left min-w-[140px]">SUBJECT</th>
                         <th colSpan={4} className="p-1.5 border-r border-slate-700 bg-slate-900 uppercase tracking-wider">
                           MARKS
                         </th>
-                        <th colSpan={4} className="p-1.5 border-r border-slate-700 bg-emerald-900 uppercase tracking-wider">
+                        <th colSpan={promotionScheme === 'specimen' ? 4 : 5} className="p-1.5 border-r border-slate-700 bg-emerald-900 uppercase tracking-wider">
                           PROMOTION CRITERIA
                         </th>
-                        <th rowSpan={2} className="p-2.5 border-r border-slate-700 bg-emerald-950 font-black text-emerald-200 w-20">
-                          TOTAL<br/><span className="text-[9px] font-normal text-emerald-300">(/100)</span>
-                        </th>
-                        <th rowSpan={2} className="p-2.5 font-bold text-white w-14">GRADE</th>
+                        <th rowSpan={2} className="p-2 font-bold text-white w-14">GRADE</th>
                       </tr>
                       <tr className="bg-slate-100 text-slate-800 font-semibold text-[10px] text-center border-b border-slate-300">
                         {/* MARKS Super-column Sub-headers */}
@@ -1871,22 +2037,49 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                           <span className="text-[9px] text-slate-500">PM: 40/100</span>
                         </th>
                         {/* PROMOTION CRITERIA Super-column Sub-headers */}
-                        <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
-                          <span className="block font-bold">20% Marks</span>
-                          <span className="text-[9px] text-slate-500">{examNames.ut1}</span>
-                        </th>
-                        <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
-                          <span className="block font-bold">30% Marks</span>
-                          <span className="text-[9px] text-slate-500">{examNames.term1}</span>
-                        </th>
-                        <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
-                          <span className="block font-bold">20% Marks</span>
-                          <span className="text-[9px] text-slate-500">{examNames.ut2}</span>
-                        </th>
-                        <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
-                          <span className="block font-bold">30% Marks</span>
-                          <span className="text-[9px] text-slate-500">{examNames.term2}</span>
-                        </th>
+                        {promotionScheme === 'specimen' ? (
+                          <>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                              <span className="block font-bold">20% Marks</span>
+                              <span className="text-[9px] text-slate-500">of all Unit Tests</span>
+                            </th>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                              <span className="block font-bold">30% Marks</span>
+                              <span className="text-[9px] text-slate-500">Half-Yearly Exam</span>
+                            </th>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                              <span className="block font-bold">50% of</span>
+                              <span className="text-[9px] text-slate-500">Annual Exam</span>
+                            </th>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-100/70 font-black text-emerald-950">
+                              <span className="block font-bold">TOTAL</span>
+                              <span className="text-[9px] font-normal text-emerald-800">(/100)</span>
+                            </th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                              <span className="block font-bold">20% Marks</span>
+                              <span className="text-[9px] text-slate-500">{examNames.ut1}</span>
+                            </th>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                              <span className="block font-bold">30% Marks</span>
+                              <span className="text-[9px] text-slate-500">{examNames.term1}</span>
+                            </th>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                              <span className="block font-bold">20% Marks</span>
+                              <span className="text-[9px] text-slate-500">{examNames.ut2}</span>
+                            </th>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                              <span className="block font-bold">30% Marks</span>
+                              <span className="text-[9px] text-slate-500">{examNames.term2}</span>
+                            </th>
+                            <th className="p-1.5 border-r border-slate-300 bg-emerald-100/70 font-black text-emerald-950">
+                              <span className="block font-bold">TOTAL</span>
+                              <span className="text-[9px] font-normal text-emerald-800">(/100)</span>
+                            </th>
+                          </>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -1900,14 +2093,32 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                           <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.ut2Raw ? sub.ut2Raw : '—'}</td>
                           <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.term2Raw ? sub.term2Raw : '—'}</td>
                           {/* Weighted Points */}
-                          <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—'}</td>
-                          <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—'}</td>
-                          <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—'}</td>
-                          <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—'}</td>
-                          {/* Combined Marks & Grade */}
-                          <td className="p-2 text-center font-black text-emerald-800 border-r border-slate-200 bg-emerald-100/50 text-sm">
-                            {sub.finalScore}
-                          </td>
+                          {promotionScheme === 'specimen' ? (
+                            <>
+                              <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">
+                                {sub.utAll20Wt != null && sub.utAll20Wt !== '—' ? sub.utAll20Wt : (sub.ut1Wt || '—')}
+                              </td>
+                              <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">
+                                {sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—'}
+                              </td>
+                              <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">
+                                {sub.annual50Wt != null && sub.annual50Wt !== '—' ? sub.annual50Wt : (sub.term2Wt || '—')}
+                              </td>
+                              <td className="p-2 text-center font-black text-emerald-800 border-r border-slate-200 bg-emerald-100/50 text-sm">
+                                {sub.score50Scheme != null && sub.score50Scheme !== '—' ? sub.score50Scheme : sub.finalScore}
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—'}</td>
+                              <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—'}</td>
+                              <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—'}</td>
+                              <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—'}</td>
+                              <td className="p-2 text-center font-black text-emerald-800 border-r border-slate-200 bg-emerald-100/50 text-sm">
+                                {sub.finalScore}
+                              </td>
+                            </>
+                          )}
                           <td className="p-2 text-center font-black text-indigo-700">
                             {sub.grade}
                           </td>
@@ -1917,13 +2128,13 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                       {/* Summary Row 1: APPEARING SUBJECTS */}
                       <tr className="bg-slate-50 font-bold text-slate-800 text-[11px] border-t-2 border-slate-300">
                         <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">APPEARING SUBJECTS</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut1 ? (currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length) : '—'}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1 ? (currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length) : '—'}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2 ? (currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length) : '—'}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2 ? (currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length) : '—'}</td>
-                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut1 || 7}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term1 || 9}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut2 || 7}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term2 || 9}</td>
+                        <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td colSpan={2} className="p-2 text-center font-black text-emerald-800">
-                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length} Subs
+                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length || 9} Subs
                         </td>
                       </tr>
 
@@ -1934,7 +2145,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1?.totalObtained ?? '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2?.totalObtained ?? '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2?.totalObtained ?? '—'}</td>
-                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
+                        <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td className="p-2 text-center border-r border-slate-200 font-black text-emerald-800 text-sm">
                           {currentStudentItem.annual?.totalObtained || 0}
                         </td>
@@ -1950,7 +2161,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1 ? `${currentStudentItem.term1.percentage}%` : '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2 ? `${currentStudentItem.ut2.percentage}%` : '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2 ? `${currentStudentItem.term2.percentage}%` : '—'}</td>
-                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
+                        <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td colSpan={2} className="p-2 text-center font-black text-emerald-800 text-sm">
                           {currentStudentItem.annual?.percentage || 0}%
                         </td>
@@ -1963,7 +2174,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.term1?.rank || 1}</td>
                         <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.ut2?.rank || 1}</td>
                         <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.term2?.rank || 1}</td>
-                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
+                        <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td colSpan={2} className="p-2 text-center font-black text-indigo-700 text-sm">
                           #{currentStudentItem.annual?.rank || 1}
                         </td>
@@ -1976,7 +2187,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1?.status || '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2?.status || '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2?.status || '—'}</td>
-                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center font-bold text-emerald-900 bg-emerald-100/60 uppercase">
+                        <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center font-bold text-emerald-900 bg-emerald-100/60 uppercase">
                           ANNUAL PROMOTION
                         </td>
                         <td colSpan={2} className="p-2 text-center font-black text-emerald-900 text-xs bg-emerald-100/80">
@@ -2156,14 +2367,17 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
                 {/* Right: PRINCIPAL SIGNATURE + BARCODE */}
                 <div className={`${(currentStudentItem.annual?.gradingSubjects || []).length > 0 ? 'md:col-span-6' : 'md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4'} space-y-4 flex flex-col justify-between h-full`}>
-                  <div className="border border-slate-300 rounded-2xl p-4 bg-slate-50 flex items-center justify-center min-h-[95px] text-center">
-                    <div>
+                  <div className="border-2 border-slate-300 rounded-2xl p-1.5 bg-slate-50 flex items-center justify-center min-h-[95px] text-center shadow-sm">
+                    <div className="border border-slate-300 rounded-xl w-full h-full flex flex-col items-center justify-center py-4 px-3 bg-white/60">
                       <span className="text-xs font-black text-slate-800 tracking-wider uppercase block">PRINCIPAL SIGNATURE</span>
                       <span className="text-[10px] text-slate-400 font-medium">(Verified & Digitally Approved)</span>
                     </div>
                   </div>
 
                   <div className="border border-amber-300/80 bg-amber-50/60 rounded-2xl p-3 flex flex-col items-center justify-center shadow-sm">
+                    <span className="text-[10px] font-bold text-amber-900 tracking-wider uppercase mb-1">
+                      BARCODE IF POSSIBLE
+                    </span>
                     <BarcodeSVG code={`${currentStudentItem.student.admission_id || currentStudentItem.student.admissionId || 'HNSS'}-${currentStudentItem.student.roll_number || '01'}`} />
                   </div>
                 </div>

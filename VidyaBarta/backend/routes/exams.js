@@ -1352,28 +1352,48 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
       const combPct = combTotalMax > 0 ? ((combTotalObt / combTotalMax) * 100).toFixed(1) : 0;
       const combGrade = calculateGrade(combPct);
 
-      // Annual Marksheet Calculation (Average Marks Normalized to 100)
+      // Annual Combined Marksheet Calculation:
+      // Exact weightage formula: 20% PA1 + 30% Term 1 + 20% PA2 + 30% Term 2 = 100%
       const annualSubjects = classSubjects.map((subName, sIdx) => {
         const u1 = ut1?.subjects.find(s => s.subject.toUpperCase() === subName);
         const t1 = term1?.subjects.find(s => s.subject.toUpperCase() === subName);
         const u2 = ut2?.subjects.find(s => s.subject.toUpperCase() === subName);
         const t2 = term2?.subjects.find(s => s.subject.toUpperCase() === subName);
 
-        // Average UT (scale to 100)
-        const utScores = [u1?.totalObtained, u2?.totalObtained].filter(v => v != null);
-        const utAvg = utScores.length > 0 ? (utScores.reduce((a, b) => a + b, 0) / utScores.length) * 2 : null; // x2 scales 50 -> 100
+        // PA 1 (20% weightage)
+        const ut1Obt = u1?.totalObtained ?? null;
+        const ut1Max = u1?.maxMarks || 50;
+        const ut1Pct = ut1Obt != null && ut1Max > 0 ? (ut1Obt / ut1Max) * 100 : null;
+        const ut1Wt = ut1Pct != null ? (ut1Pct * 0.20) : null;
 
-        // Average Terminal
-        const termScores = [t1?.totalObtained, t2?.totalObtained].filter(v => v != null);
-        const termAvg = termScores.length > 0 ? (termScores.reduce((a, b) => a + b, 0) / termScores.length) : null;
+        // Term 1 (30% weightage)
+        const term1Obt = t1?.totalObtained ?? null;
+        const term1Max = t1?.maxMarks || 100;
+        const term1Pct = term1Obt != null && term1Max > 0 ? (term1Obt / term1Max) * 100 : null;
+        const term1Wt = term1Pct != null ? (term1Pct * 0.30) : null;
+
+        // PA 2 (20% weightage)
+        const ut2Obt = u2?.totalObtained ?? null;
+        const ut2Max = u2?.maxMarks || 50;
+        const ut2Pct = ut2Obt != null && ut2Max > 0 ? (ut2Obt / ut2Max) * 100 : null;
+        const ut2Wt = ut2Pct != null ? (ut2Pct * 0.20) : null;
+
+        // Term 2 (30% weightage)
+        const term2Obt = t2?.totalObtained ?? null;
+        const term2Max = t2?.maxMarks || 100;
+        const term2Pct = term2Obt != null && term2Max > 0 ? (term2Obt / term2Max) * 100 : null;
+        const term2Wt = term2Pct != null ? (term2Pct * 0.30) : null;
+
+        let totalWt = 0;
+        let earnedWt = 0;
+        if (ut1Wt != null) { totalWt += 20; earnedWt += ut1Wt; }
+        if (term1Wt != null) { totalWt += 30; earnedWt += term1Wt; }
+        if (ut2Wt != null) { totalWt += 20; earnedWt += ut2Wt; }
+        if (term2Wt != null) { totalWt += 30; earnedWt += term2Wt; }
 
         let finalScore = null;
-        if (utAvg != null && termAvg != null) {
-          finalScore = (utAvg * 0.2 + termAvg * 0.8).toFixed(1); // 20% UT + 80% Terminal standard
-        } else if (termAvg != null) {
-          finalScore = termAvg.toFixed(1);
-        } else if (utAvg != null) {
-          finalScore = utAvg.toFixed(1);
+        if (totalWt > 0) {
+          finalScore = totalWt === 100 ? earnedWt.toFixed(1) : ((earnedWt / totalWt) * 100).toFixed(1);
         }
 
         const gradeInfo = finalScore != null ? calculateGrade(finalScore) : { grade: '—', remarks: 'Pending' };
@@ -1381,8 +1401,14 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         return {
           sl: sIdx + 1,
           subject: subName,
-          utAverage: utAvg != null ? utAvg.toFixed(1) : '—',
-          termAverage: termAvg != null ? termAvg.toFixed(1) : '—',
+          ut1Raw: ut1Obt != null ? `${ut1Obt}/${ut1Max}` : '—',
+          ut1Wt: ut1Wt != null ? ut1Wt.toFixed(1) : '—',
+          term1Raw: term1Obt != null ? `${term1Obt}/${term1Max}` : '—',
+          term1Wt: term1Wt != null ? term1Wt.toFixed(1) : '—',
+          ut2Raw: ut2Obt != null ? `${ut2Obt}/${ut2Max}` : '—',
+          ut2Wt: ut2Wt != null ? ut2Wt.toFixed(1) : '—',
+          term2Raw: term2Obt != null ? `${term2Obt}/${term2Max}` : '—',
+          term2Wt: term2Wt != null ? term2Wt.toFixed(1) : '—',
           finalScore: finalScore != null ? finalScore : '—',
           grade: gradeInfo.grade,
           remarks: gradeInfo.remarks
@@ -1394,6 +1420,23 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
       const annualGrade = calculateGrade(annualAvg);
       const isPromoted = parseFloat(annualAvg) >= 33;
       const nextClass = getNextClassLevel(class_level);
+
+      // Smart teacher remark based on performance
+      let teacherRemarks = 'Satisfactory academic progress. Promoted to next class.';
+      const avgNum = parseFloat(annualAvg);
+      if (avgNum >= 90) {
+        teacherRemarks = 'Outstanding scholastic excellence! Demonstrates exemplary academic discipline and leadership. Promoted with distinction.';
+      } else if (avgNum >= 80) {
+        teacherRemarks = 'Excellent performance throughout the year. Consistently attentive and hardworking. Promoted with merit.';
+      } else if (avgNum >= 60) {
+        teacherRemarks = 'Very good academic progress. Shows keen interest and potential for further improvement. Promoted.';
+      } else if (avgNum >= 50) {
+        teacherRemarks = 'Fair performance. Needs to devote more practice to core subjects in the coming academic year. Promoted.';
+      } else if (avgNum >= 33) {
+        teacherRemarks = 'Marginal pass. Regular home study and dedicated remedial focus strongly recommended. Promoted on trial.';
+      } else {
+        teacherRemarks = 'Performance below passing threshold. Comprehensive academic supervision and remedial support needed. Detained.';
+      }
 
       return {
         student,
@@ -1417,7 +1460,8 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           overallGrade: annualGrade.grade,
           status: isPromoted ? 'PASSED' : 'NEEDS IMPROVEMENT',
           promotion: isPromoted ? `PROMOTED TO CLASS ${nextClass.toUpperCase()}` : `DETAINED IN CLASS ${class_level.toUpperCase()}`,
-          attendance: '210 / 222 Days (94.6%)'
+          attendance: '210 / 222 Days (94.6%)',
+          teacherRemarks
         }
       };
     });

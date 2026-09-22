@@ -127,6 +127,10 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
     });
   }, [classData, searchTerm]);
 
+  const isClass4to8 = useMemo(() => {
+    return /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test((selectedClass || '').trim());
+  }, [selectedClass]);
+
   const currentStudentItem = studentsList[studentIndex] || null;
 
   // Active student remarks
@@ -445,16 +449,19 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           });
 
           // Summary Rows matching Sample
-          const appCounts = item.annual?.appearingCounts || { ut1: 7, term1: 9, ut2: 7, term2: 9 };
-          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || 9;
+          const isClass4to8Local = /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test((selectedClass || '').trim());
+          const defaultUt = isClass4to8Local ? 8 : 7;
+          const defaultTerm = isClass4to8Local ? 10 : 9;
+          const appCounts = item.annual?.appearingCounts || { ut1: defaultUt, term1: defaultTerm, ut2: defaultUt, term2: defaultTerm };
+          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass4to8Local ? 10 : 9);
           const critColsSpan = isSpecimenScheme ? 3 : 4;
 
           tableBody.push([
             { content: 'APPEARING SUBJECTS', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
-            { content: String(appCounts.ut1 || 7), styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: String(appCounts.term1 || 9), styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: String(appCounts.ut2 || 7), styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: String(appCounts.term2 || 9), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appCounts.ut1 || defaultUt), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appCounts.term1 || defaultTerm), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appCounts.ut2 || defaultUt), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appCounts.term2 || defaultTerm), styles: { halign: 'center', fontStyle: 'bold' } },
             { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
             { content: `${appSubsTotal} Subs`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
@@ -915,16 +922,19 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           });
 
           // Summary Rows matching Sample
-          const appCounts = item.annual?.appearingCounts || { ut1: 7, term1: 9, ut2: 7, term2: 9 };
-          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || 9;
+          const isClass4to8Local = /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test((selectedClass || '').trim());
+          const defaultUt = isClass4to8Local ? 8 : 7;
+          const defaultTerm = isClass4to8Local ? 10 : 9;
+          const appCounts = item.annual?.appearingCounts || { ut1: defaultUt, term1: defaultTerm, ut2: defaultUt, term2: defaultTerm };
+          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass4to8Local ? 10 : 9);
           const portCritSpan = isSpecimenScheme ? 3 : 4;
 
           portBody.push([
             { content: 'APPEARING SUBJECTS', styles: { halign: 'left', fontStyle: 'bold' } },
-            { content: String(appCounts.ut1 || 7), styles: { halign: 'center' } },
-            { content: String(appCounts.term1 || 9), styles: { halign: 'center' } },
-            { content: String(appCounts.ut2 || 7), styles: { halign: 'center' } },
-            { content: String(appCounts.term2 || 9), styles: { halign: 'center' } },
+            { content: String(appCounts.ut1 || defaultUt), styles: { halign: 'center' } },
+            { content: String(appCounts.term1 || defaultTerm), styles: { halign: 'center' } },
+            { content: String(appCounts.ut2 || defaultUt), styles: { halign: 'center' } },
+            { content: String(appCounts.term2 || defaultTerm), styles: { halign: 'center' } },
             { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
             { content: `${appSubsTotal} Subs`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
@@ -2128,13 +2138,13 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                       {/* Summary Row 1: APPEARING SUBJECTS */}
                       <tr className="bg-slate-50 font-bold text-slate-800 text-[11px] border-t-2 border-slate-300">
                         <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">APPEARING SUBJECTS</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut1 || 7}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term1 || 9}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut2 || 7}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term2 || 9}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut1 || (isClass4to8 ? 8 : 7)}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term1 || (isClass4to8 ? 10 : 9)}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut2 || (isClass4to8 ? 8 : 7)}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term2 || (isClass4to8 ? 10 : 9)}</td>
                         <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td colSpan={2} className="p-2 text-center font-black text-emerald-800">
-                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length || 9} Subs
+                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length || (isClass4to8 ? 10 : 9)} Subs
                         </td>
                       </tr>
 

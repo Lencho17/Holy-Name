@@ -5,7 +5,8 @@ import {
   FaFilePdf, FaFileExcel, FaGraduationCap, FaAward, FaSearch, 
   FaUserGraduate, FaChevronLeft, FaChevronRight, FaPrint, FaSpinner, 
   FaCheckCircle, FaExclamationTriangle, FaTable, FaEye, FaLayerGroup,
-  FaCalendarCheck, FaSchool, FaEdit, FaCheck, FaTimes, FaCamera
+  FaCalendarCheck, FaSchool, FaEdit, FaCheck, FaTimes, FaCamera,
+  FaBarcode, FaQrcode
 } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -14,6 +15,37 @@ import {
   exportBroadsheetExcelWithImage,
   loadImageBase64 
 } from '../utils/excelImageExport';
+
+// Dynamic SVG Barcode Component for authentic official report cards
+const BarcodeSVG = ({ code, className = "h-8 w-44" }) => {
+  const str = String(code || 'HNSS-2025-001').toUpperCase();
+  const bars = [];
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i);
+    bars.push((charCode % 3) + 1);
+    bars.push(1);
+    bars.push(((charCode >> 1) % 2) + 1);
+    bars.push(1);
+  }
+  let totalW = bars.reduce((a, b) => a + b, 0) + 8;
+  let currX = 4;
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox={`0 0 ${totalW} 26`} className={className} preserveAspectRatio="none">
+        {bars.map((w, idx) => {
+          const isBar = idx % 2 === 0;
+          const x = currX;
+          currX += w;
+          if (!isBar) return null;
+          return <rect key={idx} x={x} y="2" width={w} height="22" fill="#1e293b" />;
+        })}
+      </svg>
+      <span className="text-[8.5px] font-mono tracking-widest text-slate-700 font-bold -mt-0.5">
+        *{str}*
+      </span>
+    </div>
+  );
+};
 
 export const MarksheetGenerator = ({ apiUrl, token }) => {
   const { globalClasses, schoolProfile } = useContext(SiteDataContext);
@@ -29,6 +61,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
   const [selectedType, setSelectedType] = useState('annual'); 
   // 'annual' | 'ut1' | 'term1' | 'ut2' | 'term2'
   const [viewMode, setViewMode] = useState('single'); // 'single' | 'broadsheet'
+  const [paperOrientation, setPaperOrientation] = useState('landscape'); // 'landscape' | 'portrait'
   const [studentIndex, setStudentIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -73,10 +106,10 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
   // Dynamic Exam Names as created by School Admin
   const examNames = useMemo(() => {
     return {
-      ut1: classData?.exams?.ut1?.name || 'Periodic Assessment - I',
-      term1: classData?.exams?.term1?.name || 'Terminal Assessment - I',
-      ut2: classData?.exams?.ut2?.name || 'Periodic Assessment - II',
-      term2: classData?.exams?.term2?.name || 'Terminal Assessment - II'
+      ut1: classData?.exams?.ut1?.name || '1st & 2nd Unit',
+      term1: classData?.exams?.term1?.name || 'Half-Yearly',
+      ut2: classData?.exams?.ut2?.name || '3rd & 4th Unit',
+      term2: classData?.exams?.term2?.name || 'Annual Exam'
     };
   }, [classData]);
 
@@ -108,36 +141,36 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
     switch (selectedType) {
       case 'ut1':
         return {
-          title: (examNames.ut1 || 'PERIODIC ASSESSMENT - I').toUpperCase(),
+          title: (examNames.ut1 || '1st & 2nd Unit Test').toUpperCase(),
           subTitle: 'First Periodic Evaluation & Progress Report',
-          scale: 'Max Marks: 50 / Subject',
+          scale: 'PM: 20/50',
           key: 'ut1',
           adminName: examNames.ut1,
           color: 'blue'
         };
       case 'term1':
         return {
-          title: (examNames.term1 || 'TERMINAL ASSESSMENT - I').toUpperCase(),
+          title: (examNames.term1 || 'Half-Yearly Examination').toUpperCase(),
           subTitle: 'Mid-Term Comprehensive Scholastic Evaluation',
-          scale: 'Max Marks: 100 / Subject (Theory + Practical)',
+          scale: 'PM: 40/100',
           key: 'term1',
           adminName: examNames.term1,
           color: 'purple'
         };
       case 'ut2':
         return {
-          title: (examNames.ut2 || 'PERIODIC ASSESSMENT - II').toUpperCase(),
+          title: (examNames.ut2 || '3rd & 4th Unit Test').toUpperCase(),
           subTitle: 'Second Periodic Evaluation & Progress Report',
-          scale: 'Max Marks: 50 / Subject',
+          scale: 'PM: 20/50',
           key: 'ut2',
           adminName: examNames.ut2,
           color: 'indigo'
         };
       case 'term2':
         return {
-          title: (examNames.term2 || 'TERMINAL ASSESSMENT - II').toUpperCase(),
+          title: (examNames.term2 || 'Annual Examination').toUpperCase(),
           subTitle: 'Final Term Comprehensive Scholastic Evaluation',
-          scale: 'Max Marks: 100 / Subject (Theory + Practical)',
+          scale: 'PM: 40/100',
           key: 'term2',
           adminName: examNames.term2,
           color: 'teal'
@@ -147,7 +180,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
         return {
           title: 'ANNUAL CONSOLIDATED PROGRESS & PROMOTION REPORT CARD',
           subTitle: '20% Periodic 1 + 30% Terminal 1 + 20% Periodic 2 + 30% Terminal 2 (100% Combined Scale)',
-          scale: 'Consolidated Evaluation across All 4 Exams with Class Rank & Promotion',
+          scale: 'All 4 Exams Tabulated with Promotion Criteria & Grading Subjects',
           key: 'annual',
           color: 'emerald'
         };
@@ -160,16 +193,19 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
     setGeneratingPdf(true);
 
     try {
-      const isLandscape = selectedType === 'annual';
+      const isLandscape = selectedType === 'annual' && paperOrientation === 'landscape';
       const doc = new jsPDF({
         orientation: isLandscape ? 'landscape' : 'portrait',
         unit: 'mm',
         format: 'a4'
       });
 
-      const schoolName = (schoolProfile?.name || 'HOLY NAME HIGHER SECONDARY SCHOOL').toUpperCase();
-      const schoolAddress = schoolProfile?.officeAddress || schoolProfile?.address || 'Sivasagar, Assam - 785640';
-      const affiliation = 'Affiliated to Board of Secondary Education | Recognized by Govt.';
+      const schoolName = (schoolProfile?.name || 'ACADEMIC INSTITUTION').toUpperCase();
+      const schoolAddress = `${schoolProfile?.officeAddress || schoolProfile?.address || 'School Campus Address'}`;
+      const contactInfo = `Ph: ${schoolProfile?.phone || schoolProfile?.contactPhone || '91**********'} | Email: ${schoolProfile?.email || 'office@school.edu'}`;
+      const currentYear = new Date().getFullYear();
+      const academicYearStr = `ACADEMIC YEAR: ${schoolProfile?.academicYear || schoolProfile?.session || `${currentYear}-${currentYear + 1}`}`;
+      const watermarkText = schoolProfile?.name ? schoolProfile.name.toUpperCase().substring(0, 24) : 'PROGRESS REPORT';
 
       // Load School Logo Base64
       let logoBase64 = null;
@@ -207,14 +243,14 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
         if (isLandscape) {
           // =========================================================================
-          // A4 LANDSCAPE ANNUAL COMBINED MARKSHEET (297mm x 210mm) - EXACT SINGLE PAGE
+          // A4 LANDSCAPE CONSOLIDATED MARKSHEET (297mm x 210mm)
           // =========================================================================
 
           // 1. Double Page Border
           doc.setDrawColor(20, 83, 45); // Deep green
           doc.setLineWidth(1.2);
           doc.rect(8, 8, 281, 194);
-          doc.setDrawColor(187, 247, 208); // Light green inner line
+          doc.setDrawColor(187, 247, 208); // Inner light border
           doc.setLineWidth(0.5);
           doc.rect(10, 10, 277, 190);
 
@@ -222,7 +258,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           doc.setFontSize(40);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(245, 248, 246);
-          doc.text('HOLY NAME', 148.5, 115, { align: 'center', angle: 25 });
+          doc.text(watermarkText, 148.5, 115, { align: 'center', angle: 25 });
 
           // 3. School Logo (Left: x=14, y=12, w=22, h=22)
           if (logoBase64) {
@@ -259,454 +295,1015 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           }
 
           // 5. School Header (Center: x=148.5)
-          doc.setFontSize(15);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(20, 83, 45);
-          doc.text(schoolName, 148.5, 16, { align: 'center' });
-
           doc.setFontSize(8);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(71, 85, 105);
-          doc.text(schoolAddress, 148.5, 20.5, { align: 'center' });
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 64, 175);
+          doc.text('PROGRESS REPORT CARD', 148.5, 14, { align: 'center' });
+
+          doc.setFontSize(14);
+          doc.setTextColor(20, 83, 45);
+          doc.text(schoolName, 148.5, 19, { align: 'center' });
 
           doc.setFontSize(7.5);
-          doc.setTextColor(100, 116, 139);
-          doc.text(affiliation, 148.5, 24.5, { align: 'center' });
-
-          // 6. Title Ribbon (Full Width: 269mm)
-          doc.setFillColor(240, 253, 244);
-          doc.roundedRect(14, 28, 269, 7, 1.5, 1.5, 'F');
-          doc.setDrawColor(187, 247, 208);
-          doc.roundedRect(14, 28, 269, 7, 1.5, 1.5, 'S');
-
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(22, 101, 52);
-          doc.text('ANNUAL CONSOLIDATED PROGRESS & PROMOTION REPORT CARD (ACADEMIC SESSION 2025-2026)', 148.5, 32.8, { align: 'center' });
-
-          // 7. Student Info Box (2 horizontal rows)
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(14, 38, 269, 16, 1.5, 1.5, 'F');
-          doc.setDrawColor(226, 232, 240);
-          doc.roundedRect(14, 38, 269, 16, 1.5, 1.5, 'S');
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text(`${schoolAddress} | ${contactInfo}`, 148.5, 23, { align: 'center' });
 
           doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(180, 83, 9);
+          doc.text(academicYearStr, 148.5, 27, { align: 'center' });
+
+          // 6. Student Info Box (2 horizontal rows)
+          doc.setFillColor(248, 250, 252);
+          doc.roundedRect(14, 31, 269, 15, 1.5, 1.5, 'F');
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(14, 31, 269, 15, 1.5, 1.5, 'S');
+
+          doc.setFontSize(7.5);
           doc.setTextColor(30, 41, 59);
 
-          // Row 1 (y = 43.5)
+          // Row 1
           doc.setFont('helvetica', 'bold');
-          doc.text('Student Name:', 18, 43.5);
+          doc.text('SL NO:', 18, 36.5);
           doc.setFont('helvetica', 'normal');
-          doc.text(String(s.student_name || s.name || 'N/A').toUpperCase(), 42, 43.5);
+          doc.text(String(s.roll_number || '01'), 30, 36.5);
 
           doc.setFont('helvetica', 'bold');
-          doc.text('Admission ID:', 95, 43.5);
-          doc.setFont('helvetica', 'normal');
-          doc.text(String(s.admission_id || s.admissionId || 'N/A'), 118, 43.5);
+          doc.text('NAME:', 55, 36.5);
+          doc.setFont('helvetica', 'bold');
+          doc.text(String(s.student_name || s.name || 'N/A').toUpperCase(), 67, 36.5);
 
           doc.setFont('helvetica', 'bold');
-          doc.text('Class & Section:', 168, 43.5);
+          doc.text('CLASS:', 150, 36.5);
           doc.setFont('helvetica', 'normal');
-          doc.text(`Class ${selectedClass} - ${s.section || 'A'}`, 195, 43.5);
+          doc.text(String(selectedClass), 163, 36.5);
 
           doc.setFont('helvetica', 'bold');
-          doc.text('Roll Number:', 235, 43.5);
+          doc.text('SEC:', 185, 36.5);
+          doc.setFont('helvetica', 'normal');
+          doc.text(String(s.section || 'A'), 194, 36.5);
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('ROLL:', 215, 36.5);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(20, 83, 45);
-          doc.text(String(s.roll_number || 'N/A'), 257, 43.5);
+          doc.text(String(s.roll_number || 'N/A'), 226, 36.5);
 
-          // Row 2 (y = 50.5)
-          doc.setFontSize(8);
+          // Row 2
+          doc.setFontSize(7.5);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(30, 41, 59);
-          doc.text('Guardian Name:', 18, 50.5);
+          doc.text('STUDENT ID:', 18, 42.5);
           doc.setFont('helvetica', 'normal');
-          doc.text(String(s.guardian_name || s.father_name || 'N/A'), 44, 50.5);
+          doc.text(String(s.admission_id || s.admissionId || 'N/A'), 40, 42.5);
 
           doc.setFont('helvetica', 'bold');
-          doc.text('Date of Birth:', 95, 50.5);
+          doc.text("FATHER'S NAME:", 95, 42.5);
           doc.setFont('helvetica', 'normal');
-          doc.text(String(s.date_of_birth || 'N/A'), 118, 50.5);
+          doc.text(String(s.guardian_name || s.father_name || 'N/A').toUpperCase(), 122, 42.5);
 
           doc.setFont('helvetica', 'bold');
-          doc.text('Academic Session:', 168, 50.5);
+          doc.text('DATE OF BIRTH:', 185, 42.5);
           doc.setFont('helvetica', 'normal');
-          doc.text('2025 - 2026', 198, 50.5);
+          doc.text(String(s.date_of_birth || 'N/A'), 210, 42.5);
 
-          doc.setFont('helvetica', 'bold');
-          doc.text('Attendance:', 235, 50.5);
-          doc.setFont('helvetica', 'normal');
-          doc.text(String(item.annual?.attendance || '94.6%'), 254, 50.5);
-
-          // 8. Multi-Exam Tabulation Grid (All 4 Exams + Combined)
-          const tableHeaders = [[
-            'Sl',
-            'Subject Name',
-            `${examNames.ut1}\n(20% Wt)`,
-            `${examNames.term1}\n(30% Wt)`,
-            `${examNames.ut2}\n(20% Wt)`,
-            `${examNames.term2}\n(30% Wt)`,
-            'Combined Marks\n(/100)',
-            'Combined\n%',
-            'Grade',
-            'Remarks'
-          ]];
+          // 7. Multi-Exam Tabulation Grid with Grouped Super-Headers
+          const tableHeaders = [
+            [
+              { content: 'SL', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+              { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+              { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
+              { content: 'PROMOTION CRITERIA', colSpan: 5, styles: { halign: 'center', fillColor: [20, 83, 45] } },
+              { content: 'GRADE', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+            ],
+            [
+              { content: `${examNames.ut1}\nPM:20/50`, styles: { halign: 'center' } },
+              { content: `${examNames.term1}\nPM:40/100`, styles: { halign: 'center' } },
+              { content: `${examNames.ut2}\nPM:20/50`, styles: { halign: 'center' } },
+              { content: `${examNames.term2}\nPM:40/100`, styles: { halign: 'center' } },
+              { content: `20% Marks\n${examNames.ut1}`, styles: { halign: 'center' } },
+              { content: `30% Marks\n${examNames.term1}`, styles: { halign: 'center' } },
+              { content: `20% Marks\n${examNames.ut2}`, styles: { halign: 'center' } },
+              { content: `30% Marks\n${examNames.term2}`, styles: { halign: 'center' } },
+              { content: `TOTAL\n(/100)`, styles: { halign: 'center', fontStyle: 'bold' } }
+            ]
+          ];
 
           const tableBody = (item.annual?.subjects || []).map((sub) => [
             sub.sl,
             sub.subject,
-            sub.ut1Raw ? `${sub.ut1Raw}\n(${sub.ut1Wt})` : (sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—'),
-            sub.term1Raw ? `${sub.term1Raw}\n(${sub.term1Wt})` : (sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—'),
-            sub.ut2Raw ? `${sub.ut2Raw}\n(${sub.ut2Wt})` : (sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—'),
-            sub.term2Raw ? `${sub.term2Raw}\n(${sub.term2Wt})` : (sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—'),
+            sub.ut1Raw ? sub.ut1Raw : '—',
+            sub.term1Raw ? sub.term1Raw : '—',
+            sub.ut2Raw ? sub.ut2Raw : '—',
+            sub.term2Raw ? sub.term2Raw : '—',
+            sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—',
+            sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
+            sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—',
+            sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—',
             sub.finalScore ?? '—',
-            sub.finalScore && sub.finalScore !== '—' ? `${sub.finalScore}%` : '—',
-            sub.grade || '—',
-            sub.remarks || '—'
+            sub.grade || '—'
+          ]);
+
+          // Summary Rows matching Sample
+          const appearingCount = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || 0;
+          tableBody.push([
+            { content: 'APPEARING SUBJECTS', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: String(appearingCount), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appearingCount), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appearingCount), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(appearingCount), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: '—', colSpan: 4, styles: { halign: 'center' } },
+            { content: `${appearingCount} Subs`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
+          ]);
+
+          tableBody.push([
+            { content: 'TOTAL', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: String(item.ut1?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(item.term1?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(item.ut2?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: String(item.term2?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: '—', colSpan: 4, styles: { halign: 'center' } },
+            { content: `${item.annual?.totalObtained || 0}`, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } },
+            { content: `/ ${item.annual?.totalMax || 0}`, styles: { halign: 'center', fontStyle: 'normal' } }
+          ]);
+
+          tableBody.push([
+            { content: 'PERCENTAGE', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: item.ut1 ? `${item.ut1.percentage}%` : '—', styles: { halign: 'center' } },
+            { content: item.term1 ? `${item.term1.percentage}%` : '—', styles: { halign: 'center' } },
+            { content: item.ut2 ? `${item.ut2.percentage}%` : '—', styles: { halign: 'center' } },
+            { content: item.term2 ? `${item.term2.percentage}%` : '—', styles: { halign: 'center' } },
+            { content: '—', colSpan: 4, styles: { halign: 'center' } },
+            { content: `${item.annual?.percentage || 0}%`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
+          ]);
+
+          tableBody.push([
+            { content: 'RANK', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: `#${item.ut1?.rank || 1}`, styles: { halign: 'center' } },
+            { content: `#${item.term1?.rank || 1}`, styles: { halign: 'center' } },
+            { content: `#${item.ut2?.rank || 1}`, styles: { halign: 'center' } },
+            { content: `#${item.term2?.rank || 1}`, styles: { halign: 'center' } },
+            { content: '—', colSpan: 4, styles: { halign: 'center' } },
+            { content: `#${item.annual?.rank || 1}`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [67, 56, 202] } }
+          ]);
+
+          tableBody.push([
+            { content: 'RESULT', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: item.ut1?.status || '—', styles: { halign: 'center' } },
+            { content: item.term1?.status || '—', styles: { halign: 'center' } },
+            { content: item.ut2?.status || '—', styles: { halign: 'center' } },
+            { content: item.term2?.status || '—', styles: { halign: 'center' } },
+            { content: 'ANNUAL PROMOTION', colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 253, 244] } },
+            { content: item.annual?.promotion || 'PROMOTED', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45], fillColor: [240, 253, 244] } }
           ]);
 
           autoTable(doc, {
             head: tableHeaders,
             body: tableBody,
-            startY: 57,
+            startY: 48,
             margin: { left: 14, right: 14 },
             theme: 'grid',
             styles: {
-              fontSize: 7.5,
-              cellPadding: 1.5,
+              fontSize: 7,
+              cellPadding: 1.2,
               halign: 'center',
               valign: 'middle',
               textColor: [30, 41, 59],
-              lineColor: [226, 232, 240],
+              lineColor: [203, 213, 225],
               lineWidth: 0.15
             },
             headStyles: {
-              fillColor: [20, 83, 45],
-              textColor: [255, 255, 255],
+              fontSize: 6.8,
               fontStyle: 'bold',
-              halign: 'center',
-              fontSize: 7.5
+              fillColor: [30, 41, 59],
+              textColor: [255, 255, 255]
             },
             columnStyles: {
-              0: { cellWidth: 9 },
-              1: { cellWidth: 52, halign: 'left', fontStyle: 'bold' },
-              2: { cellWidth: 26 },
-              3: { cellWidth: 26 },
-              4: { cellWidth: 26 },
-              5: { cellWidth: 26 },
-              6: { cellWidth: 30, fontStyle: 'bold', textColor: [20, 83, 45] },
-              7: { cellWidth: 22, fontStyle: 'bold' },
-              8: { cellWidth: 18, fontStyle: 'bold', textColor: [67, 56, 202] },
-              9: { cellWidth: 34 }
+              0: { cellWidth: 8 },
+              1: { cellWidth: 46, halign: 'left', fontStyle: 'bold' },
+              2: { cellWidth: 23 },
+              3: { cellWidth: 23 },
+              4: { cellWidth: 23 },
+              5: { cellWidth: 23 },
+              6: { cellWidth: 21 },
+              7: { cellWidth: 21 },
+              8: { cellWidth: 21 },
+              9: { cellWidth: 21 },
+              10: { cellWidth: 23, fontStyle: 'bold', textColor: [20, 83, 45] },
+              11: { cellWidth: 16, fontStyle: 'bold', textColor: [67, 56, 202] }
             }
           });
 
-          const tableEndY = doc.lastAutoTable.finalY;
+          let currentY = doc.lastAutoTable.finalY + 3;
 
-          // 9. Performance & Promotion Strip
-          const summaryY = Math.min(tableEndY + 3, 148);
-          doc.setFillColor(240, 253, 244);
-          doc.roundedRect(14, summaryY, 269, 14, 1.5, 1.5, 'F');
-          doc.setDrawColor(187, 247, 208);
-          doc.roundedRect(14, summaryY, 269, 14, 1.5, 1.5, 'S');
-
-          // Line 1 of Summary
+          // 8. Centered RED REMARKS Label
           doc.setFontSize(8.5);
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(20, 83, 45);
-          doc.text(`Combined Total: ${item.annual?.totalObtained || 0} / ${item.annual?.totalMax || 0}`, 18, summaryY + 5.5);
-          doc.text(`Overall Percentage: ${item.annual?.percentage || 0}%`, 85, summaryY + 5.5);
-          doc.text(`Overall Grade: ${item.annual?.overallGrade || '—'}`, 150, summaryY + 5.5);
-          doc.text(`Class Rank: #${item.annual?.rank || 1}`, 215, summaryY + 5.5);
+          doc.setTextColor(220, 38, 38);
+          doc.text('REMARKS', 148.5, currentY + 3, { align: 'center' });
+          currentY += 5.5;
 
-          // Line 2 of Summary: Promotion Status (Highlight)
-          doc.setFontSize(9);
-          doc.text(`Promotion Status: ${item.annual?.promotion || 'PROMOTED'}`, 18, summaryY + 11);
+          // 9. 4-Exam Remarks Boxes (Width: 269mm / 4 = ~65mm each)
+          const examBoxW = 65;
+          const remarksData = [
+            { name: examNames.ut1, text: item.annual?.examRemarks?.ut1 || 'Good effort.' },
+            { name: examNames.term1, text: item.annual?.examRemarks?.term1 || 'Satisfactory progress.' },
+            { name: examNames.ut2, text: item.annual?.examRemarks?.ut2 || 'Steady progress.' },
+            { name: examNames.term2, text: item.annual?.examRemarks?.term2 || studentRemark }
+          ];
+
+          remarksData.forEach((rm, rIdx) => {
+            const bx = 14 + (rIdx * 68);
+            doc.setFillColor(248, 250, 252);
+            doc.rect(bx, currentY, examBoxW, 11, 'FD');
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(bx, currentY, examBoxW, 11, 'S');
+
+            doc.setFontSize(6.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 41, 59);
+            doc.text(rm.name, bx + 2, currentY + 3.2);
+
+            doc.setFontSize(6);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(71, 85, 105);
+            const lines = doc.splitTextToSize(`"${rm.text}"`, examBoxW - 4);
+            doc.text(lines, bx + 2, currentY + 6.8);
+          });
+
+          currentY += 13.5;
+
+          // 10. Left: GRADING SUBJECTS Table | Right: Principal Signature & Barcode
+          const gradingBody = (item.annual?.gradingSubjects || []).map(gs => [
+            gs.subject,
+            gs.halfYearly || 'GOOD',
+            gs.annual || 'GOOD'
+          ]);
+
+          autoTable(doc, {
+            head: [
+              [{ content: 'GRADING SUBJECTS', colSpan: 3, styles: { halign: 'center', fillColor: [51, 65, 85] } }],
+              ['SUBJECTS', 'HALF-YEARLY', 'ANNUAL']
+            ],
+            body: gradingBody,
+            startY: currentY,
+            margin: { left: 14, right: 155 },
+            tableWidth: 125,
+            theme: 'grid',
+            styles: {
+              fontSize: 6.5,
+              cellPadding: 1,
+              halign: 'center',
+              valign: 'middle',
+              textColor: [30, 41, 59],
+              lineColor: [203, 213, 225],
+              lineWidth: 0.15
+            },
+            headStyles: {
+              fontSize: 6.5,
+              fontStyle: 'bold',
+              fillColor: [71, 85, 105],
+              textColor: [255, 255, 255]
+            },
+            columnStyles: {
+              0: { halign: 'left', fontStyle: 'bold', cellWidth: 55 },
+              1: { cellWidth: 35 },
+              2: { cellWidth: 35, fontStyle: 'bold', textColor: [20, 83, 45] }
+            }
+          });
+
+          const gradingEndY = doc.lastAutoTable.finalY;
+
+          // Class Teacher Name Line under grading table
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text('CLASS TEACHER NAME: ....................................................', 14, gradingEndY + 4);
+
+          // Right: Principal Signature & Barcode
+          const rightX = 145;
+          const rightW = 138;
+
+          // Principal Signature Box
+          doc.setFillColor(248, 250, 252);
+          doc.rect(rightX, currentY, rightW, 16, 'FD');
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(rightX, currentY, rightW, 16, 'S');
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text('PRINCIPAL SIGNATURE', rightX + (rightW / 2), currentY + 7, { align: 'center' });
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(148, 163, 184);
+          doc.text('(Verified & School Seal Affixed)', rightX + (rightW / 2), currentY + 11.5, { align: 'center' });
+
+          // Barcode Box
+          const bcY = currentY + 18;
+          doc.setFillColor(254, 243, 199);
+          doc.rect(rightX, bcY, rightW, 14, 'FD');
+          doc.setDrawColor(251, 191, 36);
+          doc.rect(rightX, bcY, rightW, 14, 'S');
+
+          // Draw vector barcode bars in PDF
+          const barcodeCode = `${s.admission_id || s.admissionId || 'HNSS'}-${s.roll_number || '01'}`;
+          doc.setFillColor(30, 41, 59);
+          const barStartX = rightX + 22;
+          for (let b = 0; b < 40; b++) {
+            const bw = (b % 3 === 0) ? 1.4 : 0.6;
+            const bx = barStartX + (b * 2.3);
+            doc.rect(bx, bcY + 2, bw, 7, 'F');
+          }
+          doc.setFontSize(6.5);
+          doc.setFont('courier', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text(`*${barcodeCode}*`, rightX + (rightW / 2), bcY + 12, { align: 'center' });
+
+          // 11. Bottom Digital Declaration Banner
+          const bannerY = Math.max(gradingEndY + 6.5, bcY + 16.5);
+          doc.setFillColor(254, 242, 242);
+          doc.roundedRect(14, bannerY, 269, 6.5, 1, 1, 'FD');
+          doc.setDrawColor(248, 113, 113);
+          doc.roundedRect(14, bannerY, 269, 6.5, 1, 1, 'S');
+
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(153, 27, 27);
+          doc.text('This is a Digitally signed document and does not require any Physical Signature', 148.5, bannerY + 4.3, { align: 'center' });
+
+        } else if (selectedType === 'annual') {
+          // =========================================================================
+          // PORTRAIT 2-PAGE FRONT & BACK MARKSHEET (210mm x 297mm)
+          // =========================================================================
+
+          // --- PAGE 1: SCHOLASTIC PERFORMANCE & STUDENT PARTICULARS ---
+          doc.setDrawColor(20, 83, 45);
+          doc.setLineWidth(1.2);
+          doc.rect(8, 8, 194, 281);
+          doc.setDrawColor(187, 247, 208);
+          doc.setLineWidth(0.5);
+          doc.rect(10, 10, 190, 277);
+
+          // Watermark
+          doc.setFontSize(38);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(245, 248, 246);
+          doc.text(watermarkText, 105, 140, { align: 'center', angle: 30 });
+
+          // Logo
+          if (logoBase64) {
+            try {
+              doc.addImage(logoBase64, 'PNG', 14, 13, 20, 20);
+            } catch (err) {}
+          }
+
+          // Student Photo Box (Top-Right)
+          if (studentPhotoBase64) {
+            try {
+              doc.addImage(studentPhotoBase64, 'JPEG', 174, 13, 19, 23);
+              doc.setDrawColor(20, 83, 45);
+              doc.rect(174, 13, 19, 23);
+            } catch (e) {
+              doc.setDrawColor(203, 213, 225);
+              doc.rect(174, 13, 19, 23);
+              doc.setFontSize(6);
+              doc.setTextColor(148, 163, 184);
+              doc.text('PHOTO', 183.5, 25, { align: 'center' });
+            }
+          } else {
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(174, 13, 19, 23);
+            doc.setFontSize(6);
+            doc.setTextColor(148, 163, 184);
+            doc.text('Photo of the\nstudent', 183.5, 24, { align: 'center' });
+          }
+
+          // Header
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 64, 175);
+          doc.text('PROGRESS REPORT CARD', 105, 15, { align: 'center' });
+
+          doc.setFontSize(13);
+          doc.setTextColor(20, 83, 45);
+          doc.text(schoolName, 105, 20, { align: 'center' });
+
+          doc.setFontSize(7.5);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(71, 85, 105);
-          doc.text(`Final Result: ${item.annual?.status || 'PASSED'}`, 150, summaryY + 11);
-          doc.text(`Annual Attendance: ${item.annual?.attendance || '94.6%'}`, 215, summaryY + 11);
+          doc.text(schoolAddress, 105, 24, { align: 'center' });
+          doc.text(contactInfo, 105, 27.5, { align: 'center' });
 
-          // 10. Class Teacher Remarks Box
-          const remarkY = summaryY + 16.5;
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(14, remarkY, 269, 8, 1, 1, 'F');
-          doc.setDrawColor(226, 232, 240);
-          doc.roundedRect(14, remarkY, 269, 8, 1, 1, 'S');
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(180, 83, 9);
+          doc.text(academicYearStr, 105, 31.5, { align: 'center' });
+
+          // Student Particulars (Dotted layout)
+          let py = 38;
+          doc.setFontSize(7.5);
+          doc.setTextColor(30, 41, 59);
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('SL NO:', 14, py);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${s.roll_number || '01'}...........................................................................................................................`, 26, py);
+          py += 5;
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('NAME:', 14, py);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${(s.student_name || s.name || '').toUpperCase()}..........................................................................................................`, 26, py);
+          py += 5;
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('CLASS:', 14, py);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${selectedClass}.........`, 26, py);
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('SEC:', 50, py);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${s.section || 'A'}.........`, 58, py);
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('ROLL:', 82, py);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(20, 83, 45);
+          doc.text(`${s.roll_number || '—'}........................................................`, 93, py);
+          py += 5;
 
           doc.setFontSize(7.5);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(30, 41, 59);
-          doc.text("Class Teacher's Remarks:", 18, remarkY + 5.2);
-          doc.setFont('helvetica', 'italic');
-          doc.setTextColor(51, 65, 85);
-          const remarkLines = doc.splitTextToSize(`"${studentRemark}"`, 208);
-          doc.text(remarkLines, 62, remarkY + 5.2);
-
-          // 11. Grading Scale Key
-          doc.setFontSize(6.5);
+          doc.text('STUDENT ID:', 14, py);
           doc.setFont('helvetica', 'normal');
-          doc.setTextColor(148, 163, 184);
-          doc.text(
-            'Grading Scale: A1 (90-100) | A2 (80-89) | B1 (70-79) | B2 (60-69) | C1 (50-59) | C2 (40-49) | D (33-39) | E (Below 33)',
-            148.5,
-            185,
-            { align: 'center' }
-          );
+          doc.text(`${s.admission_id || s.admissionId || '—'}...................................................................................................................`, 34, py);
+          py += 5;
 
-          // 12. Signatures Row at fixed bottom y = 193
-          const sigY = 193;
-          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
+          doc.text("FATHER'S NAME:", 14, py);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${(s.guardian_name || s.father_name || 'N/A').toUpperCase()}....................................................................................................`, 40, py);
+          py += 5;
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('DATE OF BIRTH:', 14, py);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${s.date_of_birth || 'N/A'}....................................................................................................................`, 39, py);
+          py += 5;
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('EXAMINATION:', 14, py);
+          doc.setFillColor(254, 240, 138); // Yellow highlight
+          doc.rect(38, py - 3.5, 60, 4.5, 'F');
           doc.setTextColor(30, 41, 59);
+          doc.text(marksheetMeta.title, 40, py);
+          py += 7;
 
-          doc.text('Class Teacher', 45, sigY, { align: 'center' });
-          doc.text('Parent / Guardian', 148.5, sigY, { align: 'center' });
-          doc.text('Principal / Headmaster', 245, sigY, { align: 'center' });
+          // Main Table for Portrait
+          const portHeaders = [
+            [
+              { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+              { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
+              { content: 'PROMOTION CRITERIA', colSpan: 4, styles: { halign: 'center', fillColor: [20, 83, 45] } }
+            ],
+            [
+              { content: `${examNames.ut1}\nPM:20/50`, styles: { halign: 'center' } },
+              { content: `${examNames.term1}\nPM:40/100`, styles: { halign: 'center' } },
+              { content: `${examNames.ut2}\nPM:20/50`, styles: { halign: 'center' } },
+              { content: `${examNames.term2}\nPM:40/100`, styles: { halign: 'center' } },
+              { content: `20% Marks\n${examNames.ut1}`, styles: { halign: 'center' } },
+              { content: `30% Marks\n${examNames.term1}`, styles: { halign: 'center' } },
+              { content: `20% Marks\n${examNames.ut2}`, styles: { halign: 'center' } },
+              { content: `30% Marks\n${examNames.term2}`, styles: { halign: 'center' } }
+            ]
+          ];
 
-          doc.setFontSize(6.5);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(148, 163, 184);
-          doc.text('(Signature & Date)', 45, sigY + 3.5, { align: 'center' });
-          doc.text('(Signature)', 148.5, sigY + 3.5, { align: 'center' });
-          doc.text('(Signature & Official Seal)', 245, sigY + 3.5, { align: 'center' });
+          const portBody = (item.annual?.subjects || []).map(sub => [
+            sub.subject,
+            sub.ut1Raw ? sub.ut1Raw : '—',
+            sub.term1Raw ? sub.term1Raw : '—',
+            sub.ut2Raw ? sub.ut2Raw : '—',
+            sub.term2Raw ? sub.term2Raw : '—',
+            sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—',
+            sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
+            sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—',
+            sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—'
+          ]);
 
-        } else {
-          // =========================================================================
-          // PORTRAIT SINGLE EXAM MARKSHEET (210mm x 297mm)
-          // =========================================================================
+          const appCount = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || 0;
+          portBody.push([
+            { content: 'APPEARING SUBJECTS', styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: String(appCount), styles: { halign: 'center' } },
+            { content: String(appCount), styles: { halign: 'center' } },
+            { content: String(appCount), styles: { halign: 'center' } },
+            { content: String(appCount), styles: { halign: 'center' } },
+            { content: '—', colSpan: 4, styles: { halign: 'center' } }
+          ]);
 
-          // Double Page Border
-          doc.setDrawColor(20, 83, 45); // Dark Green
-          doc.setLineWidth(1.2);
-          doc.rect(8, 8, 194, 281);
-          doc.setDrawColor(220, 252, 231); // Light Green inner line
-          doc.setLineWidth(0.5);
-          doc.rect(10, 10, 190, 277);
+          portBody.push([
+            { content: 'TOTAL', styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: String(item.ut1?.totalObtained ?? '—'), styles: { halign: 'center' } },
+            { content: String(item.term1?.totalObtained ?? '—'), styles: { halign: 'center' } },
+            { content: String(item.ut2?.totalObtained ?? '—'), styles: { halign: 'center' } },
+            { content: String(item.term2?.totalObtained ?? '—'), styles: { halign: 'center' } },
+            { content: `${item.annual?.totalObtained || 0} / ${item.annual?.totalMax || 0}`, colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
+          ]);
 
-          // Watermark Seal (Subtle)
-          doc.setFontSize(45);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(245, 248, 246);
-          doc.text('HOLY NAME', 105, 150, { align: 'center', angle: 30 });
+          portBody.push([
+            { content: 'PERCENTAGE', styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: item.ut1 ? `${item.ut1.percentage}%` : '—', styles: { halign: 'center' } },
+            { content: item.term1 ? `${item.term1.percentage}%` : '—', styles: { halign: 'center' } },
+            { content: item.ut2 ? `${item.ut2.percentage}%` : '—', styles: { halign: 'center' } },
+            { content: item.term2 ? `${item.term2.percentage}%` : '—', styles: { halign: 'center' } },
+            { content: `${item.annual?.percentage || 0}%`, colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
+          ]);
 
-          let currentY = 15;
+          portBody.push([
+            { content: 'RANK', styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: `#${item.ut1?.rank || 1}`, styles: { halign: 'center' } },
+            { content: `#${item.term1?.rank || 1}`, styles: { halign: 'center' } },
+            { content: `#${item.ut2?.rank || 1}`, styles: { halign: 'center' } },
+            { content: `#${item.term2?.rank || 1}`, styles: { halign: 'center' } },
+            { content: `#${item.annual?.rank || 1}`, colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', textColor: [67, 56, 202] } }
+          ]);
 
-          // School Logo
-          if (logoBase64) {
-            try {
-              doc.addImage(logoBase64, 'PNG', 14, 13, 20, 20);
-            } catch (err) {
-              console.warn('Error placing logo in PDF:', err);
-            }
-          }
-
-          // Header Text
-          doc.setFontSize(16);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(20, 83, 45);
-          doc.text(schoolName, 105, currentY, { align: 'center' });
-          currentY += 5;
-
-          doc.setFontSize(8.5);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(71, 85, 105);
-          const addrLines = doc.splitTextToSize(schoolAddress, 140);
-          doc.text(addrLines, 105, currentY, { align: 'center' });
-          currentY += (addrLines.length * 3.8) + 1;
-
-          doc.setFontSize(8);
-          doc.setTextColor(100, 116, 139);
-          doc.text(affiliation, 105, currentY, { align: 'center' });
-          currentY += 6;
-
-          // Title Ribbon with dynamic school admin exam name
-          doc.setFillColor(240, 253, 244);
-          doc.roundedRect(14, currentY, 182, 10, 2, 2, 'F');
-          doc.setDrawColor(187, 247, 208);
-          doc.roundedRect(14, currentY, 182, 10, 2, 2, 'S');
-
-          doc.setFontSize(10.5);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(22, 101, 52);
-          doc.text(marksheetMeta.title, 105, currentY + 6.5, { align: 'center' });
-          currentY += 13;
-
-          // Student Info Card with Student Photo
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(14, currentY, 182, 26, 2, 2, 'F');
-          doc.setDrawColor(226, 232, 240);
-          doc.roundedRect(14, currentY, 182, 26, 2, 2, 'S');
-
-          doc.setFontSize(8.5);
-          doc.setTextColor(30, 41, 59);
-
-          // Row 1
-          doc.setFont('helvetica', 'bold');
-          doc.text('Student Name:', 18, currentY + 6);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`${s.student_name || s.name || 'N/A'}`.toUpperCase(), 45, currentY + 6);
-
-          doc.setFont('helvetica', 'bold');
-          doc.text('Admission ID:', 110, currentY + 6);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`${s.admission_id || s.admissionId || 'N/A'}`, 135, currentY + 6);
-
-          // Row 2
-          doc.setFont('helvetica', 'bold');
-          doc.text('Class & Section:', 18, currentY + 14);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`Class ${selectedClass} - ${s.section || 'A'}`, 45, currentY + 14);
-
-          doc.setFont('helvetica', 'bold');
-          doc.text('Roll Number:', 110, currentY + 14);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(20, 83, 45);
-          doc.text(`${s.roll_number || 'N/A'}`, 135, currentY + 14);
-
-          // Row 3
-          doc.setFontSize(8.5);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(30, 41, 59);
-          doc.text('Guardian Name:', 18, currentY + 22);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`${s.guardian_name || s.father_name || 'N/A'}`, 45, currentY + 22);
-
-          doc.setFont('helvetica', 'bold');
-          doc.text('Date of Birth:', 110, currentY + 22);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`${s.date_of_birth || 'N/A'}`, 135, currentY + 22);
-
-          // Student Photo Box / Actual photo
-          if (studentPhotoBase64) {
-            try {
-              doc.addImage(studentPhotoBase64, 'JPEG', 172, currentY + 2.5, 19, 21);
-              doc.setDrawColor(20, 83, 45);
-              doc.rect(172, currentY + 2.5, 19, 21);
-            } catch (e) {
-              doc.setDrawColor(203, 213, 225);
-              doc.rect(172, currentY + 2.5, 19, 21);
-              doc.setFontSize(6);
-              doc.setTextColor(148, 163, 184);
-              doc.text('PHOTO', 181.5, currentY + 13, { align: 'center' });
-            }
-          } else {
-            doc.setDrawColor(203, 213, 225);
-            doc.rect(172, currentY + 2.5, 19, 21);
-            doc.setFontSize(6.5);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(148, 163, 184);
-            doc.text('PASSPORT\nPHOTO', 181.5, currentY + 11, { align: 'center' });
-          }
-
-          currentY += 29;
-
-          // Table Content for Individual Exam
-          let tableHeaders = [];
-          let tableBody = [];
-
-          if (selectedType === 'ut1' || selectedType === 'ut2') {
-            const examObj = selectedType === 'ut1' ? item.ut1 : item.ut2;
-            tableHeaders = [['Sl', 'Subject Name', 'Max Marks', 'Pass Marks', 'Marks Obtained', 'Subject Grade', 'Remarks']];
-            tableBody = (examObj?.subjects || []).map((sub, idx) => [
-              idx + 1,
-              sub.subject,
-              sub.maxMarks,
-              sub.passingMarks,
-              sub.marksObtained != null ? sub.marksObtained : '—',
-              sub.grade,
-              sub.remarks
-            ]);
-          } else {
-            const examObj = selectedType === 'term1' ? item.term1 : item.term2;
-            tableHeaders = [['Sl', 'Subject Name', 'Theory (Max)', 'Prac (Max)', 'Total Obtained', 'Grade', 'Remarks']];
-            tableBody = (examObj?.subjects || []).map((sub, idx) => [
-              idx + 1,
-              sub.subject,
-              sub.theoryMax != null ? `${sub.marksObtained ?? 0} / ${sub.theoryMax}` : '—',
-              sub.practicalMax != null ? `${sub.practicalMarks ?? 0} / ${sub.practicalMax}` : '—',
-              `${sub.totalObtained ?? '—'} / ${sub.maxMarks}`,
-              sub.grade,
-              sub.remarks
-            ]);
-          }
+          portBody.push([
+            { content: 'RESULT', styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: item.ut1?.status || '—', styles: { halign: 'center' } },
+            { content: item.term1?.status || '—', styles: { halign: 'center' } },
+            { content: item.ut2?.status || '—', styles: { halign: 'center' } },
+            { content: item.term2?.status || '—', styles: { halign: 'center' } },
+            { content: item.annual?.promotion || 'PROMOTED', colSpan: 4, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45], fillColor: [240, 253, 244] } }
+          ]);
 
           autoTable(doc, {
-            head: tableHeaders,
-            body: tableBody,
-            startY: currentY,
+            head: portHeaders,
+            body: portBody,
+            startY: py + 2,
             margin: { left: 14, right: 14 },
             theme: 'grid',
             styles: {
-              fontSize: 8.5,
-              cellPadding: 2.2,
+              fontSize: 7,
+              cellPadding: 1.3,
               halign: 'center',
               valign: 'middle',
               textColor: [30, 41, 59],
-              lineColor: [226, 232, 240],
+              lineColor: [203, 213, 225],
               lineWidth: 0.15
             },
             headStyles: {
-              fillColor: [20, 83, 45],
-              textColor: [255, 255, 255],
-              fontStyle: 'bold'
+              fontSize: 6.8,
+              fontStyle: 'bold',
+              fillColor: [30, 41, 59],
+              textColor: [255, 255, 255]
             },
             columnStyles: {
-              1: { halign: 'left', fontStyle: 'bold' }
+              0: { halign: 'left', fontStyle: 'bold', cellWidth: 42 },
+              1: { cellWidth: 17.5 },
+              2: { cellWidth: 17.5 },
+              3: { cellWidth: 17.5 },
+              4: { cellWidth: 17.5 },
+              5: { cellWidth: 17.5 },
+              6: { cellWidth: 17.5 },
+              7: { cellWidth: 17.5 },
+              8: { cellWidth: 17.5 }
             }
           });
 
-          currentY = doc.lastAutoTable.finalY + 6;
+          // Remarks label at bottom of page 1
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(220, 38, 38);
+          doc.text('REMARKS', 105, 280, { align: 'center' });
 
-          // Summary Performance Box
-          const summaryData = selectedType === 'ut1' ? item.ut1 : selectedType === 'ut2' ? item.ut2 : selectedType === 'term1' ? item.term1 : item.term2;
+          // --- PAGE 2: BACK SIDE - REMARKS, GRADING SUBJECTS & VERIFICATION ---
+          doc.addPage();
 
-          doc.setFillColor(240, 253, 244);
-          doc.roundedRect(14, currentY, 182, 24, 2, 2, 'F');
+          // Border for Page 2
+          doc.setDrawColor(20, 83, 45);
+          doc.setLineWidth(1.2);
+          doc.rect(8, 8, 194, 281);
           doc.setDrawColor(187, 247, 208);
-          doc.roundedRect(14, currentY, 182, 24, 2, 2, 'S');
+          doc.setLineWidth(0.5);
+          doc.rect(10, 10, 190, 277);
 
-          doc.setFontSize(9.5);
+          let p2Y = 16;
+
+          // 4-Exam Remarks Boxes at Top of Page 2 (Width: 182mm / 4 = 44mm each)
+          const p2BoxW = 43.5;
+          const p2Remarks = [
+            { name: examNames.ut1, text: item.annual?.examRemarks?.ut1 || 'Good effort in Periodic Assessment I.' },
+            { name: examNames.term1, text: item.annual?.examRemarks?.term1 || 'Satisfactory mid-term completion.' },
+            { name: examNames.ut2, text: item.annual?.examRemarks?.ut2 || 'Steady progress in Periodic Assessment II.' },
+            { name: examNames.term2, text: item.annual?.examRemarks?.term2 || studentRemark }
+          ];
+
+          p2Remarks.forEach((rm, rIdx) => {
+            const bx = 14 + (rIdx * 46);
+            doc.setFillColor(248, 250, 252);
+            doc.rect(bx, p2Y, p2BoxW, 20, 'FD');
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(bx, p2Y, p2BoxW, 20, 'S');
+
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 41, 59);
+            doc.text(rm.name, bx + 2, p2Y + 4);
+
+            doc.setFontSize(6.5);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(71, 85, 105);
+            const rmLines = doc.splitTextToSize(`"${rm.text}"`, p2BoxW - 4);
+            doc.text(rmLines, bx + 2, p2Y + 9);
+          });
+
+          p2Y += 26;
+
+          // Grading Subjects Table on Page 2
+          const p2GradingBody = (item.annual?.gradingSubjects || []).map(gs => [
+            gs.subject,
+            gs.halfYearly || 'GOOD',
+            gs.annual || 'GOOD'
+          ]);
+
+          autoTable(doc, {
+            head: [
+              [{ content: 'GRADING SUBJECTS', colSpan: 3, styles: { halign: 'center', fillColor: [51, 65, 85] } }],
+              ['SUBJECTS', 'HALF-YEARLY', 'ANNUAL']
+            ],
+            body: p2GradingBody,
+            startY: p2Y,
+            margin: { left: 14, right: 100 },
+            tableWidth: 92,
+            theme: 'grid',
+            styles: {
+              fontSize: 7,
+              cellPadding: 1.8,
+              halign: 'center',
+              valign: 'middle',
+              textColor: [30, 41, 59],
+              lineColor: [203, 213, 225],
+              lineWidth: 0.15
+            },
+            headStyles: {
+              fontSize: 7,
+              fontStyle: 'bold',
+              fillColor: [71, 85, 105],
+              textColor: [255, 255, 255]
+            },
+            columnStyles: {
+              0: { halign: 'left', fontStyle: 'bold', cellWidth: 42 },
+              1: { cellWidth: 25 },
+              2: { cellWidth: 25, fontStyle: 'bold', textColor: [20, 83, 45] }
+            }
+          });
+
+          const p2GradEndY = doc.lastAutoTable.finalY;
+
+          // Class Teacher Name
+          doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(20, 83, 45);
-          doc.text(`Grand Total: ${summaryData?.totalObtained || 0} / ${summaryData?.totalMax || 0}`, 20, currentY + 7);
-          doc.text(`Percentage: ${summaryData?.percentage || 0}%`, 85, currentY + 7);
-          doc.text(`Overall Grade: ${summaryData?.overallGrade || '—'}`, 145, currentY + 7);
+          doc.setTextColor(30, 41, 59);
+          doc.text('CLASS TEACHER NAME: ....................................................', 14, p2GradEndY + 8);
 
-          doc.setFontSize(9);
-          doc.text(`Class Rank: #${summaryData?.rank || '1'}`, 20, currentY + 17);
-          doc.text(`Final Result: ${summaryData?.status || 'PASSED'}`, 85, currentY + 17);
-          doc.text(`Attendance: 95%`, 145, currentY + 17);
+          // Right of Page 2: Principal Signature & Barcode
+          const p2RightX = 112;
+          const p2RightW = 84;
 
-          currentY += 28;
-
-          // Grading Scale Key
-          doc.setFontSize(7);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(100, 116, 139);
-          doc.text(
-            'Grading Scale: A1 (90-100) | A2 (80-89) | B1 (70-79) | B2 (60-69) | C1 (50-59) | C2 (40-49) | D (33-39) | E (Below 33)',
-            105,
-            currentY,
-            { align: 'center' }
-          );
-
-          // Official Signature Block at Bottom
-          const sigY = 270;
+          // Principal Signature Frame
+          doc.setFillColor(248, 250, 252);
+          doc.rect(p2RightX, p2Y, p2RightW, 26, 'FD');
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(p2RightX, p2Y, p2RightW, 26, 'S');
           doc.setFontSize(8.5);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(30, 41, 59);
-
-          doc.text('Class Teacher', 30, sigY);
-          doc.text('Examination Controller', 105, sigY, { align: 'center' });
-          doc.text('Principal / Headmaster', 155, sigY);
-
+          doc.text('PRINCIPAL SIGNATURE', p2RightX + (p2RightW / 2), p2Y + 12, { align: 'center' });
           doc.setFontSize(6.5);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(148, 163, 184);
-          doc.text('(Signature & Date)', 30, sigY + 4);
-          doc.text('(Verified)', 105, sigY + 4, { align: 'center' });
-          doc.text('(Signature & Seal)', 155, sigY + 4);
+          doc.text('(Verified & Official Seal)', p2RightX + (p2RightW / 2), p2Y + 18, { align: 'center' });
+
+          // Barcode Box
+          const p2BcY = p2Y + 31;
+          doc.setFillColor(254, 243, 199);
+          doc.rect(p2RightX, p2BcY, p2RightW, 20, 'FD');
+          doc.setDrawColor(251, 191, 36);
+          doc.rect(p2RightX, p2BcY, p2RightW, 20, 'S');
+
+          const bcCode2 = `${s.admission_id || s.admissionId || 'HNSS'}-${s.roll_number || '01'}`;
+          doc.setFillColor(30, 41, 59);
+          const p2BarX = p2RightX + 12;
+          for (let b = 0; b < 32; b++) {
+            const bw = (b % 3 === 0) ? 1.4 : 0.6;
+            const bx = p2BarX + (b * 1.9);
+            doc.rect(bx, p2BcY + 3, bw, 9, 'F');
+          }
+          doc.setFontSize(7);
+          doc.setFont('courier', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text(`*${bcCode2}*`, p2RightX + (p2RightW / 2), p2BcY + 16, { align: 'center' });
+
+          // Bottom Digital Signed Document Disclaimer Banner
+          const p2BannerY = Math.max(p2GradEndY + 18, p2BcY + 28);
+          doc.setFillColor(254, 242, 242);
+          doc.roundedRect(14, p2BannerY, 182, 8.5, 1, 1, 'FD');
+          doc.setDrawColor(248, 113, 113);
+          doc.roundedRect(14, p2BannerY, 182, 8.5, 1, 1, 'S');
+
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(153, 27, 27);
+          doc.text('This is a Digitally signed document and does not require any Physical Signature', 105, p2BannerY + 5.5, { align: 'center' });
+        } else {
+          // =========================================================================
+          // SINGLE EXAM REPORT CARD (1-PAGE PORTRAIT, 210mm x 297mm)
+          // =========================================================================
+          const examData = item[selectedType] || { subjects: [], totalObtained: 0, totalMax: 0, percentage: 0, overallGrade: '—', rank: 1, status: 'PENDING' };
+
+          // 1. Double Page Border
+          doc.setDrawColor(20, 83, 45);
+          doc.setLineWidth(1.2);
+          doc.rect(8, 8, 194, 281);
+          doc.setDrawColor(187, 247, 208);
+          doc.setLineWidth(0.5);
+          doc.rect(10, 10, 190, 277);
+
+          // 2. Watermark Seal
+          doc.setFontSize(38);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(245, 248, 246);
+          doc.text(watermarkText, 105, 140, { align: 'center', angle: 30 });
+
+          // 3. Logo
+          if (logoBase64) {
+            try {
+              doc.addImage(logoBase64, 'PNG', 14, 13, 20, 20);
+            } catch (err) {}
+          }
+
+          // 4. Student Photo Box (Top-Right)
+          if (studentPhotoBase64) {
+            try {
+              doc.addImage(studentPhotoBase64, 'JPEG', 174, 13, 19, 23);
+              doc.setDrawColor(20, 83, 45);
+              doc.rect(174, 13, 19, 23);
+            } catch (e) {
+              doc.setDrawColor(203, 213, 225);
+              doc.rect(174, 13, 19, 23);
+              doc.setFontSize(6);
+              doc.setTextColor(148, 163, 184);
+              doc.text('PHOTO', 183.5, 25, { align: 'center' });
+            }
+          } else {
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(174, 13, 19, 23);
+            doc.setFontSize(6);
+            doc.setTextColor(148, 163, 184);
+            doc.text('Photo of the\nstudent', 183.5, 24, { align: 'center' });
+          }
+
+          // 5. Header
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 64, 175);
+          doc.text('PROGRESS REPORT CARD', 105, 15, { align: 'center' });
+
+          doc.setFontSize(13);
+          doc.setTextColor(20, 83, 45);
+          doc.text(schoolName, 105, 20, { align: 'center' });
+
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text(schoolAddress, 105, 24, { align: 'center' });
+          doc.text(contactInfo, 105, 27.5, { align: 'center' });
+
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(180, 83, 9);
+          doc.text(academicYearStr, 105, 31.5, { align: 'center' });
+
+          // 6. Student Particulars Table
+          autoTable(doc, {
+            head: [],
+            body: [
+              [
+                { content: 'SL NO', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [71, 85, 105] } },
+                { content: String(sIdx + 1), styles: { fontStyle: 'bold' } },
+                { content: 'NAME', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [71, 85, 105] } },
+                { content: (s.student_name || s.name || 'N/A').toUpperCase(), styles: { fontStyle: 'bold', textColor: [20, 83, 45] } },
+                { content: 'CLASS', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [71, 85, 105] } },
+                { content: selectedClass, styles: { fontStyle: 'bold' } },
+                { content: 'SEC', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [71, 85, 105] } },
+                { content: s.section || 'A', styles: { fontStyle: 'bold' } },
+                { content: 'ROLL', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [71, 85, 105] } },
+                { content: String(s.roll_number || '01'), styles: { fontStyle: 'bold', textColor: [30, 64, 175] } },
+                { content: 'STUDENT ID', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [71, 85, 105] } },
+                { content: String(s.admission_id || s.admissionId || 'N/A'), styles: { fontStyle: 'bold' } }
+              ],
+              [
+                { content: "FATHER'S NAME", styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [71, 85, 105] } },
+                { content: (s.guardian_name || s.father_name || "FATHER'S NAME").toUpperCase(), colSpan: 3, styles: { fontStyle: 'bold' } },
+                { content: 'DATE OF BIRTH', styles: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [71, 85, 105] } },
+                { content: s.date_of_birth || 'DD/MM/YYYY', colSpan: 3, styles: { fontStyle: 'bold' } },
+                { content: 'EXAMINATION', styles: { fontStyle: 'bold', fillColor: [254, 240, 138], textColor: [113, 63, 18] } },
+                { content: marksheetMeta.title, colSpan: 3, styles: { fontStyle: 'bold', fillColor: [254, 240, 138], textColor: [113, 63, 18] } }
+              ]
+            ],
+            startY: 36,
+            margin: { left: 14, right: 14 },
+            tableWidth: 182,
+            theme: 'grid',
+            styles: {
+              fontSize: 6.8,
+              cellPadding: 1.4,
+              valign: 'middle',
+              lineColor: [203, 213, 225],
+              lineWidth: 0.15,
+              textColor: [30, 41, 59]
+            }
+          });
+
+          let singleY = doc.lastAutoTable.finalY + 3.5;
+
+          // 7. Scholastic Subjects Table for Single Exam
+          const singleTableBody = (examData.subjects || []).map((sub, idx) => [
+            idx + 1,
+            sub.subject,
+            sub.maxMarks,
+            sub.passingMarks,
+            sub.totalObtained != null ? sub.totalObtained : '—',
+            sub.percentage !== '—' ? `${sub.percentage}%` : '—',
+            sub.grade || '—',
+            sub.remarks || '—'
+          ]);
+
+          // Summary Rows
+          singleTableBody.push([
+            { content: 'TOTAL', colSpan: 2, styles: { fontStyle: 'bold', halign: 'left', fillColor: [241, 245, 249] } },
+            { content: String(examData.totalMax || 0), styles: { fontStyle: 'bold', halign: 'center', fillColor: [241, 245, 249] } },
+            { content: '—', styles: { halign: 'center', fillColor: [241, 245, 249] } },
+            { content: String(examData.totalObtained || 0), styles: { fontStyle: 'bold', halign: 'center', fillColor: [220, 252, 231], textColor: [20, 83, 45] } },
+            { content: `${examData.percentage || 0}%`, styles: { fontStyle: 'bold', halign: 'center', fillColor: [241, 245, 249] } },
+            { content: String(examData.overallGrade || '—'), styles: { fontStyle: 'bold', halign: 'center', fillColor: [241, 245, 249], textColor: [67, 56, 202] } },
+            { content: String(examData.status || '—'), styles: { fontStyle: 'bold', halign: 'center', fillColor: [220, 252, 231], textColor: [20, 83, 45] } }
+          ]);
+
+          singleTableBody.push([
+            { content: 'CLASS RANK & RESULT', colSpan: 2, styles: { fontStyle: 'bold', halign: 'left', fillColor: [248, 250, 252] } },
+            { content: `Rank #${examData.rank || 1} in Class ${selectedClass}`, colSpan: 4, styles: { fontStyle: 'bold', halign: 'left', textColor: [67, 56, 202] } },
+            { content: 'STATUS', styles: { fontStyle: 'bold', halign: 'center', fillColor: [241, 245, 249] } },
+            { content: String(examData.status || 'PASSED'), styles: { fontStyle: 'bold', halign: 'center', textColor: [20, 83, 45] } }
+          ]);
+
+          autoTable(doc, {
+            head: [
+              ['SL', 'SUBJECT', 'MAX MARKS', 'PASS MARKS', 'MARKS OBTAINED', 'PERCENTAGE', 'GRADE', 'REMARKS']
+            ],
+            body: singleTableBody,
+            startY: singleY,
+            margin: { left: 14, right: 14 },
+            tableWidth: 182,
+            theme: 'grid',
+            styles: {
+              fontSize: 7.2,
+              cellPadding: 1.8,
+              halign: 'center',
+              valign: 'middle',
+              textColor: [30, 41, 59],
+              lineColor: [203, 213, 225],
+              lineWidth: 0.15
+            },
+            headStyles: {
+              fontSize: 7.2,
+              fontStyle: 'bold',
+              fillColor: [30, 41, 59],
+              textColor: [255, 255, 255]
+            },
+            columnStyles: {
+              0: { cellWidth: 12 },
+              1: { cellWidth: 54, halign: 'left', fontStyle: 'bold' },
+              2: { cellWidth: 20 },
+              3: { cellWidth: 20 },
+              4: { cellWidth: 26, fontStyle: 'bold', textColor: [20, 83, 45] },
+              5: { cellWidth: 20 },
+              6: { cellWidth: 14, fontStyle: 'bold', textColor: [67, 56, 202] },
+              7: { cellWidth: 16 }
+            }
+          });
+
+          let singleTableEndY = doc.lastAutoTable.finalY + 4;
+
+          // 8. Teacher Remarks Box
+          doc.setFillColor(248, 250, 252);
+          doc.roundedRect(14, singleTableEndY, 182, 16, 1, 1, 'FD');
+          doc.setDrawColor(203, 213, 225);
+          doc.roundedRect(14, singleTableEndY, 182, 16, 1, 1, 'S');
+
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text(`TEACHER REMARK (${marksheetMeta.title}):`, 17, singleTableEndY + 5);
+
+          const singleRemarkText = item.annual?.examRemarks?.[selectedType] || studentRemark;
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(71, 85, 105);
+          doc.text(`"${singleRemarkText}"`, 17, singleTableEndY + 11);
+
+          singleTableEndY += 20;
+
+          // 9. Grading Subjects (if available) + Signatures & Barcode
+          const singleGrading = (item.annual?.gradingSubjects || []).map(gs => [
+            gs.subject,
+            selectedType.startsWith('term2') || selectedType === 'ut2' ? (gs.annual || 'GOOD') : (gs.halfYearly || 'GOOD')
+          ]);
+
+          if (singleGrading.length > 0) {
+            autoTable(doc, {
+              head: [
+                [{ content: 'CO-SCHOLASTIC / GRADING EVALUATION', colSpan: 2, styles: { halign: 'center', fillColor: [51, 65, 85] } }],
+                ['SUBJECT', 'EVALUATION / RATING']
+              ],
+              body: singleGrading,
+              startY: singleTableEndY,
+              margin: { left: 14, right: 100 },
+              tableWidth: 90,
+              theme: 'grid',
+              styles: {
+                fontSize: 6.8,
+                cellPadding: 1.4,
+                halign: 'center',
+                valign: 'middle',
+                textColor: [30, 41, 59],
+                lineColor: [203, 213, 225],
+                lineWidth: 0.15
+              },
+              headStyles: {
+                fontSize: 6.8,
+                fontStyle: 'bold',
+                fillColor: [71, 85, 105],
+                textColor: [255, 255, 255]
+              },
+              columnStyles: {
+                0: { halign: 'left', fontStyle: 'bold', cellWidth: 50 },
+                1: { cellWidth: 40, fontStyle: 'bold', textColor: [20, 83, 45] }
+              }
+            });
+          }
+
+          // Signatures and Barcode Box on Right
+          const sigBoxX = singleGrading.length > 0 ? 112 : 14;
+          const sigBoxW = singleGrading.length > 0 ? 84 : 182;
+
+          doc.setFillColor(248, 250, 252);
+          doc.roundedRect(sigBoxX, singleTableEndY, sigBoxW, 20, 1, 1, 'FD');
+          doc.setDrawColor(203, 213, 225);
+          doc.roundedRect(sigBoxX, singleTableEndY, sigBoxW, 20, 1, 1, 'S');
+
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text('PRINCIPAL SIGNATURE', sigBoxX + (sigBoxW / 2), singleTableEndY + 9, { align: 'center' });
+          doc.setFontSize(6.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(148, 163, 184);
+          doc.text('(Verified & Approved)', sigBoxX + (sigBoxW / 2), singleTableEndY + 15, { align: 'center' });
+
+          // Barcode box below signature
+          const sbcY = singleTableEndY + 23;
+          doc.setFillColor(254, 243, 199);
+          doc.rect(sigBoxX, sbcY, sigBoxW, 14, 'FD');
+          doc.setDrawColor(251, 191, 36);
+          doc.rect(sigBoxX, sbcY, sigBoxW, 14, 'S');
+
+          const sbcCode = `${s.admission_id || s.admissionId || 'HNSS'}-${s.roll_number || '01'}`;
+          doc.setFillColor(30, 41, 59);
+          const sbarX = sigBoxX + (sigBoxW / 2) - 30;
+          for (let b = 0; b < 28; b++) {
+            const bw = (b % 3 === 0) ? 1.4 : 0.6;
+            const bx = sbarX + (b * 2.1);
+            doc.rect(bx, sbcY + 2, bw, 6.5, 'F');
+          }
+          doc.setFontSize(6.5);
+          doc.setFont('courier', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text(`*${sbcCode}*`, sigBoxX + (sigBoxW / 2), sbcY + 11.5, { align: 'center' });
+
+          // Digital signature disclaimer banner at bottom
+          doc.setFillColor(254, 242, 242);
+          doc.roundedRect(14, 276, 182, 7, 1, 1, 'FD');
+          doc.setDrawColor(248, 113, 113);
+          doc.roundedRect(14, 276, 182, 7, 1, 1, 'S');
+
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(153, 27, 27);
+          doc.text('This is a Digitally signed document and does not require any Physical Signature', 105, 280.8, { align: 'center' });
         }
       }
 
@@ -804,18 +1401,19 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               <h2 className="text-2xl font-black text-slate-900 tracking-tight font-headline flex items-center gap-2.5">
                 Marksheet Generation Facility
                 <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Official School Formats
+                  Dynamic School Template
                 </span>
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Generate 4 individual exam marksheets and the Combined Annual Report Card in Landscape mode with Photo & School Logo.
+                Dynamic marksheet engine supporting scholastic & co-scholastic grading subjects, 4-exam remarks, barcode, and digital verification.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Global Class Selector & View Mode */}
+        {/* Global Controls: Class, Orientation & View Mode */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Class Selector */}
           <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-2xl border border-slate-200 shadow-sm">
             <FaSchool className="text-slate-400 text-sm" />
             <span className="text-xs font-bold text-slate-600 uppercase">Class:</span>
@@ -830,6 +1428,31 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             </select>
           </div>
 
+          {/* Orientation Toggle (Landscape / Portrait) */}
+          {viewMode === 'single' && selectedType === 'annual' && (
+            <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
+              <button
+                onClick={() => setPaperOrientation('landscape')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  paperOrientation === 'landscape' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Single-Page Landscape Consolidated View"
+              >
+                Landscape
+              </button>
+              <button
+                onClick={() => setPaperOrientation('portrait')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  paperOrientation === 'portrait' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="2-Page Front & Back Portrait View (Sample Style)"
+              >
+                Portrait (Front & Back)
+              </button>
+            </div>
+          )}
+
+          {/* View Mode Toggle (Student Card vs Broadsheet) */}
           <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
             <button
               onClick={() => setViewMode('single')}
@@ -837,7 +1460,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                 viewMode === 'single' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <FaEye /> Student Card
+              <FaEye /> Report Card
             </button>
             <button
               onClick={() => setViewMode('broadsheet')}
@@ -919,7 +1542,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             <FaAward className="text-amber-300" /> Annual Marksheet (Combined)
           </span>
           <span className="text-[10px] font-normal opacity-90">
-            Landscape Single-Page • 20% PA1 + 30% Term1 + 20% PA2 + 30% Term2
+            {paperOrientation === 'landscape' ? 'Landscape (1-Page)' : 'Portrait (Front & Back)'} • All 4 Exams + Grading Subjects
           </span>
         </button>
       </div>
@@ -1070,7 +1693,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                 disabled={generatingPdf}
                 className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-2 transition disabled:opacity-50"
               >
-                <FaFilePdf className="text-sm" /> Download PDF ({selectedType === 'annual' ? 'Landscape' : 'Portrait'})
+                <FaFilePdf className="text-sm" /> Download PDF ({selectedType === 'annual' && paperOrientation === 'landscape' ? 'Landscape' : 'Portrait'})
               </button>
 
               <button
@@ -1095,544 +1718,465 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           {/* INTERACTIVE REPORT CARD SHEET (LIVE VISUAL PREVIEW) */}
           {/* ========================================================================= */}
           {currentStudentItem && (
-            selectedType === 'annual' ? (
-              /* LANDSCAPE ANNUAL COMBINED REPORT CARD PREVIEW (MAX-W-6XL) */
-              <div className="max-w-6xl mx-auto bg-white rounded-3xl border-2 border-emerald-900/90 p-8 shadow-2xl relative overflow-hidden space-y-6 font-body-md">
+            <div className={`${paperOrientation === 'landscape' ? 'max-w-6xl' : 'max-w-4xl'} mx-auto bg-white rounded-3xl border-2 border-emerald-900/90 p-8 shadow-2xl relative overflow-hidden space-y-6 font-body-md`}>
+              
+              {/* Decorative Double Border Inset */}
+              <div className="absolute inset-2 border border-emerald-200/80 rounded-2xl pointer-events-none" />
+
+              {/* 1. Header Block with School Logo, Info & Student Photo */}
+              <div className="flex items-start justify-between gap-6 pt-2">
                 
-                {/* Decorative Double Border Inset */}
-                <div className="absolute inset-2 border border-emerald-200/80 rounded-2xl pointer-events-none" />
-
-                {/* Top Badge */}
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold border-b border-slate-100 pb-2">
-                  <span className="flex items-center gap-1.5 text-emerald-800">
-                    <FaAward className="text-amber-500" /> Official A4 Landscape Report Card
-                  </span>
-                  <span className="uppercase tracking-wider">
-                    Formula: 20% PA1 + 30% Term1 + 20% PA2 + 30% Term2 = 100%
-                  </span>
-                </div>
-
-                {/* School Header with Logo and Student Photo */}
-                <div className="flex items-start justify-between gap-6 pt-2">
-                  
-                  {/* Left: School Logo */}
-                  <div className="w-24 shrink-0 flex items-center justify-start">
-                    {schoolProfile?.logo ? (
-                      <img
-                        src={schoolProfile.logo}
-                        alt="School Logo"
-                        className="w-20 h-20 object-contain drop-shadow-md"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800 text-3xl font-black">
-                        <FaSchool />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Center: School Header & Report Card Title */}
-                  <div className="flex-1 text-center space-y-1">
-                    <h1 className="text-2xl lg:text-3xl font-black text-emerald-950 font-headline uppercase tracking-tight">
-                      {schoolProfile?.name || 'Holy Name Higher Secondary School'}
-                    </h1>
-                    <p className="text-xs text-slate-600 font-medium">
-                      {schoolProfile?.officeAddress || 'Hatimuria Gaon, Sivasagar, Assam - 785640'}
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      Affiliated to Board of Secondary Education | Recognized by Govt. of Assam • Estd. 1978
-                    </p>
-
-                    {/* Ribbon Title */}
-                    <div className="mt-3 inline-block bg-emerald-50 px-8 py-2 rounded-full border border-emerald-300 shadow-sm">
-                      <h2 className="text-xs lg:text-sm font-black text-emerald-900 tracking-wider uppercase">
-                        ANNUAL CONSOLIDATED PROGRESS & PROMOTION REPORT CARD
-                      </h2>
-                      <p className="text-[10px] text-emerald-700 font-semibold mt-0.5">
-                        Academic Session 2025 - 2026 • Combined Evaluation of All 4 Examinations
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right: Student Photo */}
-                  <div className="w-24 shrink-0 flex flex-col items-center justify-center">
-                    {(currentStudentItem.student.photo_url || currentStudentItem.student.photo || currentStudentItem.student.avatar) ? (
-                      <img
-                        src={currentStudentItem.student.photo_url || currentStudentItem.student.photo || currentStudentItem.student.avatar}
-                        alt="Student"
-                        className="w-20 h-24 object-cover rounded-xl border-2 border-emerald-800 shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-20 h-24 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 flex flex-col items-center justify-center text-center p-1">
-                        <FaCamera className="text-slate-300 text-xl mb-1" />
-                        <span className="text-[8px] font-bold text-slate-400 uppercase leading-tight">
-                          Passport<br/>Photo
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Horizontal Student Details Card (2 Rows) */}
-                <div className="bg-slate-50/90 p-4 rounded-2xl border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-6 text-xs">
-                  <div>
-                    <span className="block text-slate-500 font-bold uppercase text-[9px]">Student Name</span>
-                    <span className="font-extrabold text-slate-900 text-sm">
-                      {currentStudentItem.student.student_name || currentStudentItem.student.name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-500 font-bold uppercase text-[9px]">Admission ID</span>
-                    <span className="font-bold text-slate-800 font-mono">
-                      {currentStudentItem.student.admission_id || currentStudentItem.student.admissionId || 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-500 font-bold uppercase text-[9px]">Class & Section</span>
-                    <span className="font-bold text-slate-800">
-                      Class {selectedClass} - {currentStudentItem.student.section || 'A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-500 font-bold uppercase text-[9px]">Roll Number</span>
-                    <span className="font-black text-emerald-800 text-sm">
-                      #{currentStudentItem.student.roll_number || 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-500 font-bold uppercase text-[9px]">Guardian Name</span>
-                    <span className="font-medium text-slate-800">
-                      {currentStudentItem.student.guardian_name || currentStudentItem.student.father_name || 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-500 font-bold uppercase text-[9px]">Date of Birth</span>
-                    <span className="font-medium text-slate-800">
-                      {currentStudentItem.student.date_of_birth || 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-500 font-bold uppercase text-[9px]">Academic Session</span>
-                    <span className="font-medium text-slate-800">2025 - 2026</span>
-                  </div>
-                  <div>
-                    <span className="block text-slate-500 font-bold uppercase text-[9px]">Annual Attendance</span>
-                    <span className="font-bold text-emerald-700">
-                      {currentStudentItem.annual?.attendance || '94.6%'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Multi-Exam Tabulation Grid (All 4 Exams + Combined Score) */}
-                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-emerald-950 text-white font-bold uppercase tracking-wider text-[11px]">
-                        <th className="p-3 pl-4 text-center w-12 border-r border-emerald-800">Sl</th>
-                        <th className="p-3 border-r border-emerald-800">Subject Name</th>
-                        <th className="p-3 text-center border-r border-emerald-800 bg-blue-950/60">
-                          {examNames.ut1}<br/><span className="text-[9px] font-normal text-blue-200">(20% Wt)</span>
-                        </th>
-                        <th className="p-3 text-center border-r border-emerald-800 bg-purple-950/60">
-                          {examNames.term1}<br/><span className="text-[9px] font-normal text-purple-200">(30% Wt)</span>
-                        </th>
-                        <th className="p-3 text-center border-r border-emerald-800 bg-indigo-950/60">
-                          {examNames.ut2}<br/><span className="text-[9px] font-normal text-indigo-200">(20% Wt)</span>
-                        </th>
-                        <th className="p-3 text-center border-r border-emerald-800 bg-teal-950/60">
-                          {examNames.term2}<br/><span className="text-[9px] font-normal text-teal-200">(30% Wt)</span>
-                        </th>
-                        <th className="p-3 text-center border-r border-emerald-800 bg-emerald-900 font-extrabold">
-                          Combined Marks<br/><span className="text-[9px] font-normal text-emerald-200">(/100 Scale)</span>
-                        </th>
-                        <th className="p-3 text-center border-r border-emerald-800">Combined %</th>
-                        <th className="p-3 text-center border-r border-emerald-800">Grade</th>
-                        <th className="p-3 text-center">Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {(currentStudentItem.annual?.subjects || []).map((sub, idx) => (
-                        <tr key={sub.subject || idx} className="hover:bg-emerald-50/30 transition">
-                          <td className="p-3 text-center font-bold text-slate-500 border-r border-slate-100">{sub.sl}</td>
-                          <td className="p-3 font-bold text-slate-900 border-r border-slate-100">{sub.subject}</td>
-                          <td className="p-3 text-center font-medium text-slate-700 border-r border-slate-100">
-                            {sub.ut1Raw ? (
-                              <div>
-                                <span className="font-semibold">{sub.ut1Raw}</span>
-                                <span className="block text-[10px] text-blue-600 font-bold">({sub.ut1Wt})</span>
-                              </div>
-                            ) : '—'}
-                          </td>
-                          <td className="p-3 text-center font-medium text-slate-700 border-r border-slate-100">
-                            {sub.term1Raw ? (
-                              <div>
-                                <span className="font-semibold">{sub.term1Raw}</span>
-                                <span className="block text-[10px] text-purple-600 font-bold">({sub.term1Wt})</span>
-                              </div>
-                            ) : '—'}
-                          </td>
-                          <td className="p-3 text-center font-medium text-slate-700 border-r border-slate-100">
-                            {sub.ut2Raw ? (
-                              <div>
-                                <span className="font-semibold">{sub.ut2Raw}</span>
-                                <span className="block text-[10px] text-indigo-600 font-bold">({sub.ut2Wt})</span>
-                              </div>
-                            ) : '—'}
-                          </td>
-                          <td className="p-3 text-center font-medium text-slate-700 border-r border-slate-100">
-                            {sub.term2Raw ? (
-                              <div>
-                                <span className="font-semibold">{sub.term2Raw}</span>
-                                <span className="block text-[10px] text-teal-600 font-bold">({sub.term2Wt})</span>
-                              </div>
-                            ) : '—'}
-                          </td>
-                          <td className="p-3 text-center font-black text-emerald-800 text-sm border-r border-slate-100 bg-emerald-50/40">
-                            {sub.finalScore}
-                          </td>
-                          <td className="p-3 text-center font-bold text-slate-800 border-r border-slate-100">
-                            {sub.finalScore !== '—' ? `${sub.finalScore}%` : '—'}
-                          </td>
-                          <td className="p-3 text-center font-black text-indigo-700 border-r border-slate-100">
-                            {sub.grade}
-                          </td>
-                          <td className="p-3 text-center text-slate-600 font-medium">
-                            {sub.remarks}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Performance Summary & Promotion Strip */}
-                <div className="bg-emerald-50/80 p-5 rounded-2xl border border-emerald-300 space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                    <div>
-                      <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Combined Total</span>
-                      <span className="text-xl font-black text-emerald-950">
-                        {currentStudentItem.annual?.totalObtained || 0} / {currentStudentItem.annual?.totalMax || 0}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Combined Percentage</span>
-                      <span className="text-xl font-black text-emerald-950">
-                        {currentStudentItem.annual?.percentage || 0}%
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Overall Grade</span>
-                      <span className="text-xl font-black text-indigo-800">
-                        {currentStudentItem.annual?.overallGrade || '—'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Class Rank</span>
-                      <span className="text-xl font-black text-emerald-950">
-                        #{currentStudentItem.annual?.rank || 1}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Prominent Promotion Status Banner */}
-                  <div className="pt-3 border-t border-emerald-200/90 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-600 font-semibold">Final Result:</span>
-                      <span className="font-black text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200">
-                        {currentStudentItem.annual?.status || 'PASSED'}
-                      </span>
-                    </div>
-
-                    {/* Promotion Status Badge */}
-                    <div className="px-5 py-2 rounded-xl font-black text-sm shadow-sm flex items-center gap-2 bg-emerald-600 text-white border border-emerald-700">
-                      <FaCheckCircle className="text-base" />
-                      <span>{currentStudentItem.annual?.promotion}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Class Teacher Remarks Panel (Editable) */}
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                      Class Teacher's Remarks & Conduct Evaluation:
-                    </span>
-                    {editingRemarks ? (
-                      <div className="mt-2 space-y-2">
-                        <textarea
-                          value={tempRemarkText}
-                          onChange={(e) => setTempRemarkText(e.target.value)}
-                          className="w-full p-2.5 text-xs border border-emerald-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium text-slate-800"
-                          rows={2}
-                        />
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={handleSaveRemark}
-                            className="px-3 py-1 bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-800 transition"
-                          >
-                            <FaCheck /> Save Remarks
-                          </button>
-                          <button
-                            onClick={() => setEditingRemarks(false)}
-                            className="px-3 py-1 bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-slate-300 transition"
-                          >
-                            <FaTimes /> Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs font-semibold text-slate-800 italic mt-0.5">
-                        "{activeStudentRemark}"
-                      </p>
-                    )}
-                  </div>
-                  {!editingRemarks && (
-                    <button
-                      onClick={() => {
-                        setTempRemarkText(activeStudentRemark);
-                        setEditingRemarks(true);
-                      }}
-                      className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
-                    >
-                      <FaEdit /> Edit Remarks
-                    </button>
-                  )}
-                </div>
-
-                {/* Official Signatures Row */}
-                <div className="pt-8 border-t border-slate-200 grid grid-cols-3 gap-6 text-center text-xs font-bold text-slate-800">
-                  <div>
-                    <div className="h-10" />
-                    <div className="border-t border-slate-300 pt-1.5">Class Teacher</div>
-                    <span className="text-[10px] text-slate-400 font-normal">(Signature & Date)</span>
-                  </div>
-                  <div>
-                    <div className="h-10" />
-                    <div className="border-t border-slate-300 pt-1.5">Parent / Guardian</div>
-                    <span className="text-[10px] text-slate-400 font-normal">(Signature)</span>
-                  </div>
-                  <div>
-                    <div className="h-10 flex items-center justify-center">
-                      <span className="w-12 h-12 rounded-full border border-dashed border-emerald-400 flex items-center justify-center text-[8px] text-emerald-700 font-bold uppercase">
-                        Seal
-                      </span>
-                    </div>
-                    <div className="border-t border-slate-300 pt-1.5">Principal / Headmaster</div>
-                    <span className="text-[10px] text-slate-400 font-normal">(Signature & Official Seal)</span>
-                  </div>
-                </div>
-
-              </div>
-            ) : (
-              /* PORTRAIT SINGLE EXAM REPORT CARD PREVIEW (MAX-W-4XL) */
-              <div className="max-w-4xl mx-auto bg-white rounded-3xl border-2 border-emerald-800/80 p-8 shadow-xl relative overflow-hidden space-y-6">
-                
-                {/* Decorative Double Border Inset */}
-                <div className="absolute inset-1.5 border border-emerald-100 rounded-2xl pointer-events-none" />
-
-                {/* School Header */}
-                <div className="text-center relative">
-                  {schoolProfile?.logo && (
+                {/* Left: School Logo */}
+                <div className="w-24 shrink-0 flex items-center justify-start">
+                  {schoolProfile?.logo ? (
                     <img
                       src={schoolProfile.logo}
                       alt="School Logo"
-                      className="w-16 h-16 object-contain absolute left-0 top-0 hidden sm:block drop-shadow-sm"
+                      className="w-20 h-20 object-contain drop-shadow-md"
                     />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800 text-3xl font-black">
+                      <FaSchool />
+                    </div>
                   )}
-                  <h1 className="text-2xl font-black text-emerald-950 font-headline uppercase tracking-tight">
-                    {schoolProfile?.name || 'Holy Name Higher Secondary School'}
+                </div>
+
+                {/* Center: School Header & Title Banner */}
+                <div className="flex-1 text-center space-y-1">
+                  <div className="inline-block bg-blue-50 px-4 py-0.5 rounded-full border border-blue-200 text-blue-800 text-[10px] font-bold tracking-widest uppercase mb-1">
+                    PROGRESS REPORT CARD
+                  </div>
+                  <h1 className="text-xl lg:text-2xl font-black text-emerald-950 font-headline uppercase tracking-tight">
+                    {schoolProfile?.name || 'ACADEMIC INSTITUTION'}
                   </h1>
-                  <p className="text-xs text-slate-600 font-medium mt-1">
-                    {schoolProfile?.officeAddress || 'Hatimuria Gaon, Sivasagar, Assam - 785640'}
+                  <p className="text-xs text-slate-600 font-medium">
+                    {schoolProfile?.officeAddress || schoolProfile?.address || 'School Campus Address'}
                   </p>
-                  <p className="text-[11px] text-slate-400">
-                    Affiliated to Board of Secondary Education • Established 1978
+                  <p className="text-[11px] text-slate-500">
+                    Ph: {schoolProfile?.phone || schoolProfile?.contactPhone || '91**********'} | Email: {schoolProfile?.email || 'office@school.edu'}
                   </p>
+                  <p className="text-xs font-black text-amber-800 bg-amber-100/70 inline-block px-4 py-0.5 rounded-full border border-amber-300 mt-1">
+                    ACADEMIC YEAR: {schoolProfile?.academicYear || schoolProfile?.session || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`}
+                  </p>
+                </div>
 
-                  {/* Marksheet Title Banner with Dynamic Admin Exam Name */}
-                  <div className="mt-4 inline-block bg-emerald-50 px-6 py-2 rounded-full border border-emerald-200">
-                    <h2 className="text-xs font-black text-emerald-900 tracking-wider uppercase">
+                {/* Right: Student Photo Frame */}
+                <div className="w-24 shrink-0 flex flex-col items-center justify-center">
+                  {(currentStudentItem.student.photo_url || currentStudentItem.student.photo || currentStudentItem.student.avatar) ? (
+                    <img
+                      src={currentStudentItem.student.photo_url || currentStudentItem.student.photo || currentStudentItem.student.avatar}
+                      alt="Student"
+                      className="w-20 h-24 object-cover rounded-xl border-2 border-emerald-800 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-20 h-24 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 flex flex-col items-center justify-center text-center p-1">
+                      <FaCamera className="text-slate-300 text-xl mb-1" />
+                      <span className="text-[8px] font-bold text-slate-400 uppercase leading-tight">
+                        Photo of the<br/>student
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Student Particulars (Dotted layout style) */}
+              <div className="bg-slate-50/90 p-4 rounded-2xl border border-slate-200 text-xs text-slate-800 space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div>
+                    <span className="font-bold text-slate-600 mr-1.5">SL NO:</span>
+                    <span className="font-semibold text-slate-900">{currentStudentItem.student.roll_number || '01'}</span>
+                  </div>
+                  <div className="md:col-span-2">
+                    <span className="font-bold text-slate-600 mr-1.5">NAME:</span>
+                    <span className="font-black text-slate-950 uppercase">{currentStudentItem.student.student_name || currentStudentItem.student.name}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="font-bold text-slate-600 mr-1.5">CLASS:</span>
+                    <span className="font-bold text-slate-900">{selectedClass}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-600 mr-1.5">SEC:</span>
+                    <span className="font-bold text-slate-900">{currentStudentItem.student.section || 'A'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-600 mr-1.5">ROLL:</span>
+                    <span className="font-black text-emerald-800">{currentStudentItem.student.roll_number || '—'}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div>
+                    <span className="font-bold text-slate-600 mr-1.5">STUDENT ID:</span>
+                    <span className="font-mono font-bold text-slate-900">{currentStudentItem.student.admission_id || currentStudentItem.student.admissionId || '—'}</span>
+                  </div>
+                  <div className="md:col-span-2">
+                    <span className="font-bold text-slate-600 mr-1.5">FATHER'S NAME:</span>
+                    <span className="font-semibold text-slate-900 uppercase">{currentStudentItem.student.guardian_name || currentStudentItem.student.father_name || 'N/A'}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+                  <div>
+                    <span className="font-bold text-slate-600 mr-1.5">DATE OF BIRTH:</span>
+                    <span className="font-semibold text-slate-900">{currentStudentItem.student.date_of_birth || 'N/A'}</span>
+                  </div>
+                  <div className="md:col-span-2 flex items-center gap-2">
+                    <span className="font-bold text-slate-600">EXAMINATION:</span>
+                    <span className="font-black text-slate-900 bg-yellow-200 px-3 py-0.5 rounded-lg border border-yellow-300">
                       {marksheetMeta.title}
-                    </h2>
-                    <p className="text-[10px] text-emerald-700 font-medium">
-                      Academic Session 2025 - 2026 • {marksheetMeta.subTitle}
-                    </p>
+                    </span>
                   </div>
                 </div>
+              </div>
 
-                {/* Student Details Card */}
-                <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-5">
-                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-y-3 gap-x-4 text-xs">
-                    <div>
-                      <span className="block text-slate-500 font-bold uppercase text-[10px]">Student Name</span>
-                      <span className="font-extrabold text-slate-900 text-sm">
-                        {currentStudentItem.student.student_name || currentStudentItem.student.name}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-slate-500 font-bold uppercase text-[10px]">Admission ID</span>
-                      <span className="font-bold text-slate-800 font-mono">
-                        {currentStudentItem.student.admission_id || currentStudentItem.student.admissionId || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-slate-500 font-bold uppercase text-[10px]">Class & Section</span>
-                      <span className="font-bold text-slate-800">
-                        Class {selectedClass} - {currentStudentItem.student.section || 'A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-slate-500 font-bold uppercase text-[10px]">Roll Number</span>
-                      <span className="font-extrabold text-slate-900 text-sm">
-                        #{currentStudentItem.student.roll_number || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-slate-500 font-bold uppercase text-[10px]">Guardian Name</span>
-                      <span className="font-medium text-slate-800">
-                        {currentStudentItem.student.guardian_name || currentStudentItem.student.father_name || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-slate-500 font-bold uppercase text-[10px]">Date of Birth</span>
-                      <span className="font-medium text-slate-800">
-                        {currentStudentItem.student.date_of_birth || 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Passport Photo Frame / Actual Photo */}
-                  <div className="w-20 h-24 shrink-0 flex items-center justify-center">
-                    {(currentStudentItem.student.photo_url || currentStudentItem.student.photo || currentStudentItem.student.avatar) ? (
-                      <img
-                        src={currentStudentItem.student.photo_url || currentStudentItem.student.photo || currentStudentItem.student.avatar}
-                        alt="Photo"
-                        className="w-20 h-24 object-cover rounded-xl border border-slate-300 shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-20 h-24 border-2 border-dashed border-slate-300 rounded-xl bg-white flex flex-col items-center justify-center text-center p-1">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                          Passport<br/>Photo
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Marks Table */}
-                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                  <table className="w-full text-left text-xs">
+              {/* 3. Main Scholastic Subject Table */}
+              {selectedType === 'annual' ? (
+                /* Annual 4-Exam Combined Table with Super-Headers */
+                <div className="border border-slate-300 rounded-2xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-emerald-900 text-white font-bold uppercase tracking-wider text-[11px]">
-                        <th className="p-3 pl-4 text-center w-12">Sl</th>
-                        <th className="p-3">Subject Name</th>
-                        {selectedType.startsWith('term') ? (
-                          <>
-                            <th className="p-3 text-center">Theory</th>
-                            <th className="p-3 text-center">Practical</th>
-                            <th className="p-3 text-center font-extrabold">Total (/100)</th>
-                            <th className="p-3 text-center">Grade</th>
-                            <th className="p-3 text-center">Remarks</th>
-                          </>
-                        ) : (
-                          <>
-                            <th className="p-3 text-center">Max Marks</th>
-                            <th className="p-3 text-center">Pass Marks</th>
-                            <th className="p-3 text-center font-extrabold">Obtained</th>
-                            <th className="p-3 text-center">Grade</th>
-                            <th className="p-3 text-center">Remarks</th>
-                          </>
-                        )}
+                      <tr className="bg-slate-800 text-white font-bold text-center text-[11px]">
+                        <th rowSpan={2} className="p-2.5 border-r border-slate-700 w-10">SL</th>
+                        <th rowSpan={2} className="p-2.5 border-r border-slate-700 text-left min-w-[150px]">SUBJECT</th>
+                        <th colSpan={4} className="p-1.5 border-r border-slate-700 bg-slate-900 uppercase tracking-wider">
+                          MARKS
+                        </th>
+                        <th colSpan={4} className="p-1.5 border-r border-slate-700 bg-emerald-900 uppercase tracking-wider">
+                          PROMOTION CRITERIA
+                        </th>
+                        <th rowSpan={2} className="p-2.5 border-r border-slate-700 bg-emerald-950 font-black text-emerald-200 w-20">
+                          TOTAL<br/><span className="text-[9px] font-normal text-emerald-300">(/100)</span>
+                        </th>
+                        <th rowSpan={2} className="p-2.5 font-bold text-white w-14">GRADE</th>
+                      </tr>
+                      <tr className="bg-slate-100 text-slate-800 font-semibold text-[10px] text-center border-b border-slate-300">
+                        {/* MARKS Super-column Sub-headers */}
+                        <th className="p-1.5 border-r border-slate-300">
+                          <span className="block font-bold">{examNames.ut1}</span>
+                          <span className="text-[9px] text-slate-500">PM: 20/50</span>
+                        </th>
+                        <th className="p-1.5 border-r border-slate-300">
+                          <span className="block font-bold">{examNames.term1}</span>
+                          <span className="text-[9px] text-slate-500">PM: 40/100</span>
+                        </th>
+                        <th className="p-1.5 border-r border-slate-300">
+                          <span className="block font-bold">{examNames.ut2}</span>
+                          <span className="text-[9px] text-slate-500">PM: 20/50</span>
+                        </th>
+                        <th className="p-1.5 border-r border-slate-300">
+                          <span className="block font-bold">{examNames.term2}</span>
+                          <span className="text-[9px] text-slate-500">PM: 40/100</span>
+                        </th>
+                        {/* PROMOTION CRITERIA Super-column Sub-headers */}
+                        <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                          <span className="block font-bold">20% Marks</span>
+                          <span className="text-[9px] text-slate-500">{examNames.ut1}</span>
+                        </th>
+                        <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                          <span className="block font-bold">30% Marks</span>
+                          <span className="text-[9px] text-slate-500">{examNames.term1}</span>
+                        </th>
+                        <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                          <span className="block font-bold">20% Marks</span>
+                          <span className="text-[9px] text-slate-500">{examNames.ut2}</span>
+                        </th>
+                        <th className="p-1.5 border-r border-slate-300 bg-emerald-50/60">
+                          <span className="block font-bold">30% Marks</span>
+                          <span className="text-[9px] text-slate-500">{examNames.term2}</span>
+                        </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {(() => {
-                        const examObj = selectedType === 'ut1' ? currentStudentItem.ut1 : selectedType === 'ut2' ? currentStudentItem.ut2 : selectedType === 'term1' ? currentStudentItem.term1 : currentStudentItem.term2;
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {(currentStudentItem.annual?.subjects || []).map((sub, idx) => (
+                        <tr key={sub.subject || idx} className="hover:bg-slate-50/80 transition">
+                          <td className="p-2 text-center font-bold text-slate-400 border-r border-slate-200">{sub.sl}</td>
+                          <td className="p-2 font-bold text-slate-900 border-r border-slate-200">{sub.subject}</td>
+                          {/* Raw Exam Scores */}
+                          <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.ut1Raw ? sub.ut1Raw : '—'}</td>
+                          <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.term1Raw ? sub.term1Raw : '—'}</td>
+                          <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.ut2Raw ? sub.ut2Raw : '—'}</td>
+                          <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.term2Raw ? sub.term2Raw : '—'}</td>
+                          {/* Weighted Points */}
+                          <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—'}</td>
+                          <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—'}</td>
+                          <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—'}</td>
+                          <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200 bg-emerald-50/30">{sub.term2Wt != null && sub.term2Wt !== '—' ? sub.term2Wt : '—'}</td>
+                          {/* Combined Marks & Grade */}
+                          <td className="p-2 text-center font-black text-emerald-800 border-r border-slate-200 bg-emerald-100/50 text-sm">
+                            {sub.finalScore}
+                          </td>
+                          <td className="p-2 text-center font-black text-indigo-700">
+                            {sub.grade}
+                          </td>
+                        </tr>
+                      ))}
 
-                        return (examObj?.subjects || []).map((sub, idx) => (
-                          <tr key={sub.subject || idx} className="hover:bg-emerald-50/30 transition">
-                            <td className="p-3 text-center font-bold text-slate-500">{idx + 1}</td>
-                            <td className="p-3 font-bold text-slate-900">{sub.subject}</td>
-                            {selectedType.startsWith('term') ? (
-                              <>
-                                <td className="p-3 text-center font-medium text-slate-700">{sub.theoryMax != null ? `${sub.marksObtained ?? 0} / ${sub.theoryMax}` : '—'}</td>
-                                <td className="p-3 text-center font-medium text-slate-700">{sub.practicalMax != null ? `${sub.practicalMarks ?? 0} / ${sub.practicalMax}` : '—'}</td>
-                                <td className="p-3 text-center font-black text-emerald-800">{sub.totalObtained ?? '—'}</td>
-                                <td className="p-3 text-center font-bold text-indigo-700">{sub.grade}</td>
-                                <td className="p-3 text-center text-slate-600 font-medium">{sub.remarks}</td>
-                              </>
-                            ) : (
-                              <>
-                                <td className="p-3 text-center font-medium text-slate-700">{sub.maxMarks}</td>
-                                <td className="p-3 text-center font-medium text-slate-700">{sub.passingMarks}</td>
-                                <td className="p-3 text-center font-black text-emerald-800">{sub.marksObtained ?? '—'}</td>
-                                <td className="p-3 text-center font-bold text-indigo-700">{sub.grade}</td>
-                                <td className="p-3 text-center text-slate-600 font-medium">{sub.remarks}</td>
-                              </>
-                            )}
-                          </tr>
-                        ));
-                      })()}
+                      {/* Summary Row 1: APPEARING SUBJECTS */}
+                      <tr className="bg-slate-50 font-bold text-slate-800 text-[11px] border-t-2 border-slate-300">
+                        <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">APPEARING SUBJECTS</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut1 ? (currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length) : '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1 ? (currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length) : '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2 ? (currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length) : '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2 ? (currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length) : '—'}</td>
+                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
+                        <td colSpan={2} className="p-2 text-center font-black text-emerald-800">
+                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length} Subs
+                        </td>
+                      </tr>
+
+                      {/* Summary Row 2: TOTAL */}
+                      <tr className="bg-slate-50 font-bold text-slate-900 text-[11px]">
+                        <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">TOTAL</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut1?.totalObtained ?? '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1?.totalObtained ?? '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2?.totalObtained ?? '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2?.totalObtained ?? '—'}</td>
+                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
+                        <td className="p-2 text-center border-r border-slate-200 font-black text-emerald-800 text-sm">
+                          {currentStudentItem.annual?.totalObtained || 0}
+                        </td>
+                        <td className="p-2 text-center font-bold text-slate-500 text-[10px]">
+                          / {currentStudentItem.annual?.totalMax || 0}
+                        </td>
+                      </tr>
+
+                      {/* Summary Row 3: PERCENTAGE */}
+                      <tr className="bg-white font-bold text-slate-900 text-[11px]">
+                        <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">PERCENTAGE</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut1 ? `${currentStudentItem.ut1.percentage}%` : '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1 ? `${currentStudentItem.term1.percentage}%` : '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2 ? `${currentStudentItem.ut2.percentage}%` : '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2 ? `${currentStudentItem.term2.percentage}%` : '—'}</td>
+                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
+                        <td colSpan={2} className="p-2 text-center font-black text-emerald-800 text-sm">
+                          {currentStudentItem.annual?.percentage || 0}%
+                        </td>
+                      </tr>
+
+                      {/* Summary Row 4: RANK */}
+                      <tr className="bg-slate-50 font-bold text-slate-900 text-[11px]">
+                        <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">RANK</td>
+                        <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.ut1?.rank || 1}</td>
+                        <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.term1?.rank || 1}</td>
+                        <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.ut2?.rank || 1}</td>
+                        <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.term2?.rank || 1}</td>
+                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
+                        <td colSpan={2} className="p-2 text-center font-black text-indigo-700 text-sm">
+                          #{currentStudentItem.annual?.rank || 1}
+                        </td>
+                      </tr>
+
+                      {/* Summary Row 5: RESULT / PROMOTION */}
+                      <tr className="bg-emerald-50/70 font-black text-slate-900 text-[11px]">
+                        <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase text-emerald-950">RESULT</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut1?.status || '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1?.status || '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2?.status || '—'}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2?.status || '—'}</td>
+                        <td colSpan={4} className="p-2 border-r border-slate-200 text-center font-bold text-emerald-900 bg-emerald-100/60 uppercase">
+                          ANNUAL PROMOTION
+                        </td>
+                        <td colSpan={2} className="p-2 text-center font-black text-emerald-900 text-xs bg-emerald-100/80">
+                          {currentStudentItem.annual?.promotion}
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
+              ) : (
+                /* Single Exam Subject Table */
+                <div className="border border-slate-300 rounded-2xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-800 text-white font-bold text-center text-[11px]">
+                        <th className="p-2.5 border-r border-slate-700 w-12">SL</th>
+                        <th className="p-2.5 border-r border-slate-700 text-left min-w-[180px]">SUBJECT</th>
+                        <th className="p-2.5 border-r border-slate-700 w-24">MAX MARKS</th>
+                        <th className="p-2.5 border-r border-slate-700 w-24">PASS MARKS</th>
+                        <th className="p-2.5 border-r border-slate-700 w-28 bg-slate-900 text-emerald-300 font-black">MARKS OBTAINED</th>
+                        <th className="p-2.5 border-r border-slate-700 w-24">PERCENTAGE</th>
+                        <th className="p-2.5 border-r border-slate-700 w-20">GRADE</th>
+                        <th className="p-2.5 w-28">REMARKS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {(currentStudentItem[selectedType]?.subjects || []).map((sub, idx) => (
+                        <tr key={sub.subject || idx} className="hover:bg-slate-50/80 transition">
+                          <td className="p-2.5 text-center font-bold text-slate-400 border-r border-slate-200">{idx + 1}</td>
+                          <td className="p-2.5 font-bold text-slate-900 border-r border-slate-200">{sub.subject}</td>
+                          <td className="p-2.5 text-center font-semibold text-slate-600 border-r border-slate-200">{sub.maxMarks}</td>
+                          <td className="p-2.5 text-center font-semibold text-slate-600 border-r border-slate-200">{sub.passingMarks}</td>
+                          <td className="p-2.5 text-center font-black text-emerald-800 border-r border-slate-200 bg-emerald-50/50 text-sm">
+                            {sub.totalObtained != null ? sub.totalObtained : '—'}
+                          </td>
+                          <td className="p-2.5 text-center font-bold text-slate-700 border-r border-slate-200">
+                            {sub.percentage !== '—' ? `${sub.percentage}%` : '—'}
+                          </td>
+                          <td className="p-2.5 text-center font-black text-indigo-700 border-r border-slate-200">{sub.grade}</td>
+                          <td className="p-2.5 text-center font-semibold text-xs">
+                            <span className={`px-2 py-0.5 rounded-full ${sub.remarks === 'Pass' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {sub.remarks}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
 
-                {/* Performance Result Summary Card */}
-                {(() => {
-                  const summaryData = selectedType === 'ut1' ? currentStudentItem.ut1 : selectedType === 'ut2' ? currentStudentItem.ut2 : selectedType === 'term1' ? currentStudentItem.term1 : currentStudentItem.term2;
+                      {/* Single Exam Summary Rows */}
+                      <tr className="bg-slate-50 font-bold text-slate-900 text-[11px] border-t-2 border-slate-300">
+                        <td colSpan={2} className="p-2.5 pl-3 border-r border-slate-200 text-left uppercase">TOTAL</td>
+                        <td className="p-2.5 text-center border-r border-slate-200 text-slate-500 font-bold">{currentStudentItem[selectedType]?.totalMax || 0}</td>
+                        <td className="p-2.5 text-center border-r border-slate-200 text-slate-400">—</td>
+                        <td className="p-2.5 text-center border-r border-slate-200 font-black text-emerald-800 text-sm bg-emerald-100/60">
+                          {currentStudentItem[selectedType]?.totalObtained || 0}
+                        </td>
+                        <td className="p-2.5 text-center border-r border-slate-200 font-black text-slate-800">
+                          {currentStudentItem[selectedType]?.percentage || 0}%
+                        </td>
+                        <td className="p-2.5 text-center border-r border-slate-200 font-black text-indigo-700">
+                          {currentStudentItem[selectedType]?.overallGrade || '—'}
+                        </td>
+                        <td className="p-2.5 text-center font-black text-emerald-800">
+                          {currentStudentItem[selectedType]?.status || '—'}
+                        </td>
+                      </tr>
+                      <tr className="bg-white font-bold text-slate-900 text-[11px]">
+                        <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">CLASS RANK</td>
+                        <td colSpan={6} className="p-2 pl-4 text-left font-black text-indigo-700">
+                          Rank #{currentStudentItem[selectedType]?.rank || 1} in Class {selectedClass}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
-                  return (
-                    <div className="bg-emerald-50/70 p-5 rounded-2xl border border-emerald-200 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                      <div>
-                        <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Total Marks</span>
-                        <span className="text-lg font-black text-emerald-950">{summaryData?.totalObtained || 0} / {summaryData?.totalMax || 0}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Percentage</span>
-                        <span className="text-lg font-black text-emerald-950">{summaryData?.percentage || 0}%</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Overall Grade</span>
-                        <span className="text-lg font-black text-indigo-800">{summaryData?.overallGrade || '—'}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Class Rank</span>
-                        <span className="text-lg font-black text-emerald-950">#{summaryData?.rank || 1}</span>
-                      </div>
-
-                      <div className="col-span-2 sm:col-span-4 pt-3 border-t border-emerald-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-                        <span className="font-bold text-slate-700">
-                          Result: <span className="font-extrabold text-emerald-800">{summaryData?.status || 'PASSED'}</span>
-                        </span>
-                        <span className="text-slate-600 font-medium">
-                          Attendance Record: <strong>95%</strong>
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Signatures */}
-                <div className="pt-8 border-t border-slate-200 grid grid-cols-3 gap-4 text-center text-xs font-bold text-slate-800">
-                  <div>
-                    <div className="h-10" />
-                    <div className="border-t border-slate-300 pt-1">Class Teacher</div>
+              {/* 4 & 5. Remarks Section */}
+              {selectedType === 'annual' ? (
+                <>
+                  <div className="text-center pt-1">
+                    <span className="text-xs font-black text-red-600 tracking-wider uppercase">
+                      REMARKS
+                    </span>
                   </div>
-                  <div>
-                    <div className="h-10 flex items-center justify-center">
-                      <span className="w-12 h-12 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-[8px] text-slate-400 font-bold uppercase">
-                        Seal
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="border border-slate-300 rounded-xl p-3 bg-slate-50/70">
+                      <span className="block text-[10px] font-bold text-slate-700 uppercase border-b border-slate-200 pb-1 mb-1">
+                        {examNames.ut1}
                       </span>
+                      <p className="text-[11px] italic text-slate-600 font-medium min-h-[38px]">
+                        "{currentStudentItem.annual?.examRemarks?.ut1 || 'Good effort.'}"
+                      </p>
                     </div>
-                    <div className="border-t border-slate-300 pt-1">Exam Controller</div>
+                    <div className="border border-slate-300 rounded-xl p-3 bg-slate-50/70">
+                      <span className="block text-[10px] font-bold text-slate-700 uppercase border-b border-slate-200 pb-1 mb-1">
+                        {examNames.term1}
+                      </span>
+                      <p className="text-[11px] italic text-slate-600 font-medium min-h-[38px]">
+                        "{currentStudentItem.annual?.examRemarks?.term1 || 'Satisfactory progress.'}"
+                      </p>
+                    </div>
+                    <div className="border border-slate-300 rounded-xl p-3 bg-slate-50/70">
+                      <span className="block text-[10px] font-bold text-slate-700 uppercase border-b border-slate-200 pb-1 mb-1">
+                        {examNames.ut2}
+                      </span>
+                      <p className="text-[11px] italic text-slate-600 font-medium min-h-[38px]">
+                        "{currentStudentItem.annual?.examRemarks?.ut2 || 'Steady improvement.'}"
+                      </p>
+                    </div>
+                    <div className="border border-slate-300 rounded-xl p-3 bg-slate-50/70">
+                      <span className="block text-[10px] font-bold text-slate-700 uppercase border-b border-slate-200 pb-1 mb-1">
+                        {examNames.term2}
+                      </span>
+                      <p className="text-[11px] italic text-slate-600 font-medium min-h-[38px]">
+                        "{activeStudentRemark}"
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <div className="h-10" />
-                    <div className="border-t border-slate-300 pt-1">Principal</div>
+                </>
+              ) : (
+                <div className="border border-slate-300 rounded-xl p-3 bg-slate-50/70">
+                  <span className="block text-[10px] font-bold text-slate-700 uppercase border-b border-slate-200 pb-1 mb-1">
+                    TEACHER REMARK ({marksheetMeta.title})
+                  </span>
+                  <p className="text-[12px] italic text-slate-700 font-medium">
+                    "{currentStudentItem.annual?.examRemarks?.[selectedType] || activeStudentRemark}"
+                  </p>
+                </div>
+              )}
+
+              {/* 6. Co-Scholastic GRADING SUBJECTS Table + Signatures & Barcode */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 pt-2 items-start">
+                
+                {/* Left: GRADING SUBJECTS TABLE (if configured) */}
+                {(currentStudentItem.annual?.gradingSubjects || []).length > 0 ? (
+                  <div className="md:col-span-6 border border-slate-300 rounded-2xl overflow-hidden shadow-sm bg-white">
+                    <div className="bg-slate-200 text-slate-900 font-bold text-[11px] uppercase tracking-wider text-center py-1.5 border-b border-slate-300">
+                      GRADING SUBJECTS
+                    </div>
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 font-bold text-slate-700 text-[10px] text-center border-b border-slate-300">
+                          <th className="p-1.5 border-r border-slate-300 text-left pl-3">SUBJECTS</th>
+                          {selectedType === 'annual' ? (
+                            <>
+                              <th className="p-1.5 border-r border-slate-300 w-28">HALF-YEARLY</th>
+                              <th className="p-1.5 w-28">ANNUAL</th>
+                            </>
+                          ) : (
+                            <th className="p-1.5 w-40">EVALUATION / RATING</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 text-[11px]">
+                        {(currentStudentItem.annual?.gradingSubjects || []).map((gs, gIdx) => (
+                          <tr key={gIdx} className="hover:bg-slate-50">
+                            <td className="p-1.5 pl-3 font-semibold text-slate-800 border-r border-slate-200">{gs.subject}</td>
+                            {selectedType === 'annual' ? (
+                              <>
+                                <td className="p-1.5 text-center font-bold text-slate-700 border-r border-slate-200">{gs.halfYearly || 'GOOD'}</td>
+                                <td className="p-1.5 text-center font-black text-emerald-800">{gs.annual || 'GOOD'}</td>
+                              </>
+                            ) : (
+                              <td className="p-1.5 text-center font-black text-emerald-800">
+                                {selectedType.startsWith('term2') || selectedType === 'ut2' ? (gs.annual || 'GOOD') : (gs.halfYearly || 'GOOD')}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="p-2.5 border-t border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-700">
+                      CLASS TEACHER NAME: <span className="font-normal underline ml-1">....................................................</span>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Right: PRINCIPAL SIGNATURE + BARCODE */}
+                <div className={`${(currentStudentItem.annual?.gradingSubjects || []).length > 0 ? 'md:col-span-6' : 'md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4'} space-y-4 flex flex-col justify-between h-full`}>
+                  <div className="border border-slate-300 rounded-2xl p-4 bg-slate-50 flex items-center justify-center min-h-[95px] text-center">
+                    <div>
+                      <span className="text-xs font-black text-slate-800 tracking-wider uppercase block">PRINCIPAL SIGNATURE</span>
+                      <span className="text-[10px] text-slate-400 font-medium">(Verified & Digitally Approved)</span>
+                    </div>
+                  </div>
+
+                  <div className="border border-amber-300/80 bg-amber-50/60 rounded-2xl p-3 flex flex-col items-center justify-center shadow-sm">
+                    <BarcodeSVG code={`${currentStudentItem.student.admission_id || currentStudentItem.student.admissionId || 'HNSS'}-${currentStudentItem.student.roll_number || '01'}`} />
                   </div>
                 </div>
-
               </div>
-            )
+
+              {/* 7. Bottom Digital Declaration Banner */}
+              <div className="p-2.5 rounded-xl border border-red-300 bg-red-50/50 text-center">
+                <p className="text-[11px] font-serif italic text-amber-950 font-semibold tracking-wide">
+                  This is a Digitally signed document and does not require any Physical Signature
+                </p>
+              </div>
+
+            </div>
           )}
         </div>
       )}

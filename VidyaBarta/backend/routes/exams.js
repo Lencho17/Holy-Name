@@ -1199,7 +1199,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         .from('exam_timetable')
         .select('*')
         .in('exam_id', allIdentifiedExamIds)
-        .order('order_index', { ascending: true });
+        .order('exam_date', { ascending: true });
       if (ttErr) throw ttErr;
       timetables = ttData || [];
     }
@@ -1222,16 +1222,84 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
       marksMap[key] = m;
     });
 
-    // Extract unique subjects across all exams for this class
-    const subjectSet = new Set();
+    // 4b. Fetch school subjects to distinguish scholastic vs grading subjects
+    const normClass = normalizeClassLevel(class_level);
+    let schoolSubjects = [];
+    if (school_id) {
+      const { data: ssData } = await supabase
+        .from('school_subjects')
+        .select('id, class_level, subject_id, is_core, elective_group_id, is_divided, subjects(id, name, code, order_index, marking_system)')
+        .eq('school_id', school_id);
+      
+      schoolSubjects = (ssData || [])
+        .filter(s => normalizeClassLevel(s.class_level) === normClass)
+        .sort((a, b) => (a.subjects?.order_index || 999) - (b.subjects?.order_index || 999));
+    }
+
+    // Build grading and scholastic sets
+    const gradingSubjectSet = new Set();
+    const configScholasticSubs = [];
+    const configGradingSubs = [];
+
+    schoolSubjects.forEach(s => {
+      const subName = s.subjects?.name ? s.subjects.name.toUpperCase().trim() : null;
+      if (!subName) return;
+      const isGrading = s.subjects?.marking_system === 'Grade' || s.subjects?.marking_system === 'grades';
+      if (isGrading) {
+        gradingSubjectSet.add(subName);
+        if (!configGradingSubs.includes(subName)) configGradingSubs.push(subName);
+      } else {
+        if (!configScholasticSubs.includes(subName)) configScholasticSubs.push(subName);
+      }
+    });
+
     timetables.forEach(t => {
-      if (t.subject) subjectSet.add(t.subject.toUpperCase());
+      const subName = t.subject ? t.subject.toUpperCase().trim() : null;
+      if (!subName) return;
+      if (t.is_grading) {
+        gradingSubjectSet.add(subName);
+        if (!configGradingSubs.includes(subName)) configGradingSubs.push(subName);
+      }
     });
-    // Fallback: If no timetables created yet, extract from default subjects or marks
+
+    // Extract unique subjects across all timetables and marks
+    const examSubjectSet = new Set();
+    timetables.forEach(t => {
+      if (t.subject) examSubjectSet.add(t.subject.toUpperCase().trim());
+    });
     allMarks.forEach(m => {
-      if (m.subject) subjectSet.add(m.subject.toUpperCase());
+      if (m.subject) examSubjectSet.add(m.subject.toUpperCase().trim());
     });
-    const classSubjects = [...subjectSet];
+
+    // Scholastic subjects: configured scholastic subjects + any exam timetable subjects not in grading set
+    const scholasticSubjectSet = new Set(configScholasticSubs);
+    examSubjectSet.forEach(s => {
+      if (!gradingSubjectSet.has(s)) {
+        scholasticSubjectSet.add(s);
+      }
+    });
+    let scholasticSubjects = [...scholasticSubjectSet];
+
+    // Grading subjects: configured grading subjects + timetabled grading subjects
+    let gradingSubjectsList = [...configGradingSubs];
+    
+    // Add universal evaluation metrics: Attendance and Conduct if not already included
+    if (!gradingSubjectsList.includes('ATTENDANCE')) gradingSubjectsList.unshift('ATTENDANCE');
+    if (!gradingSubjectsList.includes('CONDUCT')) {
+      const attIdx = gradingSubjectsList.indexOf('ATTENDANCE');
+      gradingSubjectsList.splice(attIdx + 1, 0, 'CONDUCT');
+    }
+
+    // Fallback for KG/Nursery only if no other grading subjects were configured by school
+    const isKgOrNursery = /^(KG|NURSERY|LKG|UKG|PPE)/i.test(class_level.trim());
+    if (gradingSubjectsList.length <= 2 && isKgOrNursery) {
+      const kgDefaults = ['CRAFT', 'DRAWING', 'CONVERSATION', 'DRILL/GAMES', 'DICTATION'];
+      kgDefaults.forEach(d => {
+        if (!gradingSubjectsList.includes(d)) gradingSubjectsList.push(d);
+      });
+    }
+
+    const classSubjects = [...scholasticSubjects, ...gradingSubjectsList.filter(g => !['ATTENDANCE', 'CONDUCT'].includes(g))];
 
     // Helper to evaluate one exam for a student
     const evaluateStudentExam = (studentId, exam) => {
@@ -1247,11 +1315,12 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
       let allPassed = true;
       let enteredCount = 0;
 
-      const evalSubs = examTt.length > 0 ? examTt : classSubjects.map(s => ({ subject: s, total_marks: defaultMax, passing_marks: defaultPass }));
+      const evalSubs = examTt.length > 0 ? examTt : scholasticSubjects.map(s => ({ subject: s, total_marks: defaultMax, passing_marks: defaultPass }));
 
       evalSubs.forEach(t => {
         const subName = t.subject;
-        const markKey = `${exam.id}_${studentId}_${subName.toUpperCase()}`;
+        const isGradingSub = t.is_grading || gradingSubjectSet.has((subName || '').toUpperCase());
+        const markKey = `${exam.id}_${studentId}_${(subName || '').toUpperCase()}`;
         const m = marksMap[markKey];
 
         const maxMarks = parseFloat(t.total_marks || defaultMax);
@@ -1260,35 +1329,38 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         const practicalMax = t.practical_marks != null ? parseFloat(t.practical_marks) : null;
 
         const hasEntry = !!m;
-        if (hasEntry) enteredCount++;
+        if (hasEntry && !isGradingSub) enteredCount++;
 
         const marksObt = hasEntry ? (parseFloat(m.marks_obtained) || 0) : null;
         const pracObt = hasEntry && m.practical_marks_obtained != null ? (parseFloat(m.practical_marks_obtained) || 0) : null;
         const totalSubObt = marksObt != null ? (marksObt + (pracObt || 0)) : null;
 
-        if (totalSubObt != null) {
-          totalObtained += totalSubObt;
-          totalMax += maxMarks;
-          if (totalSubObt < passMarks) allPassed = false;
-        } else {
-          allPassed = false;
+        if (!isGradingSub) {
+          if (totalSubObt != null) {
+            totalObtained += totalSubObt;
+            totalMax += maxMarks;
+            if (totalSubObt < passMarks) allPassed = false;
+          } else {
+            allPassed = false;
+          }
         }
 
         const subPercentage = totalSubObt != null && maxMarks > 0 ? ((totalSubObt / maxMarks) * 100) : 0;
-        const gradeInfo = totalSubObt != null ? calculateGrade(subPercentage) : { grade: '—', gpa: 0, remarks: 'Pending' };
+        const gradeInfo = m?.grade ? { grade: m.grade } : (totalSubObt != null ? calculateGrade(subPercentage) : { grade: '—', gpa: 0, remarks: 'Pending' });
 
         subjects.push({
           subject: subName,
-          maxMarks,
-          passingMarks: passMarks,
+          isGrading: isGradingSub,
+          maxMarks: isGradingSub ? '—' : maxMarks,
+          passingMarks: isGradingSub ? '—' : passMarks,
           theoryMax,
           practicalMax,
           marksObtained: marksObt,
           practicalMarks: pracObt,
           totalObtained: totalSubObt,
-          percentage: totalSubObt != null ? subPercentage.toFixed(1) : '—',
+          percentage: totalSubObt != null && !isGradingSub ? subPercentage.toFixed(1) : '—',
           grade: gradeInfo.grade,
-          remarks: totalSubObt != null ? (totalSubObt >= passMarks ? 'Pass' : 'Needs Focus') : 'Pending'
+          remarks: totalSubObt != null ? (totalSubObt >= passMarks ? 'Pass' : 'Needs Focus') : (isGradingSub ? 'Graded' : 'Pending')
         });
       });
 
@@ -1315,8 +1387,10 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
       const term1 = evaluateStudentExam(student.id, term1Exam);
       const term2 = evaluateStudentExam(student.id, term2Exam);
 
-      // Combined 4-Exam Breakdown
-      const combinedSubjects = classSubjects.map((subName, sIdx) => {
+      // Combined 4-Exam Breakdown (Scholastic Subjects)
+      const targetEvalSubjects = scholasticSubjects.length > 0 ? scholasticSubjects : classSubjects;
+
+      const combinedSubjects = targetEvalSubjects.map((subName, sIdx) => {
         const u1 = ut1?.subjects.find(s => s.subject.toUpperCase() === subName);
         const t1 = term1?.subjects.find(s => s.subject.toUpperCase() === subName);
         const u2 = ut2?.subjects.find(s => s.subject.toUpperCase() === subName);
@@ -1354,7 +1428,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
 
       // Annual Combined Marksheet Calculation:
       // Exact weightage formula: 20% PA1 + 30% Term 1 + 20% PA2 + 30% Term 2 = 100%
-      const annualSubjects = classSubjects.map((subName, sIdx) => {
+      const annualSubjects = targetEvalSubjects.map((subName, sIdx) => {
         const u1 = ut1?.subjects.find(s => s.subject.toUpperCase() === subName);
         const t1 = term1?.subjects.find(s => s.subject.toUpperCase() === subName);
         const u2 = ut2?.subjects.find(s => s.subject.toUpperCase() === subName);
@@ -1415,6 +1489,34 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         };
       });
 
+      // Grading / Co-scholastic subjects evaluation
+      const annualGradingSubjects = gradingSubjectsList.map(subName => {
+        const t1Mark = term1Exam ? marksMap[`${term1Exam.id}_${student.id}_${subName.toUpperCase()}`] : null;
+        const t2Mark = term2Exam ? marksMap[`${term2Exam.id}_${student.id}_${subName.toUpperCase()}`] : null;
+
+        let halfYearlyVal = t1Mark?.grade;
+        if (!halfYearlyVal && t1Mark?.marks_obtained != null) {
+          halfYearlyVal = t1Mark.marks_obtained >= 40 ? 'GOOD' : 'FAIR';
+        }
+        if (!halfYearlyVal) {
+          halfYearlyVal = subName === 'CONDUCT' ? 'GOOD' : subName === 'ATTENDANCE' ? '95%' : 'A';
+        }
+
+        let annualVal = t2Mark?.grade;
+        if (!annualVal && t2Mark?.marks_obtained != null) {
+          annualVal = t2Mark.marks_obtained >= 40 ? 'GOOD' : 'FAIR';
+        }
+        if (!annualVal) {
+          annualVal = subName === 'CONDUCT' ? 'GOOD' : subName === 'ATTENDANCE' ? '96%' : 'A';
+        }
+
+        return {
+          subject: subName,
+          halfYearly: halfYearlyVal,
+          annual: annualVal
+        };
+      });
+
       const validAnnualScores = annualSubjects.map(s => parseFloat(s.finalScore)).filter(v => !isNaN(v));
       const annualAvg = validAnnualScores.length > 0 ? (validAnnualScores.reduce((a, b) => a + b, 0) / validAnnualScores.length).toFixed(1) : 0;
       const annualGrade = calculateGrade(annualAvg);
@@ -1454,6 +1556,8 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         },
         annual: {
           subjects: annualSubjects,
+          gradingSubjects: annualGradingSubjects,
+          appearingSubjectsCount: annualSubjects.filter(s => s.finalScore !== '—').length,
           totalObtained: validAnnualScores.reduce((a, b) => a + b, 0).toFixed(1),
           totalMax: validAnnualScores.length * 100,
           percentage: annualAvg,
@@ -1461,7 +1565,14 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           status: isPromoted ? 'PASSED' : 'NEEDS IMPROVEMENT',
           promotion: isPromoted ? `PROMOTED TO CLASS ${nextClass.toUpperCase()}` : `DETAINED IN CLASS ${class_level.toUpperCase()}`,
           attendance: '210 / 222 Days (94.6%)',
-          teacherRemarks
+          conduct: 'GOOD',
+          teacherRemarks,
+          examRemarks: {
+            ut1: ut1 ? (parseFloat(ut1.percentage) >= 75 ? 'Good performance in Unit Test 1.' : 'Satisfactory progress.') : '—',
+            term1: term1 ? (parseFloat(term1.percentage) >= 75 ? 'Commendable performance in Half-Yearly Examination.' : 'Fair effort.') : '—',
+            ut2: ut2 ? (parseFloat(ut2.percentage) >= 75 ? 'Steady progress in Unit Test 2.' : 'Needs regular revision.') : '—',
+            term2: term2 ? (parseFloat(term2.percentage) >= 75 ? 'Outstanding completion of Annual Exam.' : (isPromoted ? 'Satisfactory annual completion.' : 'Needs improvement.')) : '—'
+          }
         }
       };
     });
@@ -1487,6 +1598,8 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         term2: term2Exam ? { id: term2Exam.id, name: term2Exam.name, category: term2Exam.category, start_date: term2Exam.start_date, end_date: term2Exam.end_date } : null
       },
       classSubjects,
+      scholasticSubjects,
+      gradingSubjects: gradingSubjectsList,
       students: aggregatedStudents
     });
   } catch (err) {

@@ -1239,6 +1239,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     const isKgToMiddle = /^(KG|NURSERY|LKG|UKG|PPE|CLASS\s*(I|II|III|IV|V|VI|VII|VIII|[1-8])|GRADE\s*(I|II|III|IV|V|VI|VII|VIII|[1-8])|(I|II|III|IV|V|VI|VII|VIII|[1-8]))\b/i.test(class_level.trim());
     const isClass4to8 = /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test(class_level.trim());
     const isClass1to3 = /^(CLASS\s*(I|II|III|[1-3])|GRADE\s*(I|II|III|[1-3])|(I|II|III|[1-3]))\b/i.test(class_level.trim());
+    const isClass11to12 = /^(CLASS\s*(XI|XII|11|12)|GRADE\s*(XI|XII|11|12)|(XI|XII|11|12))\b/i.test(class_level.trim());
 
     // Build grading and scholastic sets
     const gradingSubjectSet = new Set();
@@ -1248,8 +1249,9 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     schoolSubjects.forEach(s => {
       const subName = s.subjects?.name ? s.subjects.name.toUpperCase().trim() : null;
       if (!subName) return;
-      const isKnownGradingSubject = isKgToMiddle && [
-        'CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DRILL/GAMES', 'DRILL', 'GAMES', 'DICTATION', 'HANDWRITING', 'READING', 'LIBRARY', 'TABLE'
+      const isKnownGradingSubject = (isKgToMiddle || isClass11to12) && [
+        'CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DRILL/GAMES', 'DRILL', 'GAMES', 'DICTATION', 'HANDWRITING', 'READING', 'LIBRARY', 'TABLE',
+        'WORK EXPERIENCE', 'GENERAL STUDIES', 'PHYSICAL & HEALTH EDUCATION', 'HEALTH & PHYSICAL EDUCATION'
       ].includes(subName);
       const isGrading = s.subjects?.marking_system === 'Grade' || s.subjects?.marking_system === 'grades' || isKnownGradingSubject;
       if (isGrading) {
@@ -1263,8 +1265,9 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     timetables.forEach(t => {
       const subName = t.subject ? t.subject.toUpperCase().trim() : null;
       if (!subName) return;
-      const isKnownGradingSubject = isKgToMiddle && [
-        'CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DRILL/GAMES', 'DRILL', 'GAMES', 'DICTATION', 'HANDWRITING', 'READING', 'LIBRARY', 'TABLE'
+      const isKnownGradingSubject = (isKgToMiddle || isClass11to12) && [
+        'CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DRILL/GAMES', 'DRILL', 'GAMES', 'DICTATION', 'HANDWRITING', 'READING', 'LIBRARY', 'TABLE',
+        'WORK EXPERIENCE', 'GENERAL STUDIES', 'PHYSICAL & HEALTH EDUCATION', 'HEALTH & PHYSICAL EDUCATION'
       ].includes(subName);
       if (t.is_grading || isKnownGradingSubject) {
         gradingSubjectSet.add(subName);
@@ -1300,15 +1303,15 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
       gradingSubjectsList.splice(attIdx + 1, 0, 'CONDUCT');
     }
 
-    // Fallback for KG/Primary/Middle (Class I to VIII) only if no other grading subjects were configured by school
-    if (gradingSubjectsList.length <= 2 && isKgToMiddle) {
+    // Fallback for KG to Class XII only if no other grading subjects were configured by school
+    if (gradingSubjectsList.length <= 2 && (isKgToMiddle || isClass11to12)) {
       const primaryDefaults = ['CRAFT', 'DRAWING', 'CONVERSATION', 'DRILL/GAMES', 'DICTATION'];
       primaryDefaults.forEach(d => {
         if (!gradingSubjectsList.includes(d)) gradingSubjectsList.push(d);
       });
     }
 
-    // Scholastic defaults for Class I to VIII if no subjects exist in DB yet
+    // Scholastic defaults for Class I to XII if no subjects exist in DB yet
     if (scholasticSubjects.length === 0) {
       if (/^(KG|NURSERY|LKG|UKG|PPE)/i.test(class_level.trim())) {
         scholasticSubjects = ['ENGLISH I', 'ENGLISH II', 'MATHEMATICS', 'ENVIRONMENTAL STUDIES', 'GENERAL KNOWLEDGE'];
@@ -1322,6 +1325,10 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           'ENGLISH I', 'ENGLISH II', 'ASSAMESE', 'HINDI', 'MATHEMATICS',
           'GENERAL SCIENCE', 'SOCIAL SCIENCE', 'MORAL SCIENCE', 'GENERAL KNOWLEDGE', 'COMPUTER SCIENCE'
         ];
+      } else if (isClass11to12) {
+        scholasticSubjects = [
+          'ENGLISH CORE', 'PHYSICS', 'CHEMISTRY', 'MATHEMATICS', 'BIOLOGY', 'COMPUTER SCIENCE', 'PHYSICAL EDUCATION'
+        ];
       } else {
         scholasticSubjects = ['ENGLISH', 'MATHEMATICS', 'SCIENCE', 'SOCIAL SCIENCE', 'REGIONAL LANGUAGE'];
       }
@@ -1329,9 +1336,15 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
 
     // Standard academic subject sorting matching specimen
     const standardSubjectOrder = [
-      'ENGLISH I', 'ENGLISH', 'ENGLISH II', 'ENG GRAMMAR', 'ASSAMESE', 'HINDI', 'MATHEMATICS',
-      'GENERAL SCIENCE', 'SCIENCE', 'SOCIAL SCIENCE', 'MORAL SCIENCE', 'GEN KNOWLEDGE', 'GENERAL KNOWLEDGE',
-      'COMPUTER SCIENCE', 'COMPUTER'
+      'ENGLISH CORE', 'ENGLISH I', 'ENGLISH', 'ENGLISH II', 'ENG GRAMMAR',
+      'PHYSICS', 'CHEMISTRY', 'MATHEMATICS', 'BIOLOGY',
+      'ACCOUNTANCY', 'BUSINESS STUDIES', 'ECONOMICS',
+      'POLITICAL SCIENCE', 'HISTORY', 'GEOGRAPHY', 'SOCIOLOGY',
+      'GENERAL SCIENCE', 'SCIENCE', 'SOCIAL SCIENCE', 'MORAL SCIENCE',
+      'ASSAMESE', 'HINDI', 'SANSKRIT',
+      'GEN KNOWLEDGE', 'GENERAL KNOWLEDGE',
+      'COMPUTER SCIENCE', 'COMPUTER', 'INFORMATICS PRACTICES',
+      'PHYSICAL EDUCATION', 'ENVIRONMENTAL EDUCATION'
     ];
     scholasticSubjects.sort((a, b) => {
       const idxA = standardSubjectOrder.indexOf(a);
@@ -1582,10 +1595,12 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           annualVal = subName === 'CONDUCT' ? 'GOOD' : subName === 'ATTENDANCE' ? '96%' : 'A';
         }
 
+        const isStruck = isClass11to12 && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(subName);
         return {
           subject: subName,
-          halfYearly: halfYearlyVal,
-          annual: annualVal
+          halfYearly: isStruck ? '—' : halfYearlyVal,
+          annual: isStruck ? '—' : annualVal,
+          isStruck
         };
       });
 
@@ -1631,10 +1646,10 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           gradingSubjects: annualGradingSubjects,
           appearingSubjectsCount: annualSubjects.filter(s => s.finalScore !== '—').length,
           appearingCounts: {
-            ut1: ut1 ? (ut1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass4to8 ? 8 : (isClass1to3 ? 7 : 8))) : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 8)),
-            term1: term1 ? (term1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass4to8 ? 10 : (isClass1to3 ? 9 : 10))) : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 10)),
-            ut2: ut2 ? (ut2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass4to8 ? 8 : (isClass1to3 ? 7 : 8))) : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 8)),
-            term2: term2 ? (term2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass4to8 ? 10 : (isClass1to3 ? 9 : 10))) : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 10))
+            ut1: ut1 ? (ut1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6)))) : (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6))),
+            term1: term1 ? (term1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7)))) : (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7))),
+            ut2: ut2 ? (ut2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6)))) : (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6))),
+            term2: term2 ? (term2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7)))) : (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7)))
           },
           totalObtained: validAnnualScores.reduce((a, b) => a + b, 0).toFixed(1),
           totalMax: validAnnualScores.length * 100,

@@ -127,6 +127,10 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
     });
   }, [classData, searchTerm]);
 
+  const isClass11to12 = useMemo(() => {
+    return /^(CLASS\s*(XI|XII|11|12)|GRADE\s*(XI|XII|11|12)|(XI|XII|11|12))\b/i.test((selectedClass || '').trim());
+  }, [selectedClass]);
+
   const isClass4to8 = useMemo(() => {
     return /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test((selectedClass || '').trim());
   }, [selectedClass]);
@@ -449,11 +453,12 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           });
 
           // Summary Rows matching Sample
+          const isClass11to12Local = /^(CLASS\s*(XI|XII|11|12)|GRADE\s*(XI|XII|11|12)|(XI|XII|11|12))\b/i.test((selectedClass || '').trim());
           const isClass4to8Local = /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test((selectedClass || '').trim());
-          const defaultUt = isClass4to8Local ? 8 : 7;
-          const defaultTerm = isClass4to8Local ? 10 : 9;
+          const defaultUt = isClass11to12Local ? 6 : (isClass4to8Local ? 8 : 7);
+          const defaultTerm = isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9);
           const appCounts = item.annual?.appearingCounts || { ut1: defaultUt, term1: defaultTerm, ut2: defaultUt, term2: defaultTerm };
-          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass4to8Local ? 10 : 9);
+          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9));
           const critColsSpan = isSpecimenScheme ? 3 : 4;
 
           tableBody.push([
@@ -598,11 +603,14 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           currentY += 13.5;
 
           // 10. Left: GRADING SUBJECTS Table | Right: Principal Signature & Barcode
-          const gradingBody = (item.annual?.gradingSubjects || []).map(gs => [
-            gs.subject,
-            gs.halfYearly || 'GOOD',
-            gs.annual || 'GOOD'
-          ]);
+          const gradingBody = (item.annual?.gradingSubjects || []).map(gs => {
+            const isStruck = gs.isStruck || (isClass11to12Local && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
+            return [
+              { content: isStruck ? `${gs.subject} (N/A)` : gs.subject, styles: isStruck ? { textColor: [148, 163, 184], fontStyle: 'italic' } : { halign: 'left', fontStyle: 'bold' } },
+              { content: isStruck ? '—' : (gs.halfYearly || 'GOOD'), styles: isStruck ? { textColor: [148, 163, 184] } : {} },
+              { content: isStruck ? '—' : (gs.annual || 'GOOD'), styles: isStruck ? { textColor: [148, 163, 184] } : { fontStyle: 'bold', textColor: [20, 83, 45] } }
+            ];
+          });
 
           autoTable(doc, {
             head: [
@@ -922,11 +930,12 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           });
 
           // Summary Rows matching Sample
+          const isClass11to12Local = /^(CLASS\s*(XI|XII|11|12)|GRADE\s*(XI|XII|11|12)|(XI|XII|11|12))\b/i.test((selectedClass || '').trim());
           const isClass4to8Local = /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test((selectedClass || '').trim());
-          const defaultUt = isClass4to8Local ? 8 : 7;
-          const defaultTerm = isClass4to8Local ? 10 : 9;
+          const defaultUt = isClass11to12Local ? 6 : (isClass4to8Local ? 8 : 7);
+          const defaultTerm = isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9);
           const appCounts = item.annual?.appearingCounts || { ut1: defaultUt, term1: defaultTerm, ut2: defaultUt, term2: defaultTerm };
-          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass4to8Local ? 10 : 9);
+          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9));
           const portCritSpan = isSpecimenScheme ? 3 : 4;
 
           portBody.push([
@@ -1071,11 +1080,14 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
           // 10. Left: GRADING SUBJECTS Table | Right: Principal Signature & Barcode
           const lowerStartY = currentY;
-          const gradingBody = (item.annual?.gradingSubjects || []).map(gs => [
-            gs.subject,
-            gs.halfYearly || 'GOOD',
-            gs.annual || 'GOOD'
-          ]);
+          const gradingBody = (item.annual?.gradingSubjects || []).map(gs => {
+            const isStruck = gs.isStruck || (isClass11to12Local && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
+            return [
+              { content: isStruck ? `${gs.subject} (N/A)` : gs.subject, styles: isStruck ? { textColor: [148, 163, 184], fontStyle: 'italic' } : { halign: 'left', fontStyle: 'bold' } },
+              { content: isStruck ? '—' : (gs.halfYearly || 'GOOD'), styles: isStruck ? { textColor: [148, 163, 184] } : {} },
+              { content: isStruck ? '—' : (gs.annual || 'GOOD'), styles: isStruck ? { textColor: [148, 163, 184] } : { fontStyle: 'bold', textColor: [20, 83, 45] } }
+            ];
+          });
 
           autoTable(doc, {
             head: [
@@ -2138,13 +2150,13 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                       {/* Summary Row 1: APPEARING SUBJECTS */}
                       <tr className="bg-slate-50 font-bold text-slate-800 text-[11px] border-t-2 border-slate-300">
                         <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">APPEARING SUBJECTS</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut1 || (isClass4to8 ? 8 : 7)}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term1 || (isClass4to8 ? 10 : 9)}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut2 || (isClass4to8 ? 8 : 7)}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term2 || (isClass4to8 ? 10 : 9)}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut1 || (isClass11to12 ? 6 : (isClass4to8 ? 8 : 7))}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term1 || (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9))}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut2 || (isClass11to12 ? 6 : (isClass4to8 ? 8 : 7))}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term2 || (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9))}</td>
                         <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td colSpan={2} className="p-2 text-center font-black text-emerald-800">
-                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length || (isClass4to8 ? 10 : 9)} Subs
+                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length || (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9))} Subs
                         </td>
                       </tr>
 
@@ -2352,21 +2364,30 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 text-[11px]">
-                        {(currentStudentItem.annual?.gradingSubjects || []).map((gs, gIdx) => (
-                          <tr key={gIdx} className="hover:bg-slate-50">
-                            <td className="p-1.5 pl-3 font-semibold text-slate-800 border-r border-slate-200">{gs.subject}</td>
-                            {selectedType === 'annual' ? (
-                              <>
-                                <td className="p-1.5 text-center font-bold text-slate-700 border-r border-slate-200">{gs.halfYearly || 'GOOD'}</td>
-                                <td className="p-1.5 text-center font-black text-emerald-800">{gs.annual || 'GOOD'}</td>
-                              </>
-                            ) : (
-                              <td className="p-1.5 text-center font-black text-emerald-800">
-                                {selectedType.startsWith('term2') || selectedType === 'ut2' ? (gs.annual || 'GOOD') : (gs.halfYearly || 'GOOD')}
+                        {(currentStudentItem.annual?.gradingSubjects || []).map((gs, gIdx) => {
+                          const isStruck = gs.isStruck || (isClass11to12 && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
+                          return (
+                            <tr key={gIdx} className={`hover:bg-slate-50 ${isStruck ? 'opacity-60 bg-slate-50/50' : ''}`}>
+                              <td className={`p-1.5 pl-3 font-semibold border-r border-slate-200 ${isStruck ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                                {gs.subject} {isStruck && <span className="text-[9px] text-amber-700 font-normal no-underline ml-1">(N/A)</span>}
                               </td>
-                            )}
-                          </tr>
-                        ))}
+                              {selectedType === 'annual' ? (
+                                <>
+                                  <td className={`p-1.5 text-center font-bold border-r border-slate-200 ${isStruck ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                                    {isStruck ? '—' : (gs.halfYearly || 'GOOD')}
+                                  </td>
+                                  <td className={`p-1.5 text-center font-black ${isStruck ? 'line-through text-slate-400' : 'text-emerald-800'}`}>
+                                    {isStruck ? '—' : (gs.annual || 'GOOD')}
+                                  </td>
+                                </>
+                              ) : (
+                                <td className={`p-1.5 text-center font-black ${isStruck ? 'line-through text-slate-400' : 'text-emerald-800'}`}>
+                                  {isStruck ? '—' : (selectedType.startsWith('term2') || selectedType === 'ut2' ? (gs.annual || 'GOOD') : (gs.halfYearly || 'GOOD'))}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                     <div className="p-2.5 border-t border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-700">

@@ -64,6 +64,22 @@ const getWorkingDates = (startDateStr, endDateStr) => {
   return dates;
 };
 
+// Helper to generate N working dates (skipping Sundays) starting from startDateStr
+const getWorkingDatesCount = (startDateStr, maxWorkingDays = 20) => {
+  const dates = [];
+  if (!startDateStr) return dates;
+  let curr = new Date(startDateStr);
+  if (isNaN(curr.getTime())) return dates;
+
+  while (dates.length < maxWorkingDays) {
+    if (curr.getDay() !== 0) { // Skip Sunday
+      dates.push(curr.toISOString().split('T')[0]);
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+  return dates;
+};
+
 // Helper to retrieve school's eligible subjects for a class based on category
 const getClassEligibleSubjects = async (school_id, class_level, category) => {
   const normClass = normalizeClassLevel(class_level);
@@ -195,12 +211,48 @@ const getClassEligibleSubjects = async (school_id, class_level, category) => {
 
   // Deduplicate by name if any duplicates exist
   const seen = new Set();
-  return eligibleList.filter(item => {
+  let uniqueList = eligibleList.filter(item => {
     const key = item.name.toUpperCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+
+  // MIL Consolidation for High School (Class IX to XII)
+  // In Class IX-XII, each student has only 1 MIL subject (Assamese, Hindi, Bengali, Alt English, etc.)
+  // So all MIL subjects must be conducted on ONE day and stated as "MIL" in the routine.
+  const highSchoolClasses = ['IX', 'X', 'XI', 'XII', 'XI-SCIENCE', 'XI-COM', 'XI-ARTS', 'XII-SCIENCE', 'XII-COM', 'XII-ARTS'];
+  const isHighSchool = highSchoolClasses.includes(normClass.toUpperCase());
+
+  if (isHighSchool) {
+    const isMilItem = (item) => {
+      const grp = (item.group_name || '').toUpperCase();
+      const nm = (item.name || '').toUpperCase();
+      return grp === 'MIL' || nm === 'MIL' || nm.startsWith('MIL ') || nm.startsWith('MIL-') || nm.startsWith('MIL(') || nm.startsWith('MIL (');
+    };
+
+    const milItems = uniqueList.filter(isMilItem);
+    if (milItems.length > 0) {
+      const nonMilItems = uniqueList.filter(item => !isMilItem(item));
+      const firstMil = milItems[0];
+      const consolidatedMil = {
+        subject_id: firstMil.subject_id || 'mil-unified',
+        name: 'MIL',
+        code: 'MIL',
+        is_core: false,
+        group_name: 'MIL',
+        marking_system: 'Marking',
+        is_grading: false,
+        is_divided: false,
+        parts: [],
+        total_marks: category === 'periodic_assessment' ? 50 : 100,
+        passing_marks: category === 'periodic_assessment' ? 20 : 40
+      };
+      return [...nonMilItems, consolidatedMil];
+    }
+  }
+
+  return uniqueList;
 };
 
 // Create a new exam (admin only, attaches school_id, atomic with rollback)
@@ -215,14 +267,8 @@ router.post('/', protect, async (req, res) => {
       class_level, 
       target_class, 
       start_date, 
-      end_date, 
       default_exam_id,
       category: clientCategory,
-      two_exams_per_day,
-      shift1_start_time,
-      shift1_end_time,
-      shift2_start_time,
-      shift2_end_time,
       single_start_time,
       single_end_time
     } = req.body;
@@ -232,12 +278,8 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'Exam name is required' });
     }
 
-    if (!start_date || !end_date) {
-      return res.status(400).json({ message: 'Start date and end date are required' });
-    }
-
-    if (start_date > end_date) {
-      return res.status(400).json({ message: 'Start date cannot be after end date' });
+    if (!start_date) {
+      return res.status(400).json({ message: 'Start date is required' });
     }
 
     if (!default_exam_id) {
@@ -294,18 +336,19 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'At least one valid class level is required' });
     }
 
-    // 3. Calculate Working Dates (skipping Sundays)
-    const workingDates = getWorkingDates(start_date, end_date);
-    const D = workingDates.length;
-    if (D === 0) {
+    // 3. Generate 20 Working Dates (skipping Sundays)
+    const workingDates = getWorkingDatesCount(start_date, 20);
+    if (!workingDates || workingDates.length === 0) {
       return res.status(400).json({ 
-        code: 'NO_WORKING_DAYS',
-        message: 'The selected date range contains no working days (Monday-Saturday). Please select a valid date range.' 
+        code: 'INVALID_START_DATE',
+        message: 'Could not generate working days from the provided start date. Please provide a valid date.' 
       });
     }
 
-    // 4. Phase 1: Pre-Validation Across ALL Targeted Classes (Independent Capacity & Subject Check)
+    // 4. Phase 1: Pre-Validation Across ALL Targeted Classes
     const classSubjectsMap = {};
+    let maxGradingCountAcrossClasses = 0;
+
     for (const c of targetClasses) {
       const eligibleSubs = await getClassEligibleSubjects(school_id, c, templateCategory);
       const N_c = eligibleSubs.length;
@@ -317,49 +360,56 @@ router.post('/', protect, async (req, res) => {
         });
       }
 
-      // Hard check: even at 2 exams per day, does it fit?
-      if (2 * D < N_c) {
-        return res.status(400).json({
-          code: 'INSUFFICIENT_DAYS_ABSOLUTE',
-          message: `There aren't enough days to conduct all the exams. The selected date range provides only ${D} working days and a maximum capacity of ${2 * D} exams, but Class ${c} requires ${N_c} subjects. Please select a proper date range.`,
-          class_level: c,
-          working_days: D,
-          required_subjects: N_c,
-          max_capacity: 2 * D
-        });
-      }
-
-      // Warning check: if 1 exam per day is insufficient and two_exams_per_day was not confirmed
-      if (D < N_c && !two_exams_per_day) {
-        return res.status(400).json({
-          code: 'REQUIRES_TWO_EXAMS_PER_DAY',
-          message: `The selected date range has fewer working days (${D}) than the number of required subjects (${N_c}) for Class ${c}. Would you like to conduct a maximum of two exams per day?`,
-          class_level: c,
-          working_days: D,
-          required_subjects: N_c,
-          slots_needed: 2
-        });
-      }
-
       classSubjectsMap[c] = eligibleSubs;
+      const gCount = eligibleSubs.filter(s => s.is_grading).length;
+      if (gCount > maxGradingCountAcrossClasses) {
+        maxGradingCountAcrossClasses = gCount;
+      }
     }
+
+    // Grading subjects rule: All grading subjects conducted within at most 2 dates
+    const gradingDaysCount = maxGradingCountAcrossClasses === 0 ? 0 : (maxGradingCountAcrossClasses === 1 ? 1 : 2);
+
+    // Validate that every class's routine fits within 20 working days
+    for (const c of targetClasses) {
+      const nonGradingCount = (classSubjectsMap[c] || []).filter(s => !s.is_grading).length;
+      const totalDaysNeeded = gradingDaysCount + nonGradingCount;
+
+      if (totalDaysNeeded > 20) {
+        return res.status(400).json({
+          code: 'EXCEEDS_20_WORKING_DAYS',
+          message: `Class ${c} requires ${totalDaysNeeded} working days (${gradingDaysCount} grading days + ${nonGradingCount} non-grading subjects), exceeding the 20 working days limit.`,
+          class_level: c,
+          total_days_needed: totalDaysNeeded,
+          max_allowed: 20
+        });
+      }
+    }
+
+    // Calculate actual end date across all classes (within 20 working days)
+    let maxDaysUsedAcrossClasses = 0;
+    for (const c of targetClasses) {
+      const nonGradingCount = (classSubjectsMap[c] || []).filter(s => !s.is_grading).length;
+      const days = gradingDaysCount + nonGradingCount;
+      if (days > maxDaysUsedAcrossClasses) {
+        maxDaysUsedAcrossClasses = days;
+      }
+    }
+    const endDayIdx = Math.max(0, Math.min(maxDaysUsedAcrossClasses - 1, workingDates.length - 1));
+    const calculatedEndDate = workingDates[endDayIdx] || workingDates[0];
 
     // 5. Phase 2: Atomic Execution with Rollback
     logical_exam_id = crypto.randomUUID();
 
     const singleStart = single_start_time || '08:30';
     const singleEnd = single_end_time || '10:30';
-    const s1Start = shift1_start_time || '08:30';
-    const s1End = shift1_end_time || '10:30';
-    const s2Start = shift2_start_time || '11:30';
-    const s2End = shift2_end_time || '13:30';
 
     const examInserts = targetClasses.map(c => ({
       name: name.trim(),
       type: type || template.type || 'Offline',
       class_level: c, // Strictly actual class string!
-      start_date: start_date || null,
-      end_date: end_date || null,
+      start_date: start_date,
+      end_date: calculatedEndDate,
       school_id,
       default_exam_id: template.id,
       category: templateCategory,
@@ -375,41 +425,75 @@ router.post('/', protect, async (req, res) => {
     if (examError) throw examError;
     createdExams = insertedExams;
 
-    // Generate timetable rows per class
+    // Generate timetable rows per class (1-Shift System Only)
     const timetableInserts = [];
 
     for (const ex of createdExams) {
-      let subs = [...(classSubjectsMap[ex.class_level] || [])];
+      const subs = [...(classSubjectsMap[ex.class_level] || [])];
+      const gradingSubs = subs.filter(s => s.is_grading);
+      const nonGradingSubs = subs.filter(s => !s.is_grading);
 
-      // Grading priority rule for terminal_examination:
-      // All grading subjects MUST be scheduled first before non-grading subjects!
-      if (templateCategory === 'terminal_examination') {
-        subs.sort((a, b) => {
-          if (a.is_grading && !b.is_grading) return -1;
-          if (!a.is_grading && b.is_grading) return 1;
-          return 0;
+      // 1. Schedule Grading subjects within at most 2 dates: Day 1 (workingDates[0]) and Day 2 (workingDates[1])
+      if (gradingSubs.length === 1) {
+        timetableInserts.push({
+          exam_id: ex.id,
+          school_id,
+          class_level: ex.class_level,
+          subject: gradingSubs[0].name,
+          sub_subject: null,
+          exam_date: workingDates[0],
+          start_time: singleStart,
+          end_time: singleEnd,
+          total_marks: gradingSubs[0].total_marks,
+          passing_marks: gradingSubs[0].passing_marks,
+          has_practical: false,
+          is_finalized: false
+        });
+      } else if (gradingSubs.length >= 2) {
+        const mid = Math.ceil(gradingSubs.length / 2);
+        const day1Grading = gradingSubs.slice(0, mid);
+        const day2Grading = gradingSubs.slice(mid);
+
+        day1Grading.forEach(item => {
+          timetableInserts.push({
+            exam_id: ex.id,
+            school_id,
+            class_level: ex.class_level,
+            subject: item.name,
+            sub_subject: null,
+            exam_date: workingDates[0],
+            start_time: singleStart,
+            end_time: singleEnd,
+            total_marks: item.total_marks,
+            passing_marks: item.passing_marks,
+            has_practical: false,
+            is_finalized: false
+          });
+        });
+
+        day2Grading.forEach(item => {
+          timetableInserts.push({
+            exam_id: ex.id,
+            school_id,
+            class_level: ex.class_level,
+            subject: item.name,
+            sub_subject: null,
+            exam_date: workingDates[1] || workingDates[0],
+            start_time: singleStart,
+            end_time: singleEnd,
+            total_marks: item.total_marks,
+            passing_marks: item.passing_marks,
+            has_practical: false,
+            is_finalized: false
+          });
         });
       }
 
-      subs.forEach((item, idx) => {
-        let assignedDate = null;
-        let startTime = singleStart;
-        let endTime = singleEnd;
+      // 2. Schedule Non-Grading subjects: 1 subject per day starting at workingDates[gradingDaysCount]
+      nonGradingSubs.forEach((item, nIdx) => {
+        const dateIdx = gradingDaysCount + nIdx;
+        const assignedDate = workingDates[dateIdx] || workingDates[workingDates.length - 1];
 
-        if (two_exams_per_day) {
-          const dayIdx = Math.floor(idx / 2);
-          const isSlot2 = idx % 2 === 1;
-          assignedDate = workingDates[dayIdx] || workingDates[workingDates.length - 1];
-          startTime = isSlot2 ? s2Start : s1Start;
-          endTime = isSlot2 ? s2End : s1End;
-        } else {
-          assignedDate = workingDates[idx] || workingDates[workingDates.length - 1];
-          startTime = singleStart;
-          endTime = singleEnd;
-        }
-
-        // Divided subjects/papers are marking sections, NOT separate exams.
-        // Insert exactly one timetable row per subject.
         timetableInserts.push({
           exam_id: ex.id,
           school_id,
@@ -417,8 +501,8 @@ router.post('/', protect, async (req, res) => {
           subject: item.name,
           sub_subject: null,
           exam_date: assignedDate,
-          start_time: startTime,
-          end_time: endTime,
+          start_time: singleStart,
+          end_time: singleEnd,
           total_marks: item.total_marks,
           passing_marks: item.passing_marks,
           has_practical: false,
@@ -454,6 +538,49 @@ router.post('/', protect, async (req, res) => {
       }
     }
     res.status(500).json({ message: err.message || 'Server Error', details: err });
+  }
+});
+
+// Get master timetable across all classes for a logical exam group
+router.get('/logical/:logicalExamId/timetable', protectAnyStaff, async (req, res) => {
+  try {
+    const { school_id } = req.user;
+    const { logicalExamId } = req.params;
+
+    let examQuery = supabase
+      .from('exams')
+      .select('id, name, type, class_level, start_date, end_date, category, default_exam_id, logical_exam_id')
+      .eq('logical_exam_id', logicalExamId);
+
+    if (school_id) {
+      examQuery = examQuery.eq('school_id', school_id);
+    }
+
+    const { data: exams, error: exErr } = await examQuery;
+    if (exErr) throw exErr;
+
+    if (!exams || exams.length === 0) {
+      return res.status(404).json({ message: 'Exam group not found' });
+    }
+
+    const examIds = exams.map(e => e.id);
+
+    const { data: timetables, error: ttErr } = await supabase
+      .from('exam_timetable')
+      .select('*')
+      .in('exam_id', examIds)
+      .order('exam_date', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (ttErr) throw ttErr;
+
+    res.json({
+      exams,
+      timetables: timetables || []
+    });
+  } catch (err) {
+    console.error('[GET LOGICAL TIMETABLE ERROR]:', err);
+    res.status(500).json({ message: 'Server Error' });
   }
 });
 
@@ -941,12 +1068,48 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
       }
     }
 
-    // Validation 4: Grading Priority Rule for terminal_examination
-    if (exam.category === 'terminal_examination') {
-      const gradingSubsMap = new Map(eligibleSubs.map(s => [s.name.toUpperCase(), !!s.is_grading]));
-      const gradingRows = ttRows.filter(r => gradingSubsMap.get(r.subject.toUpperCase()));
-      const nonGradingRows = ttRows.filter(r => !gradingSubsMap.get(r.subject.toUpperCase()));
+    // Validation 4: Grading Subjects Constraints & Priority Rule
+    const gradingSubsMap = new Map(eligibleSubs.map(s => [s.name.toUpperCase(), !!s.is_grading]));
+    const gradingRows = ttRows.filter(r => gradingSubsMap.get(r.subject.toUpperCase()));
+    const nonGradingRows = ttRows.filter(r => !gradingSubsMap.get(r.subject.toUpperCase()));
 
+    // Rule A: All grading subjects must be conducted within at most 2 distinct dates
+    const gradingDates = new Set(gradingRows.map(r => r.exam_date));
+    if (gradingDates.size > 2) {
+      return res.status(400).json({
+        code: 'GRADING_DATES_EXCEEDED',
+        message: `Cannot finalize: All grading subjects must be conducted within at most 2 dates. Currently scheduled across ${gradingDates.size} dates: ${[...gradingDates].join(', ')}.`
+      });
+    }
+
+    // Rule B: For non-grading subjects, max 1 exam per day in 1-shift system
+    const nonGradingDailyCounts = {};
+    for (const r of nonGradingRows) {
+      nonGradingDailyCounts[r.exam_date] = (nonGradingDailyCounts[r.exam_date] || 0) + 1;
+      if (nonGradingDailyCounts[r.exam_date] > 1) {
+        return res.status(400).json({
+          code: 'DAILY_LIMIT_EXCEEDED',
+          message: `Cannot finalize: Only 1 non-grading exam per day is allowed. Multiple non-grading exams scheduled on ${r.exam_date}.`
+        });
+      }
+    }
+
+    // Rule C: 20 working days limit from exam start_date
+    if (exam.start_date) {
+      const allowedWorkingDates = getWorkingDatesCount(exam.start_date, 20);
+      const maxAllowedDate = allowedWorkingDates[allowedWorkingDates.length - 1];
+      for (const r of ttRows) {
+        if (r.exam_date > maxAllowedDate) {
+          return res.status(400).json({
+            code: 'EXCEEDS_20_WORKING_DAYS',
+            message: `Cannot finalize: Exam for '${r.subject}' on ${r.exam_date} exceeds the 20 working days limit (maximum allowed date: ${maxAllowedDate}).`
+          });
+        }
+      }
+    }
+
+    // Rule D: Grading Priority Rule for terminal_examination
+    if (exam.category === 'terminal_examination') {
       if (gradingRows.length > 0 && nonGradingRows.length > 0) {
         let latestGradingTime = null;
         let latestGradingSubject = '';

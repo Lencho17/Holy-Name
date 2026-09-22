@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import axios from 'axios';
 import { SiteDataContext } from '../context/SiteDataContext';
 import { 
-  FaPlus, FaTrash, FaCheckCircle, FaCalendarAlt, FaArrowLeft, FaDownload, FaSpinner 
+  FaPlus, FaTrash, FaCheckCircle, FaCalendarAlt, FaArrowLeft, FaDownload, FaSpinner,
+  FaFileExcel, FaFilePdf 
 } from 'react-icons/fa';
 import { 
   FiMove, FiCalendar, FiClock, FiLayers, FiInfo, FiCheck, FiRefreshCw, 
@@ -10,6 +11,7 @@ import {
 } from 'react-icons/fi';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import {
   DndContext,
   closestCenter,
@@ -306,32 +308,20 @@ const ExamManagement = ({ apiUrl, token }) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [submittingExam, setSubmittingExam] = useState(false);
 
-  // Capacity Prompt State
-  const [showTwoExamsModal, setShowTwoExamsModal] = useState(false);
-  const [capacityWarning, setCapacityWarning] = useState(null);
-  const [showAbsoluteErrorModal, setShowAbsoluteErrorModal] = useState(false);
-  const [capacityError, setCapacityError] = useState(null);
-
   const [newExam, setNewExam] = useState({
     name: '',
     target_class: 'all',
     type: 'Offline',
     start_date: '',
-    end_date: '',
     default_exam_id: '',
-    two_exams_per_day: false,
     single_start_time: '08:30',
-    single_end_time: '10:30',
-    shift1_start_time: '08:30',
-    shift1_end_time: '10:30',
-    shift2_start_time: '11:30',
-    shift2_end_time: '13:30'
+    single_end_time: '10:30'
   });
 
   const [classSelectionMode, setClassSelectionMode] = useState('all'); // 'all' | 'custom'
   const [selectedClassLevels, setSelectedClassLevels] = useState([]);
 
-  const { globalClasses } = useContext(SiteDataContext);
+  const { globalClasses, schoolProfile } = useContext(SiteDataContext);
   const allClasses = (globalClasses?.map((c) => c.name) || [
     'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'
   ]);
@@ -433,19 +423,16 @@ const ExamManagement = ({ apiUrl, token }) => {
     return defaultTemplates.find((t) => t.id === selectedTemplateId) || defaultTemplates[0] || null;
   }, [defaultTemplates, selectedTemplateId]);
 
-  // Handle Exam Creation with Server-Side Capacity Check
-  const handleCreateExam = async (e, forceTwoExams = null) => {
+  // Handle Exam Creation with 20-Working-Day Auto-Scheduler
+  const handleCreateExam = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!newExam.name.trim()) return alert('Please enter exam name');
     if (!newExam.default_exam_id) return alert('Please select a default exam template');
-    if (!newExam.start_date || !newExam.end_date) return alert('Please select start and end dates');
-    if (newExam.start_date > newExam.end_date) return alert('Start date cannot be after end date');
+    if (!newExam.start_date) return alert('Please select starting exam date');
 
     if (classSelectionMode === 'custom' && selectedClassLevels.length === 0) {
       return alert('Please select at least one class for this exam');
     }
-
-    const twoExams = forceTwoExams !== null ? forceTwoExams : newExam.two_exams_per_day;
 
     try {
       setSubmittingExam(true);
@@ -457,23 +444,15 @@ const ExamManagement = ({ apiUrl, token }) => {
           class_levels: classSelectionMode === 'all' ? ['all'] : selectedClassLevels,
           type: newExam.type,
           start_date: newExam.start_date,
-          end_date: newExam.end_date,
           default_exam_id: newExam.default_exam_id,
           category: selectedTemplate?.category || 'periodic_assessment',
-          two_exams_per_day: twoExams,
           single_start_time: newExam.single_start_time,
-          single_end_time: newExam.single_end_time,
-          shift1_start_time: newExam.shift1_start_time,
-          shift1_end_time: newExam.shift1_end_time,
-          shift2_start_time: newExam.shift2_start_time,
-          shift2_end_time: newExam.shift2_end_time
+          single_end_time: newExam.single_end_time
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setShowCreate(false);
-      setShowTwoExamsModal(false);
-      setCapacityWarning(null);
 
       await fetchExamsAndStatus();
 
@@ -493,15 +472,7 @@ const ExamManagement = ({ apiUrl, token }) => {
     } catch (error) {
       console.error('Create exam error:', error);
       const resData = error.response?.data;
-      if (resData?.code === 'REQUIRES_TWO_EXAMS_PER_DAY') {
-        setCapacityWarning(resData);
-        setShowTwoExamsModal(true);
-      } else if (resData?.code === 'INSUFFICIENT_DAYS_ABSOLUTE') {
-        setCapacityError(resData);
-        setShowAbsoluteErrorModal(true);
-      } else {
-        alert(resData?.message || 'Failed to create exam');
-      }
+      alert(resData?.message || 'Failed to create exam');
     } finally {
       setSubmittingExam(false);
     }
@@ -807,64 +778,312 @@ const ExamManagement = ({ apiUrl, token }) => {
     }
   };
 
-  // Bulk Download PDF across all classes in the logical exam
-  const downloadLogicalGroupPDF = async (logicalGroup) => {
+  // Download Master Routine for all classes in single A4 landscape PDF
+  const exportMasterRoutinePDF = async (logicalGroup) => {
     try {
-      const doc = new jsPDF();
-      let hasData = false;
+      const res = await axios.get(`${apiUrl}/exams/logical/${logicalGroup.logical_exam_id}/timetable`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { exams: groupExams, timetables: allTtRows } = res.data;
 
-      for (let i = 0; i < logicalGroup.exams.length; i++) {
-        const clsExam = logicalGroup.exams[i];
-        const { data: ttData } = await axios.get(`${apiUrl}/exams/${clsExam.id}/timetable`, {
-          headers: { Authorization: `Bearer ${token}` }
+      if (!allTtRows || allTtRows.length === 0) {
+        alert('No routine data available to download for this exam.');
+        return;
+      }
+
+      // Canonical sort of classes
+      const classSet = new Set(groupExams.map((e) => e.class_level));
+      const sortedClasses = Array.from(classSet).sort((a, b) => {
+        const orderA = allClasses.indexOf(a);
+        const orderB = allClasses.indexOf(b);
+        if (orderA !== -1 && orderB !== -1) return orderA - orderB;
+        if (orderA !== -1) return -1;
+        if (orderB !== -1) return 1;
+        return a.localeCompare(b);
+      });
+
+      // Chronological sort of dates
+      const dateSet = new Set(allTtRows.map((r) => r.exam_date).filter(Boolean));
+      const sortedDates = Array.from(dateSet).sort();
+
+      if (sortedDates.length === 0) {
+        alert('No scheduled dates found in timetable.');
+        return;
+      }
+
+      // Build Matrix: Date -> Class -> Subject(s)
+      const matrix = {};
+      sortedDates.forEach((d) => {
+        matrix[d] = {};
+        sortedClasses.forEach((c) => {
+          matrix[d][c] = [];
         });
+      });
 
-        if (ttData && ttData.length > 0) {
-          if (hasData) doc.addPage();
-          hasData = true;
-          doc.setFontSize(18);
-          doc.text(`Exam Routine: ${clsExam.name} - Class ${clsExam.class_level}`, 14, 22);
-          doc.setFontSize(11);
-          doc.text(`Category: ${clsExam.category === 'terminal_examination' ? 'Terminal Examination' : 'Periodic Assessment'}`, 14, 29);
+      allTtRows.forEach((r) => {
+        if (r.exam_date && matrix[r.exam_date] && matrix[r.exam_date][r.class_level]) {
+          const subTitle = r.sub_subject ? `${r.subject} (${r.sub_subject})` : r.subject;
+          matrix[r.exam_date][r.class_level].push(subTitle);
+        }
+      });
 
-          const tableColumn = ['Date', 'Time', 'Subject', 'Total Marks', 'Pass Marks', 'Type'];
-          const tableRows = [];
+      // Initialize Landscape A4 PDF (297mm x 210mm)
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
 
-          ttData.forEach((row) => {
-            const subjectName = `${row.subject} ${row.sub_subject ? `(${row.sub_subject})` : ''}`;
-            const timeStr = `${row.start_time?.substring(0, 5) || '--:--'} - ${row.end_time?.substring(0, 5) || '--:--'}`;
-            tableRows.push([
-              row.exam_date || '-',
-              timeStr,
-              subjectName,
-              row.total_marks || (row.theory_marks || 0) + (row.practical_marks || 0),
-              row.passing_marks || '-',
-              row.is_grading ? 'Grading' : 'Standard'
-            ]);
+      const pageWidth = 297;
+      const schoolName = schoolProfile?.name || 'HOLY NAME HIGHER SECONDARY SCHOOL';
+      const schoolAddress = schoolProfile?.officeAddress || 'Sivasagar, Assam - 785640';
+      const examName = `${logicalGroup.name.toUpperCase()} - EXAMINATION ROUTINE`;
+      const startDate = logicalGroup.start_date || sortedDates[0];
+      const endDate = logicalGroup.end_date || sortedDates[sortedDates.length - 1];
+      const examTiming = (allTtRows[0]?.start_time && allTtRows[0]?.end_time)
+        ? `${allTtRows[0].start_time.substring(0, 5)} - ${allTtRows[0].end_time.substring(0, 5)}`
+        : '08:30 AM - 10:30 AM';
+
+      let headerStartY = 10;
+
+      // School Logo
+      if (schoolProfile?.logo) {
+        try {
+          const imgBase64 = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+              } catch {
+                resolve(null);
+              }
+            };
+            img.onerror = () => resolve(null);
+            img.src = schoolProfile.logo;
           });
 
-          autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 34
-          });
+          if (imgBase64) {
+            doc.addImage(imgBase64, 'PNG', 12, 8, 18, 18);
+          }
+        } catch (imgErr) {
+          console.warn('Could not load logo for PDF:', imgErr);
         }
       }
 
-      if (hasData) {
-        doc.save(`Exam_Routine_${logicalGroup.name}.pdf`);
-      } else {
-        alert('No routine data available to download for this exam.');
+      // Headings
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.setTextColor(30, 41, 59);
+      doc.text(schoolName, pageWidth / 2, headerStartY + 3, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(schoolAddress, pageWidth / 2, headerStartY + 8, { align: 'center' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(49, 46, 129);
+      doc.text(examName, pageWidth / 2, headerStartY + 14, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(51, 65, 85);
+      const subInfo = `Exam Period: ${startDate} to ${endDate}   |   Exam Timings: ${examTiming} (1-Shift Session)   |   Total Classes: ${sortedClasses.length}`;
+      doc.text(subInfo, pageWidth / 2, headerStartY + 19, { align: 'center' });
+
+      // Table Matrix
+      const tableHeaders = ['Date & Day', ...sortedClasses.map((c) => `Class ${c}`)];
+      const tableBody = sortedDates.map((d) => {
+        const dateObj = new Date(d);
+        const dayName = isNaN(dateObj.getTime())
+          ? ''
+          : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+        const dateFormatted = `${d}\n(${dayName})`;
+
+        const row = [dateFormatted];
+        sortedClasses.forEach((c) => {
+          const subs = matrix[d][c] || [];
+          row.push(subs.length > 0 ? subs.join('\n') : '—');
+        });
+        return row;
+      });
+
+      // Adaptive sizing based on row count and column count to guarantee 1-page fit
+      const rowCount = sortedDates.length;
+      const colCount = sortedClasses.length;
+
+      let cellFontSize = 7.5;
+      let cellPadding = 1.8;
+      if (rowCount > 12 || colCount > 10) {
+        cellFontSize = 6.5;
+        cellPadding = 1.2;
       }
+      if (rowCount > 16 || colCount > 12) {
+        cellFontSize = 6;
+        cellPadding = 0.8;
+      }
+
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: tableBody,
+        startY: headerStartY + 23,
+        margin: { left: 8, right: 8, top: headerStartY + 23, bottom: 8 },
+        theme: 'grid',
+        tableWidth: 'auto',
+        styles: {
+          fontSize: cellFontSize,
+          cellPadding: cellPadding,
+          halign: 'center',
+          valign: 'middle',
+          overflow: 'linebreak',
+          lineWidth: 0.15,
+          lineColor: [203, 213, 225],
+          textColor: [15, 23, 42]
+        },
+        headStyles: {
+          fillColor: [30, 41, 59],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          valign: 'middle',
+          lineWidth: 0.2,
+          lineColor: [15, 23, 42]
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        columnStyles: {
+          0: {
+            fontStyle: 'bold',
+            halign: 'center',
+            fillColor: [241, 245, 249],
+            cellWidth: colCount > 10 ? 24 : 28
+          }
+        },
+        pageBreak: 'avoid',
+        rowPageBreak: 'avoid'
+      });
+
+      // Ensure strictly 1 page
+      while (doc.internal.getNumberOfPages() > 1) {
+        doc.deletePage(doc.internal.getNumberOfPages());
+      }
+
+      doc.save(`Exam_Routine_${logicalGroup.name}_Master.pdf`);
     } catch (err) {
-      console.error(err);
-      alert('Failed to download bulk PDF');
+      console.error('[EXPORT MASTER PDF ERROR]:', err);
+      alert('Failed to generate Master PDF: ' + (err.message || 'Unknown error'));
     }
   };
 
-  const calculatedWorkingDays = useMemo(() => {
-    return countWorkingDays(newExam.start_date, newExam.end_date);
-  }, [newExam.start_date, newExam.end_date]);
+  // Download Master Routine for all classes in Excel (.xlsx) format
+  const exportMasterRoutineExcel = async (logicalGroup) => {
+    try {
+      const res = await axios.get(`${apiUrl}/exams/logical/${logicalGroup.logical_exam_id}/timetable`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { exams: groupExams, timetables: allTtRows } = res.data;
+
+      if (!allTtRows || allTtRows.length === 0) {
+        alert('No routine data available to download for this exam.');
+        return;
+      }
+
+      // Canonical sort of classes
+      const classSet = new Set(groupExams.map((e) => e.class_level));
+      const sortedClasses = Array.from(classSet).sort((a, b) => {
+        const orderA = allClasses.indexOf(a);
+        const orderB = allClasses.indexOf(b);
+        if (orderA !== -1 && orderB !== -1) return orderA - orderB;
+        if (orderA !== -1) return -1;
+        if (orderB !== -1) return 1;
+        return a.localeCompare(b);
+      });
+
+      const dateSet = new Set(allTtRows.map((r) => r.exam_date).filter(Boolean));
+      const sortedDates = Array.from(dateSet).sort();
+
+      const matrix = {};
+      sortedDates.forEach((d) => {
+        matrix[d] = {};
+        sortedClasses.forEach((c) => {
+          matrix[d][c] = [];
+        });
+      });
+
+      allTtRows.forEach((r) => {
+        if (r.exam_date && matrix[r.exam_date] && matrix[r.exam_date][r.class_level]) {
+          const subTitle = r.sub_subject ? `${r.subject} (${r.sub_subject})` : r.subject;
+          matrix[r.exam_date][r.class_level].push(subTitle);
+        }
+      });
+
+      const schoolName = schoolProfile?.name || 'HOLY NAME HIGHER SECONDARY SCHOOL';
+      const schoolAddress = schoolProfile?.officeAddress || 'Sivasagar, Assam - 785640';
+      const examName = `${logicalGroup.name.toUpperCase()} - EXAMINATION ROUTINE`;
+      const startDate = logicalGroup.start_date || sortedDates[0];
+      const endDate = logicalGroup.end_date || sortedDates[sortedDates.length - 1];
+      const examTiming = (allTtRows[0]?.start_time && allTtRows[0]?.end_time)
+        ? `${allTtRows[0].start_time.substring(0, 5)} - ${allTtRows[0].end_time.substring(0, 5)}`
+        : '08:30 AM - 10:30 AM';
+
+      const totalCols = sortedClasses.length + 1;
+
+      const wsData = [
+        [schoolName],
+        [schoolAddress],
+        [examName],
+        [`Exam Period: ${startDate} to ${endDate}   |   Exam Timings: ${examTiming} (1-Shift Session)`],
+        [],
+        ['Date & Day', ...sortedClasses.map((c) => `Class ${c}`)]
+      ];
+
+      sortedDates.forEach((d) => {
+        const dateObj = new Date(d);
+        const dayName = isNaN(dateObj.getTime())
+          ? ''
+          : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+        const dateFormatted = `${d} (${dayName})`;
+
+        const row = [dateFormatted];
+        sortedClasses.forEach((c) => {
+          const subs = matrix[d][c] || [];
+          row.push(subs.length > 0 ? subs.join(', ') : '—');
+        });
+        wsData.push(row);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: totalCols - 1 } },
+        { s: { r: 3, c: 0 }, e: { r: 3, c: totalCols - 1 } }
+      ];
+
+      const colWidths = [{ wch: 18 }];
+      sortedClasses.forEach(() => {
+        colWidths.push({ wch: 18 });
+      });
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Master Routine');
+
+      XLSX.writeFile(wb, `Exam_Routine_${logicalGroup.name}_Master.xlsx`);
+    } catch (err) {
+      console.error('[EXPORT MASTER EXCEL ERROR]:', err);
+      alert('Failed to generate Excel file: ' + (err.message || 'Unknown error'));
+    }
+  };
 
   if (loading) {
     return (
@@ -993,20 +1212,27 @@ const ExamManagement = ({ apiUrl, token }) => {
                       )}
                     </td>
                     <td className="p-4">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => openLogicalTimetable(grp)}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white w-8 h-8 rounded-lg transition-colors flex items-center justify-center shadow-sm"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 h-8 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"
                           title="Manage Routine & Timetable"
                         >
-                          <FaCalendarAlt size={12} />
+                          <FaCalendarAlt size={11} /> Manage
                         </button>
                         <button
-                          onClick={() => downloadLogicalGroupPDF(grp)}
-                          className="bg-amber-500 hover:bg-amber-600 text-white w-8 h-8 rounded-lg transition-colors flex items-center justify-center shadow-sm"
-                          title="Bulk Download Routines (All Classes)"
+                          onClick={() => exportMasterRoutinePDF(grp)}
+                          className="bg-rose-600 hover:bg-rose-700 text-white px-2.5 h-8 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"
+                          title="Download Landscape A4 Master Routine PDF (All Classes)"
                         >
-                          <FaDownload size={12} />
+                          <FaFilePdf size={11} /> PDF
+                        </button>
+                        <button
+                          onClick={() => exportMasterRoutineExcel(grp)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 h-8 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"
+                          title="Download Master Routine Excel (All Classes)"
+                        >
+                          <FaFileExcel size={11} /> Excel
                         </button>
                         {!grp.isFullyFinalized && (
                           <button
@@ -1014,7 +1240,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                             className="bg-gray-600 hover:bg-gray-700 text-white w-8 h-8 rounded-lg transition-colors flex items-center justify-center shadow-sm"
                             title="Delete Exam Event"
                           >
-                            <FaTrash size={12} />
+                            <FaTrash size={11} />
                           </button>
                         )}
                       </div>
@@ -1057,21 +1283,39 @@ const ExamManagement = ({ apiUrl, token }) => {
               <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-gray-500 font-medium">
                 {selectedClassExam.start_date && (
                   <span>
-                    Exam Period: {selectedClassExam.start_date} to {selectedClassExam.end_date || 'N/A'} (Excludes Sundays)
+                    Exam Period: {selectedClassExam.start_date} to {selectedClassExam.end_date || 'N/A'} (1-Shift Session)
                   </span>
                 )}
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                setView('list');
-                fetchExamsAndStatus();
-              }}
-              className="bg-gray-800 text-white px-5 py-2 rounded-xl font-bold text-xs hover:bg-gray-900 transition flex items-center gap-2"
-            >
-              <FaArrowLeft /> Back to Exam List
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => exportMasterRoutinePDF(currentLogicalGroup)}
+                className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+                title="Download Master Routine Landscape A4 PDF (All Classes)"
+              >
+                <FaFilePdf size={12} /> Master PDF (A4 Landscape)
+              </button>
+              <button
+                type="button"
+                onClick={() => exportMasterRoutineExcel(currentLogicalGroup)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+                title="Download Master Routine Excel (.xlsx)"
+              >
+                <FaFileExcel size={12} /> Master Excel (.xlsx)
+              </button>
+              <button
+                onClick={() => {
+                  setView('list');
+                  fetchExamsAndStatus();
+                }}
+                className="bg-gray-800 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-gray-900 transition flex items-center gap-1.5"
+              >
+                <FaArrowLeft /> Back to Exam List
+              </button>
+            </div>
           </div>
 
           {/* Unified Class Switcher Tabs */}
@@ -1408,8 +1652,8 @@ const ExamManagement = ({ apiUrl, token }) => {
                 )}
               </div>
 
-              {/* Type and Date Range */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Type, Start Date, and 1-Shift Timings */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Exam Type</label>
                   <select
@@ -1423,7 +1667,9 @@ const ExamManagement = ({ apiUrl, token }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Start Date *</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                    Starting Exam Date *
+                  </label>
                   <input
                     required
                     type="date"
@@ -1432,31 +1678,48 @@ const ExamManagement = ({ apiUrl, token }) => {
                     className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm font-medium shadow-sm cursor-pointer"
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">End Date *</label>
-                  <input
-                    required
-                    type="date"
-                    value={newExam.end_date}
-                    onChange={(e) => setNewExam({ ...newExam, end_date: e.target.value })}
-                    className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm font-medium shadow-sm cursor-pointer"
-                  />
+              {/* 1-Shift Exam Timings */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                  Exam Timings (1-Shift Morning Session)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-slate-500 font-medium mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      value={newExam.single_start_time}
+                      onChange={(e) => setNewExam({ ...newExam, single_start_time: e.target.value })}
+                      className="w-full border border-slate-300 bg-white text-slate-900 p-2.5 rounded-lg text-xs font-semibold shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-500 font-medium mb-1">End Time</label>
+                    <input
+                      type="time"
+                      value={newExam.single_end_time}
+                      onChange={(e) => setNewExam({ ...newExam, single_end_time: e.target.value })}
+                      className="w-full border border-slate-300 bg-white text-slate-900 p-2.5 rounded-lg text-xs font-semibold shadow-sm"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Working Days & Schedule Guidance */}
-              {newExam.start_date && newExam.end_date && (
-                <div className="text-[11px] bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 text-slate-700 space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-indigo-700">
-                    <FiCalendar />
-                    <span>Working Days: {calculatedWorkingDays} days (Excluding Sundays)</span>
-                  </div>
-                  <p className="text-slate-500">
-                    Default timing: Single exam per day (08:30 - 10:30). If any targeted class requires more exams than working days, the system will prompt you to schedule up to two exams per day.
-                  </p>
+              {/* Auto-Scheduling Rules Banner */}
+              <div className="text-[11px] bg-indigo-50/70 p-4 rounded-xl border border-indigo-100 text-slate-700 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-indigo-800 text-xs">
+                  <FiCalendar className="text-sm shrink-0" />
+                  <span>Automated 20 Working Days Scheduler</span>
                 </div>
-              )}
+                <ul className="list-disc list-inside text-slate-600 space-y-0.5 pl-1">
+                  <li><strong>1-Shift System:</strong> Exactly 1 non-grading subject per day (no double shifts).</li>
+                  <li><strong>Grading Subjects:</strong> Conducted within at most 2 working dates (Day 1 & Day 2) before non-grading subjects.</li>
+                  <li><strong>Class IX–XII MIL:</strong> Conducted on 1 unified day labeled as "MIL" in the routine.</li>
+                  <li><strong>Duration:</strong> Routine auto-ends within 20 working days (excluding Sundays).</li>
+                </ul>
+              </div>
 
               {/* Submit Buttons */}
               <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-3">
@@ -1472,122 +1735,10 @@ const ExamManagement = ({ apiUrl, token }) => {
                   disabled={submittingExam}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold text-xs transition shadow-md shadow-indigo-600/20 disabled:opacity-50"
                 >
-                  {submittingExam ? 'Validating & Creating...' : 'Create Exam & Auto-Schedule'}
+                  {submittingExam ? 'Scheduling...' : 'Create Exam & Auto-Schedule'}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ======================= 2-EXAMS-PER-DAY WARNING MODAL ======================= */}
-      {showTwoExamsModal && capacityWarning && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-amber-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-amber-600 mb-3">
-              <FiAlertCircle className="text-2xl shrink-0" />
-              <h3 className="text-lg font-bold text-gray-900">Date Range Warning</h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-              {capacityWarning.message}
-            </p>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 text-xs text-amber-900 space-y-1">
-              <div><strong>Class:</strong> Class {capacityWarning.class_level}</div>
-              <div><strong>Working Days Available:</strong> {capacityWarning.working_days} days</div>
-              <div><strong>Required Subjects:</strong> {capacityWarning.required_subjects} subjects</div>
-            </div>
-
-            {/* Shift Timing Configuration */}
-            <div className="border border-gray-200 rounded-xl p-3.5 mb-5 bg-gray-50 space-y-3">
-              <div className="text-xs font-bold text-gray-700 uppercase">Configured Shifts (Max 2 per day)</div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Shift 1 (Morning)</label>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="time"
-                      value={newExam.shift1_start_time}
-                      onChange={(e) => setNewExam({ ...newExam, shift1_start_time: e.target.value })}
-                      className="border border-slate-300 p-2 rounded-lg w-full bg-white text-slate-900 text-xs shadow-sm font-medium"
-                    />
-                    <span className="text-slate-400 font-bold">-</span>
-                    <input
-                      type="time"
-                      value={newExam.shift1_end_time}
-                      onChange={(e) => setNewExam({ ...newExam, shift1_end_time: e.target.value })}
-                      className="border border-slate-300 p-2 rounded-lg w-full bg-white text-slate-900 text-xs shadow-sm font-medium"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Shift 2 (Afternoon)</label>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="time"
-                      value={newExam.shift2_start_time}
-                      onChange={(e) => setNewExam({ ...newExam, shift2_start_time: e.target.value })}
-                      className="border border-slate-300 p-2 rounded-lg w-full bg-white text-slate-900 text-xs shadow-sm font-medium"
-                    />
-                    <span className="text-slate-400 font-bold">-</span>
-                    <input
-                      type="time"
-                      value={newExam.shift2_end_time}
-                      onChange={(e) => setNewExam({ ...newExam, shift2_end_time: e.target.value })}
-                      className="border border-slate-300 p-2 rounded-lg w-full bg-white text-slate-900 text-xs shadow-sm font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setShowTwoExamsModal(false)}
-                className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl"
-              >
-                Cancel & Adjust Dates
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setNewExam((prev) => ({ ...prev, two_exams_per_day: true }));
-                  handleCreateExam(null, true);
-                }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm"
-              >
-                Yes, Conduct 2 Exams/Day
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================= INSUFFICIENT DAYS ABSOLUTE ERROR MODAL ======================= */}
-      {showAbsoluteErrorModal && capacityError && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-rose-600 mb-3">
-              <FiAlertCircle className="text-2xl shrink-0" />
-              <h3 className="text-lg font-bold text-gray-900">Insufficient Days</h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-              {capacityError.message}
-            </p>
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 mb-5 text-xs text-rose-900 space-y-1">
-              <div><strong>Class:</strong> Class {capacityError.class_level}</div>
-              <div><strong>Working Days:</strong> {capacityError.working_days} days (Max capacity: {capacityError.max_capacity} exams)</div>
-              <div><strong>Required Subjects:</strong> {capacityError.required_subjects} subjects</div>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowAbsoluteErrorModal(false)}
-                className="bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm"
-              >
-                Close & Adjust Date Range
-              </button>
-            </div>
           </div>
         </div>
       )}

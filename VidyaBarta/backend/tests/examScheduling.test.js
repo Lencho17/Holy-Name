@@ -20,6 +20,21 @@ const getWorkingDates = (startDateStr, endDateStr) => {
   return dates;
 };
 
+const getWorkingDatesCount = (startDateStr, maxWorkingDays = 20) => {
+  const dates = [];
+  if (!startDateStr) return dates;
+  let curr = new Date(startDateStr);
+  if (isNaN(curr.getTime())) return dates;
+
+  while (dates.length < maxWorkingDays) {
+    if (curr.getDay() !== 0) { // Skip Sunday
+      dates.push(curr.toISOString().split('T')[0]);
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+  return dates;
+};
+
 // Simulation of server-side finalization gate logic
 function validateFinalizationGate({ timetableRows, eligibleSubjects, category, startDate, endDate }) {
   if (!timetableRows || timetableRows.length === 0) {
@@ -58,8 +73,7 @@ function validateFinalizationGate({ timetableRows, eligibleSubjects, category, s
     seenCombos.add(key);
   }
 
-  // 4. Max 2 per day & No Sundays & Date Range
-  const dateCounts = {};
+  // 4. No Sundays & Date Range
   for (const r of timetableRows) {
     if (!r.exam_date) {
       return { valid: false, reason: `Subject ${r.subject} has no exam date assigned` };
@@ -74,36 +88,65 @@ function validateFinalizationGate({ timetableRows, eligibleSubjects, category, s
     if (endDate && r.exam_date > endDate) {
       return { valid: false, reason: `Exam date ${r.exam_date} is after end date ${endDate}` };
     }
-    dateCounts[r.exam_date] = (dateCounts[r.exam_date] || 0) + 1;
-    if (dateCounts[r.exam_date] > 2) {
-      return { valid: false, reason: `Date ${r.exam_date} exceeds maximum of 2 exams per day` };
+  }
+
+  // 5. Grading Subjects Constraints & Priority
+  const gradingMap = {};
+  eligibleSubjects.forEach(s => {
+    gradingMap[s.name] = !!s.is_grading;
+  });
+
+  const gradingRows = timetableRows.filter(r => gradingMap[r.subject]);
+  const nonGradingRows = timetableRows.filter(r => !gradingMap[r.subject]);
+
+  // Rule A: Max 2 grading dates
+  const gradingDates = new Set(gradingRows.map(r => r.exam_date));
+  if (gradingDates.size > 2) {
+    return { 
+      valid: false, 
+      reason: `Cannot finalize: All grading subjects must be conducted within at most 2 dates. Currently scheduled across ${gradingDates.size} dates.` 
+    };
+  }
+
+  // Rule B: 1-shift: strictly 1 non-grading exam per day
+  const nonGradingDaily = {};
+  for (const r of nonGradingRows) {
+    nonGradingDaily[r.exam_date] = (nonGradingDaily[r.exam_date] || 0) + 1;
+    if (nonGradingDaily[r.exam_date] > 1) {
+      return { 
+        valid: false, 
+        reason: `Cannot finalize: Only 1 non-grading exam per day is allowed. Multiple non-grading exams scheduled on ${r.exam_date}.` 
+      };
     }
   }
 
-  // 5. Grading Priority for Terminal Examination
-  if (category === 'terminal_examination') {
-    const gradingMap = {};
-    eligibleSubjects.forEach(s => {
-      gradingMap[s.name] = !!s.is_grading;
-    });
+  // Rule C: 20 working days limit from startDate
+  if (startDate) {
+    const allowedDates = getWorkingDatesCount(startDate, 20);
+    const maxAllowedDate = allowedDates[allowedDates.length - 1];
+    for (const r of timetableRows) {
+      if (r.exam_date > maxAllowedDate) {
+        return { 
+          valid: false, 
+          reason: `Cannot finalize: Exam for '${r.subject}' on ${r.exam_date} exceeds the 20 working days limit.` 
+        };
+      }
+    }
+  }
 
-    const sortedRows = [...timetableRows].sort((a, b) => {
-      const dtA = `${a.exam_date}T${a.start_time || '00:00'}`;
-      const dtB = `${b.exam_date}T${b.start_time || '00:00'}`;
-      return dtA.localeCompare(dtB);
-    });
-
+  // Rule D: Grading priority (all grading subjects must precede non-grading)
+  if (category === 'terminal_examination' && gradingRows.length > 0 && nonGradingRows.length > 0) {
     let lastGradingDt = null;
     let firstNonGradingDt = null;
 
-    sortedRows.forEach(r => {
-      const isGrading = gradingMap[r.subject] || r.is_grading;
+    gradingRows.forEach(r => {
       const dtStr = `${r.exam_date}T${r.start_time || '08:30'}`;
-      if (isGrading) {
-        if (!lastGradingDt || dtStr > lastGradingDt) lastGradingDt = dtStr;
-      } else {
-        if (!firstNonGradingDt || dtStr < firstNonGradingDt) firstNonGradingDt = dtStr;
-      }
+      if (!lastGradingDt || dtStr > lastGradingDt) lastGradingDt = dtStr;
+    });
+
+    nonGradingRows.forEach(r => {
+      const dtStr = `${r.exam_date}T${r.start_time || '08:30'}`;
+      if (!firstNonGradingDt || dtStr < firstNonGradingDt) firstNonGradingDt = dtStr;
     });
 
     if (lastGradingDt && firstNonGradingDt && firstNonGradingDt <= lastGradingDt) {
@@ -420,6 +463,138 @@ async function runExamSchedulingTests() {
     const scienceTimetableRow = generatedTimetable.find(r => r.subject === 'Science');
     assert(scienceTimetableRow && scienceTimetableRow.sub_subject === null, 'Science timetable entry has sub_subject null');
     assert(scienceTimetableRow.total_marks === 50, 'Science total marks is 50, not multiplied by 3 parts');
+
+    // -------------------------------------------------------------
+    // TEST 10: 20 Working Days Auto-Scheduling, Grading <= 2 Dates, and MIL Unification
+    // -------------------------------------------------------------
+    console.log('\n--- TEST 10: 20 Working Days Auto-Scheduling, Grading <= 2 Dates, and MIL Unification ---');
+    
+    // 1. Test getWorkingDatesCount generates 20 working days with zero Sundays
+    const working20 = getWorkingDatesCount('2026-10-01', 20);
+    assert(working20.length === 20, 'getWorkingDatesCount generates exactly 20 working days');
+    const hasSunday = working20.some(d => new Date(d).getDay() === 0);
+    assert(!hasSunday, 'getWorkingDatesCount excludes all Sundays');
+
+    // 2. High School MIL Consolidation:
+    // In Class IX-XII, elective MIL subjects (Assamese, Hindi, Bengali, Alt English) must collapse to 1 'MIL' subject
+    const rawClassXSubjects = [
+      { name: 'English', group_name: null, is_core: true },
+      { name: 'General Science', group_name: null, is_core: true },
+      { name: 'Mathematics', group_name: null, is_core: true },
+      { name: 'Assamese', group_name: 'MIL', is_core: false },
+      { name: 'Hindi', group_name: 'MIL', is_core: false },
+      { name: 'Advanced Mathematics', group_name: 'Elective', is_core: false }
+    ];
+
+    function consolidateMilForHighSchool(classLevel, subjects) {
+      const highSchoolClasses = ['IX', 'X', 'XI', 'XII', 'XI-SCIENCE', 'XI-COM', 'XI-ARTS', 'XII-SCIENCE', 'XII-COM', 'XII-ARTS'];
+      const isHighSchool = highSchoolClasses.includes(normalizeClassLevel(classLevel).toUpperCase());
+      if (!isHighSchool) return subjects;
+
+      const isMilItem = (item) => {
+        const grp = (item.group_name || '').toUpperCase();
+        const nm = (item.name || '').toUpperCase();
+        return grp === 'MIL' || nm === 'MIL' || nm.startsWith('MIL ') || nm.startsWith('MIL-') || nm.startsWith('MIL(') || nm.startsWith('MIL (');
+      };
+
+      const milItems = subjects.filter(isMilItem);
+      if (milItems.length > 0) {
+        const nonMilItems = subjects.filter(item => !isMilItem(item));
+        const consolidatedMil = {
+          name: 'MIL',
+          code: 'MIL',
+          is_core: false,
+          group_name: 'MIL',
+          total_marks: 100,
+          passing_marks: 40
+        };
+        return [...nonMilItems, consolidatedMil];
+      }
+      return subjects;
+    }
+
+    const classXConsolidated = consolidateMilForHighSchool('X', rawClassXSubjects);
+    assert(classXConsolidated.some(s => s.name === 'MIL'), 'Class X has unified MIL subject');
+    assert(!classXConsolidated.some(s => s.name === 'Assamese'), 'Class X has Assamese consolidated into MIL');
+    assert(!classXConsolidated.some(s => s.name === 'Hindi'), 'Class X has Hindi consolidated into MIL');
+    assert(classXConsolidated.length === 5, 'Class X subjects count reduced from 6 to 5 after MIL consolidation');
+
+    // In Class VI, languages are NOT consolidated
+    const rawClassVISubjects = [
+      { name: 'English', group_name: null, is_core: true },
+      { name: 'Assamese', group_name: 'MIL', is_core: false },
+      { name: 'Hindi', group_name: 'MIL', is_core: false }
+    ];
+    const classVIConsolidated = consolidateMilForHighSchool('VI', rawClassVISubjects);
+    assert(classVIConsolidated.length === 3, 'Class VI retains separate language subjects (no MIL consolidation for middle school)');
+
+    // 3. Auto-Scheduling with <= 2 grading dates:
+    // Terminal exam with 3 grading subjects and 4 non-grading subjects
+    const testTerminalSubs = [
+      { name: 'Drawing', is_grading: true },
+      { name: 'Craft', is_grading: true },
+      { name: 'Physical Education', is_grading: true },
+      { name: 'English', is_grading: false },
+      { name: 'Mathematics', is_grading: false },
+      { name: 'Science', is_grading: false },
+      { name: 'Social Science', is_grading: false }
+    ];
+
+    const gradingSubs = testTerminalSubs.filter(s => s.is_grading);
+    const nonGradingSubs = testTerminalSubs.filter(s => !s.is_grading);
+    const gradingDaysCount = gradingSubs.length === 0 ? 0 : (gradingSubs.length === 1 ? 1 : 2);
+    
+    const scheduledRows = [];
+    if (gradingDaysCount === 2) {
+      const mid = Math.ceil(gradingSubs.length / 2);
+      gradingSubs.slice(0, mid).forEach(s => scheduledRows.push({ subject: s.name, exam_date: working20[0], is_grading: true }));
+      gradingSubs.slice(mid).forEach(s => scheduledRows.push({ subject: s.name, exam_date: working20[1], is_grading: true }));
+    }
+    nonGradingSubs.forEach((s, idx) => {
+      scheduledRows.push({ subject: s.name, exam_date: working20[gradingDaysCount + idx], is_grading: false });
+    });
+
+    const uniqueGradingDates = new Set(scheduledRows.filter(r => r.is_grading).map(r => r.exam_date));
+    assert(uniqueGradingDates.size <= 2, 'Grading subjects are scheduled within at most 2 dates');
+    assert(scheduledRows.length === 7, 'All 7 subjects are scheduled');
+
+    // 4. Validation Gate: Rejects when grading subjects span > 2 dates
+    const invalid3GradingDates = [
+      { subject: 'Drawing', exam_date: working20[0], is_grading: true },
+      { subject: 'Craft', exam_date: working20[1], is_grading: true },
+      { subject: 'Physical Education', exam_date: working20[2], is_grading: true },
+      { subject: 'English', exam_date: working20[3], is_grading: false },
+      { subject: 'Mathematics', exam_date: working20[4], is_grading: false },
+      { subject: 'Science', exam_date: working20[5], is_grading: false },
+      { subject: 'Social Science', exam_date: working20[6], is_grading: false }
+    ];
+    const gateResGradingDates = validateFinalizationGate({
+      timetableRows: invalid3GradingDates,
+      eligibleSubjects: testTerminalSubs,
+      category: 'terminal_examination',
+      startDate: working20[0]
+    });
+    assert(gateResGradingDates.valid === false, 'Finalization REJECTS when grading subjects span > 2 dates');
+    assert(gateResGradingDates.reason.includes('at most 2 dates'), 'Reason mentions max 2 dates for grading');
+
+    // 5. Validation Gate: Rejects when non-grading subjects have > 1 exam per day in 1-shift
+    const invalid2NonGradingSameDay = [
+      { subject: 'Drawing', exam_date: working20[0], is_grading: true },
+      { subject: 'Craft', exam_date: working20[0], is_grading: true },
+      { subject: 'Physical Education', exam_date: working20[1], is_grading: true },
+      { subject: 'English', exam_date: working20[2], is_grading: false },
+      { subject: 'Mathematics', exam_date: working20[2], is_grading: false },
+      { subject: 'Science', exam_date: working20[3], is_grading: false },
+      { subject: 'Social Science', exam_date: working20[4], is_grading: false }
+    ];
+    const gateResNonGradingDaily = validateFinalizationGate({
+      timetableRows: invalid2NonGradingSameDay,
+      eligibleSubjects: testTerminalSubs,
+      category: 'terminal_examination',
+      startDate: working20[0]
+    });
+    assert(gateResNonGradingDaily.valid === false, 'Finalization REJECTS when multiple non-grading exams are scheduled on the same date');
+    assert(gateResNonGradingDaily.reason.includes('Only 1 non-grading exam per day is allowed'), 'Reason mentions 1 non-grading exam per day');
 
     console.log('\n======================================================================');
     console.log(`🎉 ALL ${passed}/${total} EXAM SCHEDULING TESTS PASSED SUCCESSFULLY!`);

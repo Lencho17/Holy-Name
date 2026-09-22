@@ -22,6 +22,41 @@ import { CSS } from '@dnd-kit/utilities';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Standard Subject Placeholders for Dynamic School Scheduling
+const STANDARD_PLACEHOLDERS = [
+  { label: 'Core 1', category: 'core', desc: '1st Core Subject Slot' },
+  { label: 'Core 2', category: 'core', desc: '2nd Core Subject Slot' },
+  { label: 'Core 3', category: 'core', desc: '3rd Core Subject Slot' },
+  { label: 'Core 4', category: 'core', desc: '4th Core Subject Slot' },
+  { label: 'MIL', category: 'mil', desc: 'Mother Tongue / MIL Slot' },
+  { label: 'Elective 1', category: 'elective', desc: '1st Elective Subject Slot' },
+  { label: 'Core 5', category: 'core', desc: '5th Core Subject Slot' },
+  { label: 'Elective 2', category: 'elective', desc: '2nd Elective Subject Slot' },
+  { label: 'Grading 1', category: 'grading', desc: '1st Day Grading Subjects' },
+  { label: 'Grading 2', category: 'grading', desc: '2nd Day Grading Subjects' },
+  { label: 'Minor', category: 'minor', desc: 'Minor Subject Slot' },
+];
+
+const getPlaceholderBadge = (subject) => {
+  const up = (subject || '').trim().toUpperCase();
+  if (up.includes('GRADING') || up.includes('GRADE')) {
+    return { label: 'Grading Slot', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+  }
+  if (up.startsWith('CORE') || up.includes('CORE')) {
+    return { label: 'Core Slot', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+  }
+  if (up.includes('MIL')) {
+    return { label: 'MIL Slot', color: 'bg-purple-50 text-purple-700 border-purple-200' };
+  }
+  if (up.startsWith('ELECTIVE') || up.includes('ELECTIVE')) {
+    return { label: 'Elective Slot', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+  }
+  if (up.startsWith('MINOR') || up.includes('MINOR')) {
+    return { label: 'Minor Slot', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+  }
+  return { label: 'Exact Subject', color: 'bg-slate-50 text-slate-600 border-slate-200' };
+};
+
 // Sortable Row Component for Timetable Routine Builder
 const SortableRoutineItem = ({ 
   item, 
@@ -48,6 +83,7 @@ const SortableRoutineItem = ({
   };
 
   const isPeriodic = examCategory === 'periodic_assessment';
+  const badge = getPlaceholderBadge(item.subject);
 
   return (
     <div 
@@ -78,25 +114,54 @@ const SortableRoutineItem = ({
 
         {/* Fields Row */}
         <div className="flex-1 flex flex-wrap lg:flex-nowrap items-center gap-3">
-          {/* Subject selection */}
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Subject Name
-            </label>
+          {/* Subject / Placeholder selection */}
+          <div className="flex-1 min-w-[240px]">
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Subject / Placeholder
+              </label>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${badge.color}`}>
+                {badge.label}
+              </span>
+            </div>
             <div className="relative">
               <input
                 type="text"
                 list={`subjects-list-${index}`}
-                placeholder="e.g. English, Mathematics..."
+                placeholder="e.g. Core 1, MIL, Elective 1..."
                 value={item.subject}
                 onChange={(e) => onUpdate(index, 'subject', e.target.value)}
-                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-slate-900 font-semibold shadow-sm placeholder-slate-400"
+                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-slate-900 font-bold shadow-sm placeholder-slate-400"
               />
               <datalist id={`subjects-list-${index}`}>
+                {STANDARD_PLACEHOLDERS.map((p) => (
+                  <option key={p.label} value={p.label}>{p.desc}</option>
+                ))}
                 {globalSubjects.map((s) => (
                   <option key={s.id || s.name} value={s.name} />
                 ))}
               </datalist>
+            </div>
+            {/* Quick Placeholder Chips */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="text-[10px] text-slate-400 font-medium">Quick Slot:</span>
+              {(isPeriodic
+                ? ['Core 1', 'Core 2', 'Core 3', 'Core 4', 'MIL', 'Elective 1', 'Core 5']
+                : ['Grading 1', 'Grading 2', 'Core 1', 'Core 2', 'Core 3', 'Core 4', 'MIL', 'Elective 1', 'Minor']
+              ).map((placeholder) => (
+                <button
+                  key={placeholder}
+                  type="button"
+                  onClick={() => onUpdate(index, 'subject', placeholder)}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded transition border ${
+                    item.subject === placeholder
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                  }`}
+                >
+                  {placeholder}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -366,23 +431,25 @@ export const DefaultExams = () => {
   // Routine Item Management
   const handleAddRoutineSubject = () => {
     const nextIdx = routineItems.length;
-    // Suggest a subject from global subjects that isn't yet added
-    const existingNames = new Set(routineItems.map(r => r.subject?.toUpperCase()));
-    const suggested = globalSubjects.find(s => !existingNames.has(s.name?.toUpperCase()));
-
     const isPeriodic = activeRoutineExam?.category === 'periodic_assessment';
     const defaultTotal = isPeriodic ? 50 : 100;
     const defaultPass = isPeriodic ? 20 : 40;
+
+    // Suggest next logical placeholder
+    const periodicSequence = ['Core 1', 'Core 2', 'Core 3', 'Core 4', 'MIL', 'Elective 1', 'Core 5', 'Elective 2'];
+    const terminalSequence = ['Grading 1', 'Grading 2', 'Core 1', 'Core 2', 'Core 3', 'Core 4', 'MIL', 'Elective 1', 'Core 5', 'Elective 2', 'Minor'];
+    const seq = isPeriodic ? periodicSequence : terminalSequence;
+    const suggested = seq[nextIdx] || `Core ${nextIdx + 1}`;
 
     setRoutineItems([
       ...routineItems,
       {
         _tempId: `temp-${Date.now()}`,
-        subject: suggested ? suggested.name : '',
+        subject: suggested,
         order_index: nextIdx,
         day_offset: nextIdx,
-        start_time: activeRoutineExam?.default_start_time || '08:30',
-        end_time: activeRoutineExam?.default_end_time || '10:30',
+        start_time: activeRoutineExam?.default_start_time?.substring(0, 5) || '08:30',
+        end_time: activeRoutineExam?.default_end_time?.substring(0, 5) || (isPeriodic ? '10:30' : '11:30'),
         total_marks: defaultTotal,
         passing_marks: defaultPass,
         has_practical: false,
@@ -392,6 +459,37 @@ export const DefaultExams = () => {
         practical_passing_marks: null
       }
     ]);
+  };
+
+  const handleApplyStandardPlaceholders = () => {
+    if (!activeRoutineExam) return;
+    const isPeriodic = activeRoutineExam.category === 'periodic_assessment';
+    const defaultTotal = isPeriodic ? 50 : 100;
+    const defaultPass = isPeriodic ? 20 : 40;
+    const startTime = activeRoutineExam.default_start_time?.substring(0, 5) || '08:30';
+    const endTime = activeRoutineExam.default_end_time?.substring(0, 5) || (isPeriodic ? '10:30' : '11:30');
+
+    const placeholders = isPeriodic ? [
+      'Core 1', 'Core 2', 'Core 3', 'Core 4', 'MIL', 'Elective 1', 'Core 5', 'Elective 2'
+    ] : [
+      'Grading 1', 'Grading 2', 'Core 1', 'Core 2', 'Core 3', 'Core 4', 'MIL', 'Elective 1', 'Core 5', 'Elective 2', 'Minor'
+    ];
+
+    setRoutineItems(placeholders.map((name, idx) => ({
+      _tempId: `std-${idx}-${Date.now()}`,
+      subject: name,
+      order_index: idx,
+      day_offset: idx,
+      start_time: startTime,
+      end_time: endTime,
+      total_marks: defaultTotal,
+      passing_marks: defaultPass,
+      has_practical: false,
+      theory_marks: null,
+      theory_passing_marks: null,
+      practical_marks: null,
+      practical_passing_marks: null
+    })));
   };
 
   const handleUpdateRoutineItem = (idx, field, value) => {
@@ -732,7 +830,7 @@ export const DefaultExams = () => {
                   Configure Default Routine: {activeRoutineExam.name}
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Drag and drop subjects to set the default exam sequence (Day 1, Day 2, etc.). When a school admin creates an exam, these subjects will be scheduled automatically.
+                  Drag and drop subject placeholders to set the standardized exam sequence (Day 1, Day 2, etc.). When a school admin creates an exam, each class's distinct subjects will dynamically replace these placeholders.
                 </p>
                 <div className="flex flex-wrap items-center gap-2.5 mt-3">
                   {activeRoutineExam.category === 'periodic_assessment' ? (
@@ -744,6 +842,15 @@ export const DefaultExams = () => {
                       Terminal Examination (100 Marks Standard)
                     </span>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={handleApplyStandardPlaceholders}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-sm transition cursor-pointer"
+                    title="Populate recommended placeholder sequence for this template"
+                  >
+                    ✨ Apply Standard Placeholders
+                  </button>
 
                   <button
                     type="button"
@@ -762,6 +869,12 @@ export const DefaultExams = () => {
                   >
                     ⚡ Sync Standard Marks ({activeRoutineExam.category === 'periodic_assessment' ? '50 / 20' : '100 / 40'})
                   </button>
+                </div>
+                <div className="mt-2.5 p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[11px] text-indigo-900 flex items-center gap-2">
+                  <FiInfo className="text-indigo-600 text-sm shrink-0" />
+                  <span>
+                    <strong>Dynamic Substitution Rule:</strong> Placeholders like <em>Core 1</em>, <em>Core 2</em>, <em>MIL</em>, and <em>Elective</em> will be replaced by the school's actual subjects for each class (e.g. English, Science, Mathematics for Class I-X, or Physics/History/Accountancy for Class XI-XII).
+                  </span>
                 </div>
               </div>
               <button

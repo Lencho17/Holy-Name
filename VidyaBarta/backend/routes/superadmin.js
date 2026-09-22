@@ -654,12 +654,45 @@ const FIXED_EXAM_TEMPLATES = [
   { name: 'Terminal Assessment', type: 'Offline', category: 'terminal_examination', default_start_time: '08:30:00', default_end_time: '11:30:00' }
 ];
 
+const DEFAULT_PERIODIC_PLACEHOLDERS = [
+  { subject: 'Core 1', day_offset: 0, order_index: 0, start_time: '08:30:00', end_time: '10:30:00', total_marks: 50, passing_marks: 20 },
+  { subject: 'Core 2', day_offset: 1, order_index: 1, start_time: '08:30:00', end_time: '10:30:00', total_marks: 50, passing_marks: 20 },
+  { subject: 'Core 3', day_offset: 2, order_index: 2, start_time: '08:30:00', end_time: '10:30:00', total_marks: 50, passing_marks: 20 },
+  { subject: 'Core 4', day_offset: 3, order_index: 3, start_time: '08:30:00', end_time: '10:30:00', total_marks: 50, passing_marks: 20 },
+  { subject: 'MIL', day_offset: 4, order_index: 4, start_time: '08:30:00', end_time: '10:30:00', total_marks: 50, passing_marks: 20 },
+  { subject: 'Elective 1', day_offset: 5, order_index: 5, start_time: '08:30:00', end_time: '10:30:00', total_marks: 50, passing_marks: 20 },
+  { subject: 'Core 5', day_offset: 6, order_index: 6, start_time: '08:30:00', end_time: '10:30:00', total_marks: 50, passing_marks: 20 },
+  { subject: 'Elective 2', day_offset: 7, order_index: 7, start_time: '08:30:00', end_time: '10:30:00', total_marks: 50, passing_marks: 20 }
+];
+
+const DEFAULT_TERMINAL_PLACEHOLDERS = [
+  { subject: 'Grading 1', day_offset: 0, order_index: 0, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Grading 2', day_offset: 1, order_index: 1, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Core 1', day_offset: 2, order_index: 2, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Core 2', day_offset: 3, order_index: 3, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Core 3', day_offset: 4, order_index: 4, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Core 4', day_offset: 5, order_index: 5, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'MIL', day_offset: 6, order_index: 6, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Elective 1', day_offset: 7, order_index: 7, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Core 5', day_offset: 8, order_index: 8, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Elective 2', day_offset: 9, order_index: 9, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 },
+  { subject: 'Minor', day_offset: 10, order_index: 10, start_time: '08:30:00', end_time: '11:30:00', total_marks: 100, passing_marks: 40 }
+];
+
 // Helper to ensure strictly the 2 fixed templates exist in DB
 const ensureFixedDefaultExams = async () => {
   try {
     const { data: existing } = await supabase.from('default_exams').select('*');
     if (!existing || existing.length === 0) {
-      await supabase.from('default_exams').insert(FIXED_EXAM_TEMPLATES);
+      const { data: created } = await supabase.from('default_exams').insert(FIXED_EXAM_TEMPLATES).select();
+      if (created) {
+        for (const ex of created) {
+          const placeholders = ex.category === 'periodic_assessment' ? DEFAULT_PERIODIC_PLACEHOLDERS : DEFAULT_TERMINAL_PLACEHOLDERS;
+          await supabase.from('default_exam_timetables').insert(
+            placeholders.map(p => ({ ...p, default_exam_id: ex.id, has_practical: false }))
+          );
+        }
+      }
     } else {
       // Sync names and enforce type 'Offline'
       for (const fixed of FIXED_EXAM_TEMPLATES) {
@@ -668,8 +701,22 @@ const ensureFixedDefaultExams = async () => {
           if (found.name !== fixed.name || found.type !== 'Offline') {
             await supabase.from('default_exams').update({ name: fixed.name, type: 'Offline' }).eq('id', found.id);
           }
+          // Verify if timetables exist
+          const { data: tt } = await supabase.from('default_exam_timetables').select('id').eq('default_exam_id', found.id).limit(1);
+          if (!tt || tt.length === 0) {
+            const placeholders = found.category === 'periodic_assessment' ? DEFAULT_PERIODIC_PLACEHOLDERS : DEFAULT_TERMINAL_PLACEHOLDERS;
+            await supabase.from('default_exam_timetables').insert(
+              placeholders.map(p => ({ ...p, default_exam_id: found.id, has_practical: false }))
+            );
+          }
         } else {
-          await supabase.from('default_exams').insert([fixed]);
+          const { data: newExam } = await supabase.from('default_exams').insert([fixed]).select().single();
+          if (newExam) {
+            const placeholders = newExam.category === 'periodic_assessment' ? DEFAULT_PERIODIC_PLACEHOLDERS : DEFAULT_TERMINAL_PLACEHOLDERS;
+            await supabase.from('default_exam_timetables').insert(
+              placeholders.map(p => ({ ...p, default_exam_id: newExam.id, has_practical: false }))
+            );
+          }
         }
       }
     }

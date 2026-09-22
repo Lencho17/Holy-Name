@@ -1484,9 +1484,13 @@ const ExamManagement = ({ apiUrl, token }) => {
                       </div>
                       <p className="text-slate-600 leading-relaxed">
                         {selectedTemplate.category === 'terminal_examination'
-                          ? 'Covers all subjects (Core, Elective, MIL, Minor, and Grading Sets). Grading subjects will be scheduled first.'
+                          ? 'Covers all subjects (Core, Elective, MIL, Minor, and Grading Sets). Grading subjects will be scheduled within the first 2 dates.'
                           : 'Covers only Core, Elective, and MIL subjects configured by the school for each class.'}
                       </p>
+                      <div className="mt-2 pt-2 border-t border-indigo-200/50 text-[11px] text-slate-600 flex items-start gap-1.5">
+                        <span className="font-bold text-indigo-700 shrink-0">Dynamic Subjects:</span>
+                        <span>Each class's distinct subjects (e.g. English, Science, Mathematics for Class I-X, or Physics/History for Class XI-XII) will automatically replace the template placeholders (Core 1, Core 2, MIL, Elective).</span>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -45,6 +45,7 @@ router.get('/default-templates', protectAnyStaff, async (req, res) => {
 
 const crypto = require('crypto');
 const { normalizeClassLevel, getHolyNameDefaultSubjects } = require('../utils/defaultClassSubjects');
+const { mapClassSubjectsToTemplate } = require('../utils/templateRoutineMapper');
 
 // Helper to generate working dates (Monday to Saturday, skipping Sundays)
 const getWorkingDates = (startDateStr, endDateStr) => {
@@ -386,23 +387,42 @@ router.post('/', protect, async (req, res) => {
       }
     }
 
-    // Calculate actual end date across all classes (within 20 working days)
-    let maxDaysUsedAcrossClasses = 0;
+    // Fetch template's default routine items
+    const { data: defaultTimetableRows } = await supabase
+      .from('default_exam_timetables')
+      .select('*')
+      .eq('default_exam_id', template.id)
+      .order('order_index', { ascending: true });
+
+    // Calculate actual end date across all classes (within 20 working days) using placeholder mapping
+    let maxAssignedDate = start_date;
     for (const c of targetClasses) {
-      const nonGradingCount = (classSubjectsMap[c] || []).filter(s => !s.is_grading).length;
-      const days = gradingDaysCount + nonGradingCount;
-      if (days > maxDaysUsedAcrossClasses) {
-        maxDaysUsedAcrossClasses = days;
-      }
+      const subs = [...(classSubjectsMap[c] || [])];
+      const previewTt = mapClassSubjectsToTemplate({
+        examId: 'preview',
+        schoolId,
+        classLevel: c,
+        templateRows: defaultTimetableRows || [],
+        classSubjects: subs,
+        workingDates,
+        singleStart: single_start_time || '08:30',
+        singleEnd: single_end_time || (templateCategory === 'periodic_assessment' ? '10:30' : '11:30'),
+        templateCategory
+      });
+
+      previewTt.forEach(t => {
+        if (t.exam_date && t.exam_date > maxAssignedDate) {
+          maxAssignedDate = t.exam_date;
+        }
+      });
     }
-    const endDayIdx = Math.max(0, Math.min(maxDaysUsedAcrossClasses - 1, workingDates.length - 1));
-    const calculatedEndDate = workingDates[endDayIdx] || workingDates[0];
+    const calculatedEndDate = maxAssignedDate || workingDates[0];
 
     // 5. Phase 2: Atomic Execution with Rollback
     logical_exam_id = crypto.randomUUID();
 
     const singleStart = single_start_time || '08:30';
-    const singleEnd = single_end_time || '10:30';
+    const singleEnd = single_end_time || (templateCategory === 'periodic_assessment' ? '10:30' : '11:30');
 
     const examInserts = targetClasses.map(c => ({
       name: name.trim(),
@@ -425,90 +445,23 @@ router.post('/', protect, async (req, res) => {
     if (examError) throw examError;
     createdExams = insertedExams;
 
-    // Generate timetable rows per class (1-Shift System Only)
+    // Generate timetable rows per class using placeholder mapping
     const timetableInserts = [];
 
     for (const ex of createdExams) {
       const subs = [...(classSubjectsMap[ex.class_level] || [])];
-      const gradingSubs = subs.filter(s => s.is_grading);
-      const nonGradingSubs = subs.filter(s => !s.is_grading);
-
-      // 1. Schedule Grading subjects within at most 2 dates: Day 1 (workingDates[0]) and Day 2 (workingDates[1])
-      if (gradingSubs.length === 1) {
-        timetableInserts.push({
-          exam_id: ex.id,
-          school_id,
-          class_level: ex.class_level,
-          subject: gradingSubs[0].name,
-          sub_subject: null,
-          exam_date: workingDates[0],
-          start_time: singleStart,
-          end_time: singleEnd,
-          total_marks: gradingSubs[0].total_marks,
-          passing_marks: gradingSubs[0].passing_marks,
-          has_practical: false,
-          is_finalized: false
-        });
-      } else if (gradingSubs.length >= 2) {
-        const mid = Math.ceil(gradingSubs.length / 2);
-        const day1Grading = gradingSubs.slice(0, mid);
-        const day2Grading = gradingSubs.slice(mid);
-
-        day1Grading.forEach(item => {
-          timetableInserts.push({
-            exam_id: ex.id,
-            school_id,
-            class_level: ex.class_level,
-            subject: item.name,
-            sub_subject: null,
-            exam_date: workingDates[0],
-            start_time: singleStart,
-            end_time: singleEnd,
-            total_marks: item.total_marks,
-            passing_marks: item.passing_marks,
-            has_practical: false,
-            is_finalized: false
-          });
-        });
-
-        day2Grading.forEach(item => {
-          timetableInserts.push({
-            exam_id: ex.id,
-            school_id,
-            class_level: ex.class_level,
-            subject: item.name,
-            sub_subject: null,
-            exam_date: workingDates[1] || workingDates[0],
-            start_time: singleStart,
-            end_time: singleEnd,
-            total_marks: item.total_marks,
-            passing_marks: item.passing_marks,
-            has_practical: false,
-            is_finalized: false
-          });
-        });
-      }
-
-      // 2. Schedule Non-Grading subjects: 1 subject per day starting at workingDates[gradingDaysCount]
-      nonGradingSubs.forEach((item, nIdx) => {
-        const dateIdx = gradingDaysCount + nIdx;
-        const assignedDate = workingDates[dateIdx] || workingDates[workingDates.length - 1];
-
-        timetableInserts.push({
-          exam_id: ex.id,
-          school_id,
-          class_level: ex.class_level,
-          subject: item.name,
-          sub_subject: null,
-          exam_date: assignedDate,
-          start_time: singleStart,
-          end_time: singleEnd,
-          total_marks: item.total_marks,
-          passing_marks: item.passing_marks,
-          has_practical: false,
-          is_finalized: false
-        });
+      const classTt = mapClassSubjectsToTemplate({
+        examId: ex.id,
+        schoolId,
+        classLevel: ex.class_level,
+        templateRows: defaultTimetableRows || [],
+        classSubjects: subs,
+        workingDates,
+        singleStart,
+        singleEnd,
+        templateCategory
       });
+      timetableInserts.push(...classTt);
     }
 
     if (timetableInserts.length > 0) {

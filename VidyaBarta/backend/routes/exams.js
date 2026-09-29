@@ -274,6 +274,7 @@ router.post('/', protect, async (req, res) => {
       single_end_time
     } = req.body;
     const { school_id } = req.user;
+    const schoolId = school_id;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Exam name is required' });
@@ -1189,8 +1190,9 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     const ut2Exam = periodicExams[1] || null;
     const term1Exam = terminalExams[0] || null;
     const term2Exam = terminalExams[1] || null;
+    const preTestExam = (exams || []).find(e => /pre[-_\s]*test|pre[-_\s]*board/i.test(e.name || '')) || terminalExams[2] || null;
 
-    const allIdentifiedExamIds = [ut1Exam?.id, term1Exam?.id, ut2Exam?.id, term2Exam?.id].filter(Boolean);
+    const allIdentifiedExamIds = [ut1Exam?.id, term1Exam?.id, ut2Exam?.id, term2Exam?.id, preTestExam?.id].filter(Boolean);
 
     // 3. Fetch timetables for these exams
     let timetables = [];
@@ -1239,6 +1241,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     const isKgToMiddle = /^(KG|NURSERY|LKG|UKG|PPE|CLASS\s*(I|II|III|IV|V|VI|VII|VIII|[1-8])|GRADE\s*(I|II|III|IV|V|VI|VII|VIII|[1-8])|(I|II|III|IV|V|VI|VII|VIII|[1-8]))\b/i.test(class_level.trim());
     const isClass4to8 = /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test(class_level.trim());
     const isClass1to3 = /^(CLASS\s*(I|II|III|[1-3])|GRADE\s*(I|II|III|[1-3])|(I|II|III|[1-3]))\b/i.test(class_level.trim());
+    const isClass9to10 = /^(CLASS\s*(IX|X|9|10)|GRADE\s*(IX|X|9|10)|(IX|X|9|10))\b/i.test(class_level.trim());
     const isClass11to12 = /^(CLASS\s*(XI|XII|11|12)|GRADE\s*(XI|XII|11|12)|(XI|XII|11|12))\b/i.test(class_level.trim());
 
     // Build grading and scholastic sets
@@ -1249,7 +1252,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     schoolSubjects.forEach(s => {
       const subName = s.subjects?.name ? s.subjects.name.toUpperCase().trim() : null;
       if (!subName) return;
-      const isKnownGradingSubject = (isKgToMiddle || isClass11to12) && [
+      const isKnownGradingSubject = (isKgToMiddle || isClass9to10 || isClass11to12) && [
         'CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DRILL/GAMES', 'DRILL', 'GAMES', 'DICTATION', 'HANDWRITING', 'READING', 'LIBRARY', 'TABLE',
         'WORK EXPERIENCE', 'GENERAL STUDIES', 'PHYSICAL & HEALTH EDUCATION', 'HEALTH & PHYSICAL EDUCATION'
       ].includes(subName);
@@ -1265,7 +1268,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     timetables.forEach(t => {
       const subName = t.subject ? t.subject.toUpperCase().trim() : null;
       if (!subName) return;
-      const isKnownGradingSubject = (isKgToMiddle || isClass11to12) && [
+      const isKnownGradingSubject = (isKgToMiddle || isClass9to10 || isClass11to12) && [
         'CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DRILL/GAMES', 'DRILL', 'GAMES', 'DICTATION', 'HANDWRITING', 'READING', 'LIBRARY', 'TABLE',
         'WORK EXPERIENCE', 'GENERAL STUDIES', 'PHYSICAL & HEALTH EDUCATION', 'HEALTH & PHYSICAL EDUCATION'
       ].includes(subName);
@@ -1304,7 +1307,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     }
 
     // Fallback for KG to Class XII only if no other grading subjects were configured by school
-    if (gradingSubjectsList.length <= 2 && (isKgToMiddle || isClass11to12)) {
+    if (gradingSubjectsList.length <= 2 && (isKgToMiddle || isClass9to10 || isClass11to12)) {
       const primaryDefaults = ['CRAFT', 'DRAWING', 'CONVERSATION', 'DRILL/GAMES', 'DICTATION'];
       primaryDefaults.forEach(d => {
         if (!gradingSubjectsList.includes(d)) gradingSubjectsList.push(d);
@@ -1325,6 +1328,11 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           'ENGLISH I', 'ENGLISH II', 'ASSAMESE', 'HINDI', 'MATHEMATICS',
           'GENERAL SCIENCE', 'SOCIAL SCIENCE', 'MORAL SCIENCE', 'GENERAL KNOWLEDGE', 'COMPUTER SCIENCE'
         ];
+      } else if (isClass9to10) {
+        scholasticSubjects = [
+          'ENGLISH I', 'ENGLISH II', 'ASSAMESE', 'HINDI', 'MATHEMATICS',
+          'G.SCIENCE', 'SOCIAL SCIENCE', 'GEOGRAPHY', 'COMP. SCIENCE', 'ADV. MATHS', 'MUSIC', 'MORAL SCIENCE'
+        ];
       } else if (isClass11to12) {
         scholasticSubjects = [
           'ENGLISH CORE', 'PHYSICS', 'CHEMISTRY', 'MATHEMATICS', 'BIOLOGY', 'COMPUTER SCIENCE', 'PHYSICAL EDUCATION'
@@ -1337,13 +1345,16 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     // Standard academic subject sorting matching specimen
     const standardSubjectOrder = [
       'ENGLISH CORE', 'ENGLISH I', 'ENGLISH', 'ENGLISH II', 'ENG GRAMMAR',
-      'PHYSICS', 'CHEMISTRY', 'MATHEMATICS', 'BIOLOGY',
-      'ACCOUNTANCY', 'BUSINESS STUDIES', 'ECONOMICS',
-      'POLITICAL SCIENCE', 'HISTORY', 'GEOGRAPHY', 'SOCIOLOGY',
-      'GENERAL SCIENCE', 'SCIENCE', 'SOCIAL SCIENCE', 'MORAL SCIENCE',
-      'ASSAMESE', 'HINDI', 'SANSKRIT',
+      'ASSAMESE', 'HINDI', 'SANSKRIT', 'BENGALI',
+      'MATHEMATICS', 'ADV. MATHS', 'ADV MATHEMATICS',
+      'G.SCIENCE', 'GENERAL SCIENCE', 'SCIENCE',
+      'SOCIAL SCIENCE', 'GEOGRAPHY', 'HISTORY', 'POLITICAL SCIENCE', 'SOCIOLOGY',
+      'COMP. SCIENCE', 'COMPUTER SCIENCE', 'COMPUTER', 'INFORMATICS PRACTICES',
+      'MUSIC',
+      'MORAL SCIENCE',
       'GEN KNOWLEDGE', 'GENERAL KNOWLEDGE',
-      'COMPUTER SCIENCE', 'COMPUTER', 'INFORMATICS PRACTICES',
+      'PHYSICS', 'CHEMISTRY', 'BIOLOGY',
+      'ACCOUNTANCY', 'BUSINESS STUDIES', 'ECONOMICS',
       'PHYSICAL EDUCATION', 'ENVIRONMENTAL EDUCATION'
     ];
     scholasticSubjects.sort((a, b) => {
@@ -1454,6 +1465,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
       const ut2 = evaluateStudentExam(student.id, ut2Exam);
       const term1 = evaluateStudentExam(student.id, term1Exam);
       const term2 = evaluateStudentExam(student.id, term2Exam);
+      const preTest = evaluateStudentExam(student.id, preTestExam);
 
       // Combined 4-Exam Breakdown (Scholastic Subjects)
       const targetEvalSubjects = scholasticSubjects.length > 0 ? scholasticSubjects : classSubjects;
@@ -1501,6 +1513,11 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         const t1 = term1?.subjects.find(s => s.subject.toUpperCase() === subName);
         const u2 = ut2?.subjects.find(s => s.subject.toUpperCase() === subName);
         const t2 = term2?.subjects.find(s => s.subject.toUpperCase() === subName);
+        const pt = preTest?.subjects.find(s => s.subject.toUpperCase() === subName);
+
+        // Pre-Test (Raw tracking for Board preparation)
+        const preTestObt = pt?.totalObtained ?? null;
+        const preTestMax = pt?.maxMarks || 100;
 
         // PA 1 (20% weightage)
         const ut1Obt = u1?.totalObtained ?? null;
@@ -1565,6 +1582,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           ut2Wt: ut2Wt != null ? ut2Wt.toFixed(1) : '—',
           term2Raw: term2Obt != null ? `${term2Obt}/${term2Max}` : '—',
           term2Wt: term2Wt != null ? term2Wt.toFixed(1) : '—',
+          preTestRaw: preTestObt != null ? `${preTestObt}/${preTestMax}` : '—',
           utAll20Wt: utAll20Wt != null ? utAll20Wt.toFixed(1) : '—',
           annual50Wt: annual50Wt != null ? annual50Wt.toFixed(1) : '—',
           score50Scheme: score50Scheme != null ? score50Scheme : '—',
@@ -1595,7 +1613,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           annualVal = subName === 'CONDUCT' ? 'GOOD' : subName === 'ATTENDANCE' ? '96%' : 'A';
         }
 
-        const isStruck = isClass11to12 && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(subName);
+        const isStruck = (isClass9to10 || isClass11to12) && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(subName);
         return {
           subject: subName,
           halfYearly: isStruck ? '—' : halfYearlyVal,
@@ -1633,6 +1651,7 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         ut2,
         term1,
         term2,
+        preTest,
         combined: {
           subjects: combinedSubjects,
           totalObtained: combTotalObt,
@@ -1646,10 +1665,11 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
           gradingSubjects: annualGradingSubjects,
           appearingSubjectsCount: annualSubjects.filter(s => s.finalScore !== '—').length,
           appearingCounts: {
-            ut1: ut1 ? (ut1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6)))) : (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6))),
-            term1: term1 ? (term1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7)))) : (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7))),
-            ut2: ut2 ? (ut2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6)))) : (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6))),
-            term2: term2 ? (term2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7)))) : (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7)))
+            ut1: ut1 ? (ut1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass9to10 ? 7 : (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6))))) : (isClass9to10 ? 7 : (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6)))),
+            term1: term1 ? (term1.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass9to10 ? 8 : (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7))))) : (isClass9to10 ? 8 : (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7)))),
+            ut2: ut2 ? (ut2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass9to10 ? 7 : (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6))))) : (isClass9to10 ? 7 : (isClass11to12 ? 6 : (isClass4to8 ? 8 : (isClass1to3 ? 7 : 6)))),
+            term2: term2 ? (term2.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || (isClass9to10 ? 8 : (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7))))) : (isClass9to10 ? 8 : (isClass11to12 ? 7 : (isClass4to8 ? 10 : (isClass1to3 ? 9 : 7)))),
+            preTest: preTest ? (preTest.subjects.filter(s => s.totalObtained != null && !s.isGrading).length || 7) : 7
           },
           totalObtained: validAnnualScores.reduce((a, b) => a + b, 0).toFixed(1),
           totalMax: validAnnualScores.length * 100,
@@ -1673,13 +1693,13 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
     // 6. Assign Class Ranks based on Annual Performance
     const sortedForRank = [...aggregatedStudents].sort((a, b) => parseFloat(b.annual.percentage) - parseFloat(a.annual.percentage));
     sortedForRank.forEach((item, rIdx) => {
-      const rank = rIdx + 1;
-      item.annual.rank = rank;
-      item.combined.rank = rank;
+      if (item.annual) item.annual.rank = rank;
+      if (item.combined) item.combined.rank = rank;
       if (item.ut1) item.ut1.rank = rank;
       if (item.ut2) item.ut2.rank = rank;
       if (item.term1) item.term1.rank = rank;
       if (item.term2) item.term2.rank = rank;
+      if (item.preTest) item.preTest.rank = rank;
     });
 
     res.json({
@@ -1688,7 +1708,8 @@ router.get('/marksheets/class-data', protectAnyStaff, async (req, res) => {
         ut1: ut1Exam ? { id: ut1Exam.id, name: ut1Exam.name, category: ut1Exam.category, start_date: ut1Exam.start_date, end_date: ut1Exam.end_date } : null,
         term1: term1Exam ? { id: term1Exam.id, name: term1Exam.name, category: term1Exam.category, start_date: term1Exam.start_date, end_date: term1Exam.end_date } : null,
         ut2: ut2Exam ? { id: ut2Exam.id, name: ut2Exam.name, category: ut2Exam.category, start_date: ut2Exam.start_date, end_date: ut2Exam.end_date } : null,
-        term2: term2Exam ? { id: term2Exam.id, name: term2Exam.name, category: term2Exam.category, start_date: term2Exam.start_date, end_date: term2Exam.end_date } : null
+        term2: term2Exam ? { id: term2Exam.id, name: term2Exam.name, category: term2Exam.category, start_date: term2Exam.start_date, end_date: term2Exam.end_date } : null,
+        preTest: preTestExam ? { id: preTestExam.id, name: preTestExam.name, category: preTestExam.category, start_date: preTestExam.start_date, end_date: preTestExam.end_date } : null
       },
       classSubjects,
       scholasticSubjects,

@@ -110,7 +110,8 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
       ut1: classData?.exams?.ut1?.name || '1st & 2nd Unit',
       term1: classData?.exams?.term1?.name || 'Half-Yearly',
       ut2: classData?.exams?.ut2?.name || '3rd & 4th Unit',
-      term2: classData?.exams?.term2?.name || 'Annual Exam'
+      term2: classData?.exams?.term2?.name || 'Annual Exam',
+      preTest: classData?.exams?.preTest?.name || 'Pre-Test'
     };
   }, [classData]);
 
@@ -129,6 +130,10 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
   const isClass11to12 = useMemo(() => {
     return /^(CLASS\s*(XI|XII|11|12)|GRADE\s*(XI|XII|11|12)|(XI|XII|11|12))\b/i.test((selectedClass || '').trim());
+  }, [selectedClass]);
+
+  const isClass9to10 = useMemo(() => {
+    return /^(CLASS\s*(IX|X|9|10)|GRADE\s*(IX|X|9|10)|(IX|X|9|10))\b/i.test((selectedClass || '').trim());
   }, [selectedClass]);
 
   const isClass4to8 = useMemo(() => {
@@ -183,6 +188,15 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           key: 'term2',
           adminName: examNames.term2,
           color: 'teal'
+        };
+      case 'preTest':
+        return {
+          title: (examNames.preTest || 'Pre-Test Examination').toUpperCase(),
+          subTitle: 'Board Preparation Pre-Test Evaluation',
+          scale: 'PM: 40/100',
+          key: 'preTest',
+          adminName: examNames.preTest,
+          color: 'amber'
         };
       case 'annual':
       default:
@@ -379,12 +393,13 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
           // 7. Multi-Exam Tabulation Grid with Grouped Super-Headers
           const isSpecimenScheme = promotionScheme === 'specimen';
+          const isClass9to10Local = /^(CLASS\s*(IX|X|9|10)|GRADE\s*(IX|X|9|10)|(IX|X|9|10))\b/i.test((selectedClass || '').trim());
 
           const tableHeaders = isSpecimenScheme ? [
             [
               { content: 'SL', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
               { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
-              { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
+              { content: 'MARKS', colSpan: isClass9to10Local ? 5 : 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
               { content: 'PROMOTION CRITERIA', colSpan: 4, styles: { halign: 'center', fillColor: [20, 83, 45] } },
               { content: 'GRADE', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
             ],
@@ -393,6 +408,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               { content: `${examNames.term1}\nPM:40/100`, styles: { halign: 'center' } },
               { content: `${examNames.ut2}\nPM:20/50`, styles: { halign: 'center' } },
               { content: `${examNames.term2}\nPM:40/100`, styles: { halign: 'center' } },
+              ...(isClass9to10Local ? [{ content: `${examNames.preTest || 'Pre-Test'}\nPM:40/100`, styles: { halign: 'center' } }] : []),
               { content: '20% Marks\nof all the Unit Test', styles: { halign: 'center' } },
               { content: '30% Marks\nof Half-Yearly Exam', styles: { halign: 'center' } },
               { content: '50% of\nAnnual Exam', styles: { halign: 'center' } },
@@ -402,7 +418,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             [
               { content: 'SL', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
               { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
-              { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
+              { content: 'MARKS', colSpan: isClass9to10Local ? 5 : 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
               { content: 'PROMOTION CRITERIA', colSpan: 5, styles: { halign: 'center', fillColor: [20, 83, 45] } },
               { content: 'GRADE', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
             ],
@@ -411,6 +427,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               { content: `${examNames.term1}\nPM:40/100`, styles: { halign: 'center' } },
               { content: `${examNames.ut2}\nPM:20/50`, styles: { halign: 'center' } },
               { content: `${examNames.term2}\nPM:40/100`, styles: { halign: 'center' } },
+              ...(isClass9to10Local ? [{ content: `${examNames.preTest || 'Pre-Test'}\nPM:40/100`, styles: { halign: 'center' } }] : []),
               { content: `20% Marks\n${examNames.ut1}`, styles: { halign: 'center' } },
               { content: `30% Marks\n${examNames.term1}`, styles: { halign: 'center' } },
               { content: `20% Marks\n${examNames.ut2}`, styles: { halign: 'center' } },
@@ -428,6 +445,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                 sub.term1Raw ? sub.term1Raw : '—',
                 sub.ut2Raw ? sub.ut2Raw : '—',
                 sub.term2Raw ? sub.term2Raw : '—',
+                ...(isClass9to10Local ? [sub.preTestRaw ? sub.preTestRaw : '—'] : []),
                 sub.utAll20Wt != null && sub.utAll20Wt !== '—' ? sub.utAll20Wt : (sub.ut1Wt || '—'),
                 sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
                 sub.annual50Wt != null && sub.annual50Wt !== '—' ? sub.annual50Wt : (sub.term2Wt || '—'),
@@ -442,6 +460,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                 sub.term1Raw ? sub.term1Raw : '—',
                 sub.ut2Raw ? sub.ut2Raw : '—',
                 sub.term2Raw ? sub.term2Raw : '—',
+                ...(isClass9to10Local ? [sub.preTestRaw ? sub.preTestRaw : '—'] : []),
                 sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—',
                 sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
                 sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—',
@@ -454,11 +473,10 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
           // Summary Rows matching Sample
           const isClass11to12Local = /^(CLASS\s*(XI|XII|11|12)|GRADE\s*(XI|XII|11|12)|(XI|XII|11|12))\b/i.test((selectedClass || '').trim());
-          const isClass4to8Local = /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test((selectedClass || '').trim());
-          const defaultUt = isClass11to12Local ? 6 : (isClass4to8Local ? 8 : 7);
-          const defaultTerm = isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9);
-          const appCounts = item.annual?.appearingCounts || { ut1: defaultUt, term1: defaultTerm, ut2: defaultUt, term2: defaultTerm };
-          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9));
+          const defaultUt = isClass9to10Local ? 7 : (isClass11to12Local ? 6 : (isClass4to8Local ? 8 : 7));
+          const defaultTerm = isClass9to10Local ? 8 : (isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9));
+          const appCounts = item.annual?.appearingCounts || { ut1: defaultUt, term1: defaultTerm, ut2: defaultUt, term2: defaultTerm, preTest: 7 };
+          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass9to10Local ? 8 : (isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9)));
           const critColsSpan = isSpecimenScheme ? 3 : 4;
 
           tableBody.push([
@@ -467,6 +485,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: String(appCounts.term1 || defaultTerm), styles: { halign: 'center', fontStyle: 'bold' } },
             { content: String(appCounts.ut2 || defaultUt), styles: { halign: 'center', fontStyle: 'bold' } },
             { content: String(appCounts.term2 || defaultTerm), styles: { halign: 'center', fontStyle: 'bold' } },
+            ...(isClass9to10Local ? [{ content: String(appCounts.preTest || 7), styles: { halign: 'center', fontStyle: 'bold' } }] : []),
             { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
             { content: `${appSubsTotal} Subs`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
@@ -477,6 +496,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: String(item.term1?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
             { content: String(item.ut2?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
             { content: String(item.term2?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } },
+            ...(isClass9to10Local ? [{ content: String(item.preTest?.totalObtained ?? '—'), styles: { halign: 'center', fontStyle: 'bold' } }] : []),
             { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
             { content: `${item.annual?.totalObtained || 0}`, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } },
             { content: `/ ${item.annual?.totalMax || 0}`, styles: { halign: 'center', fontStyle: 'normal' } }
@@ -488,6 +508,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: item.term1 ? `${item.term1.percentage}%` : '—', styles: { halign: 'center' } },
             { content: item.ut2 ? `${item.ut2.percentage}%` : '—', styles: { halign: 'center' } },
             { content: item.term2 ? `${item.term2.percentage}%` : '—', styles: { halign: 'center' } },
+            ...(isClass9to10Local ? [{ content: item.preTest ? `${item.preTest.percentage}%` : '—', styles: { halign: 'center' } }] : []),
             { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
             { content: `${item.annual?.percentage || 0}%`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
@@ -498,6 +519,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: `#${item.term1?.rank || 1}`, styles: { halign: 'center' } },
             { content: `#${item.ut2?.rank || 1}`, styles: { halign: 'center' } },
             { content: `#${item.term2?.rank || 1}`, styles: { halign: 'center' } },
+            ...(isClass9to10Local ? [{ content: `#${item.preTest?.rank || 1}`, styles: { halign: 'center' } }] : []),
             { content: '—', colSpan: critColsSpan, styles: { halign: 'center' } },
             { content: `#${item.annual?.rank || 1}`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [67, 56, 202] } }
           ]);
@@ -508,11 +530,25 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: item.term1?.status || '—', styles: { halign: 'center' } },
             { content: item.ut2?.status || '—', styles: { halign: 'center' } },
             { content: item.term2?.status || '—', styles: { halign: 'center' } },
+            ...(isClass9to10Local ? [{ content: item.preTest?.status || '—', styles: { halign: 'center' } }] : []),
             { content: 'ANNUAL PROMOTION', colSpan: critColsSpan, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 253, 244] } },
             { content: item.annual?.promotion || 'PROMOTED', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45], fillColor: [240, 253, 244] } }
           ]);
 
-          const landColStyles = isSpecimenScheme ? {
+          const landColStyles = isClass9to10Local ? {
+            0: { cellWidth: 8 },
+            1: { cellWidth: 44, halign: 'left', fontStyle: 'bold' },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 20 },
+            4: { cellWidth: 20 },
+            5: { cellWidth: 20 },
+            6: { cellWidth: 20 },
+            7: { cellWidth: 24 },
+            8: { cellWidth: 24 },
+            9: { cellWidth: 24 },
+            10: { cellWidth: 23, fontStyle: 'bold', textColor: [20, 83, 45] },
+            11: { cellWidth: 16, fontStyle: 'bold', textColor: [67, 56, 202] }
+          } : (isSpecimenScheme ? {
             0: { cellWidth: 8 },
             1: { cellWidth: 50, halign: 'left', fontStyle: 'bold' },
             2: { cellWidth: 24 },
@@ -537,7 +573,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             9: { cellWidth: 21 },
             10: { cellWidth: 23, fontStyle: 'bold', textColor: [20, 83, 45] },
             11: { cellWidth: 16, fontStyle: 'bold', textColor: [67, 56, 202] }
-          };
+          });
 
           autoTable(doc, {
             head: tableHeaders,
@@ -604,7 +640,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
           // 10. Left: GRADING SUBJECTS Table | Right: Principal Signature & Barcode
           const gradingBody = (item.annual?.gradingSubjects || []).map(gs => {
-            const isStruck = gs.isStruck || (isClass11to12Local && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
+            const isStruck = gs.isStruck || ((isClass9to10Local || isClass11to12Local) && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
             return [
               { content: isStruck ? `${gs.subject} (N/A)` : gs.subject, styles: isStruck ? { textColor: [148, 163, 184], fontStyle: 'italic' } : { halign: 'left', fontStyle: 'bold' } },
               { content: isStruck ? '—' : (gs.halfYearly || 'GOOD'), styles: isStruck ? { textColor: [148, 163, 184] } : {} },
@@ -860,11 +896,12 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
           // 7. Multi-Exam Tabulation Grid with Grouped Super-Headers
           const isSpecimenScheme = promotionScheme === 'specimen';
+          const isClass9to10Local = /^(CLASS\s*(IX|X|9|10)|GRADE\s*(IX|X|9|10)|(IX|X|9|10))\b/i.test((selectedClass || '').trim());
 
           const portHeaders = isSpecimenScheme ? [
             [
               { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
-              { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
+              { content: 'MARKS', colSpan: isClass9to10Local ? 5 : 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
               { content: 'PROMOTION CRITERIA', colSpan: 4, styles: { halign: 'center', fillColor: [20, 83, 45] } },
               { content: 'GRADE', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
             ],
@@ -873,6 +910,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               { content: `${examNames.term1}\nPM:40/100`, styles: { halign: 'center' } },
               { content: `${examNames.ut2}\nPM:20/50`, styles: { halign: 'center' } },
               { content: `${examNames.term2}\nPM:40/100`, styles: { halign: 'center' } },
+              ...(isClass9to10Local ? [{ content: `${examNames.preTest || 'Pre-Test'}\nPM:40/100`, styles: { halign: 'center' } }] : []),
               { content: '20% Marks\nof all the Unit Test', styles: { halign: 'center' } },
               { content: '30% Marks\nof Half-Yearly Exam', styles: { halign: 'center' } },
               { content: '50% of\nAnnual Exam', styles: { halign: 'center' } },
@@ -881,7 +919,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           ] : [
             [
               { content: 'SUBJECT', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
-              { content: 'MARKS', colSpan: 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
+              { content: 'MARKS', colSpan: isClass9to10Local ? 5 : 4, styles: { halign: 'center', fillColor: [30, 41, 59] } },
               { content: 'PROMOTION CRITERIA', colSpan: 5, styles: { halign: 'center', fillColor: [20, 83, 45] } },
               { content: 'GRADE', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
             ],
@@ -890,6 +928,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
               { content: `${examNames.term1}\nPM:40/100`, styles: { halign: 'center' } },
               { content: `${examNames.ut2}\nPM:20/50`, styles: { halign: 'center' } },
               { content: `${examNames.term2}\nPM:40/100`, styles: { halign: 'center' } },
+              ...(isClass9to10Local ? [{ content: `${examNames.preTest || 'Pre-Test'}\nPM:40/100`, styles: { halign: 'center' } }] : []),
               { content: `20% Marks\n${examNames.ut1}`, styles: { halign: 'center' } },
               { content: `30% Marks\n${examNames.term1}`, styles: { halign: 'center' } },
               { content: `20% Marks\n${examNames.ut2}`, styles: { halign: 'center' } },
@@ -906,6 +945,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                 sub.term1Raw ? sub.term1Raw : '—',
                 sub.ut2Raw ? sub.ut2Raw : '—',
                 sub.term2Raw ? sub.term2Raw : '—',
+                ...(isClass9to10Local ? [sub.preTestRaw ? sub.preTestRaw : '—'] : []),
                 sub.utAll20Wt != null && sub.utAll20Wt !== '—' ? sub.utAll20Wt : (sub.ut1Wt || '—'),
                 sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
                 sub.annual50Wt != null && sub.annual50Wt !== '—' ? sub.annual50Wt : (sub.term2Wt || '—'),
@@ -919,6 +959,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                 sub.term1Raw ? sub.term1Raw : '—',
                 sub.ut2Raw ? sub.ut2Raw : '—',
                 sub.term2Raw ? sub.term2Raw : '—',
+                ...(isClass9to10Local ? [sub.preTestRaw ? sub.preTestRaw : '—'] : []),
                 sub.ut1Wt != null && sub.ut1Wt !== '—' ? sub.ut1Wt : '—',
                 sub.term1Wt != null && sub.term1Wt !== '—' ? sub.term1Wt : '—',
                 sub.ut2Wt != null && sub.ut2Wt !== '—' ? sub.ut2Wt : '—',
@@ -931,11 +972,10 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
 
           // Summary Rows matching Sample
           const isClass11to12Local = /^(CLASS\s*(XI|XII|11|12)|GRADE\s*(XI|XII|11|12)|(XI|XII|11|12))\b/i.test((selectedClass || '').trim());
-          const isClass4to8Local = /^(CLASS\s*(IV|V|VI|VII|VIII|[4-8])|GRADE\s*(IV|V|VI|VII|VIII|[4-8])|(IV|V|VI|VII|VIII|[4-8]))\b/i.test((selectedClass || '').trim());
-          const defaultUt = isClass11to12Local ? 6 : (isClass4to8Local ? 8 : 7);
-          const defaultTerm = isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9);
-          const appCounts = item.annual?.appearingCounts || { ut1: defaultUt, term1: defaultTerm, ut2: defaultUt, term2: defaultTerm };
-          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9));
+          const defaultUt = isClass9to10Local ? 7 : (isClass11to12Local ? 6 : (isClass4to8Local ? 8 : 7));
+          const defaultTerm = isClass9to10Local ? 8 : (isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9));
+          const appCounts = item.annual?.appearingCounts || { ut1: defaultUt, term1: defaultTerm, ut2: defaultUt, term2: defaultTerm, preTest: 7 };
+          const appSubsTotal = item.annual?.appearingSubjectsCount || item.annual?.subjects?.length || (isClass9to10Local ? 8 : (isClass11to12Local ? 7 : (isClass4to8Local ? 10 : 9)));
           const portCritSpan = isSpecimenScheme ? 3 : 4;
 
           portBody.push([
@@ -944,6 +984,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: String(appCounts.term1 || defaultTerm), styles: { halign: 'center' } },
             { content: String(appCounts.ut2 || defaultUt), styles: { halign: 'center' } },
             { content: String(appCounts.term2 || defaultTerm), styles: { halign: 'center' } },
+            ...(isClass9to10Local ? [{ content: String(appCounts.preTest || 7), styles: { halign: 'center' } }] : []),
             { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
             { content: `${appSubsTotal} Subs`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
@@ -954,6 +995,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: String(item.term1?.totalObtained ?? '—'), styles: { halign: 'center' } },
             { content: String(item.ut2?.totalObtained ?? '—'), styles: { halign: 'center' } },
             { content: String(item.term2?.totalObtained ?? '—'), styles: { halign: 'center' } },
+            ...(isClass9to10Local ? [{ content: String(item.preTest?.totalObtained ?? '—'), styles: { halign: 'center' } }] : []),
             { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
             { content: `${item.annual?.totalObtained || 0}`, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } },
             { content: `/ ${item.annual?.totalMax || 0}`, styles: { halign: 'center', fontStyle: 'normal' } }
@@ -965,6 +1007,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: item.term1 ? `${item.term1.percentage}%` : '—', styles: { halign: 'center' } },
             { content: item.ut2 ? `${item.ut2.percentage}%` : '—', styles: { halign: 'center' } },
             { content: item.term2 ? `${item.term2.percentage}%` : '—', styles: { halign: 'center' } },
+            ...(isClass9to10Local ? [{ content: item.preTest ? `${item.preTest.percentage}%` : '—', styles: { halign: 'center' } }] : []),
             { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
             { content: `${item.annual?.percentage || 0}%`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45] } }
           ]);
@@ -975,6 +1018,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: `#${item.term1?.rank || 1}`, styles: { halign: 'center' } },
             { content: `#${item.ut2?.rank || 1}`, styles: { halign: 'center' } },
             { content: `#${item.term2?.rank || 1}`, styles: { halign: 'center' } },
+            ...(isClass9to10Local ? [{ content: `#${item.preTest?.rank || 1}`, styles: { halign: 'center' } }] : []),
             { content: '—', colSpan: portCritSpan, styles: { halign: 'center' } },
             { content: `#${item.annual?.rank || 1}`, colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [67, 56, 202] } }
           ]);
@@ -985,11 +1029,24 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             { content: item.term1?.status || '—', styles: { halign: 'center' } },
             { content: item.ut2?.status || '—', styles: { halign: 'center' } },
             { content: item.term2?.status || '—', styles: { halign: 'center' } },
+            ...(isClass9to10Local ? [{ content: item.preTest?.status || '—', styles: { halign: 'center' } }] : []),
             { content: 'ANNUAL PROMOTION', colSpan: portCritSpan, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 253, 244] } },
             { content: item.annual?.promotion || 'PROMOTED', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold', textColor: [20, 83, 45], fillColor: [240, 253, 244] } }
           ]);
 
-          const portColStyles = isSpecimenScheme ? {
+          const portColStyles = isClass9to10Local ? {
+            0: { halign: 'left', fontStyle: 'bold', cellWidth: 38 },
+            1: { cellWidth: 12.5 },
+            2: { cellWidth: 12.5 },
+            3: { cellWidth: 12.5 },
+            4: { cellWidth: 12.5 },
+            5: { cellWidth: 12.5 },
+            6: { cellWidth: 15 },
+            7: { cellWidth: 15 },
+            8: { cellWidth: 15 },
+            9: { cellWidth: 17, fontStyle: 'bold', textColor: [20, 83, 45] },
+            10: { cellWidth: 17, fontStyle: 'bold', textColor: [67, 56, 202] }
+          } : (isSpecimenScheme ? {
             0: { halign: 'left', fontStyle: 'bold', cellWidth: 42 },
             1: { cellWidth: 15.5 },
             2: { cellWidth: 15.5 },
@@ -1012,7 +1069,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             8: { cellWidth: 14 },
             9: { cellWidth: 13, fontStyle: 'bold', textColor: [20, 83, 45] },
             10: { cellWidth: 13, fontStyle: 'bold', textColor: [67, 56, 202] }
-          };
+          });
 
           autoTable(doc, {
             head: portHeaders,
@@ -1081,7 +1138,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           // 10. Left: GRADING SUBJECTS Table | Right: Principal Signature & Barcode
           const lowerStartY = currentY;
           const gradingBody = (item.annual?.gradingSubjects || []).map(gs => {
-            const isStruck = gs.isStruck || (isClass11to12Local && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
+            const isStruck = gs.isStruck || ((isClass9to10Local || isClass11to12Local) && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
             return [
               { content: isStruck ? `${gs.subject} (N/A)` : gs.subject, styles: isStruck ? { textColor: [148, 163, 184], fontStyle: 'italic' } : { halign: 'left', fontStyle: 'bold' } },
               { content: isStruck ? '—' : (gs.halfYearly || 'GOOD'), styles: isStruck ? { textColor: [148, 163, 184] } : {} },
@@ -1488,7 +1545,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
   const handleDownloadExcel = async () => {
     if (!currentStudentItem) return;
     const summaryData = selectedType === 'annual' ? currentStudentItem.annual
-      : (selectedType === 'ut1' ? currentStudentItem.ut1 : selectedType === 'ut2' ? currentStudentItem.ut2 : selectedType === 'term1' ? currentStudentItem.term1 : currentStudentItem.term2);
+      : (selectedType === 'ut1' ? currentStudentItem.ut1 : selectedType === 'ut2' ? currentStudentItem.ut2 : selectedType === 'term1' ? currentStudentItem.term1 : selectedType === 'preTest' ? currentStudentItem.preTest : currentStudentItem.term2);
 
     await exportStudentMarksheetToExcel({
       marksheetType: selectedType === 'annual' ? 'annual' : (selectedType.startsWith('ut') ? 'unit_test' : 'terminal'),
@@ -1510,7 +1567,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
     const timetable = (classData.classSubjects || []).map(s => ({ subject: s, total_marks: 100 }));
     const calculatedRows = classData.students.map(item => {
       const summaryData = selectedType === 'annual' ? item.annual
-        : (selectedType === 'ut1' ? item.ut1 : selectedType === 'ut2' ? item.ut2 : selectedType === 'term1' ? item.term1 : item.term2);
+        : (selectedType === 'ut1' ? item.ut1 : selectedType === 'ut2' ? item.ut2 : selectedType === 'term1' ? item.term1 : selectedType === 'preTest' ? item.preTest : item.term2);
 
       const subjectScores = {};
       (summaryData?.subjects || []).forEach(sub => {
@@ -1665,8 +1722,8 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
         </div>
       </div>
 
-      {/* Marksheet Type Navigation Bar (5 Tabs) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 bg-slate-50 p-2 rounded-2xl border border-slate-200/80">
+      {/* Marksheet Type Navigation Bar */}
+      <div className={`grid grid-cols-2 sm:grid-cols-3 ${(isClass9to10 || classData?.exams?.preTest) ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-2.5 bg-slate-50 p-2 rounded-2xl border border-slate-200/80`}>
         
         {/* Tab 1: Periodic 1 (Admin Named) */}
         <button
@@ -1720,7 +1777,22 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
           <span className="text-[10px] font-normal opacity-85">Terminal 2 (100M)</span>
         </button>
 
-        {/* Tab 5: Annual Combined Marksheet (Takes 2 cols on lg) */}
+        {/* Tab 5: Pre-Test (if isClass9to10 or preTest exam exists) */}
+        {(isClass9to10 || classData?.exams?.preTest) && (
+          <button
+            onClick={() => setSelectedType('preTest')}
+            className={`py-3 px-2 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-1 text-center ${
+              selectedType === 'preTest'
+                ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20 ring-2 ring-amber-600/30'
+                : 'text-slate-700 hover:bg-white/80'
+            }`}
+          >
+            <span className="truncate max-w-[130px]">{examNames.preTest}</span>
+            <span className="text-[10px] font-normal opacity-85">Pre-Test (100M)</span>
+          </button>
+        )}
+
+        {/* Tab 6: Annual Combined Marksheet (Takes 2 cols on lg) */}
         <button
           onClick={() => setSelectedType('annual')}
           className={`col-span-2 sm:col-span-2 lg:col-span-2 py-3 px-3 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-1 text-center ${
@@ -1733,7 +1805,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
             <FaAward className="text-amber-300" /> Annual Marksheet (Combined)
           </span>
           <span className="text-[10px] font-normal opacity-90">
-            {paperOrientation === 'landscape' ? 'Landscape (1-Page)' : 'Portrait (Front & Back)'} • All 4 Exams + Grading Subjects
+            {paperOrientation === 'landscape' ? 'Landscape (1-Page)' : 'Portrait (Front & Back)'} • All Exams + Grading
           </span>
         </button>
       </div>
@@ -1802,7 +1874,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                 {studentsList.map((item, idx) => {
                   const s = item.student;
                   const summaryData = selectedType === 'annual' ? item.annual
-                    : (selectedType === 'ut1' ? item.ut1 : selectedType === 'ut2' ? item.ut2 : selectedType === 'term1' ? item.term1 : item.term2);
+                    : (selectedType === 'ut1' ? item.ut1 : selectedType === 'ut2' ? item.ut2 : selectedType === 'term1' ? item.term1 : selectedType === 'preTest' ? item.preTest : item.term2);
 
                   return (
                     <tr key={s.id || idx} className="hover:bg-slate-50/80 transition">
@@ -2032,7 +2104,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                       <tr className="bg-slate-800 text-white font-bold text-center text-[11px]">
                         <th rowSpan={2} className="p-2 border-r border-slate-700 w-10">SL</th>
                         <th rowSpan={2} className="p-2 border-r border-slate-700 text-left min-w-[140px]">SUBJECT</th>
-                        <th colSpan={4} className="p-1.5 border-r border-slate-700 bg-slate-900 uppercase tracking-wider">
+                        <th colSpan={isClass9to10 ? 5 : 4} className="p-1.5 border-r border-slate-700 bg-slate-900 uppercase tracking-wider">
                           MARKS
                         </th>
                         <th colSpan={promotionScheme === 'specimen' ? 4 : 5} className="p-1.5 border-r border-slate-700 bg-emerald-900 uppercase tracking-wider">
@@ -2058,6 +2130,12 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                           <span className="block font-bold">{examNames.term2}</span>
                           <span className="text-[9px] text-slate-500">PM: 40/100</span>
                         </th>
+                        {isClass9to10 && (
+                          <th className="p-1.5 border-r border-slate-300">
+                            <span className="block font-bold">{examNames.preTest || 'Pre-Test'}</span>
+                            <span className="text-[9px] text-slate-500">PM: 40/100</span>
+                          </th>
+                        )}
                         {/* PROMOTION CRITERIA Super-column Sub-headers */}
                         {promotionScheme === 'specimen' ? (
                           <>
@@ -2114,6 +2192,9 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                           <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.term1Raw ? sub.term1Raw : '—'}</td>
                           <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.ut2Raw ? sub.ut2Raw : '—'}</td>
                           <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.term2Raw ? sub.term2Raw : '—'}</td>
+                          {isClass9to10 && (
+                            <td className="p-2 text-center font-medium text-slate-700 border-r border-slate-200">{sub.preTestRaw ? sub.preTestRaw : '—'}</td>
+                          )}
                           {/* Weighted Points */}
                           {promotionScheme === 'specimen' ? (
                             <>
@@ -2150,13 +2231,16 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                       {/* Summary Row 1: APPEARING SUBJECTS */}
                       <tr className="bg-slate-50 font-bold text-slate-800 text-[11px] border-t-2 border-slate-300">
                         <td colSpan={2} className="p-2 pl-3 border-r border-slate-200 text-left uppercase">APPEARING SUBJECTS</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut1 || (isClass11to12 ? 6 : (isClass4to8 ? 8 : 7))}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term1 || (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9))}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut2 || (isClass11to12 ? 6 : (isClass4to8 ? 8 : 7))}</td>
-                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term2 || (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9))}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut1 || (isClass9to10 ? 7 : (isClass11to12 ? 6 : (isClass4to8 ? 8 : 7)))}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term1 || (isClass9to10 ? 8 : (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9)))}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.ut2 || (isClass9to10 ? 7 : (isClass11to12 ? 6 : (isClass4to8 ? 8 : 7)))}</td>
+                        <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.term2 || (isClass9to10 ? 8 : (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9)))}</td>
+                        {isClass9to10 && (
+                          <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.annual?.appearingCounts?.preTest || 7}</td>
+                        )}
                         <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td colSpan={2} className="p-2 text-center font-black text-emerald-800">
-                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length || (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9))} Subs
+                          {currentStudentItem.annual?.appearingSubjectsCount || currentStudentItem.annual?.subjects?.length || (isClass9to10 ? 8 : (isClass11to12 ? 7 : (isClass4to8 ? 10 : 9)))} Subs
                         </td>
                       </tr>
 
@@ -2167,6 +2251,9 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1?.totalObtained ?? '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2?.totalObtained ?? '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2?.totalObtained ?? '—'}</td>
+                        {isClass9to10 && (
+                          <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.preTest?.totalObtained ?? '—'}</td>
+                        )}
                         <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td className="p-2 text-center border-r border-slate-200 font-black text-emerald-800 text-sm">
                           {currentStudentItem.annual?.totalObtained || 0}
@@ -2183,6 +2270,9 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1 ? `${currentStudentItem.term1.percentage}%` : '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2 ? `${currentStudentItem.ut2.percentage}%` : '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2 ? `${currentStudentItem.term2.percentage}%` : '—'}</td>
+                        {isClass9to10 && (
+                          <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.preTest ? `${currentStudentItem.preTest.percentage}%` : '—'}</td>
+                        )}
                         <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td colSpan={2} className="p-2 text-center font-black text-emerald-800 text-sm">
                           {currentStudentItem.annual?.percentage || 0}%
@@ -2196,6 +2286,9 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.term1?.rank || 1}</td>
                         <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.ut2?.rank || 1}</td>
                         <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.term2?.rank || 1}</td>
+                        {isClass9to10 && (
+                          <td className="p-2 text-center border-r border-slate-200">#{currentStudentItem.preTest?.rank || 1}</td>
+                        )}
                         <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center text-slate-400">—</td>
                         <td colSpan={2} className="p-2 text-center font-black text-indigo-700 text-sm">
                           #{currentStudentItem.annual?.rank || 1}
@@ -2209,6 +2302,9 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term1?.status || '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.ut2?.status || '—'}</td>
                         <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.term2?.status || '—'}</td>
+                        {isClass9to10 && (
+                          <td className="p-2 text-center border-r border-slate-200">{currentStudentItem.preTest?.status || '—'}</td>
+                        )}
                         <td colSpan={promotionScheme === 'specimen' ? 3 : 4} className="p-2 border-r border-slate-200 text-center font-bold text-emerald-900 bg-emerald-100/60 uppercase">
                           ANNUAL PROMOTION
                         </td>
@@ -2365,7 +2461,7 @@ export const MarksheetGenerator = ({ apiUrl, token }) => {
                       </thead>
                       <tbody className="divide-y divide-slate-200 text-[11px]">
                         {(currentStudentItem.annual?.gradingSubjects || []).map((gs, gIdx) => {
-                          const isStruck = gs.isStruck || (isClass11to12 && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
+                          const isStruck = gs.isStruck || ((isClass9to10 || isClass11to12) && ['CRAFT', 'DRAWING', 'ART', 'CONVERSATION', 'DICTATION'].includes(gs.subject));
                           return (
                             <tr key={gIdx} className={`hover:bg-slate-50 ${isStruck ? 'opacity-60 bg-slate-50/50' : ''}`}>
                               <td className={`p-1.5 pl-3 font-semibold border-r border-slate-200 ${isStruck ? 'line-through text-slate-400' : 'text-slate-800'}`}>

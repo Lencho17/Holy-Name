@@ -11,6 +11,13 @@ const LANGUAGE_NAMES = [
   'MANIPURI', 'GARO', 'KHASI', 'MIL'
 ];
 
+// Physical activity, co-scholastic, and conduct evaluation metrics that must NEVER be scheduled in exam timetables
+const CO_SCHOLASTIC_NON_EXAM_SUBJECTS = new Set([
+  'GAMES', 'DRILL', 'DRILL/GAMES', 'P.T.', 'PT', 'PHYSICAL TRAINING',
+  'YOGA', 'ATTENDANCE', 'CONDUCT', 'DISCIPLINE', 'LIBRARY', 'MORNING ASSEMBLY',
+  'SUPW', 'WORK EXPERIENCE', 'GENERAL STUDIES'
+]);
+
 /**
  * Detects placeholder type and optional 1-based index from subject string.
  * @param {string} raw
@@ -71,6 +78,9 @@ function categorizeSubjects(classSubjects) {
   const otherPool = [];
 
   classSubjects.forEach(s => {
+    const subNameUpper = (s.name || '').trim().toUpperCase();
+    if (CO_SCHOLASTIC_NON_EXAM_SUBJECTS.has(subNameUpper)) return;
+
     const isGrading = s.is_grading || s.marking_system === 'Grade' || (s.group_name || '').toUpperCase() === 'GRADING SETS';
     const isMil = (s.group_name || '').toUpperCase() === 'MIL' || s.name.toUpperCase() === 'MIL' || s.name.toUpperCase().startsWith('MIL ') || s.name.toUpperCase().startsWith('MIL-') || s.name.toUpperCase().startsWith('MIL(');
     const isElective = (s.group_name || '').toUpperCase() === 'ELECTIVE' || (s.group_name || '').toLowerCase().includes('elective');
@@ -156,13 +166,22 @@ function mapClassSubjectsToTemplate({
   const totalGradingSlots = gradingSlots.length;
   let gradingSlotIndex = 0;
 
+  // Calculate actual grading days needed to avoid dead gap days if grading slots are unused
+  const actualGradingDaysUsed = (isPeriodic || gradingPool.length === 0)
+    ? 0
+    : (totalGradingSlots > 1 && gradingPool.length === 1 ? 1 : Math.min(totalGradingSlots, 2));
+  const unusedGradingSlots = Math.max(0, totalGradingSlots - actualGradingDaysUsed);
+
   // Track max day offset used
   let maxDayOffsetUsed = -1;
 
   // Process template rows in order
   for (const row of (templateRows || [])) {
     const placeholder = detectPlaceholderType(row.subject);
-    const dayOffset = row.day_offset ?? row.order_index ?? (maxDayOffsetUsed + 1);
+    const rawOffset = row.day_offset ?? row.order_index ?? (maxDayOffsetUsed + 1);
+    const dayOffset = placeholder.type === 'GRADING'
+      ? rawOffset
+      : Math.max(0, rawOffset - unusedGradingSlots);
     const examDate = workingDates[dayOffset] || workingDates[workingDates.length - 1];
 
     const slotStartTime = (row.start_time || singleStart || '08:30').substring(0, 5);
@@ -308,7 +327,7 @@ function mapClassSubjectsToTemplate({
   }
 
   // Remaining unassigned subjects: schedule on following working days
-  const remainingSubjects = classSubjects.filter(s => !isAssigned(s));
+  const remainingSubjects = classSubjects.filter(s => !isAssigned(s) && !CO_SCHOLASTIC_NON_EXAM_SUBJECTS.has((s.name || '').trim().toUpperCase()));
   if (remainingSubjects.length > 0) {
     let nextOffset = maxDayOffsetUsed + 1;
     for (const remSub of remainingSubjects) {

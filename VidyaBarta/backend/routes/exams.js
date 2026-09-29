@@ -81,6 +81,13 @@ const getWorkingDatesCount = (startDateStr, maxWorkingDays = 20) => {
   return dates;
 };
 
+// Physical activity, co-scholastic, and conduct evaluation metrics that must NEVER be scheduled in exam timetables
+const CO_SCHOLASTIC_NON_EXAM_SUBJECTS = new Set([
+  'GAMES', 'DRILL', 'DRILL/GAMES', 'P.T.', 'PT', 'PHYSICAL TRAINING',
+  'YOGA', 'ATTENDANCE', 'CONDUCT', 'DISCIPLINE', 'LIBRARY', 'MORNING ASSEMBLY',
+  'SUPW', 'WORK EXPERIENCE', 'GENERAL STUDIES'
+]);
+
 // Helper to retrieve school's eligible subjects for a class based on category
 const getClassEligibleSubjects = async (school_id, class_level, category) => {
   const normClass = normalizeClassLevel(class_level);
@@ -115,6 +122,8 @@ const getClassEligibleSubjects = async (school_id, class_level, category) => {
     classRows.forEach(s => {
       const subName = s.subjects?.name;
       if (!subName) return;
+      const subUpper = subName.trim().toUpperCase();
+      if (CO_SCHOLASTIC_NON_EXAM_SUBJECTS.has(subUpper)) return; // Physical activities and co-scholastic metrics never have exam timetables
       const grpName = s.elective_group_id ? groupMap[s.elective_group_id] : null;
       const markingSystem = s.subjects?.marking_system || 'Marking';
       const isGrading = markingSystem === 'Grade' || grpName === 'Grading Sets';
@@ -169,6 +178,8 @@ const getClassEligibleSubjects = async (school_id, class_level, category) => {
       allDef.forEach(s => {
         const subName = s.name || s.subjects?.name;
         if (!subName) return;
+        const subUpper = subName.trim().toUpperCase();
+        if (CO_SCHOLASTIC_NON_EXAM_SUBJECTS.has(subUpper)) return;
         const grpName = s.group_name;
         const markingSystem = s.marking_system || s.subjects?.marking_system || 'Marking';
         const isGrading = markingSystem === 'Grade' || grpName === 'Grading Sets';

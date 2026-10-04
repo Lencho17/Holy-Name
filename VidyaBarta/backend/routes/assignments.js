@@ -34,17 +34,18 @@ router.post('/', protect, async (req, res) => {
   try {
     const { school_id } = req.user;
     const { class_name, section, class_teacher_id, subject_teachers } = req.body;
+    const cleanClassTeacherId = (class_teacher_id && String(class_teacher_id).trim() !== '') ? class_teacher_id : null;
 
     if (!class_name) {
       return res.status(400).json({ message: 'Class name is required' });
     }
 
     // Validation: A single teacher can be class teacher of only 1 class
-    if (class_teacher_id) {
+    if (cleanClassTeacherId) {
       let existingQuery = supabase
         .from('class_assignments')
         .select('class_name, section, class_teacher_id')
-        .eq('class_teacher_id', class_teacher_id);
+        .eq('class_teacher_id', cleanClassTeacherId);
 
       if (school_id) {
         existingQuery = existingQuery.eq('school_id', school_id);
@@ -61,7 +62,7 @@ router.post('/', protect, async (req, res) => {
       });
 
       if (clash) {
-        const { data: teacher } = await supabase.from('staff').select('name').eq('id', class_teacher_id).single();
+        const { data: teacher } = await supabase.from('staff').select('name').eq('id', cleanClassTeacherId).single();
         const teacherName = teacher?.name || 'Staff member';
         return res.status(400).json({
           message: `Validation Error: ${teacherName} is already assigned as Class Teacher for Class ${clash.class_name} (Section ${clash.section || 'A'}). A single teacher can be the class teacher of only 1 class.`
@@ -76,7 +77,7 @@ router.post('/', protect, async (req, res) => {
         school_id,
         class_name,
         section: section || 'A',
-        class_teacher_id,
+        class_teacher_id: cleanClassTeacherId,
         subject_teachers, // Array of { subject, teacher_id }
         updated_at: new Date()
       }, { onConflict: 'school_id,class_name,section' })
@@ -95,7 +96,7 @@ router.post('/', protect, async (req, res) => {
         
       if (existing) {
         await supabase.from('class_assignments').update({
-          class_teacher_id,
+          class_teacher_id: cleanClassTeacherId,
           subject_teachers,
           updated_at: new Date()
         }).eq('id', existing.id);
@@ -104,15 +105,15 @@ router.post('/', protect, async (req, res) => {
           school_id,
           class_name,
           section: section || 'A',
-          class_teacher_id,
+          class_teacher_id: cleanClassTeacherId,
           subject_teachers
         });
       }
     }
 
     // Notify Class Teacher
-    if (class_teacher_id) {
-      const { data: teacher } = await supabase.from('staff').select('email, name').eq('id', class_teacher_id).single();
+    if (cleanClassTeacherId) {
+      const { data: teacher } = await supabase.from('staff').select('email, name').eq('id', cleanClassTeacherId).single();
       if (teacher && teacher.email) {
         try {
           await sendEmail({

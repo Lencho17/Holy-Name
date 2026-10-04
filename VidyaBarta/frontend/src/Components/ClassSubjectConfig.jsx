@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiEdit2 } from 'react-icons/fi';
+import { FaCrown } from 'react-icons/fa';
 import { sortClasses } from '../utils/classOrder';
 const CATEGORIES = ['MIL', 'Elective', 'Minor', 'Grading Sets'];
 
-const SubjectConfigRow = ({ subjectItem, globalSubjects, teachers = [], onChange, onRemove }) => {
+const SubjectConfigRow = ({ subjectItem, globalSubjects, teachers = [], onChange, onRemove, classTeacherId, onSetClassTeacher }) => {
+  const isCT = Boolean(subjectItem.teacher_id && classTeacherId && classTeacherId === subjectItem.teacher_id);
+
   return (
-    <div className="bg-white rounded border border-gray-200 p-2.5 mb-2 hover:border-teal-300 transition-colors">
+    <div className={`rounded border p-2.5 mb-2 transition-colors ${
+      isCT ? 'bg-amber-50/50 border-amber-300 ring-1 ring-amber-200' : 'bg-white border-gray-200 hover:border-teal-300'
+    }`}>
       <div className="flex flex-wrap items-center gap-2">
         <select 
           className="flex-1 min-w-[200px] border border-gray-200 rounded text-sm p-1.5 bg-gray-50 focus:bg-white focus:border-teal-500 outline-none"
@@ -23,15 +28,37 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, teachers = [], onChange
 
         {/* Dropdown menu against the subject to assign teacher */}
         <select
-          className="min-w-[190px] border border-gray-200 rounded text-xs p-2 bg-gray-50 focus:bg-white focus:border-emerald-500 outline-none"
+          className={`min-w-[190px] border rounded text-xs p-2 outline-none font-medium transition ${
+            isCT 
+              ? 'border-amber-400 bg-amber-50/40 text-amber-950 font-semibold ring-1 ring-amber-300' 
+              : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-emerald-500'
+          }`}
           value={subjectItem.teacher_id || ''}
           onChange={(e) => onChange({ ...subjectItem, teacher_id: e.target.value })}
         >
           <option value="">-- Assign Teacher --</option>
           {teachers.map(t => (
-            <option key={t.id} value={t.id}>{t.name} ({t.role || 'Teacher'})</option>
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.role || 'Teacher'}) {t.id === classTeacherId ? '👑 [Class Teacher]' : ''}
+            </option>
           ))}
         </select>
+
+        {subjectItem.teacher_id && onSetClassTeacher && (
+          <button
+            type="button"
+            onClick={() => onSetClassTeacher(subjectItem.teacher_id)}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-bold transition border cursor-pointer ${
+              isCT
+                ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs ring-1 ring-amber-400'
+                : 'bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-800 border-gray-200'
+            }`}
+            title={isCT ? 'Current Class Teacher. Click to unassign.' : 'Assign as Class Teacher for this class'}
+          >
+            <FaCrown className={isCT ? 'text-amber-600 text-xs' : 'text-gray-400 text-xs'} />
+            <span>{isCT ? 'Class Teacher' : 'Set as Class Teacher'}</span>
+          </button>
+        )}
         
         <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-1.5 rounded cursor-pointer border border-gray-200">
           <input 
@@ -154,6 +181,8 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
       String(cls.class_level).replace(/^Class\s*/i, '') === String(a.class_name).replace(/^Class\s*/i, '')
     );
 
+    data.class_teacher_id = matchingAssn?.class_teacher_id || '';
+
     // Map existing assigned teachers into core subjects
     data.core_subjects = data.core_subjects.map(cs => {
       const subName = globalSubjects.find(s => s.id === (cs.subject_id || cs.id))?.name || cs.name || cs.subjects?.name;
@@ -189,6 +218,25 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
     
     setEditData(data);
     setIsEditing(true);
+  };
+
+  const handleSetClassTeacher = (teacherId) => {
+    if (!teacherId) return;
+    if (editData.class_teacher_id === teacherId) {
+      setEditData(prev => ({ ...prev, class_teacher_id: '' }));
+      return;
+    }
+    const targetClassNorm = String(editData.class_level || '').replace(/^Class\s*/i, '').trim().toLowerCase();
+    const clash = assignments.find(a => 
+      a.class_teacher_id === teacherId && 
+      String(a.class_name).replace(/^Class\s*/i, '').trim().toLowerCase() !== targetClassNorm
+    );
+    if (clash) {
+      const teacher = teachers.find(t => t.id === teacherId);
+      alert(`Cannot assign ${teacher?.name || 'this teacher'}: Already assigned as Class Teacher for Class ${clash.class_name} (${clash.section || 'A'}). A single teacher can be the class teacher of only 1 class (Rule 9).`);
+      return;
+    }
+    setEditData(prev => ({ ...prev, class_teacher_id: teacherId }));
   };
 
   const handleSave = async () => {
@@ -269,7 +317,7 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
           }
         });
 
-        if (assignedSubjectTeachers.length > 0) {
+        if (assignedSubjectTeachers.length > 0 || editData.class_teacher_id) {
           const secList = editData.sections ? editData.sections.split(',').map(s => s.trim()).filter(Boolean) : ['A'];
           for (const sec of secList) {
             await fetch(`${API_URL}/assignments`, {
@@ -278,6 +326,7 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
               body: JSON.stringify({
                 class_name: editData.class_level,
                 section: sec,
+                class_teacher_id: editData.class_teacher_id || null,
                 subject_teachers: assignedSubjectTeachers
               })
             }).catch(e => console.error('Error syncing subject teachers to assignments:', e));
@@ -326,6 +375,20 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
             <h2 className="text-xl font-bold text-gray-800 mb-1">Manage class subject</h2>
             <div className="flex flex-col gap-1 mt-4">
               <span className="text-sm font-semibold text-gray-700">Class : {editData.class_level}</span>
+              {editData.class_teacher_id && (
+                <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold w-fit">
+                  <FaCrown className="text-amber-500" />
+                  <span>Designated Class Teacher: {teachers.find(t => t.id === editData.class_teacher_id)?.name || 'Assigned'}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setEditData({...editData, class_teacher_id: ''})}
+                    className="ml-2 text-amber-700 hover:text-amber-950 font-extrabold text-xs"
+                    title="Remove Class Teacher"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 Semester included : 
                 <select className="bg-transparent border-none focus:ring-0 text-sm font-semibold p-0 ml-1" value={editData.has_semester ? 'Yes' : 'No'} onChange={e => setEditData({...editData, has_semester: e.target.value === 'Yes'})}>
@@ -387,6 +450,8 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
                   subjectItem={cs}
                   globalSubjects={globalSubjects}
                   teachers={teachers}
+                  classTeacherId={editData.class_teacher_id}
+                  onSetClassTeacher={handleSetClassTeacher}
                   onChange={(updatedItem) => {
                     const newCore = [...(editData.core_subjects || [])];
                     newCore[idx] = updatedItem;
@@ -422,6 +487,8 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
                     subjectItem={cs}
                     globalSubjects={globalSubjects}
                     teachers={teachers}
+                    classTeacherId={editData.class_teacher_id}
+                    onSetClassTeacher={handleSetClassTeacher}
                     onChange={(updatedItem) => {
                       const newCatSubjects = [...(editData.categories[cat].subjects || [])];
                       newCatSubjects[idx] = updatedItem;

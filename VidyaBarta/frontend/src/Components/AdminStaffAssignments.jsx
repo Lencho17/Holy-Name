@@ -8,7 +8,8 @@ import {
   FaCheckCircle, 
   FaPlus, 
   FaUserTie,
-  FaBookOpen
+  FaBookOpen,
+  FaCrown
 } from 'react-icons/fa';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -55,6 +56,7 @@ const AdminStaffAssignments = () => {
   const [newCustomSubject, setNewCustomSubject] = useState('');
   const [newCustomTeacherId, setNewCustomTeacherId] = useState('');
   const [newCustomSecondaryTeacherId, setNewCustomSecondaryTeacherId] = useState('');
+  const [newCustomIsClassTeacher, setNewCustomIsClassTeacher] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -203,6 +205,35 @@ const AdminStaffAssignments = () => {
     initAssignFormForClass(assignForm.class_name, newSection);
   };
 
+  const getOtherClassTeacherAssignment = (teacherId) => {
+    if (!teacherId) return null;
+    const targetClassNorm = String(assignForm.class_name || '').replace(/^Class\s*/i, '').trim().toLowerCase();
+    const targetSecNorm = String(assignForm.section || 'A').trim().toLowerCase();
+    return classAssignments.find(a => 
+      a.class_teacher_id === teacherId && 
+      !(
+        String(a.class_name).replace(/^Class\s*/i, '').trim().toLowerCase() === targetClassNorm && 
+        String(a.section || 'A').trim().toLowerCase() === targetSecNorm
+      )
+    );
+  };
+
+  const handleToggleClassTeacher = (teacherId) => {
+    if (!teacherId) return;
+    if (assignForm.class_teacher_id === teacherId) {
+      // Toggle off / unassign
+      setAssignForm(prev => ({ ...prev, class_teacher_id: '' }));
+      return;
+    }
+    const clash = getOtherClassTeacherAssignment(teacherId);
+    if (clash) {
+      const teacher = staffList.find(s => s.id === teacherId);
+      alert(`Cannot assign ${teacher?.name || 'this teacher'}: Already assigned as Class Teacher for Class ${clash.class_name} (${clash.section || 'A'}). A single teacher can be the class teacher of only 1 class (Rule 9).`);
+      return;
+    }
+    setAssignForm(prev => ({ ...prev, class_teacher_id: teacherId }));
+  };
+
   const handleSubjectTeacherChange = (subjectName, field, teacherId) => {
     const updated = assignForm.subject_teachers.map(st => 
       st.subject === subjectName ? { ...st, [field]: teacherId } : st
@@ -230,8 +261,20 @@ const AdminStaffAssignments = () => {
       return;
     }
 
+    let designatedCT = assignForm.class_teacher_id;
+    if (newCustomIsClassTeacher && newCustomTeacherId) {
+      const clash = getOtherClassTeacherAssignment(newCustomTeacherId);
+      if (clash) {
+        const teacher = staffList.find(s => s.id === newCustomTeacherId);
+        alert(`Cannot assign ${teacher?.name || 'this teacher'} as Class Teacher: Already assigned for Class ${clash.class_name} (${clash.section || 'A'}). A teacher can only be class teacher of 1 class.`);
+      } else {
+        designatedCT = newCustomTeacherId;
+      }
+    }
+
     setAssignForm({
       ...assignForm,
+      class_teacher_id: designatedCT,
       subject_teachers: [
         ...assignForm.subject_teachers,
         { 
@@ -244,6 +287,7 @@ const AdminStaffAssignments = () => {
     setNewCustomSubject('');
     setNewCustomTeacherId('');
     setNewCustomSecondaryTeacherId('');
+    setNewCustomIsClassTeacher(false);
   };
 
   const handleAssignSubmit = async (e) => {
@@ -750,7 +794,9 @@ const AdminStaffAssignments = () => {
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-gray-700">Class Teacher</label>
+                    <label className="block text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                      <FaCrown className="text-amber-500" /> Designated Class Teacher
+                    </label>
                     <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
                       1 Teacher = 1 Class Only
                     </span>
@@ -760,22 +806,14 @@ const AdminStaffAssignments = () => {
                     value={assignForm.class_teacher_id} 
                     onChange={e => setAssignForm({...assignForm, class_teacher_id: e.target.value})}
                   >
-                    <option value="">-- Select Class Teacher --</option>
+                    <option value="">-- No Class Teacher Assigned (Or select from subjects below) --</option>
                     {staffList.map(s => {
-                      const targetClassNorm = String(assignForm.class_name || '').replace(/^Class\s*/i, '').trim().toLowerCase();
-                      const targetSecNorm = String(assignForm.section || 'A').trim().toLowerCase();
-                      const otherAssignment = classAssignments.find(a => 
-                        a.class_teacher_id === s.id && 
-                        !(
-                          String(a.class_name).replace(/^Class\s*/i, '').trim().toLowerCase() === targetClassNorm && 
-                          String(a.section || 'A').trim().toLowerCase() === targetSecNorm
-                        )
-                      );
+                      const otherAssignment = getOtherClassTeacherAssignment(s.id);
                       const isCurrent = s.id === assignForm.class_teacher_id;
                       const isBusy = !!otherAssignment && !isCurrent;
                       return (
                         <option key={s.id} value={s.id} disabled={isBusy} className={isBusy ? 'text-gray-400 bg-gray-50' : ''}>
-                          {s.name} ({s.role || 'Teacher'}) {isBusy ? `— [Already Class Teacher: ${otherAssignment.class_name} ${otherAssignment.section || 'A'}]` : ''}
+                          {s.name} ({s.role || 'Teacher'}) {isCurrent ? '👑 [Current Class Teacher]' : ''} {isBusy ? `— [Already Class Teacher: ${otherAssignment.class_name} ${otherAssignment.section || 'A'}]` : ''}
                         </option>
                       );
                     })}
@@ -788,82 +826,184 @@ const AdminStaffAssignments = () => {
 
               {/* Subject Table with Teacher Dropdown against each subject */}
               <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                <div className="bg-gray-100/70 p-3.5 border-b border-gray-200 flex justify-between items-center">
+                <div className="bg-gray-100/70 p-3.5 border-b border-gray-200 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                   <div className="font-bold text-xs uppercase tracking-wider text-gray-600 flex items-center gap-2">
                     <FaBookOpen className="text-teal-600" />
                     Subjects Configured for Class {assignForm.class_name || '...'} ({assignForm.subject_teachers.length})
                   </div>
-                  <span className="text-xs text-gray-500">Assign a teacher dropdown against each subject</span>
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <FaCrown className="text-amber-500" /> Click "Set as Class Teacher" on any subject to designate the class teacher
+                  </span>
                 </div>
 
                 <div className="divide-y divide-gray-100 max-h-[460px] overflow-y-auto">
-                  {assignForm.subject_teachers.map((st, i) => (
-                    <div key={i} className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-gray-50/80 transition">
-                      <div className="flex items-center gap-3 min-w-[160px]">
-                        <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                          {i + 1}
-                        </span>
-                        <div>
-                          <span className="font-bold text-gray-800 text-sm">{st.subject}</span>
-                          {st.teacher_id && st.secondary_teacher_id && (
-                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700">
-                              Co-Teaching
-                            </span>
-                          )}
+                  {assignForm.subject_teachers.map((st, i) => {
+                    const isPrimaryCT = Boolean(st.teacher_id && st.teacher_id === assignForm.class_teacher_id);
+                    const isSecondaryCT = Boolean(st.secondary_teacher_id && st.secondary_teacher_id === assignForm.class_teacher_id);
+                    const hasClassTeacherInRow = isPrimaryCT || isSecondaryCT;
+                    const primaryOtherAssignment = st.teacher_id ? getOtherClassTeacherAssignment(st.teacher_id) : null;
+                    const isPrimaryBusy = Boolean(primaryOtherAssignment && !isPrimaryCT);
+                    const secondaryOtherAssignment = st.secondary_teacher_id ? getOtherClassTeacherAssignment(st.secondary_teacher_id) : null;
+                    const isSecondaryBusy = Boolean(secondaryOtherAssignment && !isSecondaryCT);
+
+                    return (
+                      <div 
+                        key={i} 
+                        className={`p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 transition rounded-lg ${
+                          hasClassTeacherInRow 
+                            ? 'bg-amber-50/60 border-l-4 border-l-amber-500 shadow-xs' 
+                            : 'hover:bg-gray-50/80'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-[180px]">
+                          <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
+                            hasClassTeacherInRow ? 'bg-amber-200 text-amber-900' : 'bg-teal-100 text-teal-800'
+                          }`}>
+                            {i + 1}
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-gray-800 text-sm">{st.subject}</span>
+                              {hasClassTeacherInRow && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-900 border border-amber-300">
+                                  <FaCrown className="text-amber-600 text-xs" /> Class Teacher Subject
+                                </span>
+                              )}
+                              {st.teacher_id && st.secondary_teacher_id && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700">
+                                  Co-Teaching
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dropdown Menus: Primary Teacher + Optional Co-Teacher with Class Teacher option */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 justify-end">
+                          {/* Primary Teacher Block */}
+                          <div className="flex-1 sm:max-w-xs">
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[10px] uppercase font-bold text-gray-500">Primary Teacher</label>
+                              {st.teacher_id && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleClassTeacher(st.teacher_id)}
+                                  disabled={isPrimaryBusy}
+                                  title={
+                                    isPrimaryBusy
+                                      ? `Already Class Teacher of ${primaryOtherAssignment.class_name} (${primaryOtherAssignment.section || 'A'})`
+                                      : isPrimaryCT
+                                      ? 'Currently Class Teacher. Click to unassign.'
+                                      : `Set as Class Teacher for Class ${assignForm.class_name || ''} (Rule 9: Period 1 everyday)`
+                                  }
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition border cursor-pointer ${
+                                    isPrimaryCT
+                                      ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs ring-1 ring-amber-400'
+                                      : isPrimaryBusy
+                                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-75'
+                                      : 'bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-800 border-gray-300 hover:border-amber-300'
+                                  }`}
+                                >
+                                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isPrimaryCT ? 'bg-amber-600' : 'border border-gray-400'}`}></span>
+                                  <FaCrown className={isPrimaryCT ? 'text-amber-600 text-xs' : 'text-gray-400 text-xs'} />
+                                  <span>{isPrimaryCT ? 'Class Teacher' : isPrimaryBusy ? 'CT Elsewhere' : 'Set as Class Teacher'}</span>
+                                </button>
+                              )}
+                            </div>
+                            <select
+                              className={`w-full p-2 border rounded-lg text-xs font-medium outline-none transition ${
+                                isPrimaryCT 
+                                  ? 'border-amber-400 bg-amber-50/30 text-amber-950 font-semibold ring-1 ring-amber-300' 
+                                  : 'bg-white focus:border-teal-500'
+                              }`}
+                              value={st.teacher_id || ''}
+                              onChange={(e) => handleSubjectTeacherChange(st.subject, 'teacher_id', e.target.value)}
+                            >
+                              <option value="">-- Primary Teacher --</option>
+                              {staffList.map(s => {
+                                const isCurrentCT = s.id === assignForm.class_teacher_id;
+                                const otherAssn = getOtherClassTeacherAssignment(s.id);
+                                return (
+                                  <option key={s.id} value={s.id} disabled={s.id === st.secondary_teacher_id}>
+                                    {s.name} ({s.role || 'Teacher'})
+                                    {isCurrentCT ? ' 👑 [Class Teacher]' : ''}
+                                    {otherAssn && !isCurrentCT ? ` [Already CT: ${otherAssn.class_name} ${otherAssn.section || 'A'}]` : ''}
+                                    {s.id === st.secondary_teacher_id ? ' (Selected as Co-Teacher)' : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+
+                          {/* Co-Teacher (Optional) Block */}
+                          <div className="flex-1 sm:max-w-xs">
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[10px] uppercase font-bold text-gray-500">Co-Teacher (Optional)</label>
+                              {st.secondary_teacher_id && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleClassTeacher(st.secondary_teacher_id)}
+                                  disabled={isSecondaryBusy}
+                                  title={
+                                    isSecondaryBusy
+                                      ? `Already Class Teacher of ${secondaryOtherAssignment.class_name} (${secondaryOtherAssignment.section || 'A'})`
+                                      : isSecondaryCT
+                                      ? 'Currently Class Teacher. Click to unassign.'
+                                      : `Set as Class Teacher for Class ${assignForm.class_name || ''} (Rule 9: Period 1 everyday)`
+                                  }
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition border cursor-pointer ${
+                                    isSecondaryCT
+                                      ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs ring-1 ring-amber-400'
+                                      : isSecondaryBusy
+                                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-75'
+                                      : 'bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-800 border-gray-300 hover:border-amber-300'
+                                  }`}
+                                >
+                                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSecondaryCT ? 'bg-amber-600' : 'border border-gray-400'}`}></span>
+                                  <FaCrown className={isSecondaryCT ? 'text-amber-600 text-xs' : 'text-gray-400 text-xs'} />
+                                  <span>{isSecondaryCT ? 'Class Teacher' : isSecondaryBusy ? 'CT Elsewhere' : 'Set as Class Teacher'}</span>
+                                </button>
+                              )}
+                            </div>
+                            <select
+                              className={`w-full p-2 border rounded-lg text-xs outline-none font-medium transition-colors ${
+                                isSecondaryCT
+                                  ? 'border-amber-400 bg-amber-50/30 text-amber-950 font-semibold ring-1 ring-amber-300'
+                                  : st.secondary_teacher_id 
+                                  ? 'border-indigo-300 bg-indigo-50/40 text-indigo-900 font-semibold' 
+                                  : 'bg-white text-gray-600 focus:border-teal-500'
+                              }`}
+                              value={st.secondary_teacher_id || ''}
+                              onChange={(e) => handleSubjectTeacherChange(st.subject, 'secondary_teacher_id', e.target.value)}
+                            >
+                              <option value="">-- 2nd / Co-Teacher (Optional) --</option>
+                              {staffList.map(s => {
+                                const isCurrentCT = s.id === assignForm.class_teacher_id;
+                                const otherAssn = getOtherClassTeacherAssignment(s.id);
+                                return (
+                                  <option key={s.id} value={s.id} disabled={s.id === st.teacher_id}>
+                                    {s.name} ({s.role || 'Teacher'})
+                                    {isCurrentCT ? ' 👑 [Class Teacher]' : ''}
+                                    {otherAssn && !isCurrentCT ? ` [Already CT: ${otherAssn.class_name} ${otherAssn.section || 'A'}]` : ''}
+                                    {s.id === st.teacher_id ? ' (Selected as Primary)' : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSubjectFromMapping(st.subject)}
+                            className="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50 transition self-center"
+                            title="Remove subject"
+                          >
+                            <FaTrash size={12} />
+                          </button>
                         </div>
                       </div>
-
-                      {/* Dropdown Menus: Primary Teacher + Optional Co-Teacher */}
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 justify-end">
-                        {/* Primary Teacher */}
-                        <div className="flex-1 sm:max-w-xs">
-                          <label className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5 sm:hidden">Primary Teacher</label>
-                          <select
-                            className="w-full p-2 border rounded-lg text-xs bg-white focus:border-teal-500 outline-none font-medium"
-                            value={st.teacher_id || ''}
-                            onChange={(e) => handleSubjectTeacherChange(st.subject, 'teacher_id', e.target.value)}
-                          >
-                            <option value="">-- Primary Teacher --</option>
-                            {staffList.map(s => (
-                              <option key={s.id} value={s.id} disabled={s.id === st.secondary_teacher_id}>
-                                {s.name} ({s.role || 'Teacher'}){s.id === st.secondary_teacher_id ? ' (Selected as Co-Teacher)' : ''}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Co-Teacher (Optional) */}
-                        <div className="flex-1 sm:max-w-xs">
-                          <label className="block text-[10px] uppercase font-bold text-gray-400 mb-0.5 sm:hidden">Co-Teacher (Optional)</label>
-                          <select
-                            className={`w-full p-2 border rounded-lg text-xs outline-none font-medium transition-colors ${
-                              st.secondary_teacher_id 
-                                ? 'border-indigo-300 bg-indigo-50/40 text-indigo-900 font-semibold' 
-                                : 'bg-white text-gray-600 focus:border-teal-500'
-                            }`}
-                            value={st.secondary_teacher_id || ''}
-                            onChange={(e) => handleSubjectTeacherChange(st.subject, 'secondary_teacher_id', e.target.value)}
-                          >
-                            <option value="">-- 2nd / Co-Teacher (Optional) --</option>
-                            {staffList.map(s => (
-                              <option key={s.id} value={s.id} disabled={s.id === st.teacher_id}>
-                                {s.name} ({s.role || 'Teacher'}){s.id === st.teacher_id ? ' (Selected as Primary)' : ''}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSubjectFromMapping(st.subject)}
-                          className="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50 transition self-center"
-                          title="Remove subject"
-                        >
-                          <FaTrash size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {assignForm.subject_teachers.length === 0 && (
                     <div className="p-8 text-center text-gray-400 text-sm">
@@ -882,7 +1022,7 @@ const AdminStaffAssignments = () => {
                     onChange={e => setNewCustomSubject(e.target.value)}
                   />
                   <select
-                    className="p-2 border rounded-lg text-xs bg-white outline-none focus:border-teal-500 w-full md:w-56"
+                    className="p-2 border rounded-lg text-xs bg-white outline-none focus:border-teal-500 w-full md:w-52"
                     value={newCustomTeacherId}
                     onChange={e => setNewCustomTeacherId(e.target.value)}
                   >
@@ -892,7 +1032,7 @@ const AdminStaffAssignments = () => {
                     ))}
                   </select>
                   <select
-                    className="p-2 border rounded-lg text-xs bg-white outline-none focus:border-teal-500 w-full md:w-56"
+                    className="p-2 border rounded-lg text-xs bg-white outline-none focus:border-teal-500 w-full md:w-52"
                     value={newCustomSecondaryTeacherId}
                     onChange={e => setNewCustomSecondaryTeacherId(e.target.value)}
                   >
@@ -903,6 +1043,19 @@ const AdminStaffAssignments = () => {
                       </option>
                     ))}
                   </select>
+
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer bg-white px-2.5 py-2 rounded-lg border border-gray-200 hover:border-amber-300 whitespace-nowrap self-stretch md:self-auto">
+                    <input
+                      type="checkbox"
+                      checked={newCustomIsClassTeacher}
+                      onChange={e => setNewCustomIsClassTeacher(e.target.checked)}
+                      disabled={!newCustomTeacherId}
+                      className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                    />
+                    <FaCrown className={newCustomIsClassTeacher ? 'text-amber-500 text-xs' : 'text-gray-400 text-xs'} />
+                    <span>Set as Class Teacher</span>
+                  </label>
+
                   <button
                     type="button"
                     onClick={handleAddCustomSubject}
@@ -943,26 +1096,40 @@ const AdminStaffAssignments = () => {
                           {ca.class_name} - {ca.section}
                         </td>
                         <td className="p-3 text-sm text-gray-700 font-medium">
-                          {ct?.name || 'Unassigned'}
+                          {ct ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              <FaCrown className="text-amber-500" /> {ct.name}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic">Unassigned</span>
+                          )}
                         </td>
                         <td className="p-3 text-sm">
                           <div className="flex flex-wrap gap-1.5">
                             {ca.subject_teachers?.map((st, i) => {
                               const stt = staffList.find(s => s.id === st.teacher_id);
                               const stt2 = staffList.find(s => s.id === st.secondary_teacher_id);
+                              const isCTSubject = Boolean(ca.class_teacher_id && (ca.class_teacher_id === st.teacher_id || ca.class_teacher_id === st.secondary_teacher_id));
+
                               return (
                                 <span key={i} className={`inline-flex flex-wrap items-center gap-1 px-2.5 py-1 rounded-md text-xs border ${
-                                  stt2 ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900' : 'bg-gray-100 border-gray-200'
+                                  isCTSubject
+                                    ? 'bg-amber-50/80 border-amber-300 text-amber-950 font-medium'
+                                    : stt2 ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900' : 'bg-gray-100 border-gray-200'
                                 }`}>
+                                  {isCTSubject && (
+                                    <FaCrown className="text-amber-500 text-[10px]" title="Class Teacher Subject" />
+                                  )}
                                   <strong className="text-gray-800">{st.subject}:</strong> 
                                   <span className={stt ? 'text-teal-700 font-semibold' : 'text-gray-400'}>
                                     {stt?.name || 'Unassigned'}
+                                    {ca.class_teacher_id === st.teacher_id && ' (CT)'}
                                   </span>
                                   {stt2 && (
                                     <>
                                       <span className="text-gray-400 font-bold">+</span>
                                       <span className="text-indigo-700 font-semibold" title="Co-Teacher / 2nd Teacher">
-                                        {stt2.name} (Co-Teacher)
+                                        {stt2.name} (Co-Teacher){ca.class_teacher_id === st.secondary_teacher_id && ' (CT)'}
                                       </span>
                                     </>
                                   )}

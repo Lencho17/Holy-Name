@@ -39,6 +39,36 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'Class name is required' });
     }
 
+    // Validation: A single teacher can be class teacher of only 1 class
+    if (class_teacher_id) {
+      let existingQuery = supabase
+        .from('class_assignments')
+        .select('class_name, section, class_teacher_id')
+        .eq('class_teacher_id', class_teacher_id);
+
+      if (school_id) {
+        existingQuery = existingQuery.eq('school_id', school_id);
+      }
+
+      const { data: existingAssignments } = await existingQuery;
+      const targetClassNorm = String(class_name).replace(/^Class\s*/i, '').trim().toLowerCase();
+      const targetSecNorm = String(section || 'A').trim().toLowerCase();
+
+      const clash = (existingAssignments || []).find(a => {
+        const aClassNorm = String(a.class_name).replace(/^Class\s*/i, '').trim().toLowerCase();
+        const aSecNorm = String(a.section || 'A').trim().toLowerCase();
+        return !(aClassNorm === targetClassNorm && aSecNorm === targetSecNorm);
+      });
+
+      if (clash) {
+        const { data: teacher } = await supabase.from('staff').select('name').eq('id', class_teacher_id).single();
+        const teacherName = teacher?.name || 'Staff member';
+        return res.status(400).json({
+          message: `Validation Error: ${teacherName} is already assigned as Class Teacher for Class ${clash.class_name} (Section ${clash.section || 'A'}). A single teacher can be the class teacher of only 1 class.`
+        });
+      }
+    }
+
     // Upsert assignment
     const { data, error } = await supabase
       .from('class_assignments')
@@ -96,25 +126,50 @@ router.post('/', protect, async (req, res) => {
       }
     }
 
-    // Notify Subject Teachers (Group by teacher to send one email)
+    // Notify Subject Teachers & Co-Teachers (Group by teacher to send one email)
     if (subject_teachers && subject_teachers.length > 0) {
-      const teacherMap = {};
+      const primaryTeacherMap = {};
+      const secondaryTeacherMap = {};
+
       subject_teachers.forEach(st => {
-        if (!teacherMap[st.teacher_id]) teacherMap[st.teacher_id] = [];
-        teacherMap[st.teacher_id].push(st.subject);
+        if (st.teacher_id) {
+          if (!primaryTeacherMap[st.teacher_id]) primaryTeacherMap[st.teacher_id] = [];
+          primaryTeacherMap[st.teacher_id].push(st.subject);
+        }
+        if (st.secondary_teacher_id && st.secondary_teacher_id !== st.teacher_id) {
+          if (!secondaryTeacherMap[st.secondary_teacher_id]) secondaryTeacherMap[st.secondary_teacher_id] = [];
+          secondaryTeacherMap[st.secondary_teacher_id].push(st.subject);
+        }
       });
 
-      for (const [tId, subjects] of Object.entries(teacherMap)) {
+      // Send primary teacher notices
+      for (const [tId, subjects] of Object.entries(primaryTeacherMap)) {
         const { data: teacher } = await supabase.from('staff').select('email, name').eq('id', tId).single();
         if (teacher && teacher.email) {
           try {
             await sendEmail({
               to: teacher.email,
               subject: 'Subject Teacher Assignment Update',
-              html: `<p>Dear ${teacher.name},</p><p>You have been assigned to teach the following subjects for <strong>Class ${class_name} ${section || 'A'}</strong>:</p><ul>${subjects.map(s => `<li>${s}</li>`).join('')}</ul><p>Please log in to the Teacher Portal to enter marks when examinations begin.</p>`
+              html: `<p>Dear ${teacher.name},</p><p>You have been assigned as the <strong>Primary Teacher</strong> for the following subjects in <strong>Class ${class_name} ${section || 'A'}</strong>:</p><ul>${subjects.map(s => `<li>${s}</li>`).join('')}</ul><p>Please log in to the Teacher Portal to view your timetable schedule and records.</p>`
             });
           } catch (emailErr) {
             console.error('Failed to send subject teacher notification:', emailErr.message);
+          }
+        }
+      }
+
+      // Send secondary/co-teacher notices
+      for (const [tId, subjects] of Object.entries(secondaryTeacherMap)) {
+        const { data: teacher } = await supabase.from('staff').select('email, name').eq('id', tId).single();
+        if (teacher && teacher.email) {
+          try {
+            await sendEmail({
+              to: teacher.email,
+              subject: 'Co-Teacher Assignment Update',
+              html: `<p>Dear ${teacher.name},</p><p>You have been assigned as the <strong>Co-Teacher / 2nd Teacher</strong> for the following subjects in <strong>Class ${class_name} ${section || 'A'}</strong>:</p><ul>${subjects.map(s => `<li>${s}</li>`).join('')}</ul><p>Please log in to the Teacher Portal to view your scheduled co-teaching sessions.</p>`
+            });
+          } catch (emailErr) {
+            console.error('Failed to send co-teacher notification:', emailErr.message);
           }
         }
       }

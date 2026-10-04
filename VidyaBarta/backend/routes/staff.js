@@ -513,15 +513,60 @@ router.get('/admin/timetable', protect, async (req, res) => {
 // Create Timetable Entry (Admin)
 router.post('/admin/timetable', protect, async (req, res) => {
   try {
-    const { class_level, section, day_of_week, period_number, subject, staff_id, start_time, end_time } = req.body;
+    const { class_level, section, day_of_week, period_number, subject, staff_id, secondary_staff_id, start_time, end_time } = req.body;
+
+    if (staff_id && secondary_staff_id && staff_id === secondary_staff_id) {
+      return res.status(400).json({
+        message: 'Validation Error: Primary Teacher and Co-Teacher cannot be the same person.'
+      });
+    }
+
+    const teachersToCheck = [];
+    if (staff_id) teachersToCheck.push(staff_id);
+    if (secondary_staff_id) teachersToCheck.push(secondary_staff_id);
+
+    // Validate max 6 classes per day for each teacher
+    if (day_of_week && subject && !subject.toLowerCase().includes('recess') && !subject.toLowerCase().includes('break')) {
+      for (const tId of teachersToCheck) {
+        const { data: existingOnDay } = await supabase
+          .from('class_timetable')
+          .select('id, subject')
+          .eq('staff_id', tId)
+          .eq('day_of_week', day_of_week);
+
+        const activeClassesOnDay = (existingOnDay || []).filter(e => 
+          e.subject && !e.subject.toLowerCase().includes('recess') && !e.subject.toLowerCase().includes('break')
+        );
+
+        if (activeClassesOnDay.length >= 6) {
+          const { data: teacher } = await supabase
+            .from('staff')
+            .select('name')
+            .eq('id', tId)
+            .single();
+
+          return res.status(400).json({
+            message: `Validation Error: Teacher "${teacher?.name || 'Staff'}" already has ${activeClassesOnDay.length} classes scheduled on ${day_of_week}. A teacher cannot have more than 6 classes in a single day.`
+          });
+        }
+      }
+    }
+
+    const rowsToInsert = [];
+    if (staff_id || (!staff_id && !secondary_staff_id)) {
+      rowsToInsert.push({ class_level, section, day_of_week, period_number, subject, staff_id: staff_id || null, start_time, end_time });
+    }
+    if (secondary_staff_id && secondary_staff_id !== staff_id) {
+      rowsToInsert.push({ class_level, section, day_of_week, period_number, subject, staff_id: secondary_staff_id, start_time, end_time });
+    }
+
     const { data, error } = await supabase
       .from('class_timetable')
-      .insert({ class_level, section, day_of_week, period_number, subject, staff_id, start_time, end_time })
-      .select()
-      .single();
+      .insert(rowsToInsert)
+      .select();
     if (error) throw error;
     res.json(data);
-  } catch (error) { res.status(500).json({ message: 'Server error' }); }
+  } catch (error) { res.status(500).json({ message: error.message || 'Server error' }); }
 });
 
 // Delete Timetable Entry (Admin)
@@ -638,6 +683,84 @@ router.get('/admin/pending-staff', protect, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) { res.status(500).json({ message: 'Server error' }); }
+});
+
+// Get comprehensive Teachers & Staff directory list (Admin)
+router.get('/admin/teachers-list', protect, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id, name, email, phone, role, job_profile, gender, total_cl, used_cl, is_approved, created_at, photo_url')
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    console.error('Error fetching teachers list:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update Teacher / Staff member (Admin)
+router.patch('/admin/teachers/:id', protect, async (req, res) => {
+  try {
+    const { name, email, phone, role, job_profile, is_approved } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name.trim();
+    if (email !== undefined) updates.email = email.trim().toLowerCase();
+    if (phone !== undefined) updates.phone = phone.trim();
+    if (role !== undefined) updates.role = role;
+    if (job_profile !== undefined) updates.job_profile = job_profile;
+    if (is_approved !== undefined) updates.is_approved = is_approved;
+
+    const { data, error } = await supabase
+      .from('staff')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (data.email) {
+      await supabase
+        .from('teachers')
+        .update({
+          name: data.name,
+          phone: data.phone,
+          designation: data.job_profile
+        })
+        .eq('email', data.email);
+    }
+
+    res.json({ message: 'Teacher updated successfully', teacher: data });
+  } catch (error) {
+    console.error('Error updating teacher:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete Teacher / Staff member (Admin)
+router.delete('/admin/teachers/:id', protect, async (req, res) => {
+  try {
+    const { data: staffMember } = await supabase
+      .from('staff')
+      .select('email')
+      .eq('id', req.params.id)
+      .single();
+
+    const { error } = await supabase.from('staff').delete().eq('id', req.params.id);
+    if (error) throw error;
+
+    if (staffMember?.email) {
+      await supabase.from('teachers').delete().eq('email', staffMember.email);
+    }
+
+    res.json({ message: 'Teacher deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting teacher:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 });
 
 module.exports = router;

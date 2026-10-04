@@ -3,12 +3,12 @@ import { FiX, FiPlus, FiEdit2 } from 'react-icons/fi';
 import { sortClasses } from '../utils/classOrder';
 const CATEGORIES = ['MIL', 'Elective', 'Minor', 'Grading Sets'];
 
-const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) => {
+const SubjectConfigRow = ({ subjectItem, globalSubjects, teachers = [], onChange, onRemove }) => {
   return (
-    <div className="bg-white rounded border border-gray-200 p-2 mb-2">
-      <div className="flex items-center gap-2">
+    <div className="bg-white rounded border border-gray-200 p-2.5 mb-2 hover:border-teal-300 transition-colors">
+      <div className="flex flex-wrap items-center gap-2">
         <select 
-          className="flex-1 border-none focus:ring-0 text-sm p-1"
+          className="flex-1 min-w-[200px] border border-gray-200 rounded text-sm p-1.5 bg-gray-50 focus:bg-white focus:border-teal-500 outline-none"
           value={subjectItem.subject_id || subjectItem.id || ''}
           onChange={(e) => {
             const name = globalSubjects.find(s => s.id === e.target.value)?.name;
@@ -20,8 +20,20 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) =
             <option key={sub.id} value={sub.id}>{sub.name} - {sub.marking_system}</option>
           ))}
         </select>
+
+        {/* Dropdown menu against the subject to assign teacher */}
+        <select
+          className="min-w-[190px] border border-gray-200 rounded text-xs p-2 bg-gray-50 focus:bg-white focus:border-emerald-500 outline-none"
+          value={subjectItem.teacher_id || ''}
+          onChange={(e) => onChange({ ...subjectItem, teacher_id: e.target.value })}
+        >
+          <option value="">-- Assign Teacher --</option>
+          {teachers.map(t => (
+            <option key={t.id} value={t.id}>{t.name} ({t.role || 'Teacher'})</option>
+          ))}
+        </select>
         
-        <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-1 rounded cursor-pointer">
+        <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-1.5 rounded cursor-pointer border border-gray-200">
           <input 
             type="checkbox" 
             checked={subjectItem.is_divided || false} 
@@ -29,7 +41,7 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, onChange, onRemove }) =
           /> Divide
         </label>
         
-        <button onClick={onRemove} className="text-red-400 bg-red-50 p-2 mr-1 rounded hover:text-red-600"><FiX /></button>
+        <button onClick={onRemove} className="text-red-400 bg-red-50 p-2 rounded hover:text-red-600" title="Remove Subject"><FiX /></button>
       </div>
 
       {subjectItem.is_divided && (
@@ -82,6 +94,8 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
   const [classesData, setClassesData] = useState([]);
   const [globalSubjects, setGlobalSubjects] = useState([]);
   const [schoolClasses, setSchoolClasses] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -92,17 +106,31 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
       
-      const resConfig = await fetch(`${API_URL}/subjects/mapping`, { headers: { Authorization: `Bearer ${token}` } });
+      const [resConfig, resGlobal, resSchoolClasses, resStaff, resAssignments] = await Promise.all([
+        fetch(`${API_URL}/subjects/mapping`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/subjects/global`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/classes/school`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/staff/admin/all-staff`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch(`${API_URL}/assignments`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+      ]);
+
       const configData = await resConfig.json();
       setClassesData(configData || []);
 
-      const resGlobal = await fetch(`${API_URL}/subjects/global`, { headers: { Authorization: `Bearer ${token}` } });
       const globalData = await resGlobal.json();
       setGlobalSubjects(globalData || []);
       
-      const resSchoolClasses = await fetch(`${API_URL}/classes/school`, { headers: { Authorization: `Bearer ${token}` } });
       const schoolClassesData = await resSchoolClasses.json();
       setSchoolClasses(sortClasses(schoolClassesData || [], c => c.class_level));
+
+      if (resStaff && resStaff.ok) {
+        const staffData = await resStaff.json();
+        setTeachers(Array.isArray(staffData) ? staffData : []);
+      }
+      if (resAssignments && resAssignments.ok) {
+        const assnData = await resAssignments.json();
+        setAssignments(Array.isArray(assnData) ? assnData : []);
+      }
       
       setLoading(false);
     } catch (err) {
@@ -119,12 +147,42 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
     const data = JSON.parse(JSON.stringify(cls));
     data.core_subjects = data.core_subjects || [];
     
+    // Find any existing subject-teacher assignments for this class
+    const matchingAssn = assignments.find(a => 
+      a.class_name === cls.class_level || 
+      a.class_name === `Class ${cls.class_level}` ||
+      String(cls.class_level).replace(/^Class\s*/i, '') === String(a.class_name).replace(/^Class\s*/i, '')
+    );
+
+    // Map existing assigned teachers into core subjects
+    data.core_subjects = data.core_subjects.map(cs => {
+      const subName = globalSubjects.find(s => s.id === (cs.subject_id || cs.id))?.name || cs.name || cs.subjects?.name;
+      const matchedSt = matchingAssn?.subject_teachers?.find(st => 
+        st.subject && subName && st.subject.toLowerCase().trim() === subName.toLowerCase().trim()
+      );
+      return {
+        ...cs,
+        teacher_id: cs.teacher_id || matchedSt?.teacher_id || ''
+      };
+    });
+
     // Initialize standard categories in editData
     data.categories = {};
     CATEGORIES.forEach(cat => {
       const group = data.elective_groups?.find(g => g.group_name === cat) || { subjects: [], selectable_count: 1 };
+      const groupSubjects = (group.subjects || []).map(s => {
+        const subName = globalSubjects.find(sub => sub.id === (s.subject_id || s.id))?.name || s.name || s.subjects?.name;
+        const matchedSt = matchingAssn?.subject_teachers?.find(st => 
+          st.subject && subName && st.subject.toLowerCase().trim() === subName.toLowerCase().trim()
+        );
+        return {
+          ...s,
+          teacher_id: s.teacher_id || matchedSt?.teacher_id || ''
+        };
+      });
+
       data.categories[cat] = {
-        subjects: group.subjects || [],
+        subjects: groupSubjects,
         selectable_count: group.selectable_count || 1
       };
     });
@@ -191,6 +249,41 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
         })
       });
       if (res.ok) {
+        // Collect assigned subject-teacher mappings
+        const assignedSubjectTeachers = [];
+        (editData.core_subjects || []).forEach(c => {
+          const sName = globalSubjects.find(s => s.id === (c.subject_id || c.id))?.name || c.name;
+          if (sName && c.teacher_id) {
+            assignedSubjectTeachers.push({ subject: sName, teacher_id: c.teacher_id });
+          }
+        });
+        CATEGORIES.forEach(cat => {
+          const catData = editData.categories[cat];
+          if (catData && catData.subjects) {
+            catData.subjects.forEach(s => {
+              const sName = globalSubjects.find(sub => sub.id === (s.subject_id || s.id))?.name || s.name;
+              if (sName && s.teacher_id && !assignedSubjectTeachers.find(item => item.subject === sName)) {
+                assignedSubjectTeachers.push({ subject: sName, teacher_id: s.teacher_id });
+              }
+            });
+          }
+        });
+
+        if (assignedSubjectTeachers.length > 0) {
+          const secList = editData.sections ? editData.sections.split(',').map(s => s.trim()).filter(Boolean) : ['A'];
+          for (const sec of secList) {
+            await fetch(`${API_URL}/assignments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                class_name: editData.class_level,
+                section: sec,
+                subject_teachers: assignedSubjectTeachers
+              })
+            }).catch(e => console.error('Error syncing subject teachers to assignments:', e));
+          }
+        }
+
         setIsEditing(false);
         fetchData();
       } else {
@@ -293,6 +386,7 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
                   key={idx}
                   subjectItem={cs}
                   globalSubjects={globalSubjects}
+                  teachers={teachers}
                   onChange={(updatedItem) => {
                     const newCore = [...(editData.core_subjects || [])];
                     newCore[idx] = updatedItem;
@@ -327,6 +421,7 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
                     key={idx}
                     subjectItem={cs}
                     globalSubjects={globalSubjects}
+                    teachers={teachers}
                     onChange={(updatedItem) => {
                       const newCatSubjects = [...(editData.categories[cat].subjects || [])];
                       newCatSubjects[idx] = updatedItem;

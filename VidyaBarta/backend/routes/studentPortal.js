@@ -125,8 +125,13 @@ router.get('/courses', protectStudent, async (req, res) => {
     // Then, overlay teachers from timetable
     if (timetableData) {
       timetableData.forEach(entry => {
-        if (entry.subject && entry.subject !== 'Recess') {
-          subjectsMap.set(entry.subject, entry.staff ? entry.staff.name : 'Not Assigned');
+        if (entry.subject && entry.subject !== 'Recess' && entry.staff?.name) {
+          const current = subjectsMap.get(entry.subject);
+          if (!current || current === 'Not Assigned') {
+            subjectsMap.set(entry.subject, entry.staff.name);
+          } else if (!current.split(', ').includes(entry.staff.name)) {
+            subjectsMap.set(entry.subject, `${current}, ${entry.staff.name}`);
+          }
         }
       });
     }

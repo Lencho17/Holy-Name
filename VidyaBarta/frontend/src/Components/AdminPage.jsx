@@ -21,6 +21,7 @@ import AdminPayroll from './AdminPayroll';
 import AdminAnnouncements from './AdminAnnouncements';
 import StudentProfileViewer from './StudentProfileViewer';
 import SchoolAdminsManager from './SchoolAdminsManager';
+import TeachersManager from './TeachersManager';
 import { FaIdBadge, FaMoneyCheckAlt, FaBullhorn, FaPaperPlane, FaDatabase, FaTree, FaLayerGroup, FaBell } from 'react-icons/fa';
 import ExamManagement from './ExamManagement';
 import AdmitCardPanel from './AdmitCardPanel';
@@ -9223,100 +9224,7 @@ function AdminPage() {
 
           {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}
           {activeTab === 'teachers' && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <FaChalkboardTeacher className="text-primary" />
-                  Teachers Database
-                </h3>
-                <button 
-                  onClick={() => setShowAddStaffModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition-colors"
-                >
-                  <FaPlus /> Add Staff Manually
-                </button>
-              </div>
-              
-              {showAddStaffModal && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                  <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-black text-gray-800">Add Staff Manually</h3>
-                      <button onClick={() => setShowAddStaffModal(false)} className="text-gray-400 hover:text-gray-600">
-                        <FaTimes className="text-xl" />
-                      </button>
-                    </div>
-                    
-                    {newStaffPassword ? (
-                      <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl mb-6">
-                        <p className="text-emerald-800 font-bold mb-2 flex items-center gap-2"><FaCheckCircle/> Staff Member Added!</p>
-                        <p className="text-sm text-emerald-700 mb-3">Please share this temporary password with the staff member so they can log in.</p>
-                        <div className="bg-white p-3 rounded-lg border border-emerald-100 font-mono text-center text-lg font-bold text-gray-800 select-all">
-                          {newStaffPassword}
-                        </div>
-                        <button 
-                          onClick={() => { setShowAddStaffModal(false); setNewStaffPassword(''); }}
-                          className="w-full mt-4 bg-emerald-600 text-white font-bold py-2 rounded-lg hover:bg-emerald-700"
-                        >
-                          Done
-                        </button>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleAddStaffManual} className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
-                          <input type="text" required className="w-full p-3 border rounded-xl" value={newStaffForm.name} onChange={e => setNewStaffForm({...newStaffForm, name: e.target.value})} placeholder="e.g. John Doe" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
-                          <input type="email" required className="w-full p-3 border rounded-xl" value={newStaffForm.email} onChange={e => setNewStaffForm({...newStaffForm, email: e.target.value})} placeholder="staff@school.edu" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
-                          <input type="tel" required className="w-full p-3 border rounded-xl" value={newStaffForm.phone} onChange={e => setNewStaffForm({...newStaffForm, phone: e.target.value})} placeholder="10-digit number" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">Role / Department</label>
-                          <select required className="w-full p-3 border rounded-xl" value={newStaffForm.role} onChange={e => setNewStaffForm({...newStaffForm, role: e.target.value})}>
-                            <option value="Teacher">Teacher</option>
-                            <option value="Principal">Principal</option>
-                            <option value="Vice Principal">Vice Principal</option>
-                            <option value="Clerk">Clerk</option>
-                            <option value="Librarian">Librarian</option>
-                            <option value="Lab Assistant">Lab Assistant</option>
-                            <option value="Accountant">Accountant</option>
-                            <option value="Support Staff">Support Staff</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        </div>
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                          <button type="button" onClick={() => setShowAddStaffModal(false)} className="px-4 py-2 font-bold text-gray-500 hover:text-gray-700">Cancel</button>
-                          <button type="submit" disabled={isAddingStaff} className="px-6 py-2 font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                            {isAddingStaff ? 'Adding...' : 'Add Staff'}
-                          </button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="mb-6 border-t border-gray-100 pt-6">
-                <h4 className="font-bold text-gray-800 mb-4">Bulk Upload</h4>
-                <BulkUpload 
-                  apiUrl={API_URL} 
-                  endpoint="teachers" 
-                  token={localStorage.getItem('adminToken')} 
-                  entityName="Teachers" 
-                  onUploadSuccess={() => {}}
-                />
-              </div>
-
-              <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                <FaChalkboardTeacher className="mx-auto text-gray-300 text-4xl mb-3" />
-                <p className="text-gray-500">Upload teacher details in bulk using a CSV file. The database will be populated automatically.</p>
-              </div>
-            </div>
+            <TeachersManager apiUrl={API_URL} token={localStorage.getItem('adminToken')} />
           )}
           {activeTab === 'students' && (
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">

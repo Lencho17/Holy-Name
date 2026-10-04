@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaCalendarAlt, FaSpinner, FaSave, FaPlus, FaClock, FaTrash, FaExclamationTriangle, FaFilePdf, FaUpload } from 'react-icons/fa';
+import { FaCalendarAlt, FaSpinner, FaSave, FaPlus, FaClock, FaTrash, FaExclamationTriangle, FaFilePdf, FaUpload, FaBolt } from 'react-icons/fa';
 import { FiEdit2, FiX } from 'react-icons/fi';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { sortClasses } from '../utils/classOrder';
+import AutoTimetableModal from './AutoTimetableModal';
 
 const TimetableManager = ({ apiUrl, token }) => {
   const [classesData, setClassesData] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [allTimetables, setAllTimetables] = useState([]);
+  const [classAssignments, setClassAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isAutoModalOpen, setIsAutoModalOpen] = useState(false);
 
   // Modal State
   const [editingClass, setEditingClass] = useState(null);
@@ -29,15 +32,17 @@ const TimetableManager = ({ apiUrl, token }) => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [classRes, staffRes, timeRes] = await Promise.all([
+      const [classRes, staffRes, timeRes, assignRes] = await Promise.all([
         axios.get(`${apiUrl}/subjects/mapping`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${apiUrl}/staff/admin/all-staff`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${apiUrl}/timetables/all`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${apiUrl}/timetables/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${apiUrl}/assignments`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] }))
       ]);
       
       setClassesData(sortClasses(classRes.data || [], c => c.class_level));
       setTeachers(staffRes.data || []);
       setAllTimetables(timeRes.data || []);
+      setClassAssignments(assignRes.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -75,8 +80,16 @@ const TimetableManager = ({ apiUrl, token }) => {
     days.forEach(day => {
       const row = { day };
       for (let i = 1; i <= maxPeriod; i++) {
-        const entry = entries.find(e => e.day_of_week === day && e.period_number === i);
-        row[`p${i}`] = entry ? { subject: entry.subject, staff_id: entry.staff_id } : { subject: '', staff_id: '' };
+        const periodEntries = entries.filter(e => e.day_of_week === day && e.period_number === i);
+        if (periodEntries.length > 0) {
+          row[`p${i}`] = {
+            subject: periodEntries[0].subject || '',
+            staff_id: periodEntries[0].staff_id || '',
+            secondary_staff_id: (periodEntries[1] && periodEntries[1].staff_id) || ''
+          };
+        } else {
+          row[`p${i}`] = { subject: '', staff_id: '', secondary_staff_id: '' };
+        }
       }
       grid.push(row);
     });
@@ -108,7 +121,7 @@ const TimetableManager = ({ apiUrl, token }) => {
     
     const newGrid = timetableData.map(row => ({
       ...row,
-      [`p${newPeriodNum}`]: { subject: '', staff_id: '' }
+      [`p${newPeriodNum}`]: { subject: '', staff_id: '', secondary_staff_id: '' }
     }));
     setTimetableData(newGrid);
   };
@@ -122,6 +135,113 @@ const TimetableManager = ({ apiUrl, token }) => {
   const updateCell = (dayIndex, periodNum, field, value) => {
     const newGrid = [...timetableData];
     newGrid[dayIndex][`p${periodNum}`][field] = value;
+    setTimetableData(newGrid);
+  };
+
+  // Helper to count teacher's classes on a specific day across all other classes and current grid
+  const getTeacherDayClassCount = (staffId, day, excludePeriodNum = null) => {
+    if (!staffId) return 0;
+    let count = 0;
+    const currentSections = editingSection === 'ALL' 
+      ? (editingClass?.sections ? editingClass.sections.split(',') : ['A'])
+      : [editingSection];
+
+    // 1. Count in all other classes
+    allTimetables.forEach(t => {
+      if (t.day_of_week === day && t.staff_id === staffId && t.subject && !t.subject.toLowerCase().includes('recess') && !t.subject.toLowerCase().includes('break')) {
+        const isCurrentClass = t.class_level === editingClass?.class_level && currentSections.includes(t.section);
+        if (!isCurrentClass) {
+          count++;
+        }
+      }
+    });
+
+    // 2. Count in current editing grid for this day (checking both primary and co-teacher slots)
+    const row = timetableData.find(r => r.day === day);
+    if (row) {
+      periodColumns.forEach(col => {
+        if (excludePeriodNum !== null && col.period_number === excludePeriodNum) return;
+        const cell = row[`p${col.period_number}`];
+        if (cell && (cell.staff_id === staffId || cell.secondary_staff_id === staffId) && cell.subject && !cell.subject.toLowerCase().includes('recess') && !cell.subject.toLowerCase().includes('break')) {
+          count++;
+        }
+      });
+    }
+
+    return count;
+  };
+
+  // Handle subject change with automatic teacher pre-selection from mapped assignments
+  const handleSubjectChange = (dayIndex, periodNum, subject) => {
+    const newGrid = [...timetableData];
+    const currentCell = newGrid[dayIndex][`p${periodNum}`] || { subject: '', staff_id: '', secondary_staff_id: '' };
+
+    if (!subject || subject.toLowerCase().includes('recess') || subject.toLowerCase().includes('break')) {
+      newGrid[dayIndex][`p${periodNum}`] = { subject, staff_id: '', secondary_staff_id: '' };
+      setTimetableData(newGrid);
+      return;
+    }
+
+    let teacherToSet = currentCell.staff_id;
+    let secondaryTeacherToSet = currentCell.secondary_staff_id;
+
+    // If teacher not manually set yet, check if classAssignments has assigned teachers for this subject
+    if (editingClass) {
+      const clsName = editingClass.class_level;
+      const targetSec = editingSection === 'ALL' ? 'A' : editingSection;
+      const assignment = classAssignments.find(a => 
+        (a.class_name === clsName || a.class_name === `Class ${clsName}`) && 
+        (!a.section || a.section.toLowerCase() === targetSec.toLowerCase())
+      );
+
+      if (assignment && assignment.subject_teachers) {
+        const sLower = subject.toLowerCase().trim();
+        const parenMatch = subject.match(/^([^(]+)\s*\(([^)]+)\)$/);
+        const dashMatch = subject.match(/^([^-]+)\s*-\s*(.+)$/);
+        const parentName = parenMatch ? parenMatch[1].trim().toLowerCase() : (dashMatch ? dashMatch[1].trim().toLowerCase() : null);
+        const partName = parenMatch ? parenMatch[2].trim().toLowerCase() : (dashMatch ? dashMatch[2].trim().toLowerCase() : null);
+
+        const matched = assignment.subject_teachers.find(st => {
+          if (!st.subject) return false;
+          const stSub = st.subject.toLowerCase().trim();
+          return stSub === sLower ||
+                 (partName && stSub === partName) ||
+                 (parentName && stSub === parentName) ||
+                 sLower.includes(stSub);
+        });
+        if (matched) {
+          const day = days[dayIndex];
+          if (!teacherToSet && matched.teacher_id) {
+            const teacherCount = getTeacherDayClassCount(matched.teacher_id, day, periodNum);
+            if (teacherCount < 6) {
+              teacherToSet = matched.teacher_id;
+            }
+          }
+          if (!secondaryTeacherToSet && matched.secondary_teacher_id && matched.secondary_teacher_id !== teacherToSet) {
+            const secCount = getTeacherDayClassCount(matched.secondary_teacher_id, day, periodNum);
+            if (secCount < 6) {
+              secondaryTeacherToSet = matched.secondary_teacher_id;
+            }
+          }
+        }
+      }
+
+      // Rule 9: Period 1 is always allotted to the section Class Teacher
+      if (periodNum === 1 && !teacherToSet && assignment?.class_teacher_id) {
+        const day = days[dayIndex];
+        const teacherCount = getTeacherDayClassCount(assignment.class_teacher_id, day, periodNum);
+        if (teacherCount < 6) {
+          teacherToSet = assignment.class_teacher_id;
+        }
+      }
+    }
+
+    newGrid[dayIndex][`p${periodNum}`] = { 
+      ...currentCell, 
+      subject, 
+      staff_id: teacherToSet || '', 
+      secondary_staff_id: secondaryTeacherToSet || '' 
+    };
     setTimetableData(newGrid);
   };
 
@@ -148,27 +268,71 @@ const TimetableManager = ({ apiUrl, token }) => {
     timetableData.forEach(row => {
       periodColumns.forEach(col => {
         const cell = row[`p${col.period_number}`];
-        if (cell && cell.staff_id) {
-          // Check all current sections being saved
+        if (!cell) return;
+
+        // Check if both primary and secondary teachers are set to the exact same teacher
+        if (cell.staff_id && cell.secondary_staff_id && cell.staff_id === cell.secondary_staff_id) {
+          const teacherObj = teachers.find(t => t.id === cell.staff_id);
+          clashes.push({
+            type: 'duplicate_same_slot',
+            day: row.day,
+            period: col.period_number,
+            staff_id: cell.staff_id,
+            message: `Teacher "${teacherObj?.name || 'Staff'}" is selected as both Primary and Co-Teacher in Period ${col.period_number} on ${row.day}.`
+          });
+        }
+
+        // Check double-booking clashes for both teachers
+        const slotTeachers = [];
+        if (cell.staff_id) slotTeachers.push({ id: cell.staff_id, role: 'Primary' });
+        if (cell.secondary_staff_id && cell.secondary_staff_id !== cell.staff_id) {
+          slotTeachers.push({ id: cell.secondary_staff_id, role: 'Co-Teacher' });
+        }
+
+        slotTeachers.forEach(({ id: teacherId, role }) => {
           currentSections.forEach(sec => {
-             const clash = allTimetables.find(t => 
-                t.day_of_week === row.day && 
-                t.period_number === col.period_number && 
-                t.staff_id === cell.staff_id &&
-                !(t.class_level === editingClass.class_level && t.section === sec)
-             );
-             if (clash && !clashes.find(c => c.staff_id === cell.staff_id && c.period === col.period_number && c.day === row.day)) {
-                clashes.push({
-                  day: row.day,
-                  period: col.period_number,
-                  staff_id: cell.staff_id,
-                  clashClass: `Class ${clash.class_level} - ${clash.section}`
-                });
-             }
+            const clash = allTimetables.find(t => 
+              t.day_of_week === row.day && 
+              t.period_number === col.period_number && 
+              t.staff_id === teacherId &&
+              !(t.class_level === editingClass.class_level && t.section === sec)
+            );
+            if (clash && !clashes.find(c => c.staff_id === teacherId && c.period === col.period_number && c.day === row.day)) {
+              const teacherObj = teachers.find(t => t.id === teacherId);
+              clashes.push({
+                type: 'period_clash',
+                day: row.day,
+                period: col.period_number,
+                staff_id: teacherId,
+                message: `${role} Teacher "${teacherObj?.name || 'Staff'}" is already scheduled in Class ${clash.class_level} - ${clash.section} at Period ${col.period_number} on ${row.day}.`
+              });
+            }
+          });
+        });
+      });
+    });
+
+    // 2. Check 6-classes-per-day maximum limit per teacher
+    const checkedDaysTeachers = new Set();
+    days.forEach(day => {
+      teachers.forEach(teacher => {
+        const pairKey = `${day}_${teacher.id}`;
+        if (checkedDaysTeachers.has(pairKey)) return;
+        checkedDaysTeachers.add(pairKey);
+
+        const totalOnDay = getTeacherDayClassCount(teacher.id, day);
+        if (totalOnDay > 6) {
+          clashes.push({
+            type: 'daily_limit',
+            day,
+            staff_id: teacher.id,
+            count: totalOnDay,
+            message: `Teacher "${teacher.name}" has ${totalOnDay} classes assigned on ${day}. A teacher cannot have more than 6 classes in a single day.`
           });
         }
       });
     });
+
     return clashes;
   };
 
@@ -177,16 +341,32 @@ const TimetableManager = ({ apiUrl, token }) => {
     timetableData.forEach(row => {
       periodColumns.forEach(col => {
         const cell = row[`p${col.period_number}`];
-        if (cell && (cell.subject || cell.staff_id)) {
-           entriesToSave.push({
-             day_of_week: row.day,
-             period_number: col.period_number,
-             subject: cell.subject || null,
-             staff_id: cell.staff_id || null,
-             start_time: col.start ? `${col.start}:00` : null,
-             end_time: col.end ? `${col.end}:00` : null,
-             is_published: isPublished
-           });
+        if (cell && (cell.subject || cell.staff_id || cell.secondary_staff_id)) {
+          // Primary teacher entry
+          if (cell.staff_id || (!cell.staff_id && !cell.secondary_staff_id)) {
+            entriesToSave.push({
+              day_of_week: row.day,
+              period_number: col.period_number,
+              subject: cell.subject || null,
+              staff_id: cell.staff_id || null,
+              start_time: col.start ? `${col.start}:00` : null,
+              end_time: col.end ? `${col.end}:00` : null,
+              is_published: isPublished
+            });
+          }
+
+          // Secondary teacher / co-teacher entry (if assigned and different from primary)
+          if (cell.secondary_staff_id && cell.secondary_staff_id !== cell.staff_id) {
+            entriesToSave.push({
+              day_of_week: row.day,
+              period_number: col.period_number,
+              subject: cell.subject || null,
+              staff_id: cell.secondary_staff_id,
+              start_time: col.start ? `${col.start}:00` : null,
+              end_time: col.end ? `${col.end}:00` : null,
+              is_published: isPublished
+            });
+          }
         }
       });
     });
@@ -198,7 +378,9 @@ const TimetableManager = ({ apiUrl, token }) => {
     
     const clashes = checkClashes();
     if (clashes.length > 0) {
-      alert(`Cannot save! There are ${clashes.length} teacher schedule clashes. Please resolve them first.`);
+      const clashMessages = clashes.slice(0, 4).map(c => `• ${c.message}`).join('\n');
+      const moreMsg = clashes.length > 4 ? `\n...and ${clashes.length - 4} more conflict(s).` : '';
+      alert(`Cannot save! Schedule conflicts or daily limits detected:\n\n${clashMessages}${moreMsg}\n\nPlease resolve them before saving.`);
       return;
     }
 
@@ -231,6 +413,33 @@ const TimetableManager = ({ apiUrl, token }) => {
     }
   };
 
+  const handleAutoFillCurrentClass = async () => {
+    if (!editingClass) return;
+    if (!window.confirm(`Auto-fill schedule for Class ${editingClass.class_level} adhering to all 17 rules? This will populate the grid.`)) return;
+
+    try {
+      setModalLoading(true);
+      const res = await axios.post(`${apiUrl}/timetables/auto-generate`, {
+        targetClassLevels: [editingClass.class_level],
+        weekdayPeriods: 7,
+        saturdayPeriods: 5
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.data?.timetables && res.data.timetables.length > 0) {
+        const targetSec = editingSection === 'ALL' ? 'A' : editingSection;
+        loadTimetableForSection(editingClass, targetSec, res.data.timetables);
+        alert(`17-Rule Schedule generated for Class ${editingClass.class_level} and loaded into the grid! Review and click Save.`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to auto-generate schedule for this class');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   const generatePDF = (cls) => {
     const sections = cls.sections ? cls.sections.split(',') : ['A'];
     // For PDF generation, we generate for the first section if multiple, or prompt the user.
@@ -251,13 +460,14 @@ const TimetableManager = ({ apiUrl, token }) => {
     const body = days.map(day => {
       const row = [day];
       for (let i = 1; i <= maxP; i++) {
-        const entry = clsTimetable.find(t => t.day_of_week === day && t.period_number === i);
-        if (entry) {
-          const teacherName = teachers.find(tchr => tchr.id === entry.staff_id)?.name || '';
-          const time = entry.start_time ? `
-(${entry.start_time.substring(0,5)} - ${entry.end_time?.substring(0,5) || ''})` : '';
-          row.push(`${entry.subject || '-'}
-${teacherName}${time}`);
+        const periodEntries = clsTimetable.filter(t => t.day_of_week === day && t.period_number === i);
+        if (periodEntries.length > 0) {
+          const teacherNames = periodEntries
+            .map(e => teachers.find(tchr => tchr.id === e.staff_id)?.name)
+            .filter(Boolean)
+            .join(' & ');
+          const time = periodEntries[0].start_time ? `\n(${periodEntries[0].start_time.substring(0,5)} - ${periodEntries[0].end_time?.substring(0,5) || ''})` : '';
+          row.push(`${periodEntries[0].subject || '-'}\n${teacherNames}${time}`);
         } else {
           row.push('-');
         }
@@ -279,9 +489,39 @@ ${teacherName}${time}`);
   const getAvailableSubjects = (cls) => {
     if (!cls) return [];
     const subjects = [];
-    (cls.core_subjects || []).forEach(s => { subjects.push(s.subjects?.name || s.name || ''); });
-    (cls.elective_groups || []).forEach(g => { (g.subjects || []).forEach(s => { subjects.push(s.subjects?.name || s.name || ''); }); });
-    return [...new Set(subjects.filter(s => s))];
+    const normClass = String(cls.class_level || '').toUpperCase();
+    const isHS = normClass.includes('XI') || normClass.includes('XII') || normClass.includes('11') || normClass.includes('12');
+
+    const addSub = (s) => {
+      const name = s.subjects?.name || s.name || '';
+      if (!name) return;
+      const isDivided = Boolean(s.is_divided || (s.parts && s.parts.length > 0));
+      if (isDivided && s.parts && s.parts.length > 0) {
+        s.parts.forEach(p => {
+          const pName = (typeof p === 'string' ? p : p.name || '').trim();
+          if (pName) {
+            const formatted = pName.toUpperCase().includes(name.toUpperCase()) ? pName : `${name} (${pName})`;
+            subjects.push(formatted);
+          }
+        });
+      } else if (isHS && name.toUpperCase().includes('BIOL')) {
+        subjects.push(`${name} (BOTANY)`);
+        subjects.push(`${name} (ZOOLOGY)`);
+      }
+      subjects.push(name);
+    };
+
+    (cls.core_subjects || []).forEach(addSub);
+    (cls.elective_groups || []).forEach(g => { (g.subjects || []).forEach(addSub); });
+
+    if (subjects.length === 0) {
+      if (isHS) {
+        return ['ENGLISH', 'PHYSICS', 'CHEMISTRY', 'MATHEMATICS', 'BIOLOGY (BOTANY)', 'BIOLOGY (ZOOLOGY)', 'COMPUTER SCIENCE', 'ACCOUNTANCY', 'BUSINESS STUDIES', 'ECONOMICS', 'POLITICAL SCIENCE', 'HISTORY', 'Games', 'Drill'];
+      }
+      return ['English', 'Mathematics', 'Science', 'Social Studies', 'Hindi', 'Assamese', 'Computer', 'Games', 'Drill', 'Moral Science', 'General Knowledge'];
+    }
+
+    return [...new Set(subjects.filter(Boolean))];
   };
 
   const getClassStatus = (cls) => {
@@ -295,11 +535,24 @@ ${teacherName}${time}`);
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 min-h-screen">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
-          <FaCalendarAlt className="text-2xl" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
+            <FaCalendarAlt className="text-2xl" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-gray-800">Class Timetables</h2>
+            <p className="text-gray-500 text-xs mt-0.5">Manage and automatically generate weekly schedules with 17-rule compliance</p>
+          </div>
         </div>
-        <h2 className="text-3xl font-black text-gray-800">Class Timetables</h2>
+
+        <button 
+          onClick={() => setIsAutoModalOpen(true)}
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold px-5 py-3 rounded-xl hover:from-teal-700 hover:to-emerald-700 transition shadow-md shadow-teal-500/20 text-sm"
+        >
+          <FaBolt className="text-amber-300" />
+          <span>Auto-Generate Timetable</span>
+        </button>
       </div>
 
       {loading ? (
@@ -396,23 +649,32 @@ ${teacherName}${time}`);
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleAutoFillCurrentClass}
+                  disabled={modalLoading || saving}
+                  className="bg-amber-50 border border-amber-300 text-amber-900 px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 hover:bg-amber-100 disabled:opacity-50 transition shadow-xs text-xs"
+                  title="Auto-fill this class schedule according to the 17 rules"
+                >
+                  <FaBolt className="text-amber-500" /> Auto-Fill Class
+                </button>
                 <button 
                   onClick={() => handleSave(false)}
                   disabled={saving || modalLoading}
-                  className="bg-white border-2 border-teal-600 text-teal-700 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-teal-50 disabled:opacity-50 transition-colors shadow-sm"
+                  className="bg-white border-2 border-teal-600 text-teal-700 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-teal-50 disabled:opacity-50 transition-colors shadow-sm text-xs"
                 >
                   {saving ? <FaSpinner className="animate-spin" /> : <FaSave />} Save as Draft
                 </button>
                 <button 
                   onClick={() => handleSave(true)}
                   disabled={saving || modalLoading}
-                  className="bg-teal-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-teal-700 disabled:opacity-50 transition-colors shadow-sm"
+                  className="bg-teal-600 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-teal-700 disabled:opacity-50 transition-colors shadow-sm text-xs"
                 >
                   {saving ? <FaSpinner className="animate-spin" /> : <FaUpload />} Publish Timetable
                 </button>
-                <button onClick={() => setEditingClass(null)} className="p-2.5 hover:bg-gray-200 text-gray-500 rounded-xl transition-colors ml-2">
-                  <FiX size={24} />
+                <button onClick={() => setEditingClass(null)} className="p-2.5 hover:bg-gray-200 text-gray-500 rounded-xl transition-colors ml-1">
+                  <FiX size={22} />
                 </button>
               </div>
             </div>
@@ -475,33 +737,70 @@ ${teacherName}${time}`);
                           {periodColumns.map((col) => {
                             const cell = row[`p${col.period_number}`];
                             
-                            // Check for clash
-                            let clashWarning = null;
+                            // Check for clash for Teacher 1 (Primary)
+                            let clashWarning1 = null;
+                            let teacher1ClassesToday = 0;
+                            let isOverDailyLimit1 = false;
+
+                            const currentSections = editingSection === 'ALL' 
+                              ? (editingClass.sections ? editingClass.sections.split(',') : ['A'])
+                              : [editingSection];
+
                             if (cell?.staff_id) {
-                              const currentSections = editingSection === 'ALL' 
-                                ? (editingClass.sections ? editingClass.sections.split(',') : ['A'])
-                                : [editingSection];
+                              teacher1ClassesToday = getTeacherDayClassCount(cell.staff_id, row.day);
+                              if (teacher1ClassesToday > 6) {
+                                isOverDailyLimit1 = true;
+                              }
 
                               currentSections.forEach(sec => {
-                                 if (!clashWarning) {
-                                   const clash = allTimetables.find(t => 
-                                     t.day_of_week === row.day && 
-                                     t.period_number === col.period_number && 
-                                     t.staff_id === cell.staff_id &&
-                                     !(t.class_level === editingClass.class_level && t.section === sec)
-                                   );
-                                   if (clash) clashWarning = clash;
-                                 }
+                                if (!clashWarning1) {
+                                  const clash = allTimetables.find(t => 
+                                    t.day_of_week === row.day && 
+                                    t.period_number === col.period_number && 
+                                    t.staff_id === cell.staff_id &&
+                                    !(t.class_level === editingClass.class_level && t.section === sec)
+                                  );
+                                  if (clash) clashWarning1 = clash;
+                                }
                               });
                             }
 
+                            // Check for clash for Teacher 2 (Co-Teacher)
+                            let clashWarning2 = null;
+                            let teacher2ClassesToday = 0;
+                            let isOverDailyLimit2 = false;
+
+                            if (cell?.secondary_staff_id) {
+                              teacher2ClassesToday = getTeacherDayClassCount(cell.secondary_staff_id, row.day);
+                              if (teacher2ClassesToday > 6) {
+                                isOverDailyLimit2 = true;
+                              }
+
+                              currentSections.forEach(sec => {
+                                if (!clashWarning2) {
+                                  const clash = allTimetables.find(t => 
+                                    t.day_of_week === row.day && 
+                                    t.period_number === col.period_number && 
+                                    t.staff_id === cell.secondary_staff_id &&
+                                    !(t.class_level === editingClass.class_level && t.section === sec)
+                                  );
+                                  if (clash) clashWarning2 = clash;
+                                }
+                              });
+                            }
+
+                            const isSameTeacherTwice = cell?.staff_id && cell?.secondary_staff_id && cell.staff_id === cell.secondary_staff_id;
+                            const hasConflict = clashWarning1 || clashWarning2 || isOverDailyLimit1 || isOverDailyLimit2 || isSameTeacherTwice;
+                            const isDualTeaching = cell?.staff_id && cell?.secondary_staff_id && !isSameTeacherTwice;
+
                             return (
-                              <td key={col.period_number} className={`p-2 border-r border-gray-100 align-top ${clashWarning ? 'bg-red-50' : ''}`}>
+                              <td key={col.period_number} className={`p-2 border-r border-gray-100 align-top ${hasConflict ? 'bg-red-50/60' : isDualTeaching ? 'bg-indigo-50/20' : ''}`}>
                                 <div className="flex flex-col gap-1.5">
+                                  {/* Subject Dropdown */}
                                   <select
                                     value={cell.subject || ''}
-                                    onChange={(e) => updateCell(dayIdx, col.period_number, 'subject', e.target.value)}
-                                    className={`w-full p-2 border rounded-lg text-xs outline-none transition-colors ${clashWarning ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-teal-500'}`}
+                                    onChange={(e) => handleSubjectChange(dayIdx, col.period_number, e.target.value)}
+                                    className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${hasConflict ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-teal-500'}`}
                                   >
                                     <option value="">-- Select Subject --</option>
                                     <option value="Recess">Recess / Break</option>
@@ -510,21 +809,98 @@ ${teacherName}${time}`);
                                     ))}
                                   </select>
                                   
-                                  <select
-                                    value={cell.staff_id || ''}
-                                    onChange={(e) => updateCell(dayIdx, col.period_number, 'staff_id', e.target.value)}
-                                    className={`w-full p-2 border rounded-lg text-xs outline-none transition-colors ${clashWarning ? 'border-red-400 bg-white text-red-700 font-bold' : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-emerald-500'}`}
-                                  >
-                                    <option value="">-- Select Teacher --</option>
-                                    {teachers.map(t => (
-                                      <option key={t.id} value={t.id}>{t.name} ({t.role || 'Teacher'})</option>
-                                    ))}
-                                  </select>
-                                  
-                                  {clashWarning && (
-                                    <div className="flex items-center gap-1 text-[10px] text-red-600 font-bold mt-1">
-                                      <FaExclamationTriangle />
-                                      Clashes with Class {clashWarning.class_level} - {clashWarning.section}
+                                  {/* Primary Teacher Dropdown */}
+                                  <div>
+                                    <select
+                                      value={cell.staff_id || ''}
+                                      onChange={(e) => updateCell(dayIdx, col.period_number, 'staff_id', e.target.value)}
+                                      className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${
+                                        clashWarning1 || isOverDailyLimit1 || isSameTeacherTwice
+                                          ? 'border-red-400 bg-white text-red-700 font-bold' 
+                                          : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-emerald-500'
+                                      }`}
+                                    >
+                                      <option value="">-- Primary Teacher --</option>
+                                      {teachers.map(t => {
+                                        const count = getTeacherDayClassCount(t.id, row.day, col.period_number);
+                                        const reachedMax = count >= 6 && cell.staff_id !== t.id;
+                                        const isCoTeacher = t.id === cell.secondary_staff_id;
+                                        return (
+                                          <option key={t.id} value={t.id} disabled={reachedMax || isCoTeacher}>
+                                            {t.name} ({count}/6 today){reachedMax ? ' — MAX 6' : ''}{isCoTeacher ? ' [Selected as Co-Teacher]' : ''}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  </div>
+
+                                  {/* Co-Teacher / 2nd Teacher Dropdown */}
+                                  <div>
+                                    <select
+                                      value={cell.secondary_staff_id || ''}
+                                      onChange={(e) => updateCell(dayIdx, col.period_number, 'secondary_staff_id', e.target.value)}
+                                      className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${
+                                        clashWarning2 || isOverDailyLimit2 || isSameTeacherTwice
+                                          ? 'border-red-400 bg-white text-red-700 font-bold' 
+                                          : cell.secondary_staff_id
+                                            ? 'border-indigo-300 bg-indigo-50/50 text-indigo-900 font-medium'
+                                            : 'border-gray-200 bg-gray-50/80 focus:bg-white focus:border-indigo-500'
+                                      }`}
+                                    >
+                                      <option value="">-- 2nd Teacher (Optional) --</option>
+                                      {teachers.map(t => {
+                                        const count = getTeacherDayClassCount(t.id, row.day, col.period_number);
+                                        const reachedMax = count >= 6 && cell.secondary_staff_id !== t.id;
+                                        const isPrimary = t.id === cell.staff_id;
+                                        return (
+                                          <option key={t.id} value={t.id} disabled={reachedMax || isPrimary}>
+                                            {t.name} ({count}/6 today){reachedMax ? ' — MAX 6' : ''}{isPrimary ? ' [Primary Teacher]' : ''}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  </div>
+
+                                  {/* Dual Teaching Badge */}
+                                  {isDualTeaching && (
+                                    <div className="flex items-center justify-center gap-1 text-[10px] text-indigo-800 font-bold bg-indigo-100 py-0.5 px-1 rounded border border-indigo-200">
+                                      <span>👥 2 Teachers (Co-Teaching)</span>
+                                    </div>
+                                  )}
+
+                                  {/* Warnings */}
+                                  {isSameTeacherTwice && (
+                                    <div className="flex items-center gap-1 text-[10px] text-red-700 font-bold bg-red-100 p-1 rounded border border-red-300">
+                                      <FaExclamationTriangle className="flex-shrink-0" />
+                                      <span>Same teacher selected twice</span>
+                                    </div>
+                                  )}
+
+                                  {clashWarning1 && (
+                                    <div className="flex items-center gap-1 text-[10px] text-red-600 font-bold bg-red-100/70 p-1 rounded border border-red-200">
+                                      <FaExclamationTriangle className="flex-shrink-0" />
+                                      <span>T1 Clashes: Class {clashWarning1.class_level}-{clashWarning1.section}</span>
+                                    </div>
+                                  )}
+
+                                  {clashWarning2 && (
+                                    <div className="flex items-center gap-1 text-[10px] text-red-600 font-bold bg-red-100/70 p-1 rounded border border-red-200">
+                                      <FaExclamationTriangle className="flex-shrink-0" />
+                                      <span>T2 Clashes: Class {clashWarning2.class_level}-{clashWarning2.section}</span>
+                                    </div>
+                                  )}
+
+                                  {isOverDailyLimit1 && (
+                                    <div className="flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-100/80 p-1 rounded border border-amber-300">
+                                      <FaExclamationTriangle className="flex-shrink-0 text-amber-600" />
+                                      <span>T1 Limit: {teacher1ClassesToday}/6 classes today</span>
+                                    </div>
+                                  )}
+
+                                  {isOverDailyLimit2 && (
+                                    <div className="flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-100/80 p-1 rounded border border-amber-300">
+                                      <FaExclamationTriangle className="flex-shrink-0 text-amber-600" />
+                                      <span>T2 Limit: {teacher2ClassesToday}/6 classes today</span>
                                     </div>
                                   )}
                                 </div>
@@ -542,6 +918,16 @@ ${teacherName}${time}`);
           </div>
         </div>
       )}
+
+      {/* Auto Timetable Generator Modal */}
+      <AutoTimetableModal
+        isOpen={isAutoModalOpen}
+        onClose={() => setIsAutoModalOpen(false)}
+        apiUrl={apiUrl}
+        token={token}
+        classesData={classesData}
+        onSuccess={() => fetchInitialData()}
+      />
     </div>
   );
 };

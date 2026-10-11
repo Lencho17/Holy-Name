@@ -142,30 +142,24 @@ function DocumentHeadManager({ isSaaS, isStudentSite, isEmployeeSite }) {
       document.head.appendChild(link);
     }
     
-    const isPayPupil = isPayPupilDomain();
-    const brandTitle = isPayPupil ? 'PayPupil' : 'VidyaBarta';
-    let pageTitle = brandTitle;
-    let pageDescription = isPayPupil 
-      ? 'PayPupil - The Smart Operating System For Modern Schools.' 
-      : 'VidyaBarta - Premium School Management System.';
+    let pageTitle = 'VidyaBarta';
+    let pageDescription = 'Premium School Management System.';
     let pageImage = '/logo.png';
     let pageUrl = window.location.href;
 
     if (isEmployeeSite) {
       link.href = '/favicon.png';
-      pageTitle = `${brandTitle} Employee Hub`;
+      pageTitle = 'Vidyabarta Employee Hub';
       pageDescription = 'Employee Management and Timesheets Portal.';
     } else if (isSaaS) {
       link.href = '/favicon.png';
-      pageTitle = `${brandTitle} - School Management System`;
-      pageDescription = isPayPupil
-        ? 'PayPupil - Modern School Operating System, Academics & Fee Management.'
-        : 'VidyaBarta - Premium School Management System.';
+      pageTitle = 'VidyaBarta - School Management System';
+      pageDescription = 'VidyaBarta - Premium School Management System.';
     } else if (isStudentSite) {
       const isGlobalStudentSite = window.location.hostname === 'student.vidyabarta.com' || window.location.hostname === 'student.paypupil.in' || window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
       link.href = isGlobalStudentSite ? '/favicon.png' : (schoolProfile?.logo || '/favicon.png');
-      pageTitle = (schoolProfile?.name && !isGlobalStudentSite) ? `${schoolProfile.name} - Student Portal` : `${brandTitle} Student Hub`;
-      pageDescription = `Student portal for ${schoolProfile?.name || brandTitle}`;
+      pageTitle = (schoolProfile?.name && !isGlobalStudentSite) ? `${schoolProfile.name} - Student Portal` : 'VidyaBarta Student Hub';
+      pageDescription = `Student portal for ${schoolProfile?.name || 'VidyaBarta'}`;
       if (schoolProfile?.logo) pageImage = schoolProfile.logo;
     } else {
       link.href = schoolProfile?.logo || '/favicon.png';
@@ -324,7 +318,7 @@ function App() {
                 <AppRootRedirect />
               ) : (
                 <Suspense fallback={<SuspenseFallback />}>
-                  <SaaSHome isPayPupil={isPayPupilDomain()} />
+                  <SaaSHome />
                 </Suspense>
               )
             } 

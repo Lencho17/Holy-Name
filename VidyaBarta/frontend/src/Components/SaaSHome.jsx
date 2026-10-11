@@ -4,7 +4,8 @@ import * as Icons from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { isPayPupilDomain, getBrandName } from '../utils/domainHelper';
+
+
 
 const FaqItem = ({ faq, isOpen, toggleOpen }) => (
   <div className="border border-outline-variant rounded-2xl bg-surface overflow-hidden mb-4 shadow-sm transition-all duration-300">
@@ -44,21 +45,12 @@ const FeatureCard = ({ icon: Icon, title, description }) => (
   </div>
 );
 
-const DashboardMockup = ({ isPayPupil }) => (
+const DashboardMockup = () => (
   <div className="w-full max-w-5xl mx-auto rounded-t-2xl shadow-2xl border-x border-t border-outline-variant/50 bg-background overflow-hidden flex h-[450px] text-left">
     {/* Sidebar */}
     <div className="hidden sm:flex w-56 bg-surface border-r border-outline-variant flex-col z-10 shrink-0">
       <div className="p-5 border-b border-outline-variant flex items-center justify-start pl-6">
-        {isPayPupil ? (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-white text-xs font-black shadow-sm">
-              P
-            </div>
-            <span className="font-headline font-bold text-base text-neutral tracking-tight">Pay<span className="text-primary">Pupil</span></span>
-          </div>
-        ) : (
-          <img src="/logo.png" alt="VidyaBarta" className="h-8 w-auto object-contain" />
-        )}
+        <img src="/logo.png" alt="VidyaBarta" className="h-8 w-auto object-contain" />
       </div>
       <div className="p-4 space-y-2 flex-1">
         <div className="flex items-center gap-3 px-3 py-2.5 bg-primary/10 text-primary rounded-xl font-medium text-body-sm">
@@ -78,7 +70,7 @@ const DashboardMockup = ({ isPayPupil }) => (
             </div>
             <div>
               <p className="text-label-md font-bold text-neutral leading-none">System Admin</p>
-              <p className="text-[10px] text-on-surface-variant">{isPayPupil ? 'admin@paypupil.in' : 'admin@vidyabarta.com'}</p>
+              <p className="text-[10px] text-on-surface-variant">admin@vidyabarta.com</p>
             </div>
         </div>
       </div>
@@ -155,17 +147,13 @@ const DashboardMockup = ({ isPayPupil }) => (
   </div>
 );
 
-const Home = ({ isPayPupil: propIsPayPupil }) => {
-  const isPayPupil = propIsPayPupil !== undefined ? propIsPayPupil : isPayPupilDomain();
-  const brandName = isPayPupil ? 'PayPupil' : 'VidyaBarta';
-  const defaultContactEmail = isPayPupil ? 'sales@paypupil.in' : 'sales@vidyabarta.com';
-
+const Home = () => {
   const [pricingPlans, setPricingPlans] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [features, setFeatures] = useState([]);
   const [loadingPricing, setLoadingPricing] = useState(true);
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
-  const [contactSettings, setContactSettings] = useState({ contact_email: defaultContactEmail, contact_phone: '+91 98765 43210' });
+  const [contactSettings, setContactSettings] = useState({ contact_email: 'sales@vidyabarta.com', contact_phone: '+91 98765 43210' });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -173,7 +161,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
         const apiBase = import.meta.env.VITE_API_URL || '/api';
         const [pricingRes, contactRes, faqsRes, featuresRes] = await Promise.all([
           axios.get(`${apiBase}/saas-pricing`).catch(() => ({ data: [] })),
-          axios.get(`${apiBase}/saas-settings`).catch(() => ({ data: { contact_email: defaultContactEmail, contact_phone: '+91 98765 43210' } })),
+          axios.get(`${apiBase}/saas-settings`).catch(() => ({ data: { contact_email: 'sales@vidyabarta.com', contact_phone: '+91 98765 43210' } })),
           axios.get(`${apiBase}/saas-settings/faqs`).catch(() => ({ data: [] })),
           axios.get(`${apiBase}/saas-settings/features`).catch(() => ({ data: [] }))
         ]);
@@ -190,7 +178,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
       }
     };
     fetchData();
-  }, [defaultContactEmail]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background font-sans overflow-x-hidden">
@@ -207,7 +195,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-6 animate-fadeIn">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                <span className="text-label-sm font-semibold uppercase tracking-wider">{brandName} - School Management Software</span>
+                <span className="text-label-sm font-semibold uppercase tracking-wider">VidyaBarta - School Management Software</span>
               </div>
               
               <h1 className="text-display-sm md:text-display-md lg:text-display-lg font-bold font-headline text-neutral mb-6 leading-tight tracking-tight animate-slideUp" style={{ animationDelay: '100ms' }}>
@@ -215,7 +203,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
               </h1>
               
               <p className="text-title-md text-on-surface-variant mb-10 leading-relaxed animate-slideUp" style={{ animationDelay: '200ms' }}>
-                Ditch the paperwork and outdated software. {brandName} brings attendance, academics, and administration into one incredibly fast, intuitive platform.
+                Ditch the paperwork and outdated software. VidyaBarta brings attendance, academics, and administration into one incredibly fast, intuitive platform.
               </p>
               
               <div className="flex flex-col sm:flex-row items-center gap-4 animate-slideUp" style={{ animationDelay: '300ms' }}>
@@ -247,7 +235,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
                     <FiShield size={20} />
                   </div>
                   <div>
-                    <p className="text-body-sm font-semibold text-neutral leading-tight mb-1">Opt for {brandName}</p>
+                    <p className="text-body-sm font-semibold text-neutral leading-tight mb-1">Opt for Vidyabarta</p>
                     <p className="text-xs text-on-surface-variant leading-tight">For robust features and enhanced experience.</p>
                   </div>
                 </div>
@@ -296,7 +284,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
           viewport={{ once: true, margin: "-100px" }}
           className="px-6"
         >
-          <DashboardMockup isPayPupil={isPayPupil} />
+          <DashboardMockup />
         </motion.div>
       </section>
 
@@ -310,7 +298,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
           className="max-w-7xl mx-auto px-6"
         >
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-headline-lg font-bold font-headline text-neutral mb-4">Why Choose {brandName}?</h2>
+            <h2 className="text-headline-lg font-bold font-headline text-neutral mb-4">Why Choose VidyaBarta?</h2>
             <p className="text-body-lg text-on-surface-variant">Designed specifically for modern educational needs with a focus on simplicity and powerful features.</p>
           </div>
           
@@ -456,7 +444,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
         >
           <div className="text-center mb-16">
             <h2 className="text-headline-lg font-bold font-headline text-neutral mb-6">Frequently Asked Questions</h2>
-            <p className="text-title-md text-on-surface-variant max-w-2xl mx-auto">Everything you need to know about {brandName}.</p>
+            <p className="text-title-md text-on-surface-variant max-w-2xl mx-auto">Everything you need to know about VidyaBarta.</p>
           </div>
           
           <div className="space-y-2">
@@ -483,7 +471,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
         >
           <div>
             <h2 className="text-headline-lg font-bold font-headline text-neutral mb-6">Get in Touch</h2>
-            <p className="text-title-md text-on-surface-variant mb-8">Have questions about {brandName}? Our team is here to help you transform your institution.</p>
+            <p className="text-title-md text-on-surface-variant mb-8">Have questions about VidyaBarta? Our team is here to help you transform your institution.</p>
             <div className="space-y-6">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0">
@@ -491,7 +479,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
                 </div>
                 <div>
                   <h4 className="text-title-sm font-bold text-neutral">Email Us</h4>
-                  <p className="text-body-md text-on-surface-variant">{contactSettings?.contact_email || defaultContactEmail}</p>
+                  <p className="text-body-md text-on-surface-variant">{contactSettings?.contact_email || 'sales@vidyabarta.com'}</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
@@ -548,7 +536,7 @@ const Home = ({ isPayPupil: propIsPayPupil }) => {
           className="max-w-7xl mx-auto px-6 text-center"
         >
           <h2 className="text-headline-lg font-bold font-headline mb-6">Ready to transform your school?</h2>
-          <p className="text-title-md text-white/80 max-w-2xl mx-auto mb-12">Join hundreds of institutions already using {brandName} to streamline their operations.</p>
+          <p className="text-title-md text-white/80 max-w-2xl mx-auto mb-12">Join hundreds of institutions already using VidyaBarta to streamline their operations.</p>
           <Link 
             to="/login"
             className="inline-flex px-8 py-4 bg-white text-primary rounded-xl font-bold text-body-lg hover:bg-white/90 transition-all shadow-xl hover:-translate-y-1"

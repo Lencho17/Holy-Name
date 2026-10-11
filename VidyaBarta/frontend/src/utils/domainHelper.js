@@ -36,7 +36,7 @@ export function isAppSubdomain() {
 }
 
 export function getBrandName() {
-  return isPayPupilDomain() ? 'PayPupil' : 'VidyaBarta';
+  return 'VidyaBarta';
 }
 
 export function getCentralLoginUrl() {

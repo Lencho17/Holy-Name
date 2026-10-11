@@ -25,9 +25,9 @@ function Login() {
   );
 
   const displayLogo = (!isCentralSaaS && schoolProfile?.logo) ? schoolProfile.logo : "/logo.png";
-  const displaySchoolName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : `${brandName} Systems`;
-  const portalHeading = (!isCentralSaaS && schoolProfile?.name) ? `${schoolProfile.name} Portal` : `${brandName} Central Portal`;
-  const copyrightName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : `${brandName} Systems`;
+  const displaySchoolName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : "VidyaBarta Systems";
+  const portalHeading = (!isCentralSaaS && schoolProfile?.name) ? `${schoolProfile.name} Portal` : "System Portal";
+  const copyrightName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : "VidyaBarta Systems";
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -209,22 +209,11 @@ function Login() {
         
         {/* Top Right Logo */}
         <div className="absolute top-8 right-8 xl:top-12 xl:right-12">
-          {isCentralSaaS && isPayPupil ? (
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-white shadow-md shadow-primary/20">
-                <span className="font-extrabold text-xl tracking-wider font-headline">P</span>
-              </div>
-              <span className="font-headline font-bold text-2xl text-slate-900 tracking-tight">
-                Pay<span className="text-primary">Pupil</span>
-              </span>
-            </div>
-          ) : (
-            <img 
-              src={displayLogo} 
-              alt={displaySchoolName} 
-              className="h-auto w-36 md:w-44 xl:w-52 object-contain" 
-            />
-          )}
+          <img 
+            src={displayLogo} 
+            alt={displaySchoolName} 
+            className="h-auto w-36 md:w-44 xl:w-52 object-contain" 
+          />
         </div>
 
         <div className="w-full max-w-md mt-10 lg:mt-0">
@@ -254,7 +243,7 @@ function Login() {
                     type="email"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
-                    placeholder={isPayPupil ? "admin@paypupil.in" : "admin@vidyabarta.com"}
+                    placeholder="admin@vidyabarta.com"
                   />
                 </div>
 
@@ -326,7 +315,7 @@ function Login() {
                     type="email"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
-                    placeholder={isPayPupil ? "admin@paypupil.in" : "admin@vidyabarta.com"}
+                    placeholder="admin@vidyabarta.com"
                   />
                 </div>
 

@@ -291,14 +291,11 @@ function App() {
   const isStudentSite = effectiveHost === 'student.vidyabarta.com' || effectiveHost.startsWith('student.') || urlParams.get('site') === 'student';
   
   const isPayPupilSaaS = effectiveHost === 'paypupil.in' || 
-                         effectiveHost === 'www.paypupil.in' || 
-                         effectiveHost === 'app.paypupil.in';
+                         effectiveHost === 'www.paypupil.in';
 
   const isVidyabartaSaaS = effectiveHost === 'vidyabarta.com' || 
                            effectiveHost === 'www.vidyabarta.com' || 
                            (effectiveHost.includes('vidyabarta') && effectiveHost.includes('vercel.app') && !hasTestDomain);
-
-  const isAppDomain = isAppSubdomain();
 
   const isSaaS = (
     isPayPupilSaaS ||
@@ -314,13 +311,9 @@ function App() {
           <Route 
             index 
             element={
-              isAppDomain ? (
-                <AppRootRedirect />
-              ) : (
-                <Suspense fallback={<SuspenseFallback />}>
-                  <SaaSHome />
-                </Suspense>
-              )
+              <Suspense fallback={<SuspenseFallback />}>
+                <SaaSHome />
+              </Suspense>
             } 
           />
         </Route>

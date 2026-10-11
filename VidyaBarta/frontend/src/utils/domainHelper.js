@@ -29,7 +29,6 @@ export function isAppSubdomain() {
   if (typeof window === 'undefined') return false;
   const urlParams = new URLSearchParams(window.location.search);
   return (
-    host === 'app.paypupil.in' ||
     host === 'app.vidyabarta.com' ||
     urlParams.get('site') === 'app'
   );
@@ -41,14 +40,14 @@ export function getBrandName() {
 
 export function getCentralLoginUrl() {
   if (isPayPupilDomain()) {
-    return 'https://app.paypupil.in/login';
+    return 'https://www.paypupil.in/login';
   }
   return 'https://www.vidyabarta.com/login';
 }
 
 export function getCentralStaffSignupUrl() {
   if (isPayPupilDomain()) {
-    return 'https://app.paypupil.in/staff-signup';
+    return 'https://www.paypupil.in/staff-signup';
   }
   return 'https://www.vidyabarta.com/staff-signup';
 }

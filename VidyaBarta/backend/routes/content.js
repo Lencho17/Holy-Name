@@ -153,8 +153,6 @@ router.get('/', optionalProtect, async (req, res) => {
     const cleanDomain = (domain || '').replace(/^www\./, '').split(':')[0].toLowerCase();
     const isCentralSaaS = cleanDomain === 'vidyabarta.com' || 
                           cleanDomain === 'paypupil.in' || 
-                          cleanDomain === 'app.paypupil.in' || 
-                          cleanDomain === 'app.vidyabarta.com' || 
                           cleanDomain.startsWith('student.');
 
     if (domain && !isCentralSaaS && !cleanDomain.startsWith('student.')) {

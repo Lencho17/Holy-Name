@@ -18,8 +18,7 @@ function Login() {
     hostname === 'www.vidyabarta.com' ||
     hostname === 'paypupil.in' ||
     hostname === 'www.paypupil.in' ||
-    hostname === 'app.paypupil.in' ||
-    (testDomainVal && (testDomainVal === 'paypupil.in' || testDomainVal === 'www.paypupil.in' || testDomainVal === 'app.paypupil.in')) ||
+    (testDomainVal && (testDomainVal === 'paypupil.in' || testDomainVal === 'www.paypupil.in')) ||
     (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) ||
     (isLocalhost && !hasTestDomain)
   );

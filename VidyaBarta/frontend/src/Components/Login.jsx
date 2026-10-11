@@ -3,23 +3,31 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from "axios";
 import { FaUserCircle, FaLock, FaEnvelope, FaExclamationCircle, FaEye, FaEyeSlash } from "react-icons/fa";
 import { SiteDataContext } from "../context/SiteDataContext";
+import { isPayPupilDomain, getBrandName } from "../utils/domainHelper";
 
 function Login() {
   const { schoolProfile } = useContext(SiteDataContext);
+  const isPayPupil = isPayPupilDomain();
+  const brandName = isPayPupil ? "PayPupil" : "VidyaBarta";
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
   const hasTestDomain = Boolean(typeof window !== 'undefined' && localStorage.getItem('test_domain'));
+  const testDomainVal = typeof window !== 'undefined' ? localStorage.getItem('test_domain') : '';
   const isCentralSaaS = (
     hostname === 'vidyabarta.com' ||
     hostname === 'www.vidyabarta.com' ||
+    hostname === 'paypupil.in' ||
+    hostname === 'www.paypupil.in' ||
+    hostname === 'app.paypupil.in' ||
+    (testDomainVal && (testDomainVal === 'paypupil.in' || testDomainVal === 'www.paypupil.in' || testDomainVal === 'app.paypupil.in')) ||
     (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) ||
     (isLocalhost && !hasTestDomain)
   );
 
   const displayLogo = (!isCentralSaaS && schoolProfile?.logo) ? schoolProfile.logo : "/logo.png";
-  const displaySchoolName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : "VidyaBarta Systems";
-  const portalHeading = (!isCentralSaaS && schoolProfile?.name) ? `${schoolProfile.name} Portal` : "System Portal";
-  const copyrightName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : "VidyaBarta Systems";
+  const displaySchoolName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : `${brandName} Systems`;
+  const portalHeading = (!isCentralSaaS && schoolProfile?.name) ? `${schoolProfile.name} Portal` : `${brandName} Central Portal`;
+  const copyrightName = (!isCentralSaaS && schoolProfile?.name) ? schoolProfile.name : `${brandName} Systems`;
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -201,11 +209,22 @@ function Login() {
         
         {/* Top Right Logo */}
         <div className="absolute top-8 right-8 xl:top-12 xl:right-12">
-          <img 
-            src={displayLogo} 
-            alt={displaySchoolName} 
-            className="h-auto w-36 md:w-44 xl:w-52 object-contain" 
-          />
+          {isCentralSaaS && isPayPupil ? (
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-white shadow-md shadow-primary/20">
+                <span className="font-extrabold text-xl tracking-wider font-headline">P</span>
+              </div>
+              <span className="font-headline font-bold text-2xl text-slate-900 tracking-tight">
+                Pay<span className="text-primary">Pupil</span>
+              </span>
+            </div>
+          ) : (
+            <img 
+              src={displayLogo} 
+              alt={displaySchoolName} 
+              className="h-auto w-36 md:w-44 xl:w-52 object-contain" 
+            />
+          )}
         </div>
 
         <div className="w-full max-w-md mt-10 lg:mt-0">
@@ -235,7 +254,7 @@ function Login() {
                     type="email"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
-                    placeholder="admin@vidyabarta.com"
+                    placeholder={isPayPupil ? "admin@paypupil.in" : "admin@vidyabarta.com"}
                   />
                 </div>
 
@@ -307,7 +326,7 @@ function Login() {
                     type="email"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
-                    placeholder="admin@vidyabarta.com"
+                    placeholder={isPayPupil ? "admin@paypupil.in" : "admin@vidyabarta.com"}
                   />
                 </div>
 

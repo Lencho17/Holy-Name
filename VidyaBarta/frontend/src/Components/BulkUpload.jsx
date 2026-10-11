@@ -75,11 +75,14 @@ const BulkUpload = ({ apiUrl, endpoint, token, entityName = 'Teachers', onUpload
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const getEffectiveToken = () => token || localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
+
   const handleDownloadTemplate = async (format = 'csv') => {
     try {
+      const authToken = getEffectiveToken();
       const url = `${apiUrl}/bulk-upload/${endpoint}/template?format=${format}`;
       const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
       });
 
       if (!response.ok) throw new Error('Failed to fetch template from server');
@@ -126,11 +129,13 @@ const BulkUpload = ({ apiUrl, endpoint, token, entityName = 'Teachers', onUpload
     const formData = new FormData();
     formData.append('file', file);
 
+    const authToken = getEffectiveToken();
+
     try {
       const res = await axios.post(`${apiUrl}/bulk-upload/${endpoint}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
         }
       });
 
@@ -145,7 +150,7 @@ const BulkUpload = ({ apiUrl, endpoint, token, entityName = 'Teachers', onUpload
     } catch (err) {
       console.error(`Bulk upload failed for ${entityName}:`, err);
       setUploadStatus('error');
-      setErrorMessage(err.response?.data?.message || err.message || 'Upload failed. Please check the file and try again.');
+      setErrorMessage(err.response?.data?.message || err.response?.data?.error || err.message || 'Upload failed. Please check the file and try again.');
     } finally {
       setIsUploading(false);
     }

@@ -91,8 +91,15 @@ const corsOptions = {
       sanitizedOrigin === 'https://www.vidyabarta.com' ||
       sanitizedOrigin.endsWith('.vidyabarta.com')
     );
+
+    const isPaypupilDomain = sanitizedOrigin && (
+      sanitizedOrigin === 'https://paypupil.in' || 
+      sanitizedOrigin === 'https://www.paypupil.in' || 
+      sanitizedOrigin === 'https://app.paypupil.in' || 
+      sanitizedOrigin.endsWith('.paypupil.in')
+    );
     
-    if (!isProduction || !sanitizedOrigin || allowedOrigins.includes(sanitizedOrigin) || isVidyabartaDomain) {
+    if (!isProduction || !sanitizedOrigin || allowedOrigins.includes(sanitizedOrigin) || isVidyabartaDomain || isPaypupilDomain) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked for origin: ${origin}`);

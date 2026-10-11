@@ -2,11 +2,14 @@ import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserPlus, FaUser, FaEnvelope, FaPhone, FaLock, FaExclamationCircle } from 'react-icons/fa';
 import { SiteDataContext } from '../context/SiteDataContext';
+import { isPayPupilDomain, getBrandName } from '../utils/domainHelper';
 
 import axios from 'axios';
 
 function AdminSignUp() {
   const { schoolProfile } = useContext(SiteDataContext);
+  const isPayPupil = isPayPupilDomain();
+  const brandName = isPayPupil ? "PayPupil" : "VidyaBarta";
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [contact, setContact] = useState("");
@@ -90,7 +93,7 @@ function AdminSignUp() {
         <div className="relative z-20 flex flex-col justify-end h-full w-full p-12 xl:p-16">
           <div className="mt-auto">
             <h1 className="text-4xl xl:text-5xl font-bold text-white mb-6 leading-tight font-headline">
-              Welcome to {schoolProfile?.name || "School"}
+              Welcome to {schoolProfile?.name || brandName}
             </h1>
             <p className="text-slate-200 text-lg leading-relaxed max-w-md">
               Join our educational ecosystem. Fill in your details to get started.
@@ -105,6 +108,15 @@ function AdminSignUp() {
         <div className="absolute top-8 right-8 xl:top-12 xl:right-12">
           {schoolProfile?.logo ? (
              <img src={schoolProfile.logo} alt={schoolProfile.name} className="h-auto w-32 md:w-40 xl:w-48 object-contain" />
+          ) : isPayPupil ? (
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-white shadow-md shadow-primary/20">
+                <span className="font-extrabold text-xl tracking-wider font-headline">P</span>
+              </div>
+              <span className="font-headline font-bold text-2xl text-slate-900 tracking-tight">
+                Pay<span className="text-primary">Pupil</span>
+              </span>
+            </div>
           ) : (
              <img src="/logo.png" alt="VidyaBarta" className="h-auto w-40 md:w-48 xl:w-56 object-contain" />
           )}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaUserShield, FaSignOutAlt } from 'react-icons/fa';
+import { getCentralLoginUrl } from '../utils/domainHelper';
 
 function AdminLoginBtn({ onClick }) {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ function AdminLoginBtn({ onClick }) {
   };
 
   const handleLogin = () => {
-    window.location.href = 'https://www.vidyabarta.com/login';
+    window.location.href = getCentralLoginUrl();
   };
 
   return (

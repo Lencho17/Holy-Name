@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiMenu, FiX, FiArrowRight } from 'react-icons/fi';
+import { isPayPupilDomain } from '../utils/domainHelper';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isPayPupil = isPayPupilDomain();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,7 +22,18 @@ const Header = () => {
         
         {/* Logo */}
         <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="flex items-center gap-3 group">
-          <img src="/logo.png" alt="VidyaBarta" className="h-auto w-28 md:w-32 object-contain group-hover:scale-105 transition-transform" />
+          {isPayPupil ? (
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-white shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
+                <span className="font-extrabold text-lg tracking-wider font-headline">P</span>
+              </div>
+              <span className="font-headline font-bold text-xl md:text-2xl text-neutral tracking-tight">
+                Pay<span className="text-primary">Pupil</span>
+              </span>
+            </div>
+          ) : (
+            <img src="/logo.png" alt="VidyaBarta" className="h-auto w-28 md:w-32 object-contain group-hover:scale-105 transition-transform" />
+          )}
         </a>
 
         {/* Desktop Nav */}

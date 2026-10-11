@@ -15,6 +15,14 @@ import React, { useContext, useEffect, Suspense } from "react";
 import axios from "axios";
 import { FaSpinner } from "react-icons/fa";
 import { Toaster } from "react-hot-toast";
+import {
+  isPayPupilDomain,
+  isAppSubdomain,
+  getBrandName,
+  getCentralLoginUrl,
+  getCentralStaffSignupUrl,
+  getEffectiveHostname
+} from "./utils/domainHelper";
 
 // Setup Axios Interceptor for JWT Refresh
 axios.interceptors.response.use(
@@ -134,24 +142,30 @@ function DocumentHeadManager({ isSaaS, isStudentSite, isEmployeeSite }) {
       document.head.appendChild(link);
     }
     
-    let pageTitle = 'VidyaBarta';
-    let pageDescription = 'Premium School Management System.';
+    const isPayPupil = isPayPupilDomain();
+    const brandTitle = isPayPupil ? 'PayPupil' : 'VidyaBarta';
+    let pageTitle = brandTitle;
+    let pageDescription = isPayPupil 
+      ? 'PayPupil - The Smart Operating System For Modern Schools.' 
+      : 'VidyaBarta - Premium School Management System.';
     let pageImage = '/logo.png';
     let pageUrl = window.location.href;
 
     if (isEmployeeSite) {
       link.href = '/favicon.png';
-      pageTitle = 'Vidyabarta Employee Hub';
+      pageTitle = `${brandTitle} Employee Hub`;
       pageDescription = 'Employee Management and Timesheets Portal.';
     } else if (isSaaS) {
       link.href = '/favicon.png';
-      pageTitle = 'VidyaBarta - School Management System';
-      pageDescription = 'VidyaBarta - Premium School Management System.';
+      pageTitle = `${brandTitle} - School Management System`;
+      pageDescription = isPayPupil
+        ? 'PayPupil - Modern School Operating System, Academics & Fee Management.'
+        : 'VidyaBarta - Premium School Management System.';
     } else if (isStudentSite) {
-      const isGlobalStudentSite = window.location.hostname === 'student.vidyabarta.com' || window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+      const isGlobalStudentSite = window.location.hostname === 'student.vidyabarta.com' || window.location.hostname === 'student.paypupil.in' || window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
       link.href = isGlobalStudentSite ? '/favicon.png' : (schoolProfile?.logo || '/favicon.png');
-      pageTitle = (schoolProfile?.name && !isGlobalStudentSite) ? `${schoolProfile.name} - Student Portal` : 'VidyaBarta Student Hub';
-      pageDescription = `Student portal for ${schoolProfile?.name || 'VidyaBarta'}`;
+      pageTitle = (schoolProfile?.name && !isGlobalStudentSite) ? `${schoolProfile.name} - Student Portal` : `${brandTitle} Student Hub`;
+      pageDescription = `Student portal for ${schoolProfile?.name || brandTitle}`;
       if (schoolProfile?.logo) pageImage = schoolProfile.logo;
     } else {
       link.href = schoolProfile?.logo || '/favicon.png';
@@ -228,6 +242,23 @@ function ExternalRedirect({ to }) {
   return <SuspenseFallback />;
 }
 
+function AppRootRedirect() {
+  const adminToken = localStorage.getItem('adminToken');
+  const staffToken = localStorage.getItem('staffToken');
+  const studentToken = localStorage.getItem('studentToken');
+
+  if (adminToken) {
+    return <Navigate to="/admin" replace />;
+  }
+  if (staffToken) {
+    return <Navigate to="/staff" replace />;
+  }
+  if (studentToken) {
+    return <Navigate to="/student-portal" replace />;
+  }
+  return <Navigate to="/login" replace />;
+}
+
 function App() {
   const urlParams = new URLSearchParams(window.location.search);
   
@@ -242,6 +273,7 @@ function App() {
   
   const hostname = window.location.hostname;
   const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const effectiveHost = getEffectiveHostname();
   const hasTestDomain = localStorage.getItem('test_domain') !== null;
   const isSuperAdminPath = window.location.pathname.startsWith('/superadmin');
 
@@ -250,20 +282,53 @@ function App() {
     window.location.replace(`https://vidyabarta.com${window.location.pathname}${window.location.search}${window.location.hash}`);
     return null;
   }
+
+  // Canonical redirect for apex paypupil.in to www.paypupil.in
+  if (typeof window !== 'undefined' && hostname === 'paypupil.in') {
+    window.location.replace(`https://www.paypupil.in${window.location.pathname}${window.location.search}${window.location.hash}`);
+    return null;
+  }
   
   // Determine if we should show the SaaS Landing Page
-  // We show SaaS if domain is vidyabarta.com OR www.vidyabarta.com OR (localhost without test_domain)
+  // We show SaaS if domain is vidyabarta.com OR paypupil.in (or app.paypupil.in) OR (localhost without test_domain)
   // OR if we are explicitly trying to access a superadmin route
   const isPreviewSchool = urlParams.get('preview_school') === 'true';
-  const isEmployeeSite = hostname === 'employee.vidyabarta.com' || hostname.startsWith('employee.') || urlParams.get('site') === 'employee';
-  const isStudentSite = hostname === 'student.vidyabarta.com' || hostname.startsWith('student.') || urlParams.get('site') === 'student';
-  const isSaaS = ((hostname === 'vidyabarta.com' || hostname === 'www.vidyabarta.com' || (hostname.includes('vidyabarta') && hostname.includes('vercel.app') && !hasTestDomain) || (isLocalhost && !hasTestDomain) || isSuperAdminPath)) && !isPreviewSchool && !isStudentSite && !isEmployeeSite;
+  const isEmployeeSite = effectiveHost === 'employee.vidyabarta.com' || effectiveHost.startsWith('employee.') || urlParams.get('site') === 'employee';
+  const isStudentSite = effectiveHost === 'student.vidyabarta.com' || effectiveHost.startsWith('student.') || urlParams.get('site') === 'student';
+  
+  const isPayPupilSaaS = effectiveHost === 'paypupil.in' || 
+                         effectiveHost === 'www.paypupil.in' || 
+                         effectiveHost === 'app.paypupil.in';
+
+  const isVidyabartaSaaS = effectiveHost === 'vidyabarta.com' || 
+                           effectiveHost === 'www.vidyabarta.com' || 
+                           (effectiveHost.includes('vidyabarta') && effectiveHost.includes('vercel.app') && !hasTestDomain);
+
+  const isAppDomain = isAppSubdomain();
+
+  const isSaaS = (
+    isPayPupilSaaS ||
+    isVidyabartaSaaS ||
+    (isLocalhost && !hasTestDomain) ||
+    isSuperAdminPath
+  ) && !isPreviewSchool && !isStudentSite && !isEmployeeSite;
 
   const saasRouter = createBrowserRouter(
     createRoutesFromElements(
       <Route>
         <Route path="/" element={<SaaSLayout />} errorElement={<ErrorBoundary />}>
-          <Route index element={<Suspense fallback={<SuspenseFallback />}><SaaSHome /></Suspense>} />
+          <Route 
+            index 
+            element={
+              isAppDomain ? (
+                <AppRootRedirect />
+              ) : (
+                <Suspense fallback={<SuspenseFallback />}>
+                  <SaaSHome isPayPupil={isPayPupilDomain()} />
+                </Suspense>
+              )
+            } 
+          />
         </Route>
         
         {/* Auth routes */}
@@ -363,13 +428,13 @@ function App() {
           <Route path="payment-status" element={<Suspense fallback={<SuspenseFallback />}><PaymentStatus /></Suspense>} />
         </Route>
         
-        <Route path="adminLogin" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
-        <Route path="login" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
-        <Route path="staff-signup" element={<ExternalRedirect to="https://www.vidyabarta.com/staff-signup" />} />
+        <Route path="adminLogin" element={<ExternalRedirect to={getCentralLoginUrl()} />} />
+        <Route path="login" element={<ExternalRedirect to={getCentralLoginUrl()} />} />
+        <Route path="staff-signup" element={<ExternalRedirect to={getCentralStaffSignupUrl()} />} />
         
-        <Route path="admin/*" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
-        <Route path="staff/*" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
-        <Route path="teacher-portal/*" element={<ExternalRedirect to="https://www.vidyabarta.com/login" />} />
+        <Route path="admin/*" element={<ExternalRedirect to={getCentralLoginUrl()} />} />
+        <Route path="staff/*" element={<ExternalRedirect to={getCentralLoginUrl()} />} />
+        <Route path="teacher-portal/*" element={<ExternalRedirect to={getCentralLoginUrl()} />} />
       </Route>
     )
   );

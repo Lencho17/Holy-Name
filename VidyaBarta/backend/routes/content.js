@@ -149,17 +149,26 @@ router.get('/', optionalProtect, async (req, res) => {
     const domain = req.query.domain || req.query.target;
     let schoolId = null;
 
-    if (domain && !['vidyabarta.com', 'www.vidyabarta.com'].includes(domain) && !domain.startsWith('student.')) {
-      // Clean domain of www. and port for flexible matching
-      const cleanDomain = domain.replace(/^www\./, '').split(':')[0].toLowerCase();
-      const slug = cleanDomain.replace(/\.vidyabarta\.com$/, '').replace(/\.vercel\.app$/, '');
+    // Clean domain check for central SaaS domain
+    const cleanDomain = (domain || '').replace(/^www\./, '').split(':')[0].toLowerCase();
+    const isCentralSaaS = cleanDomain === 'vidyabarta.com' || 
+                          cleanDomain === 'paypupil.in' || 
+                          cleanDomain === 'app.paypupil.in' || 
+                          cleanDomain === 'app.vidyabarta.com' || 
+                          cleanDomain.startsWith('student.');
+
+    if (domain && !isCentralSaaS && !cleanDomain.startsWith('student.')) {
+      const slug = cleanDomain
+        .replace(/\.vidyabarta\.com$/, '')
+        .replace(/\.paypupil\.in$/, '')
+        .replace(/\.vercel\.app$/, '');
       const wwwDomain = `www.${cleanDomain}`;
       
       // Find school by subdomain, subdomain slug, or custom_domain
       const { data: school } = await supabase
         .from('schools')
         .select('id')
-        .or(`subdomain.eq.${cleanDomain},subdomain.eq.${slug}.vidyabarta.com,subdomain.eq.${slug},custom_domain.eq.${cleanDomain},custom_domain.eq.${wwwDomain}`)
+        .or(`subdomain.eq.${cleanDomain},subdomain.eq.${slug}.vidyabarta.com,subdomain.eq.${slug}.paypupil.in,subdomain.eq.${slug},custom_domain.eq.${cleanDomain},custom_domain.eq.${wwwDomain}`)
         .limit(1)
         .maybeSingle();
       
@@ -185,10 +194,6 @@ router.get('/', optionalProtect, async (req, res) => {
         // Not a valid token, ignore
       }
     }
-
-    // Clean domain check for central SaaS domain
-    const cleanDomain = (domain || '').replace(/^www\./, '').split(':')[0].toLowerCase();
-    const isCentralSaaS = cleanDomain === 'vidyabarta.com' || cleanDomain.startsWith('student.');
 
     // Fallback if schoolId still not resolved: only fall back for tenant domains/subdomains, NOT the central SaaS portal
     if (!schoolId && !isCentralSaaS) {

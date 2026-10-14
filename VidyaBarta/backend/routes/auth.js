@@ -1258,8 +1258,9 @@ router.post('/verify-staff-otp', async (req, res) => {
 // Admin manually add staff
 router.post('/add-staff-manual', protect, async (req, res) => {
   try {
-    // Only school admins/superadmins can add staff
-    if (req.user.role !== 'admin' && req.user.role !== 'school_admin' && req.user.role !== 'superadmin' && req.user.role !== 'developer') {
+    // Authorized roles: school admins, principals, superadmins, and developers
+    const allowedRoles = ['admin', 'school_admin', 'principal', 'superadmin', 'developer'];
+    if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Insufficient privileges' });
     }
 
@@ -1268,17 +1269,25 @@ router.post('/add-staff-manual', protect, async (req, res) => {
       return res.status(400).json({ message: 'Email, phone, name, and role are required' });
     }
 
-    const school_id = req.user.school_id;
-    if (!school_id) {
-      return res.status(400).json({ message: 'No school_id found for admin' });
-    }
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim();
+    const cleanName = name.trim();
 
-    const lowerEmail = email.toLowerCase();
-    
-    // Check if staff exists across ANY school to prevent global conflicts (or scope to school if multi-tenant allows same email)
-    // Actually, usually emails should be unique globally for login, or unique per school. We'll check globally for simplicity.
-    const { data: exists } = await supabase.from('staff').select('id').eq('email', lowerEmail).single();
-    if (exists) return res.status(400).json({ message: 'Staff with this email already exists' });
+    // Check if staff exists with this email
+    const { data: emailExists } = await supabase
+      .from('staff')
+      .select('id')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+    if (emailExists) return res.status(400).json({ message: 'Staff with this email already exists' });
+
+    // Check if staff exists with this phone number
+    const { data: phoneExists } = await supabase
+      .from('staff')
+      .select('id')
+      .eq('phone', cleanPhone)
+      .maybeSingle();
+    if (phoneExists) return res.status(400).json({ message: 'Staff with this phone number already exists' });
 
     const crypto = require('crypto');
     const tempPassword = 'Staff#' + crypto.randomInt(1000, 9999).toString();
@@ -1287,19 +1296,37 @@ router.post('/add-staff-manual', protect, async (req, res) => {
     const { data, error } = await supabase
       .from('staff')
       .insert([{
-        email: lowerEmail,
-        phone,
-        name,
-        role,
+        email: cleanEmail,
+        phone: cleanPhone,
+        name: cleanName,
+        role: role || 'Teacher',
+        job_profile: role || 'Teacher',
         password_hash,
-        is_approved: true // auto-approve since admin added them
+        is_approved: true, // auto-approved since added by admin/principal
+        total_cl: 12,
+        used_cl: 0
       }])
-      .select('id, name, email')
+      .select('id, name, email, role')
       .single();
 
     if (error) {
       console.error('Error inserting staff:', error);
       return res.status(500).json({ message: 'Database error while creating staff', error: error.message });
+    }
+
+    // Dual-table sync: sync to teachers table if applicable
+    try {
+      await supabase
+        .from('teachers')
+        .upsert([{
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          designation: role || 'Teacher',
+          status: 'Active'
+        }], { onConflict: 'email' });
+    } catch (syncErr) {
+      console.warn('Note: dual sync to teachers table skipped or failed:', syncErr.message);
     }
 
     res.json({ message: 'Staff added successfully', staff: data, temporaryPassword: tempPassword });

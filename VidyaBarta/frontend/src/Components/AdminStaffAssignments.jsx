@@ -162,28 +162,45 @@ const AdminStaffAssignments = () => {
     if (existing && existing.subject_teachers) {
       existing.subject_teachers.forEach(st => {
         if (st.subject) {
+          let ids = [];
+          if (Array.isArray(st.teacher_ids) && st.teacher_ids.length > 0) {
+            ids = st.teacher_ids.filter(Boolean);
+          } else {
+            if (st.teacher_id) ids.push(st.teacher_id);
+            if (st.secondary_teacher_id && st.secondary_teacher_id !== st.teacher_id) ids.push(st.secondary_teacher_id);
+          }
           subjectTeacherMap[st.subject] = {
-            teacher_id: st.teacher_id || '',
-            secondary_teacher_id: st.secondary_teacher_id || ''
+            teacher_id: ids[0] || '',
+            secondary_teacher_id: ids[1] || '',
+            teacher_ids: ids.length > 0 ? ids : ['']
           };
         }
       });
     }
 
-    const mergedSubjectTeachers = Array.from(defaultSubjectNames).map(subject => ({
-      subject,
-      teacher_id: subjectTeacherMap[subject]?.teacher_id || '',
-      secondary_teacher_id: subjectTeacherMap[subject]?.secondary_teacher_id || ''
-    }));
+    const mergedSubjectTeachers = Array.from(defaultSubjectNames).map(subject => {
+      const mapped = subjectTeacherMap[subject];
+      return {
+        subject,
+        teacher_id: mapped?.teacher_id || '',
+        secondary_teacher_id: mapped?.secondary_teacher_id || '',
+        teacher_ids: mapped?.teacher_ids && mapped.teacher_ids.length > 0 ? mapped.teacher_ids : ['']
+      };
+    });
 
     // Also include any custom subjects from existing assignments
     if (existing && existing.subject_teachers) {
       existing.subject_teachers.forEach(st => {
         if (!defaultSubjectNames.has(st.subject)) {
+          const mapped = subjectTeacherMap[st.subject];
+          const customIds = mapped?.teacher_ids && mapped.teacher_ids.length > 0 
+            ? mapped.teacher_ids 
+            : [st.teacher_id, st.secondary_teacher_id].filter(Boolean);
           mergedSubjectTeachers.push({ 
             subject: st.subject, 
-            teacher_id: st.teacher_id || '',
-            secondary_teacher_id: st.secondary_teacher_id || ''
+            teacher_id: mapped?.teacher_id || st.teacher_id || '',
+            secondary_teacher_id: mapped?.secondary_teacher_id || st.secondary_teacher_id || '',
+            teacher_ids: customIds.length > 0 ? customIds : ['']
           });
         }
       });
@@ -234,10 +251,66 @@ const AdminStaffAssignments = () => {
     setAssignForm(prev => ({ ...prev, class_teacher_id: teacherId }));
   };
 
+  const handleSubjectTeacherSlotChange = (subjectName, slotIndex, teacherId) => {
+    const updated = assignForm.subject_teachers.map(st => {
+      if (st.subject !== subjectName) return st;
+      const currentIds = Array.isArray(st.teacher_ids) && st.teacher_ids.length > 0 
+        ? [...st.teacher_ids] 
+        : [st.teacher_id, st.secondary_teacher_id].filter(Boolean);
+      while (currentIds.length <= slotIndex) currentIds.push('');
+      currentIds[slotIndex] = teacherId;
+      return {
+        ...st,
+        teacher_ids: currentIds,
+        teacher_id: currentIds[0] || '',
+        secondary_teacher_id: currentIds[1] || ''
+      };
+    });
+    setAssignForm({ ...assignForm, subject_teachers: updated });
+  };
+
+  const handleAddTeacherToSubject = (subjectName) => {
+    const updated = assignForm.subject_teachers.map(st => {
+      if (st.subject !== subjectName) return st;
+      const currentIds = Array.isArray(st.teacher_ids) && st.teacher_ids.length > 0 
+        ? [...st.teacher_ids] 
+        : [st.teacher_id, st.secondary_teacher_id].filter(Boolean);
+      currentIds.push('');
+      return {
+        ...st,
+        teacher_ids: currentIds,
+        teacher_id: currentIds[0] || '',
+        secondary_teacher_id: currentIds[1] || ''
+      };
+    });
+    setAssignForm({ ...assignForm, subject_teachers: updated });
+  };
+
+  const handleRemoveTeacherSlotFromSubject = (subjectName, slotIndex) => {
+    const updated = assignForm.subject_teachers.map(st => {
+      if (st.subject !== subjectName) return st;
+      let currentIds = (Array.isArray(st.teacher_ids) ? [...st.teacher_ids] : [st.teacher_id, st.secondary_teacher_id].filter(Boolean)).filter((_, i) => i !== slotIndex);
+      if (currentIds.length === 0) currentIds = [''];
+      return {
+        ...st,
+        teacher_ids: currentIds,
+        teacher_id: currentIds[0] || '',
+        secondary_teacher_id: currentIds[1] || ''
+      };
+    });
+    setAssignForm({ ...assignForm, subject_teachers: updated });
+  };
+
   const handleSubjectTeacherChange = (subjectName, field, teacherId) => {
-    const updated = assignForm.subject_teachers.map(st => 
-      st.subject === subjectName ? { ...st, [field]: teacherId } : st
-    );
+    const updated = assignForm.subject_teachers.map(st => {
+      if (st.subject !== subjectName) return st;
+      const next = { ...st, [field]: teacherId };
+      const currentIds = Array.isArray(st.teacher_ids) ? [...st.teacher_ids] : [];
+      if (field === 'teacher_id') currentIds[0] = teacherId;
+      if (field === 'secondary_teacher_id') currentIds[1] = teacherId;
+      next.teacher_ids = currentIds;
+      return next;
+    });
     setAssignForm({ ...assignForm, subject_teachers: updated });
   };
 
@@ -272,6 +345,7 @@ const AdminStaffAssignments = () => {
       }
     }
 
+    const customIds = [newCustomTeacherId, newCustomSecondaryTeacherId].filter(Boolean);
     setAssignForm({
       ...assignForm,
       class_teacher_id: designatedCT,
@@ -280,7 +354,8 @@ const AdminStaffAssignments = () => {
         { 
           subject: trimmed, 
           teacher_id: newCustomTeacherId, 
-          secondary_teacher_id: newCustomSecondaryTeacherId 
+          secondary_teacher_id: newCustomSecondaryTeacherId,
+          teacher_ids: customIds.length > 0 ? customIds : ['']
         }
       ]
     });
@@ -297,10 +372,12 @@ const AdminStaffAssignments = () => {
       return;
     }
 
-    // Verify no subject has identical primary and co-teacher
+    // Verify no subject has duplicate teachers selected
     for (const st of assignForm.subject_teachers) {
-      if (st.teacher_id && st.secondary_teacher_id && st.teacher_id === st.secondary_teacher_id) {
-        alert(`Subject "${st.subject}" cannot have the same teacher selected for both Primary Teacher and Co-Teacher.`);
+      const ids = (st.teacher_ids || [st.teacher_id, st.secondary_teacher_id]).filter(Boolean);
+      const unique = new Set(ids);
+      if (unique.size !== ids.length) {
+        alert(`Subject "${st.subject}" cannot have the same teacher selected more than once.`);
         return;
       }
     }
@@ -323,9 +400,22 @@ const AdminStaffAssignments = () => {
       }
     }
 
+    const payloadSubjectTeachers = assignForm.subject_teachers.map(st => {
+      const validIds = (st.teacher_ids || [st.teacher_id, st.secondary_teacher_id]).filter(Boolean);
+      return {
+        subject: st.subject,
+        teacher_id: validIds[0] || '',
+        secondary_teacher_id: validIds[1] || '',
+        teacher_ids: validIds
+      };
+    });
+
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.post(`${API_URL}/assignments`, assignForm, {
+      await axios.post(`${API_URL}/assignments`, {
+        ...assignForm,
+        subject_teachers: payloadSubjectTeachers
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert(`Teacher mapping for Class ${assignForm.class_name} - ${assignForm.section} saved successfully! Email notifications sent to assigned teachers.`);
@@ -409,8 +499,11 @@ const AdminStaffAssignments = () => {
           st.subject && st.subject.toLowerCase().trim() === subj.toLowerCase().trim()
         );
         if (match) {
-          if (match.teacher_id) matchedTeacherId = match.teacher_id;
-          if (match.secondary_teacher_id) matchedSecondaryTeacherId = match.secondary_teacher_id;
+          const tIds = Array.isArray(match.teacher_ids) && match.teacher_ids.length > 0
+            ? match.teacher_ids.filter(Boolean)
+            : [match.teacher_id, match.secondary_teacher_id].filter(Boolean);
+          if (tIds[0]) matchedTeacherId = tIds[0];
+          if (tIds[1]) matchedSecondaryTeacherId = tIds[1];
         }
       }
     }
@@ -838,168 +931,155 @@ const AdminStaffAssignments = () => {
 
                 <div className="divide-y divide-gray-100 max-h-[460px] overflow-y-auto">
                   {assignForm.subject_teachers.map((st, i) => {
-                    const isPrimaryCT = Boolean(st.teacher_id && st.teacher_id === assignForm.class_teacher_id);
-                    const isSecondaryCT = Boolean(st.secondary_teacher_id && st.secondary_teacher_id === assignForm.class_teacher_id);
-                    const hasClassTeacherInRow = isPrimaryCT || isSecondaryCT;
-                    const primaryOtherAssignment = st.teacher_id ? getOtherClassTeacherAssignment(st.teacher_id) : null;
-                    const isPrimaryBusy = Boolean(primaryOtherAssignment && !isPrimaryCT);
-                    const secondaryOtherAssignment = st.secondary_teacher_id ? getOtherClassTeacherAssignment(st.secondary_teacher_id) : null;
-                    const isSecondaryBusy = Boolean(secondaryOtherAssignment && !isSecondaryCT);
+                    const rawSlots = Array.isArray(st.teacher_ids) && st.teacher_ids.length > 0 
+                      ? st.teacher_ids 
+                      : [st.teacher_id, st.secondary_teacher_id].filter(Boolean);
+                    const currentSlots = rawSlots.length > 0 ? rawSlots : [''];
+                    const validAssignedCount = currentSlots.filter(Boolean).length;
+                    const hasClassTeacherInRow = currentSlots.some(tId => tId && tId === assignForm.class_teacher_id);
 
                     return (
                       <div 
                         key={i} 
-                        className={`p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 transition rounded-lg ${
+                        className={`p-3.5 flex flex-col gap-3 transition rounded-lg ${
                           hasClassTeacherInRow 
                             ? 'bg-amber-50/60 border-l-4 border-l-amber-500 shadow-xs' 
-                            : 'hover:bg-gray-50/80'
+                            : 'hover:bg-gray-50/80 bg-white border border-gray-100'
                         }`}
                       >
-                        <div className="flex items-center gap-3 min-w-[180px]">
-                          <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
-                            hasClassTeacherInRow ? 'bg-amber-200 text-amber-900' : 'bg-teal-100 text-teal-800'
-                          }`}>
-                            {i + 1}
-                          </span>
-                          <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Subject Header with Badges and Actions */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-2">
+                          <div className="flex items-center gap-3 min-w-[180px]">
+                            <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
+                              hasClassTeacherInRow ? 'bg-amber-200 text-amber-900' : 'bg-teal-100 text-teal-800'
+                            }`}>
+                              {i + 1}
+                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-gray-800 text-sm">{st.subject}</span>
                               {hasClassTeacherInRow && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-900 border border-amber-300">
                                   <FaCrown className="text-amber-600 text-xs" /> Class Teacher Subject
                                 </span>
                               )}
-                              {st.teacher_id && st.secondary_teacher_id && (
+                              {validAssignedCount > 1 && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700">
-                                  Co-Teaching
+                                  {validAssignedCount} Teachers Assigned
                                 </span>
                               )}
                             </div>
                           </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleAddTeacherToSubject(st.subject)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-md transition cursor-pointer"
+                              title="Assign another teacher to this subject"
+                            >
+                              <FaPlus className="text-[10px]" /> Add Teacher
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSubjectFromMapping(st.subject)}
+                              className="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 transition cursor-pointer"
+                              title="Remove subject"
+                            >
+                              <FaTrash size={12} />
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Dropdown Menus: Primary Teacher + Optional Co-Teacher with Class Teacher option */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 justify-end">
-                          {/* Primary Teacher Block */}
-                          <div className="flex-1 sm:max-w-xs">
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-[10px] uppercase font-bold text-gray-500">Primary Teacher</label>
-                              {st.teacher_id && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleClassTeacher(st.teacher_id)}
-                                  disabled={isPrimaryBusy}
-                                  title={
-                                    isPrimaryBusy
-                                      ? `Already Class Teacher of ${primaryOtherAssignment.class_name} (${primaryOtherAssignment.section || 'A'})`
-                                      : isPrimaryCT
-                                      ? 'Currently Class Teacher. Click to unassign.'
-                                      : `Set as Class Teacher for Class ${assignForm.class_name || ''} (Rule 9: Period 1 everyday)`
-                                  }
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition border cursor-pointer ${
-                                    isPrimaryCT
-                                      ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs ring-1 ring-amber-400'
-                                      : isPrimaryBusy
-                                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-75'
-                                      : 'bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-800 border-gray-300 hover:border-amber-300'
-                                  }`}
-                                >
-                                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isPrimaryCT ? 'bg-amber-600' : 'border border-gray-400'}`}></span>
-                                  <FaCrown className={isPrimaryCT ? 'text-amber-600 text-xs' : 'text-gray-400 text-xs'} />
-                                  <span>{isPrimaryCT ? 'Class Teacher' : isPrimaryBusy ? 'CT Elsewhere' : 'Set as Class Teacher'}</span>
-                                </button>
-                              )}
-                            </div>
-                            <select
-                              className={`w-full p-2 border rounded-lg text-xs font-medium outline-none transition ${
-                                isPrimaryCT 
-                                  ? 'border-amber-400 bg-amber-50/30 text-amber-950 font-semibold ring-1 ring-amber-300' 
-                                  : 'bg-white focus:border-teal-500'
-                              }`}
-                              value={st.teacher_id || ''}
-                              onChange={(e) => handleSubjectTeacherChange(st.subject, 'teacher_id', e.target.value)}
-                            >
-                              <option value="">-- Primary Teacher --</option>
-                              {staffList.map(s => {
-                                const isCurrentCT = s.id === assignForm.class_teacher_id;
-                                const otherAssn = getOtherClassTeacherAssignment(s.id);
-                                return (
-                                  <option key={s.id} value={s.id} disabled={s.id === st.secondary_teacher_id}>
-                                    {s.name} ({s.role || 'Teacher'})
-                                    {isCurrentCT ? ' 👑 [Class Teacher]' : ''}
-                                    {otherAssn && !isCurrentCT ? ` [Already CT: ${otherAssn.class_name} ${otherAssn.section || 'A'}]` : ''}
-                                    {s.id === st.secondary_teacher_id ? ' (Selected as Co-Teacher)' : ''}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
+                        {/* Dynamic Teacher Slots */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {currentSlots.map((teacherId, slotIdx) => {
+                            const isCT = Boolean(teacherId && teacherId === assignForm.class_teacher_id);
+                            const otherAssignment = teacherId ? getOtherClassTeacherAssignment(teacherId) : null;
+                            const isBusy = Boolean(otherAssignment && !isCT);
 
-                          {/* Co-Teacher (Optional) Block */}
-                          <div className="flex-1 sm:max-w-xs">
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-[10px] uppercase font-bold text-gray-500">Co-Teacher (Optional)</label>
-                              {st.secondary_teacher_id && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleClassTeacher(st.secondary_teacher_id)}
-                                  disabled={isSecondaryBusy}
-                                  title={
-                                    isSecondaryBusy
-                                      ? `Already Class Teacher of ${secondaryOtherAssignment.class_name} (${secondaryOtherAssignment.section || 'A'})`
-                                      : isSecondaryCT
-                                      ? 'Currently Class Teacher. Click to unassign.'
-                                      : `Set as Class Teacher for Class ${assignForm.class_name || ''} (Rule 9: Period 1 everyday)`
-                                  }
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition border cursor-pointer ${
-                                    isSecondaryCT
-                                      ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs ring-1 ring-amber-400'
-                                      : isSecondaryBusy
-                                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-75'
-                                      : 'bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-800 border-gray-300 hover:border-amber-300'
-                                  }`}
-                                >
-                                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSecondaryCT ? 'bg-amber-600' : 'border border-gray-400'}`}></span>
-                                  <FaCrown className={isSecondaryCT ? 'text-amber-600 text-xs' : 'text-gray-400 text-xs'} />
-                                  <span>{isSecondaryCT ? 'Class Teacher' : isSecondaryBusy ? 'CT Elsewhere' : 'Set as Class Teacher'}</span>
-                                </button>
-                              )}
-                            </div>
-                            <select
-                              className={`w-full p-2 border rounded-lg text-xs outline-none font-medium transition-colors ${
-                                isSecondaryCT
-                                  ? 'border-amber-400 bg-amber-50/30 text-amber-950 font-semibold ring-1 ring-amber-300'
-                                  : st.secondary_teacher_id 
-                                  ? 'border-indigo-300 bg-indigo-50/40 text-indigo-900 font-semibold' 
-                                  : 'bg-white text-gray-600 focus:border-teal-500'
-                              }`}
-                              value={st.secondary_teacher_id || ''}
-                              onChange={(e) => handleSubjectTeacherChange(st.subject, 'secondary_teacher_id', e.target.value)}
-                            >
-                              <option value="">-- 2nd / Co-Teacher (Optional) --</option>
-                              {staffList.map(s => {
-                                const isCurrentCT = s.id === assignForm.class_teacher_id;
-                                const otherAssn = getOtherClassTeacherAssignment(s.id);
-                                return (
-                                  <option key={s.id} value={s.id} disabled={s.id === st.teacher_id}>
-                                    {s.name} ({s.role || 'Teacher'})
-                                    {isCurrentCT ? ' 👑 [Class Teacher]' : ''}
-                                    {otherAssn && !isCurrentCT ? ` [Already CT: ${otherAssn.class_name} ${otherAssn.section || 'A'}]` : ''}
-                                    {s.id === st.teacher_id ? ' (Selected as Primary)' : ''}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
+                            const slotLabel = slotIdx === 0 
+                              ? 'Primary Teacher' 
+                              : slotIdx === 1 
+                              ? 'Co-Teacher 2' 
+                              : `Teacher ${slotIdx + 1}`;
 
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSubjectFromMapping(st.subject)}
-                            className="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50 transition self-center"
-                            title="Remove subject"
-                          >
-                            <FaTrash size={12} />
-                          </button>
+                            return (
+                              <div key={slotIdx} className="bg-gray-50/70 p-2.5 rounded-lg border border-gray-200/80">
+                                <div className="flex items-center justify-between mb-1 gap-1">
+                                  <label className="block text-[10px] uppercase font-bold text-gray-500 truncate">
+                                    {slotLabel}
+                                  </label>
+                                  <div className="flex items-center gap-1">
+                                    {teacherId && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleClassTeacher(teacherId)}
+                                        disabled={isBusy}
+                                        title={
+                                          isBusy
+                                            ? `Already Class Teacher of ${otherAssignment.class_name} (${otherAssignment.section || 'A'})`
+                                            : isCT
+                                            ? 'Currently Class Teacher. Click to unassign.'
+                                            : `Set as Class Teacher for Class ${assignForm.class_name || ''} (Rule 9: Period 1 everyday)`
+                                        }
+                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition border cursor-pointer ${
+                                          isCT
+                                            ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs ring-1 ring-amber-400'
+                                            : isBusy
+                                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-75'
+                                            : 'bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-800 border-gray-300'
+                                        }`}
+                                      >
+                                        <FaCrown className={isCT ? 'text-amber-600 text-[10px]' : 'text-gray-400 text-[10px]'} />
+                                        <span>{isCT ? 'Class Teacher' : isBusy ? 'CT Elsewhere' : 'Make CT'}</span>
+                                      </button>
+                                    )}
+                                    {currentSlots.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveTeacherSlotFromSubject(st.subject, slotIdx)}
+                                        className="text-gray-400 hover:text-red-500 p-0.5 rounded transition text-xs font-bold px-1 cursor-pointer"
+                                        title="Remove teacher slot"
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <select
+                                  className={`w-full p-2 border rounded-lg text-xs font-medium outline-none transition ${
+                                    isCT 
+                                      ? 'border-amber-400 bg-amber-50/40 text-amber-950 font-semibold ring-1 ring-amber-300' 
+                                      : teacherId 
+                                      ? 'border-teal-300 bg-teal-50/30 text-teal-900 font-semibold' 
+                                      : 'bg-white focus:border-teal-500'
+                                  }`}
+                                  value={teacherId || ''}
+                                  onChange={(e) => handleSubjectTeacherSlotChange(st.subject, slotIdx, e.target.value)}
+                                >
+                                  <option value="">-- Select Teacher --</option>
+                                  {staffList.map(s => {
+                                    const isCurrentCT = s.id === assignForm.class_teacher_id;
+                                    const otherAssn = getOtherClassTeacherAssignment(s.id);
+                                    const isAlreadyInOtherSlot = currentSlots.some((id, idx) => idx !== slotIdx && id === s.id);
+                                    return (
+                                      <option 
+                                        key={s.id} 
+                                        value={s.id} 
+                                        disabled={isAlreadyInOtherSlot}
+                                      >
+                                        {s.name} ({s.role || 'Teacher'})
+                                        {isCurrentCT ? ' 👑 [Class Teacher]' : ''}
+                                        {otherAssn && !isCurrentCT ? ` [Already CT: ${otherAssn.class_name} ${otherAssn.section || 'A'}]` : ''}
+                                        {isAlreadyInOtherSlot ? ' (Already selected)' : ''}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -1107,31 +1187,36 @@ const AdminStaffAssignments = () => {
                         <td className="p-3 text-sm">
                           <div className="flex flex-wrap gap-1.5">
                             {ca.subject_teachers?.map((st, i) => {
-                              const stt = staffList.find(s => s.id === st.teacher_id);
-                              const stt2 = staffList.find(s => s.id === st.secondary_teacher_id);
-                              const isCTSubject = Boolean(ca.class_teacher_id && (ca.class_teacher_id === st.teacher_id || ca.class_teacher_id === st.secondary_teacher_id));
+                              const tIds = Array.isArray(st.teacher_ids) && st.teacher_ids.length > 0
+                                ? st.teacher_ids.filter(Boolean)
+                                : [st.teacher_id, st.secondary_teacher_id].filter(Boolean);
+                              const isCTSubject = Boolean(ca.class_teacher_id && tIds.includes(ca.class_teacher_id));
 
                               return (
                                 <span key={i} className={`inline-flex flex-wrap items-center gap-1 px-2.5 py-1 rounded-md text-xs border ${
                                   isCTSubject
                                     ? 'bg-amber-50/80 border-amber-300 text-amber-950 font-medium'
-                                    : stt2 ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900' : 'bg-gray-100 border-gray-200'
+                                    : tIds.length > 1 ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900' : 'bg-gray-100 border-gray-200'
                                 }`}>
                                   {isCTSubject && (
                                     <FaCrown className="text-amber-500 text-[10px]" title="Class Teacher Subject" />
                                   )}
                                   <strong className="text-gray-800">{st.subject}:</strong> 
-                                  <span className={stt ? 'text-teal-700 font-semibold' : 'text-gray-400'}>
-                                    {stt?.name || 'Unassigned'}
-                                    {ca.class_teacher_id === st.teacher_id && ' (CT)'}
-                                  </span>
-                                  {stt2 && (
-                                    <>
-                                      <span className="text-gray-400 font-bold">+</span>
-                                      <span className="text-indigo-700 font-semibold" title="Co-Teacher / 2nd Teacher">
-                                        {stt2.name} (Co-Teacher){ca.class_teacher_id === st.secondary_teacher_id && ' (CT)'}
-                                      </span>
-                                    </>
+                                  {tIds.length === 0 ? (
+                                    <span className="text-gray-400 italic">Unassigned</span>
+                                  ) : (
+                                    tIds.map((tid, idx) => {
+                                      const teacher = staffList.find(s => s.id === tid);
+                                      const isCT = ca.class_teacher_id === tid;
+                                      return (
+                                        <React.Fragment key={tid || idx}>
+                                          {idx > 0 && <span className="text-gray-400 font-bold">+</span>}
+                                          <span className={idx === 0 ? 'text-teal-700 font-semibold' : 'text-indigo-700 font-semibold'}>
+                                            {teacher?.name || 'Staff'}{isCT ? ' (CT)' : idx > 0 ? ` (T${idx + 1})` : ''}
+                                          </span>
+                                        </React.Fragment>
+                                      );
+                                    })
                                   )}
                                 </span>
                               );

@@ -133,14 +133,19 @@ router.post('/', protect, async (req, res) => {
       const secondaryTeacherMap = {};
 
       subject_teachers.forEach(st => {
-        if (st.teacher_id) {
-          if (!primaryTeacherMap[st.teacher_id]) primaryTeacherMap[st.teacher_id] = [];
-          primaryTeacherMap[st.teacher_id].push(st.subject);
-        }
-        if (st.secondary_teacher_id && st.secondary_teacher_id !== st.teacher_id) {
-          if (!secondaryTeacherMap[st.secondary_teacher_id]) secondaryTeacherMap[st.secondary_teacher_id] = [];
-          secondaryTeacherMap[st.secondary_teacher_id].push(st.subject);
-        }
+        const ids = Array.isArray(st.teacher_ids) && st.teacher_ids.length > 0
+          ? st.teacher_ids.filter(Boolean)
+          : [st.teacher_id, st.secondary_teacher_id].filter(Boolean);
+
+        ids.forEach((tId, idx) => {
+          if (idx === 0) {
+            if (!primaryTeacherMap[tId]) primaryTeacherMap[tId] = [];
+            primaryTeacherMap[tId].push(st.subject);
+          } else {
+            if (!secondaryTeacherMap[tId]) secondaryTeacherMap[tId] = [];
+            secondaryTeacherMap[tId].push(st.subject);
+          }
+        });
       });
 
       // Send primary teacher notices

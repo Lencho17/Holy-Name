@@ -211,16 +211,20 @@ const TimetableManager = ({ apiUrl, token }) => {
         });
         if (matched) {
           const day = days[dayIndex];
-          if (!teacherToSet && matched.teacher_id) {
-            const teacherCount = getTeacherDayClassCount(matched.teacher_id, day, periodNum);
-            if (teacherCount < 6) {
-              teacherToSet = matched.teacher_id;
+          const allAssigned = Array.isArray(matched.teacher_ids) && matched.teacher_ids.length > 0
+            ? matched.teacher_ids.filter(Boolean)
+            : [matched.teacher_id, matched.secondary_teacher_id].filter(Boolean);
+
+          if (!teacherToSet && allAssigned.length > 0) {
+            const candidate = allAssigned.find(tid => getTeacherDayClassCount(tid, day, periodNum) < 6);
+            if (candidate) {
+              teacherToSet = candidate;
             }
           }
-          if (!secondaryTeacherToSet && matched.secondary_teacher_id && matched.secondary_teacher_id !== teacherToSet) {
-            const secCount = getTeacherDayClassCount(matched.secondary_teacher_id, day, periodNum);
-            if (secCount < 6) {
-              secondaryTeacherToSet = matched.secondary_teacher_id;
+          if (!secondaryTeacherToSet && allAssigned.length > 1) {
+            const secCandidate = allAssigned.find(tid => tid !== teacherToSet && getTeacherDayClassCount(tid, day, periodNum) < 6);
+            if (secCandidate) {
+              secondaryTeacherToSet = secCandidate;
             }
           }
         }

@@ -4,13 +4,45 @@ import { FaCrown } from 'react-icons/fa';
 import { sortClasses } from '../utils/classOrder';
 const CATEGORIES = ['MIL', 'Elective', 'Minor', 'Grading Sets'];
 
-const SubjectConfigRow = ({ subjectItem, globalSubjects, teachers = [], onChange, onRemove, classTeacherId, onSetClassTeacher }) => {
-  const isCT = Boolean(subjectItem.teacher_id && classTeacherId && classTeacherId === subjectItem.teacher_id);
+const SubjectConfigRow = ({ subjectItem, globalSubjects, teachers = [], onChange, onRemove }) => {
+  const teacherIds = Array.isArray(subjectItem.teacher_ids) && subjectItem.teacher_ids.length > 0
+    ? subjectItem.teacher_ids
+    : (subjectItem.teacher_id ? [subjectItem.teacher_id] : ['']);
+
+  const handleTeacherSlotChange = (slotIdx, val) => {
+    const nextIds = [...teacherIds];
+    nextIds[slotIdx] = val;
+    onChange({
+      ...subjectItem,
+      teacher_ids: nextIds,
+      teacher_id: nextIds[0] || '',
+      secondary_teacher_id: nextIds[1] || ''
+    });
+  };
+
+  const handleAddTeacherSlot = () => {
+    const nextIds = [...teacherIds, ''];
+    onChange({
+      ...subjectItem,
+      teacher_ids: nextIds,
+      teacher_id: nextIds[0] || '',
+      secondary_teacher_id: nextIds[1] || ''
+    });
+  };
+
+  const handleRemoveTeacherSlot = (slotIdx) => {
+    let nextIds = teacherIds.filter((_, i) => i !== slotIdx);
+    if (nextIds.length === 0) nextIds = [''];
+    onChange({
+      ...subjectItem,
+      teacher_ids: nextIds,
+      teacher_id: nextIds[0] || '',
+      secondary_teacher_id: nextIds[1] || ''
+    });
+  };
 
   return (
-    <div className={`rounded border p-2.5 mb-2 transition-colors ${
-      isCT ? 'bg-amber-50/50 border-amber-300 ring-1 ring-amber-200' : 'bg-white border-gray-200 hover:border-teal-300'
-    }`}>
+    <div className="rounded border border-gray-200 hover:border-teal-300 bg-white p-2.5 mb-2 transition-colors">
       <div className="flex flex-wrap items-center gap-2">
         <select 
           className="flex-1 min-w-[200px] border border-gray-200 rounded text-sm p-1.5 bg-gray-50 focus:bg-white focus:border-teal-500 outline-none"
@@ -26,39 +58,48 @@ const SubjectConfigRow = ({ subjectItem, globalSubjects, teachers = [], onChange
           ))}
         </select>
 
-        {/* Dropdown menu against the subject to assign teacher */}
-        <select
-          className={`min-w-[190px] border rounded text-xs p-2 outline-none font-medium transition ${
-            isCT 
-              ? 'border-amber-400 bg-amber-50/40 text-amber-950 font-semibold ring-1 ring-amber-300' 
-              : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-emerald-500'
-          }`}
-          value={subjectItem.teacher_id || ''}
-          onChange={(e) => onChange({ ...subjectItem, teacher_id: e.target.value })}
-        >
-          <option value="">-- Assign Teacher --</option>
-          {teachers.map(t => (
-            <option key={t.id} value={t.id}>
-              {t.name} ({t.role || 'Teacher'}) {t.id === classTeacherId ? '👑 [Class Teacher]' : ''}
-            </option>
+        {/* Dynamic Teacher Slots */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {teacherIds.map((tid, idx) => (
+            <div key={idx} className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded p-1">
+              <select
+                className="min-w-[140px] text-xs bg-transparent outline-none font-medium text-gray-700"
+                value={tid || ''}
+                onChange={(e) => handleTeacherSlotChange(idx, e.target.value)}
+              >
+                <option value="">{idx === 0 ? '-- Primary Teacher --' : idx === 1 ? '-- Co-Teacher 2 --' : `-- Teacher ${idx + 1} --`}</option>
+                {teachers.map(t => (
+                  <option 
+                    key={t.id} 
+                    value={t.id}
+                    disabled={teacherIds.some((otherId, oIdx) => oIdx !== idx && otherId === t.id)}
+                  >
+                    {t.name} ({t.role || 'Teacher'})
+                    {teacherIds.some((otherId, oIdx) => oIdx !== idx && otherId === t.id) ? ' (Selected)' : ''}
+                  </option>
+                ))}
+              </select>
+              {teacherIds.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTeacherSlot(idx)}
+                  className="text-gray-400 hover:text-red-500 text-xs px-1 font-bold cursor-pointer"
+                  title="Remove teacher slot"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           ))}
-        </select>
-
-        {subjectItem.teacher_id && onSetClassTeacher && (
           <button
             type="button"
-            onClick={() => onSetClassTeacher(subjectItem.teacher_id)}
-            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-bold transition border cursor-pointer ${
-              isCT
-                ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs ring-1 ring-amber-400'
-                : 'bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-800 border-gray-200'
-            }`}
-            title={isCT ? 'Current Class Teacher. Click to unassign.' : 'Assign as Class Teacher for this class'}
+            onClick={handleAddTeacherSlot}
+            className="text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-1 rounded transition cursor-pointer flex items-center gap-1"
+            title="Assign another teacher to this subject"
           >
-            <FaCrown className={isCT ? 'text-amber-600 text-xs' : 'text-gray-400 text-xs'} />
-            <span>{isCT ? 'Class Teacher' : 'Set as Class Teacher'}</span>
+            <FiPlus size={10} /> Teacher
           </button>
-        )}
+        </div>
         
         <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 px-2 py-1.5 rounded cursor-pointer border border-gray-200">
           <input 
@@ -189,9 +230,18 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
       const matchedSt = matchingAssn?.subject_teachers?.find(st => 
         st.subject && subName && st.subject.toLowerCase().trim() === subName.toLowerCase().trim()
       );
+      const rawTeacherIds = Array.isArray(matchedSt?.teacher_ids) && matchedSt.teacher_ids.length > 0
+        ? matchedSt.teacher_ids.filter(Boolean)
+        : [matchedSt?.teacher_id, matchedSt?.secondary_teacher_id].filter(Boolean);
+      const teacher_ids = (Array.isArray(cs.teacher_ids) && cs.teacher_ids.length > 0)
+        ? cs.teacher_ids
+        : (rawTeacherIds.length > 0 ? rawTeacherIds : (cs.teacher_id ? [cs.teacher_id] : ['']));
+
       return {
         ...cs,
-        teacher_id: cs.teacher_id || matchedSt?.teacher_id || ''
+        teacher_id: teacher_ids[0] || cs.teacher_id || matchedSt?.teacher_id || '',
+        secondary_teacher_id: teacher_ids[1] || cs.secondary_teacher_id || matchedSt?.secondary_teacher_id || '',
+        teacher_ids
       };
     });
 
@@ -204,9 +254,18 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
         const matchedSt = matchingAssn?.subject_teachers?.find(st => 
           st.subject && subName && st.subject.toLowerCase().trim() === subName.toLowerCase().trim()
         );
+        const rawTeacherIds = Array.isArray(matchedSt?.teacher_ids) && matchedSt.teacher_ids.length > 0
+          ? matchedSt.teacher_ids.filter(Boolean)
+          : [matchedSt?.teacher_id, matchedSt?.secondary_teacher_id].filter(Boolean);
+        const teacher_ids = (Array.isArray(s.teacher_ids) && s.teacher_ids.length > 0)
+          ? s.teacher_ids
+          : (rawTeacherIds.length > 0 ? rawTeacherIds : (s.teacher_id ? [s.teacher_id] : ['']));
+
         return {
           ...s,
-          teacher_id: s.teacher_id || matchedSt?.teacher_id || ''
+          teacher_id: teacher_ids[0] || s.teacher_id || matchedSt?.teacher_id || '',
+          secondary_teacher_id: teacher_ids[1] || s.secondary_teacher_id || matchedSt?.secondary_teacher_id || '',
+          teacher_ids
         };
       });
 
@@ -221,8 +280,7 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
   };
 
   const handleSetClassTeacher = (teacherId) => {
-    if (!teacherId) return;
-    if (editData.class_teacher_id === teacherId) {
+    if (!teacherId) {
       setEditData(prev => ({ ...prev, class_teacher_id: '' }));
       return;
     }
@@ -301,8 +359,14 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
         const assignedSubjectTeachers = [];
         (editData.core_subjects || []).forEach(c => {
           const sName = globalSubjects.find(s => s.id === (c.subject_id || c.id))?.name || c.name;
-          if (sName && c.teacher_id) {
-            assignedSubjectTeachers.push({ subject: sName, teacher_id: c.teacher_id });
+          const validIds = (c.teacher_ids || [c.teacher_id, c.secondary_teacher_id]).filter(Boolean);
+          if (sName && validIds.length > 0) {
+            assignedSubjectTeachers.push({ 
+              subject: sName, 
+              teacher_id: validIds[0] || '',
+              secondary_teacher_id: validIds[1] || '',
+              teacher_ids: validIds
+            });
           }
         });
         CATEGORIES.forEach(cat => {
@@ -310,8 +374,14 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
           if (catData && catData.subjects) {
             catData.subjects.forEach(s => {
               const sName = globalSubjects.find(sub => sub.id === (s.subject_id || s.id))?.name || s.name;
-              if (sName && s.teacher_id && !assignedSubjectTeachers.find(item => item.subject === sName)) {
-                assignedSubjectTeachers.push({ subject: sName, teacher_id: s.teacher_id });
+              const validIds = (s.teacher_ids || [s.teacher_id, s.secondary_teacher_id]).filter(Boolean);
+              if (sName && validIds.length > 0 && !assignedSubjectTeachers.find(item => item.subject === sName)) {
+                assignedSubjectTeachers.push({ 
+                  subject: sName, 
+                  teacher_id: validIds[0] || '',
+                  secondary_teacher_id: validIds[1] || '',
+                  teacher_ids: validIds
+                });
               }
             });
           }
@@ -375,21 +445,22 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
             <h2 className="text-xl font-bold text-gray-800 mb-1">Manage class subject</h2>
             <div className="flex flex-col gap-1 mt-4">
               <span className="text-sm font-semibold text-gray-700">Class : {editData.class_level}</span>
-              {editData.class_teacher_id && (
-                <div className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold w-fit">
-                  <FaCrown className="text-amber-500" />
-                  <span>Designated Class Teacher: {teachers.find(t => t.id === editData.class_teacher_id)?.name || 'Assigned'}</span>
-                  <button 
-                    type="button" 
-                    onClick={() => setEditData({...editData, class_teacher_id: ''})}
-                    className="ml-2 text-amber-700 hover:text-amber-950 font-extrabold text-xs"
-                    title="Remove Class Teacher"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                  <FaCrown className="text-amber-500 text-xs" /> Class Teacher :
+                </span>
+                <select 
+                  className="border border-gray-300 rounded text-xs p-1.5 bg-white font-medium outline-none focus:border-teal-500 text-gray-700 min-w-[200px]"
+                  value={editData.class_teacher_id || ''}
+                  onChange={(e) => handleSetClassTeacher(e.target.value)}
+                >
+                  <option value="">-- No Class Teacher Assigned --</option>
+                  {teachers.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.role || 'Teacher'})</option>
+                  ))}
+                </select>
+              </div>
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mt-1">
                 Semester included : 
                 <select className="bg-transparent border-none focus:ring-0 text-sm font-semibold p-0 ml-1" value={editData.has_semester ? 'Yes' : 'No'} onChange={e => setEditData({...editData, has_semester: e.target.value === 'Yes'})}>
                   <option value="No">No</option>
@@ -450,8 +521,6 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
                   subjectItem={cs}
                   globalSubjects={globalSubjects}
                   teachers={teachers}
-                  classTeacherId={editData.class_teacher_id}
-                  onSetClassTeacher={handleSetClassTeacher}
                   onChange={(updatedItem) => {
                     const newCore = [...(editData.core_subjects || [])];
                     newCore[idx] = updatedItem;
@@ -487,8 +556,6 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
                     subjectItem={cs}
                     globalSubjects={globalSubjects}
                     teachers={teachers}
-                    classTeacherId={editData.class_teacher_id}
-                    onSetClassTeacher={handleSetClassTeacher}
                     onChange={(updatedItem) => {
                       const newCatSubjects = [...(editData.categories[cat].subjects || [])];
                       newCatSubjects[idx] = updatedItem;

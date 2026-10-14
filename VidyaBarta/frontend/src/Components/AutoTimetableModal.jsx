@@ -14,7 +14,10 @@ import {
   FaClock, 
   FaCoffee,
   FaCheck,
-  FaArrowRight
+  FaArrowRight,
+  FaCrown,
+  FaUtensils,
+  FaCalculator
 } from 'react-icons/fa';
 import { FiX } from 'react-icons/fi';
 
@@ -126,6 +129,11 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
   const [selectedClasses, setSelectedClasses] = useState([]);
   const [weekdayPeriods, setWeekdayPeriods] = useState(7);
   const [saturdayPeriods, setSaturdayPeriods] = useState(5);
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('14:00');
+  const [periodDuration, setPeriodDuration] = useState(40);
+  const [breakDuration, setBreakDuration] = useState(30);
+  const [tiffinBreakAfterPeriod, setTiffinBreakAfterPeriod] = useState(4);
   
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -134,6 +142,96 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
   const [previewClass, setPreviewClass] = useState('');
   const [previewSection, setPreviewSection] = useState('A');
   const [showRuleDetails, setShowRuleDetails] = useState(false);
+
+  // Quick Presets for school class timings
+  const TIME_PRESETS = [
+    { label: '9:00 AM – 2:00 PM', start: '09:00', end: '14:00', periods: 6, duration: 45, desc: '6 Periods (45m) + 30m Break' },
+    { label: '9:00 AM – 2:30 PM', start: '09:00', end: '14:30', periods: 7, duration: 40, desc: '7 Periods (40m) + 30m Break' },
+    { label: '8:30 AM – 2:30 PM', start: '08:30', end: '14:30', periods: 7, duration: 45, desc: '7 Periods (45m) + 30m Break' },
+    { label: '9:00 AM – 3:00 PM', start: '09:00', end: '15:00', periods: 8, duration: 40, desc: '8 Periods (40m) + 30m Break' },
+    { label: '8:00 AM – 1:30 PM', start: '08:00', end: '13:30', periods: 6, duration: 45, desc: '6 Periods (45m) + 30m Break' }
+  ];
+
+  // Helper to parse 'HH:MM' string to minutes from midnight
+  const parseTimeToMins = (timeStr, defaultH = 9, defaultM = 0) => {
+    if (!timeStr) return defaultH * 60 + defaultM;
+    const parts = String(timeStr).split(':').map(Number);
+    const h = isNaN(parts[0]) ? defaultH : parts[0];
+    const m = isNaN(parts[1]) ? defaultM : parts[1];
+    return h * 60 + m;
+  };
+
+  // Helper to format minutes to 12-hour AM/PM string: '9:00 AM'
+  const formatMinsTo12 = (mins) => {
+    const totalM = ((mins % 1440) + 1440) % 1440;
+    const h = Math.floor(totalM / 60);
+    const m = totalM % 60;
+    const period = h >= 12 ? 'PM' : 'AM';
+    const displayH = h % 12 === 0 ? 12 : h % 12;
+    return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+  };
+
+  const handleApplyPreset = (preset) => {
+    setStartTime(preset.start);
+    setEndTime(preset.end);
+    if (preset.periods) setWeekdayPeriods(preset.periods);
+    if (preset.duration) setPeriodDuration(preset.duration);
+  };
+
+  // Auto-fit period duration from class start time, end time, and break
+  const handleAutoFitDuration = () => {
+    const startMins = parseTimeToMins(startTime);
+    let endMins = parseTimeToMins(endTime);
+    if (endMins <= startMins) endMins += 24 * 60;
+    const totalSpanMinutes = endMins - startMins;
+    const availableTeachingMins = Math.max(0, totalSpanMinutes - breakDuration);
+    if (weekdayPeriods > 0) {
+      const calculatedDuration = Math.max(25, Math.floor(availableTeachingMins / weekdayPeriods));
+      setPeriodDuration(calculatedDuration);
+    }
+  };
+
+  // Compute live visual schedule timeline for the setup view
+  const computeLiveTimeline = () => {
+    const slots = [];
+    let currentMin = parseTimeToMins(startTime);
+
+    for (let p = 1; p <= weekdayPeriods; p++) {
+      const pStart = currentMin;
+      currentMin += periodDuration;
+      const pEnd = currentMin;
+      slots.push({
+        type: 'period',
+        period: p,
+        startMin: pStart,
+        endMin: pEnd,
+        startStr: formatMinsTo12(pStart),
+        endStr: formatMinsTo12(pEnd),
+        isClassTeacher: p === 1
+      });
+
+      if (p === tiffinBreakAfterPeriod && p < weekdayPeriods) {
+        const bStart = currentMin;
+        currentMin += breakDuration;
+        const bEnd = currentMin;
+        slots.push({
+          type: 'break',
+          startMin: bStart,
+          endMin: bEnd,
+          startStr: formatMinsTo12(bStart),
+          endStr: formatMinsTo12(bEnd),
+          duration: breakDuration
+        });
+      }
+    }
+    return {
+      slots,
+      totalDurationMins: currentMin - parseTimeToMins(startTime),
+      calculatedEndStr: formatMinsTo12(currentMin)
+    };
+  };
+
+  const liveTimeline = computeLiveTimeline();
 
   if (!isOpen) return null;
 
@@ -168,6 +266,10 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
         weekdayPeriods,
         saturdayPeriods,
         tiffinBreakAfterPeriod: 4,
+        startTime,
+        endTime,
+        periodDuration,
+        breakDuration,
         save: saveDirectly
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -296,16 +398,42 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
                 )}
               </div>
 
-              {/* Scope & Parameters Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Scope Selection */}
-                <div className="md:col-span-2 bg-gray-50/70 p-5 rounded-2xl border border-gray-200 space-y-4">
+              {/* Rule 9 Class Teacher & Tiffin Break Guarantee Banner */}
+              <div className="bg-gradient-to-r from-amber-500/10 via-amber-400/10 to-orange-500/10 border border-amber-300/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center text-xl shadow-xs flex-shrink-0">
+                    <FaCrown />
+                  </div>
+                  <div>
+                    <div className="font-black text-amber-950 text-sm flex items-center gap-2">
+                      <span>Strict Rule 9 & 15 Algorithmic Guarantees</span>
+                      <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-amber-300">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-amber-900 text-xs mt-0.5 leading-relaxed">
+                      <strong>👑 Period 1:</strong> The section's designated Class Teacher is strictly allotted Period 1 every day (Mon–Sat) for their core subject.
+                      <span className="mx-2 text-amber-400">•</span>
+                      <strong>🥪 Tiffin Break:</strong> Placed directly after Period 4 with dedicated off-periods for heavy-load teachers.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-800 bg-white/80 px-3 py-1.5 rounded-xl border border-amber-200">
+                  <FaUtensils className="text-orange-600" />
+                  <span>Break After P4</span>
+                </div>
+              </div>
+
+              {/* Class Timings & Parameters Configuration */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left Column: Scope Selection (4 cols) */}
+                <div className="lg:col-span-4 bg-gray-50/70 p-5 rounded-2xl border border-gray-200 space-y-4">
                   <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-                    <FaLayerGroup className="text-teal-600" /> Target Classes for Generation
+                    <FaLayerGroup className="text-teal-600" /> Target Classes
                   </h4>
 
-                  <div className="flex gap-4 text-xs font-semibold">
-                    <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl border border-gray-200 hover:border-teal-400">
+                  <div className="flex flex-col gap-2 text-xs font-semibold">
+                    <label className="flex items-center gap-2 cursor-pointer bg-white px-3.5 py-2.5 rounded-xl border border-gray-200 hover:border-teal-400 transition">
                       <input 
                         type="radio" 
                         name="scope" 
@@ -314,7 +442,7 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
                       />
                       <span>All School Classes ({classesData.length})</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-xl border border-gray-200 hover:border-teal-400">
+                    <label className="flex items-center gap-2 cursor-pointer bg-white px-3.5 py-2.5 rounded-xl border border-gray-200 hover:border-teal-400 transition">
                       <input 
                         type="radio" 
                         name="scope" 
@@ -336,7 +464,7 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-white rounded-xl border border-gray-200">
+                      <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2 bg-white rounded-xl border border-gray-200">
                         {classesData.map(c => {
                           const isSel = selectedClasses.includes(c.class_level);
                           return (
@@ -344,13 +472,13 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
                               key={c.class_level}
                               type="button"
                               onClick={() => handleToggleClass(c.class_level)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
                                 isSel 
                                   ? 'bg-teal-600 text-white shadow-xs' 
                                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                               }`}
                             >
-                              {isSel && <FaCheck size={10} />}
+                              {isSel && <FaCheck size={9} />}
                               Class {c.class_level}
                             </button>
                           );
@@ -360,38 +488,255 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
                   )}
                 </div>
 
-                {/* Timing & Period Configuration */}
-                <div className="bg-gray-50/70 p-5 rounded-2xl border border-gray-200 space-y-4">
-                  <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-                    <FaClock className="text-teal-600" /> Period Setup
-                  </h4>
+                {/* Right Column: Timing, Periods & Break Settings (8 cols) */}
+                <div className="lg:col-span-8 bg-gray-50/70 p-5 rounded-2xl border border-gray-200 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                      <FaClock className="text-teal-600" /> School Hours & Period Setup
+                    </h4>
+                    <span className="text-[11px] text-teal-700 font-bold bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+                      Flexible School Timings
+                    </span>
+                  </div>
 
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <label className="block font-bold text-gray-700 mb-1">Weekday Periods (Mon-Fri)</label>
-                      <select 
-                        value={weekdayPeriods} 
+                  {/* Quick Presets */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Quick Timing Presets
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {TIME_PRESETS.map((preset, idx) => {
+                        const isCurrent = startTime === preset.start && endTime === preset.end && weekdayPeriods === preset.periods;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleApplyPreset(preset)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                              isCurrent
+                                ? 'bg-teal-700 text-white shadow-xs'
+                                : 'bg-white text-gray-700 hover:bg-teal-50 border border-gray-200'
+                            }`}
+                            title={preset.desc}
+                          >
+                            <span>{preset.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Time Inputs Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    {/* Class Start Time */}
+                    <div className="bg-white p-3 rounded-xl border border-gray-200">
+                      <label className="block font-bold text-gray-700 mb-1 flex items-center gap-1">
+                        <span>Class Start Time</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={e => setStartTime(e.target.value)}
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg font-bold text-sm text-gray-900 outline-none focus:border-teal-500 focus:bg-white"
+                      />
+                      <div className="text-[10px] text-gray-400 mt-1">{formatMinsTo12(parseTimeToMins(startTime))}</div>
+                    </div>
+
+                    {/* Class End Time */}
+                    <div className="bg-white p-3 rounded-xl border border-gray-200">
+                      <label className="block font-bold text-gray-700 mb-1 flex items-center gap-1">
+                        <span>Class End Time</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={e => setEndTime(e.target.value)}
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg font-bold text-sm text-gray-900 outline-none focus:border-teal-500 focus:bg-white"
+                      />
+                      <div className="text-[10px] text-gray-400 mt-1">{formatMinsTo12(parseTimeToMins(endTime))}</div>
+                    </div>
+
+                    {/* Weekday Periods */}
+                    <div className="bg-white p-3 rounded-xl border border-gray-200">
+                      <label className="block font-bold text-gray-700 mb-1">
+                        Weekday Periods
+                      </label>
+                      <select
+                        value={weekdayPeriods}
                         onChange={e => setWeekdayPeriods(parseInt(e.target.value))}
-                        className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-teal-500"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg font-bold text-xs text-gray-900 outline-none focus:border-teal-500 focus:bg-white"
                       >
+                        <option value={6}>6 Periods per Day</option>
                         <option value={7}>7 Periods per Day (Standard)</option>
                         <option value={8}>8 Periods per Day</option>
                       </select>
+                      <div className="text-[10px] text-teal-600 font-semibold mt-1">Mon – Fri Schedule</div>
                     </div>
 
-                    <div>
-                      <label className="block font-bold text-gray-700 mb-1">Saturday Periods (Rule 11)</label>
-                      <div className="p-2.5 bg-white border border-gray-200 rounded-xl font-bold text-teal-800 flex items-center justify-between">
-                        <span>5 Periods (Half Day)</span>
-                        <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded font-black">STRICT</span>
+                    {/* Saturday Periods (Rule 11) */}
+                    <div className="bg-white p-3 rounded-xl border border-gray-200">
+                      <label className="block font-bold text-gray-700 mb-1">
+                        Saturday Periods
+                      </label>
+                      <div className="p-2 bg-teal-50 border border-teal-200 rounded-lg font-bold text-xs text-teal-900 flex items-center justify-between">
+                        <span>5 Periods</span>
+                        <span className="text-[9px] bg-teal-200/80 text-teal-800 px-1.5 py-0.5 rounded font-black">RULE 11</span>
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-1">Strict Half-Day</div>
+                    </div>
+                  </div>
+
+                  {/* Duration & Tiffin Break Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    {/* Per Period Duration */}
+                    <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-gray-800">Per Period Duration</label>
+                        <button
+                          type="button"
+                          onClick={handleAutoFitDuration}
+                          className="text-[11px] font-bold text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-lg transition flex items-center gap-1"
+                          title="Calculate optimal period duration to fit between Start Time and End Time minus Tiffin Break"
+                        >
+                          <FaCalculator size={10} />
+                          <span>Auto-Fit Duration</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={25}
+                          max={75}
+                          step={5}
+                          value={periodDuration}
+                          onChange={e => setPeriodDuration(parseInt(e.target.value) || 40)}
+                          className="w-24 p-2 bg-gray-50 border border-gray-200 rounded-lg font-black text-sm text-gray-900 outline-none focus:border-teal-500 focus:bg-white"
+                        />
+                        <span className="font-bold text-gray-600">minutes per period</span>
+                      </div>
+
+                      <div className="flex gap-1.5 pt-1">
+                        {[35, 40, 45, 50].map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setPeriodDuration(m)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition ${
+                              periodDuration === m
+                                ? 'bg-teal-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {m}m
+                          </button>
+                        ))}
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block font-bold text-gray-700 mb-1">Tiffin Break (Rule 15)</label>
-                      <div className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-600">
-                        After Period 4 (Rest for heavy load staff)
+                    {/* Tiffin Break Setup */}
+                    <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-gray-800 flex items-center gap-1.5">
+                          <FaUtensils className="text-orange-500" />
+                          <span>Tiffin Break (Rule 15)</span>
+                        </label>
+                        <span className="text-[10px] bg-orange-100 text-orange-800 font-bold px-2 py-0.5 rounded-full border border-orange-200">
+                          After Period 4
+                        </span>
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={15}
+                          max={60}
+                          step={5}
+                          value={breakDuration}
+                          onChange={e => setBreakDuration(parseInt(e.target.value) || 30)}
+                          className="w-24 p-2 bg-gray-50 border border-gray-200 rounded-lg font-black text-sm text-gray-900 outline-none focus:border-teal-500 focus:bg-white"
+                        />
+                        <span className="font-bold text-gray-600">minutes break duration</span>
+                      </div>
+
+                      <div className="flex gap-1.5 pt-1">
+                        {[20, 25, 30, 35, 40].map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setBreakDuration(m)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition ${
+                              breakDuration === m
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {m}m
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live Schedule Timeline Preview Bar */}
+                  <div className="bg-white p-4 rounded-xl border border-teal-100 shadow-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div className="text-xs font-bold text-gray-800 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Live Schedule Timeline Preview</span>
+                        <span className="text-[10px] text-gray-500 font-normal">
+                          ({formatTimeString12(startTime)} &rarr; {liveTimeline.calculatedEndStr})
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-teal-700 font-medium">
+                        Total Day Span: <strong>{Math.floor(liveTimeline.totalDurationMins / 60)}h {liveTimeline.totalDurationMins % 60}m</strong>
+                      </div>
+                    </div>
+
+                    {/* Timeline Sequence Pill Cards */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                      {liveTimeline.slots.map((slot, sIdx) => {
+                        if (slot.type === 'break') {
+                          return (
+                            <div 
+                              key={`break-${sIdx}`}
+                              className="flex-shrink-0 bg-gradient-to-r from-orange-100 to-amber-100 border border-orange-300 rounded-xl px-3 py-2 text-center"
+                            >
+                              <div className="text-[10px] font-black text-orange-900 flex items-center justify-center gap-1">
+                                <FaUtensils size={9} />
+                                <span>Tiffin Break</span>
+                              </div>
+                              <div className="text-[10px] text-orange-700 font-bold whitespace-nowrap mt-0.5">
+                                {slot.startStr} - {slot.endStr}
+                              </div>
+                              <div className="text-[9px] text-orange-600 font-medium">({slot.duration} mins)</div>
+                            </div>
+                          );
+                        }
+
+                        const isP1 = slot.period === 1;
+                        return (
+                          <div 
+                            key={`p-${slot.period}`}
+                            className={`flex-shrink-0 rounded-xl px-3 py-2 text-center border transition ${
+                              isP1 
+                                ? 'bg-amber-50/90 border-amber-300 shadow-xs' 
+                                : 'bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-center gap-1 text-[11px] font-black text-gray-800">
+                              {isP1 && <FaCrown className="text-amber-500 text-xs" />}
+                              <span>Period {slot.period}</span>
+                            </div>
+                            <div className="text-[10px] text-gray-600 font-bold whitespace-nowrap mt-0.5">
+                              {slot.startStr} - {slot.endStr}
+                            </div>
+                            <div className={`text-[9px] font-medium ${isP1 ? 'text-amber-700 font-bold' : 'text-gray-400'}`}>
+                              {isP1 ? '👑 Class Teacher' : `${periodDuration} mins`}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -660,41 +1005,102 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
               {/* Tab 4: Class Preview */}
               {activeTab === 'preview' && (
                 <div className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-gray-600 mr-2">Select Class:</label>
-                      <select
-                        value={previewClass}
-                        onChange={e => setPreviewClass(e.target.value)}
-                        className="p-2 border rounded-lg text-xs font-bold bg-white outline-none focus:border-teal-500"
-                      >
-                        {Array.from(new Set((result.timetables || []).map(e => e.class_level))).map(cls => (
-                          <option key={cls} value={cls}>Class {cls}</option>
-                        ))}
-                      </select>
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-200">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-gray-600 mr-2">Select Class:</label>
+                        <select
+                          value={previewClass}
+                          onChange={e => setPreviewClass(e.target.value)}
+                          className="p-2 border rounded-lg text-xs font-bold bg-white outline-none focus:border-teal-500 shadow-2xs"
+                        >
+                          {Array.from(new Set((result.timetables || []).map(e => e.class_level))).map(cls => (
+                            <option key={cls} value={cls}>Class {cls}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-gray-600 mr-2">Section:</label>
+                        <select
+                          value={previewSection}
+                          onChange={e => setPreviewSection(e.target.value)}
+                          className="p-2 border rounded-lg text-xs font-bold bg-white outline-none focus:border-teal-500 shadow-2xs"
+                        >
+                          {['A', 'B', 'C', 'D'].map(s => (
+                            <option key={s} value={s}>Section {s}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="text-xs font-bold text-gray-600 mr-2">Section:</label>
-                      <select
-                        value={previewSection}
-                        onChange={e => setPreviewSection(e.target.value)}
-                        className="p-2 border rounded-lg text-xs font-bold bg-white outline-none focus:border-teal-500"
-                      >
-                        {['A', 'B', 'C', 'D'].map(s => (
-                          <option key={s} value={s}>Section {s}</option>
-                        ))}
-                      </select>
+                    {/* Schedule Metadata Badges */}
+                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                      <span className="bg-white border border-gray-200 text-gray-700 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 shadow-2xs">
+                        <FaClock className="text-teal-600" />
+                        <span>Hours: {result.periodTimings?.startTime || startTime} – {result.periodTimings?.endTime || endTime}</span>
+                      </span>
+                      <span className="bg-white border border-gray-200 text-gray-700 px-2.5 py-1 rounded-lg font-bold shadow-2xs">
+                        {weekdayPeriods} Periods ({result.periodTimings?.periodDuration || periodDuration}m each)
+                      </span>
+                      <span className="bg-orange-50 border border-orange-200 text-orange-800 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 shadow-2xs">
+                        <FaUtensils className="text-orange-600" />
+                        <span>Break: After P4 ({result.periodTimings?.breakDuration || breakDuration}m)</span>
+                      </span>
+                      <span className="bg-amber-50 border border-amber-200 text-amber-900 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 shadow-2xs">
+                        <FaCrown className="text-amber-500" />
+                        <span>P1: Class Teacher</span>
+                      </span>
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto border border-gray-200 rounded-2xl">
+                  <div className="overflow-x-auto border border-gray-200 rounded-2xl shadow-xs">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-gray-100 text-gray-700 border-b border-gray-200">
                         <tr>
                           <th className="p-3 font-bold w-24">Day</th>
-                          {[1, 2, 3, 4, 5, 6, 7].slice(0, weekdayPeriods).map(p => (
-                            <th key={p} className="p-3 font-bold text-center">Period {p}</th>
+                          {Array.from({ length: weekdayPeriods }, (_, i) => i + 1).map(p => (
+                            <React.Fragment key={p}>
+                              {p === 1 ? (
+                                <th className="p-3 font-bold text-center bg-amber-50/90 border-b-2 border-amber-400 min-w-[130px]">
+                                  <div className="flex items-center justify-center gap-1.5 text-amber-900">
+                                    <FaCrown className="text-amber-500 text-xs" />
+                                    <span>Period 1</span>
+                                  </div>
+                                  <div className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">Class Teacher</div>
+                                  {result.periodTimings?.weekday?.[1] && (
+                                    <div className="text-[10px] text-gray-500 font-normal">
+                                      {result.periodTimings.weekday[1].start} - {result.periodTimings.weekday[1].end}
+                                    </div>
+                                  )}
+                                </th>
+                              ) : (
+                                <th className="p-3 font-bold text-center min-w-[120px]">
+                                  <div>Period {p}</div>
+                                  {result.periodTimings?.weekday?.[p] && (
+                                    <div className="text-[10px] text-gray-500 font-normal">
+                                      {result.periodTimings.weekday[p].start} - {result.periodTimings.weekday[p].end}
+                                    </div>
+                                  )}
+                                </th>
+                              )}
+
+                              {/* Tiffin Break Column Header after Period 4 */}
+                              {p === 4 && (
+                                <th key="tiffin-col-header" className="p-3 font-bold text-center bg-orange-100/90 text-orange-950 border-x-2 border-orange-200 min-w-[125px]">
+                                  <div className="flex items-center justify-center gap-1 text-orange-800">
+                                    <FaUtensils className="text-orange-600 text-xs" />
+                                    <span>Tiffin Break</span>
+                                  </div>
+                                  <div className="text-[10px] text-orange-700 font-semibold">After Period 4</div>
+                                  {result.periodTimings?.tiffinBreak && (
+                                    <div className="text-[10px] text-orange-800/80 font-normal">
+                                      {result.periodTimings.tiffinBreak.start} - {result.periodTimings.tiffinBreak.end} ({result.periodTimings.tiffinBreak.duration}m)
+                                    </div>
+                                  )}
+                                </th>
+                              )}
+                            </React.Fragment>
                           ))}
                         </tr>
                       </thead>
@@ -704,14 +1110,7 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
                           return (
                             <tr key={d} className="hover:bg-gray-50/60">
                               <td className="p-3 font-bold text-gray-800 bg-gray-50/50">{d}</td>
-                              {[1, 2, 3, 4, 5, 6, 7].slice(0, weekdayPeriods).map(p => {
-                                if (p > maxP) {
-                                  return (
-                                    <td key={p} className="p-2 bg-gray-100 text-center text-[10px] text-gray-400 font-semibold">
-                                      Half-Day Close
-                                    </td>
-                                  );
-                                }
+                              {Array.from({ length: weekdayPeriods }, (_, i) => i + 1).map(p => {
                                 const slotEntries = previewEntries.filter(e => e.day_of_week === d && e.period_number === p);
                                 const cell = slotEntries[0];
                                 const isGround = cell?.subject === 'Games' || cell?.subject === 'Drill';
@@ -721,27 +1120,64 @@ const AutoTimetableModal = ({ isOpen, onClose, apiUrl, token, classesData, onSuc
                                 const isDual = teacherNames.length > 1;
 
                                 return (
-                                  <td key={p} className={`p-2 border-r border-gray-100 align-top ${isGround ? 'bg-amber-50/60' : isDual ? 'bg-indigo-50/30' : ''}`}>
-                                    {cell ? (
-                                      <div className="flex flex-col gap-0.5">
-                                        <div className="flex items-center gap-1">
-                                          <span className={`font-bold text-xs ${isGround ? 'text-amber-800' : 'text-gray-800'}`}>
-                                            {cell.subject}
-                                          </span>
-                                          {isDual && (
-                                            <span className="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1 rounded" title="2 Teachers Assigned">
-                                              Dual
-                                            </span>
-                                          )}
-                                        </div>
-                                        <span className="text-[10px] text-gray-500 font-medium truncate max-w-[130px]" title={teacherNames.join(' & ')}>
-                                          {teacherNames.length > 0 ? teacherNames.join(' & ') : 'Teacher'}
-                                        </span>
-                                      </div>
+                                  <React.Fragment key={p}>
+                                    {p > maxP ? (
+                                      <td className="p-2 bg-gray-100 text-center text-[10px] text-gray-400 font-semibold">
+                                        Half-Day Close
+                                      </td>
                                     ) : (
-                                      <span className="text-gray-300 text-[10px]">--</span>
+                                      <td className={`p-2 border-r border-gray-100 align-top ${p === 1 ? 'bg-amber-50/30' : isGround ? 'bg-amber-50/60' : isDual ? 'bg-indigo-50/30' : ''}`}>
+                                        {cell ? (
+                                          <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-1">
+                                              <span className={`font-bold text-xs ${isGround ? 'text-amber-800' : 'text-gray-800'}`}>
+                                                {cell.subject}
+                                              </span>
+                                              {p === 1 && (
+                                                <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-amber-200" title="Class Teacher Period 1 Guarantee (Rule 9)">
+                                                  <FaCrown size={8} className="text-amber-600" /> CT
+                                                </span>
+                                              )}
+                                              {isDual && (
+                                                <span className="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1 rounded" title="2 Teachers Assigned">
+                                                  Dual
+                                                </span>
+                                              )}
+                                            </div>
+                                            <span className="text-[10px] text-gray-500 font-medium truncate max-w-[130px]" title={teacherNames.join(' & ')}>
+                                              {teacherNames.length > 0 ? teacherNames.join(' & ') : 'Class Teacher'}
+                                            </span>
+                                            {cell.start_time && (
+                                              <span className="text-[9px] text-gray-400 font-mono">
+                                                {cell.start_time.slice(0, 5)} - {cell.end_time?.slice(0, 5)}
+                                              </span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-gray-300 text-[10px]">--</span>
+                                        )}
+                                      </td>
                                     )}
-                                  </td>
+
+                                    {/* Tiffin Break Cell after Period 4 */}
+                                    {p === 4 && (
+                                      <td key={`break-cell-${d}`} className="p-2 bg-orange-50/70 border-x-2 border-orange-200 text-center align-middle">
+                                        <div className="flex flex-col items-center justify-center py-1">
+                                          <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-[10px] mb-0.5 shadow-2xs">
+                                            <FaCoffee />
+                                          </div>
+                                          <span className="text-[10px] font-black text-orange-900">Tiffin Break</span>
+                                          <span className="text-[9px] text-orange-700 font-medium">
+                                            {d === 'Saturday' && result.periodTimings?.saturday?.['break']
+                                              ? `${result.periodTimings.saturday['break'].start} - ${result.periodTimings.saturday['break'].end}`
+                                              : result.periodTimings?.tiffinBreak
+                                                ? `${result.periodTimings.tiffinBreak.start} - ${result.periodTimings.tiffinBreak.end}`
+                                                : `${breakDuration} mins`}
+                                          </span>
+                                        </div>
+                                      </td>
+                                    )}
+                                  </React.Fragment>
                                 );
                               })}
                             </tr>

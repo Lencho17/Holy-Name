@@ -178,6 +178,10 @@ router.post('/auto-generate', protect, async (req, res) => {
       weekdayPeriods = 7, 
       saturdayPeriods = 5,
       tiffinBreakAfterPeriod = 4,
+      startTime = '09:00',
+      endTime = '14:00',
+      periodDuration = 40,
+      breakDuration = 30,
       save = false 
     } = req.body;
 
@@ -189,7 +193,11 @@ router.post('/auto-generate', protect, async (req, res) => {
       targetClassLevels,
       weekdayPeriods: parseInt(weekdayPeriods) || 7,
       saturdayPeriods: parseInt(saturdayPeriods) || 5,
-      tiffinBreakAfterPeriod: parseInt(tiffinBreakAfterPeriod) || 4
+      tiffinBreakAfterPeriod: parseInt(tiffinBreakAfterPeriod) || 4,
+      startTime,
+      endTime,
+      periodDuration: parseInt(periodDuration) || 40,
+      breakDuration: parseInt(breakDuration) || 30
     });
 
     if (save && generationResult.timetables && generationResult.timetables.length > 0) {

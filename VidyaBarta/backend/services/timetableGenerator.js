@@ -47,6 +47,54 @@ const DEFAULT_SATURDAY_TIMINGS = {
   5: { start: '12:00', end: '12:45' }
 };
 
+const computePeriodTimings = ({
+  startTime = '09:00',
+  endTime = '14:00',
+  totalPeriods = 7,
+  periodDuration = 40,
+  tiffinBreakAfterPeriod = 4,
+  breakDuration = 30
+}) => {
+  const timings = {};
+
+  const parseMins = (tStr, defaultH = 9, defaultM = 0) => {
+    if (!tStr) return defaultH * 60 + defaultM;
+    const parts = String(tStr).split(':').map(Number);
+    const h = isNaN(parts[0]) ? defaultH : parts[0];
+    const m = isNaN(parts[1]) ? defaultM : parts[1];
+    return h * 60 + m;
+  };
+
+  const formatMins = (mins) => {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  let currentMin = parseMins(startTime, 9, 0);
+
+  for (let p = 1; p <= totalPeriods; p++) {
+    const pStart = formatMins(currentMin);
+    currentMin += periodDuration;
+    const pEnd = formatMins(currentMin);
+
+    timings[p] = { start: pStart, end: pEnd };
+
+    // Tiffin break after 4 periods (or specified tiffinBreakAfterPeriod)
+    if (p === tiffinBreakAfterPeriod && p < totalPeriods) {
+      timings['break'] = {
+        after_period: p,
+        start: pEnd,
+        end: formatMins(currentMin + breakDuration),
+        duration: breakDuration
+      };
+      currentMin += breakDuration;
+    }
+  }
+
+  return timings;
+};
+
 /**
  * Generate Automatic Timetable adhering to all 17 Rules
  */
@@ -56,7 +104,11 @@ async function generateSchoolTimetable({
   targetClassLevels = null, // null means all classes
   weekdayPeriods = 7,
   saturdayPeriods = 5,
-  tiffinBreakAfterPeriod = 4
+  tiffinBreakAfterPeriod = 4,
+  startTime = '09:00',
+  endTime = '14:00',
+  periodDuration = 40,
+  breakDuration = 30
 }) {
   // 1. Fetch raw data
   let classConfigQuery = supabase.from('school_class_configs').select('*');
@@ -212,12 +264,28 @@ async function generateSchoolTimetable({
     }
   };
 
+  const weekdayTimings = computePeriodTimings({
+    startTime,
+    endTime,
+    totalPeriods: weekdayPeriods,
+    periodDuration,
+    tiffinBreakAfterPeriod,
+    breakDuration
+  });
+
+  const saturdayTimings = computePeriodTimings({
+    startTime,
+    endTime,
+    totalPeriods: saturdayPeriods,
+    periodDuration,
+    tiffinBreakAfterPeriod: Math.min(tiffinBreakAfterPeriod, saturdayPeriods - 1),
+    breakDuration: Math.min(breakDuration, 20)
+  });
+
   const getPeriodTimes = (day, pNum) => {
-    if (day === 'Saturday') {
-      const pt = DEFAULT_SATURDAY_TIMINGS[pNum] || { start: '11:00', end: '11:45' };
-      return { start_time: `${pt.start}:00`, end_time: `${pt.end}:00` };
-    }
-    const pt = DEFAULT_WEEKDAY_TIMINGS[pNum] || { start: '13:00', end: '13:45' };
+    const table = day === 'Saturday' ? saturdayTimings : weekdayTimings;
+    const fallbackTable = day === 'Saturday' ? DEFAULT_SATURDAY_TIMINGS : DEFAULT_WEEKDAY_TIMINGS;
+    const pt = table[pNum] || fallbackTable[pNum] || { start: '13:00', end: '13:45' };
     return { start_time: `${pt.start}:00`, end_time: `${pt.end}:00` };
   };
 
@@ -295,13 +363,17 @@ async function generateSchoolTimetable({
       }
 
       if (match) {
+        const allIds = Array.isArray(match.teacher_ids) && match.teacher_ids.length > 0
+          ? match.teacher_ids.filter(Boolean)
+          : [match.teacher_id, match.secondary_teacher_id].filter(Boolean);
         return {
-          primaryId: match.teacher_id || null,
-          secondaryId: match.secondary_teacher_id || null
+          primaryId: allIds[0] || match.teacher_id || null,
+          secondaryId: allIds[1] || match.secondary_teacher_id || null,
+          allIds
         };
       }
     }
-    return { primaryId: null, secondaryId: null };
+    return { primaryId: null, secondaryId: null, allIds: [] };
   };
 
   const getClassTeacher = (classLevel, section) => {
@@ -314,7 +386,7 @@ async function generateSchoolTimetable({
     return assn?.class_teacher_id || null;
   };
 
-  // Find teachers for a subject (supports dual teachers / co-teachers)
+  // Find teachers for a subject (supports dual teachers / co-teachers / multi-teachers)
   const pickTeachersForSubject = (classLevel, section, day, period, subjectName, preferredTeacherId = null, preferredSecondaryId = null) => {
     const mapped = getMappedTeachers(classLevel, section, subjectName);
     const targetPrimary = preferredTeacherId || mapped.primaryId;
@@ -324,17 +396,29 @@ async function generateSchoolTimetable({
     if (targetPrimary && canAssignTeacher(targetPrimary, day, period, subjectName)) {
       primaryId = targetPrimary;
     } else {
-      // Pick available teacher with lowest weekly load
-      const candidates = teachers.filter(t => canAssignTeacher(t.id, day, period, subjectName));
-      if (candidates.length > 0) {
-        candidates.sort((a, b) => getTeacherWeeklyPeriodCount(a.id) - getTeacherWeeklyPeriodCount(b.id));
-        primaryId = candidates[0].id;
+      // Check if any other teacher assigned to this subject in teacher_ids is available
+      const altAssigned = (mapped.allIds || []).find(tid => tid !== targetPrimary && canAssignTeacher(tid, day, period, subjectName));
+      if (altAssigned) {
+        primaryId = altAssigned;
+      } else {
+        // Pick available teacher with lowest weekly load
+        const candidates = teachers.filter(t => canAssignTeacher(t.id, day, period, subjectName));
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => getTeacherWeeklyPeriodCount(a.id) - getTeacherWeeklyPeriodCount(b.id));
+          primaryId = candidates[0].id;
+        }
       }
     }
 
     let secondaryId = null;
     if (targetSecondary && targetSecondary !== primaryId && canAssignTeacher(targetSecondary, day, period, subjectName)) {
       secondaryId = targetSecondary;
+    } else {
+      // If secondary is not set or busy, check if another assigned teacher can co-teach
+      const altSecondary = (mapped.allIds || []).find(tid => tid !== primaryId && canAssignTeacher(tid, day, period, subjectName));
+      if (altSecondary) {
+        secondaryId = altSecondary;
+      }
     }
 
     return { primaryId, secondaryId };
@@ -496,7 +580,11 @@ async function generateSchoolTimetable({
     if (classTeacherId) {
       const mappedSubjects = (classAssignments || [])
         .find(a => String(a.class_name).replace(/^Class\s*/i, '').trim().toLowerCase() === String(cs.class_level).replace(/^Class\s*/i, '').trim().toLowerCase())
-        ?.subject_teachers?.filter(st => st.teacher_id === classTeacherId);
+        ?.subject_teachers?.filter(st => 
+          st.teacher_id === classTeacherId || 
+          st.secondary_teacher_id === classTeacherId || 
+          (Array.isArray(st.teacher_ids) && st.teacher_ids.includes(classTeacherId))
+        );
 
       if (mappedSubjects && mappedSubjects.length > 0) {
         ctSubject = mappedSubjects[0].subject;
@@ -1089,6 +1177,16 @@ async function generateSchoolTimetable({
       hsDividedPartsCount: hsDividedPartsAudit.length,
       hsDividedPartsAudit
     },
+    periodTimings: {
+      startTime,
+      endTime,
+      periodDuration,
+      breakDuration,
+      tiffinBreakAfterPeriod,
+      weekday: weekdayTimings,
+      saturday: saturdayTimings,
+      tiffinBreak: weekdayTimings['break']
+    },
     rulesCompliance,
     playgroundSchedule,
     teacherWorkloads,
@@ -1099,6 +1197,7 @@ async function generateSchoolTimetable({
 
 module.exports = {
   generateSchoolTimetable,
+  computePeriodTimings,
   parseClassLevel,
   DEFAULT_DAYS,
   DEFAULT_WEEKDAY_TIMINGS,

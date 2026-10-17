@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { NavLink } from 'react-router-dom';
 import { FiChevronDown, FiMenu, FiHome, FiBriefcase, FiBox, FiLayers, FiStar, FiCreditCard, FiDollarSign, FiUsers, FiSettings, FiMonitor } from 'react-icons/fi';
-import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt, FaLeaf, FaUser, FaTransgender } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaCheckCircle, FaChartLine, FaSignOutAlt, FaSearch, FaImage, FaVideo, FaStar, FaChalkboardTeacher, FaPlus, FaTrash, FaEdit, FaSave, FaCalendarAlt, FaBars, FaTimes, FaCog, FaEnvelope, FaEnvelopeOpen, FaShareAlt, FaGraduationCap, FaSpinner, FaInfoCircle, FaCommentDots, FaEnvelopeOpenText, FaDownload, FaBriefcase, FaIdCard, FaLaptop, FaBuilding, FaClock, FaBookOpen, FaQuestionCircle, FaUserTie, FaGavel, FaAward, FaTrophy, FaAngleDown, FaCalendarCheck, FaEye, FaFileUpload, FaFileAlt, FaTools, FaPowerOff, FaMapMarkerAlt, FaDesktop, FaMobileAlt, FaTabletAlt, FaGlobe, FaChevronDown, FaChevronUp, FaBan, FaUnlock, FaShieldAlt, FaLeaf, FaUser, FaTransgender, FaUserPlus } from 'react-icons/fa';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
@@ -91,6 +91,17 @@ const SubItem = ({ active, onClick, label }) => (
     {label}
   </button>
 );
+
+const normClassStr = (val) => {
+  if (!val) return '';
+  const clean = String(val).replace(/^Class\s*/i, '').trim().toUpperCase();
+  const romanMap = {
+    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+    '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+    '11': 'XI', '12': 'XII'
+  };
+  return romanMap[clean] || clean;
+};
 
 function AdminPage() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -196,21 +207,21 @@ function AdminPage() {
     if (sClasses.length > 0) {
       list = sClasses.map(c => {
         const secs = c.sections_data && c.sections_data.length > 0
-          ? c.sections_data.map(s => s.name)
+          ? c.sections_data.map(s => (typeof s === 'string' ? s : s.name)).filter(Boolean)
           : (c.sections ? c.sections.split(',').map(s => s.trim()).filter(Boolean) : ['A']);
-        return { name: (c.class_level || '').trim(), sections: secs.length > 0 ? secs : ['A', 'B', 'C'] };
+        return { name: (c.class_level || '').trim(), sections: secs.length > 0 ? secs : ['A'] };
       });
     } else if (gClasses.length > 0) {
       list = gClasses.map(c => {
         const secs = Array.isArray(c.sections) 
           ? c.sections 
-          : (c.sections ? String(c.sections).split(',').map(s => s.trim()).filter(Boolean) : ['A', 'B', 'C']);
-        return { name: (c.name || '').trim(), sections: secs.length > 0 ? secs : ['A', 'B', 'C'] };
+          : (c.sections ? String(c.sections).split(',').map(s => s.trim()).filter(Boolean) : ['A']);
+        return { name: (c.name || '').trim(), sections: secs.length > 0 ? secs : ['A'] };
       });
     } else {
       list = DEFAULT_SCHOOL_CLASSES.map(name => ({
         name,
-        sections: ['A', 'B', 'C']
+        sections: ['A']
       }));
     }
     return sortClasses(list, c => c.name);
@@ -272,6 +283,7 @@ function AdminPage() {
   const [admins, setAdmins] = useState([]);
   const [pendingStaff, setPendingStaff] = useState([]);
   const [students, setStudents] = useState([]);
+  const [serverStudentStats, setServerStudentStats] = useState(null);
   const [studentViewStatus, setStudentViewStatus] = useState('active');
   const [studentSortBy, setStudentSortBy] = useState('name_asc');
   const [studentClassFilter, setStudentClassFilter] = useState('');
@@ -288,11 +300,31 @@ function AdminPage() {
     const [isImportingStudent, setIsImportingStudent] = useState(false);
   const [globalSubjects, setGlobalSubjects] = useState([]);
   const [classSubjects, setClassSubjects] = useState([]);
+  const [classAssignments, setClassAssignments] = useState([]);
+  const [expandedClasses, setExpandedClasses] = useState({});
   const [newClassSubject, setNewClassSubject] = useState({ class_level: 'I', subject_id: '' });
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [showStudentBulkPanel, setShowStudentBulkPanel] = useState(false);
   const [isAddingStudent, setIsAddingStudent] = useState(false);
-  const [newStudentForm, setNewStudentForm] = useState({ name: '', rollNumber: '', classLevel: '', section: '', parentsName: '', phone: '', email: '', address: '' });
+  const [newStudentForm, setNewStudentForm] = useState({
+    name: '',
+    classLevel: '',
+    section: '',
+    admissionId: '',
+    rollNumber: '',
+    gender: 'Male',
+    dob: '',
+    fatherName: '',
+    motherName: '',
+    guardianName: '',
+    phone: '',
+    email: '',
+    penNumber: '',
+    aadharNumber: '',
+    bloodGroup: '',
+    address: ''
+  });
   const [newStaffForm, setNewStaffForm] = useState({ name: '', email: '', phone: '', role: 'Teacher' });
   const [newStaffPassword, setNewStaffPassword] = useState('');
   const [isAddingStaff, setIsAddingStaff] = useState(false);
@@ -1217,6 +1249,19 @@ function AdminPage() {
       if (res.ok) setClassSubjects(await res.json());
     } catch (err) {}
   };
+
+  const fetchClassAssignments = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/assignments`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setClassAssignments(data);
+      }
+    } catch (err) {
+      console.warn('Could not fetch class assignments in AdminPage:', err);
+    }
+  };
   
   const handleMapClassSubject = async (e) => {
     e.preventDefault();
@@ -1248,8 +1293,27 @@ function AdminPage() {
     } catch (err) {}
   };
 
+  const fetchStudentStats = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/students/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.stats) {
+          setServerStudentStats(result.stats);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch student stats', e);
+    }
+  };
+
   const fetchStudents = async () => {
     try {
+      fetchStudentStats();
       const token = localStorage.getItem('adminToken');
       const params = new URLSearchParams();
       if (studentViewStatus) params.append('status', studentViewStatus);
@@ -1258,8 +1322,8 @@ function AdminPage() {
       if (studentSectionFilter) params.append('section', studentSectionFilter);
       if (studentSearchQuery) params.append('search', studentSearchQuery);
       
-      params.append('page', studentPage);
-      params.append('limit', '20');
+      params.append('page', '1');
+      params.append('limit', '10000');
       
       const res = await fetch(`${API_URL}/students?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) return handleLogout();
@@ -1819,6 +1883,8 @@ function AdminPage() {
       fetchInquiries();
     } else if (activeTab === 'students') {
       fetchStudents();
+      fetchClassSubjects();
+      fetchClassAssignments();
     } else if (activeTab === 'admins') {
       fetchAdmins();
     } else if (activeTab === 'staffAccessRequests') {
@@ -1844,10 +1910,14 @@ function AdminPage() {
       // Only poll summary data if on dashboard or relevant list
       if (activeTab === 'dashboard' || activeTab === 'admission' || activeTab === 'applications') fetchApps();
       if (activeTab === 'dashboard' || activeTab === 'admission') fetchProspectusLeads();
-      if (activeTab === 'dashboard' || activeTab === 'students') fetchStudents();
+      if (activeTab === 'dashboard' || activeTab === 'students') {
+        fetchStudents();
+        fetchClassSubjects();
+        fetchClassAssignments();
+      }
       if (activeTab === 'dashboard' || activeTab === 'inquiries') fetchInquiries();
       if (activeTab === 'dashboard' || activeTab === 'jobApplications') fetchJobApplications();
-      if (activeTab === 'dashboard' || activeTab === 'classSubjects') { fetchClassSubjects(); fetchGlobalSubjects(); }
+      if (activeTab === 'dashboard' || activeTab === 'classSubjects') { fetchClassSubjects(); fetchGlobalSubjects(); fetchClassAssignments(); }
       if (activeTab === 'activity') fetchActivities();
       if (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') {
         fetchAdmins();
@@ -2078,7 +2148,24 @@ function AdminPage() {
       const data = await res.json();
       if (res.ok) {
         toast.success('Student added successfully!');
-        setNewStudentForm({ name: '', rollNumber: '', classLevel: '', section: '', parentsName: '', phone: '', email: '', address: '' });
+        setNewStudentForm({
+          name: '',
+          classLevel: '',
+          section: '',
+          admissionId: '',
+          rollNumber: '',
+          gender: 'Male',
+          dob: '',
+          fatherName: '',
+          motherName: '',
+          guardianName: '',
+          phone: '',
+          email: '',
+          penNumber: '',
+          aadharNumber: '',
+          bloodGroup: '',
+          address: ''
+        });
         setShowAddStudentModal(false);
         fetchStudents();
       } else {
@@ -9327,26 +9414,67 @@ function AdminPage() {
                       const classObj = activeClassList.find(c => c.name === (studentClassFilter || defaultClass)) || activeClassList[0];
                       const defaultSec = classObj && classObj.sections && classObj.sections.length > 0 ? classObj.sections[0] : 'A';
                       setNewStudentForm({
-                        ...newStudentForm,
+                        name: '',
+                        rollNumber: '',
+                        admissionId: '',
                         classLevel: studentClassFilter || defaultClass,
-                        section: studentSectionFilter || defaultSec
+                        section: studentSectionFilter || defaultSec,
+                        gender: 'Male',
+                        dob: '',
+                        fatherName: '',
+                        motherName: '',
+                        guardianName: '',
+                        phone: '',
+                        email: '',
+                        penNumber: '',
+                        aadharNumber: '',
+                        bloodGroup: '',
+                        address: ''
                       });
                       setShowAddStudentModal(true);
                     }}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-sm whitespace-nowrap"
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-sm whitespace-nowrap cursor-pointer"
                   >
                     <FaPlus /> Add Student
                   </button>
                   <button 
+                    type="button"
+                    onClick={() => setShowStudentBulkPanel(!showStudentBulkPanel)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm whitespace-nowrap cursor-pointer ${
+                      showStudentBulkPanel
+                        ? 'bg-blue-50 text-blue-700 border border-blue-300'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    }`}
+                    title={showStudentBulkPanel ? "Hide Bulk Upload" : "Upload Students from CSV/Excel"}
+                  >
+                    <FaFileUpload />
+                    <span>{showStudentBulkPanel ? 'Hide Bulk Upload' : 'Bulk Upload Students'}</span>
+                  </button>
+                  <button 
                     onClick={handleExportStudents}
                     disabled={isExportingStudents || students.length === 0}
-                    className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-600 transition-all shadow-sm whitespace-nowrap disabled:opacity-50"
+                    className="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition-all shadow-sm whitespace-nowrap disabled:opacity-50"
                   >
                     {isExportingStudents ? <FaSpinner className="animate-spin" /> : <FaDownload />}
                     Export
                   </button>
                 </div>
               </div>
+
+              {/* Collapsible Student Bulk Upload Panel */}
+              {showStudentBulkPanel && (
+                <div className="mb-6 animate-fadeIn">
+                  <BulkUpload 
+                    apiUrl={API_URL} 
+                    endpoint="students" 
+                    token={localStorage.getItem('adminToken')} 
+                    entityName="Students" 
+                    onUploadSuccess={() => {
+                      fetchStudents();
+                    }} 
+                  />
+                </div>
+              )}
 
               {/* Filters Bar */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -9413,79 +9541,311 @@ function AdminPage() {
 
               {/* Add Student Modal */}
               {showAddStudentModal && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                  <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-black text-gray-800">Add Student Manually</h3>
-                      <button onClick={() => setShowAddStudentModal(false)} className="text-gray-400 hover:text-gray-600">
-                        <FaTimes className="text-xl" />
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-xs animate-fadeIn">
+                  <div className="bg-white rounded-2xl max-w-2xl sm:max-w-3xl w-full p-5 sm:p-7 shadow-2xl overflow-y-auto max-h-[92vh] border border-gray-100 flex flex-col">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center pb-4 border-b border-gray-100 mb-5">
+                      <div>
+                        <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                          <FaUserPlus className="text-blue-600" /> Add Student Manually
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Enter complete student details matching the admission register and CSV format
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => setShowAddStudentModal(false)} 
+                        className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                      >
+                        <FaTimes className="text-lg" />
                       </button>
                     </div>
-                    <form onSubmit={handleAddStudentManual} className="space-y-4">
+
+                    <form onSubmit={handleAddStudentManual} className="space-y-6">
+                      {/* Section 1: Academic & Student Information */}
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Student Name</label>
-                        <input type="text" required className="w-full p-3 border rounded-xl" value={newStudentForm.name} onChange={e => setNewStudentForm({...newStudentForm, name: e.target.value})} placeholder="e.g. John Doe" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">Class / Grade</label>
-                          <select 
-                            required 
-                            className="w-full p-3 border rounded-xl bg-white" 
-                            value={newStudentForm.classLevel} 
-                            onChange={e => {
-                              const val = e.target.value;
-                              const clsObj = activeClassList.find(c => c.name === val);
-                              const defaultSec = clsObj && clsObj.sections && clsObj.sections.length > 0 ? clsObj.sections[0] : 'A';
-                              setNewStudentForm({ ...newStudentForm, classLevel: val, section: defaultSec });
-                            }}
-                          >
-                            <option value="">Select Class</option>
-                            {activeClassList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                          </select>
+                        <div className="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50/80 px-3 py-1.5 rounded-lg mb-3 inline-block">
+                          1. Academic & Student Information
                         </div>
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">Section</label>
-                          {(() => {
-                            const clsObj = activeClassList.find(c => c.name === newStudentForm.classLevel);
-                            const availableSecs = clsObj && clsObj.sections && clsObj.sections.length > 0
-                              ? clsObj.sections
-                              : ['A', 'B', 'C', 'D'];
-                            return (
-                              <select 
-                                required
-                                className="w-full p-3 border rounded-xl bg-white" 
-                                value={newStudentForm.section || availableSecs[0]} 
-                                onChange={e => setNewStudentForm({ ...newStudentForm, section: e.target.value })}
-                              >
-                                {availableSecs.map(s => (
-                                  <option key={s} value={s}>Section {s}</option>
-                                ))}
-                              </select>
-                            );
-                          })()}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-bold text-gray-700 mb-1">
+                              Student Full Name <span className="text-red-500">*</span>
+                            </label>
+                            <input 
+                              type="text" 
+                              required 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.name} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, name: e.target.value })} 
+                              placeholder="e.g. Aarav Sharma" 
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">
+                              Class / Grade <span className="text-red-500">*</span>
+                            </label>
+                            <select 
+                              required 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.classLevel} 
+                              onChange={e => {
+                                const val = e.target.value;
+                                const norm = normClassStr(val);
+                                const schoolCls = (localSchoolClasses && localSchoolClasses.length > 0 ? localSchoolClasses : (schoolClasses || []))
+                                  .find(c => normClassStr(c.class_level || c.name) === norm);
+                                let secs = [];
+                                if (schoolCls && Array.isArray(schoolCls.sections_data) && schoolCls.sections_data.length > 0) {
+                                  secs = schoolCls.sections_data.map(s => typeof s === 'string' ? s : s.name).filter(Boolean);
+                                } else if (schoolCls && schoolCls.sections) {
+                                  secs = Array.isArray(schoolCls.sections) ? schoolCls.sections : String(schoolCls.sections).split(',').map(s => s.trim()).filter(Boolean);
+                                }
+                                if (secs.length === 0) {
+                                  const clsFallback = activeClassList.find(c => normClassStr(c.name) === norm);
+                                  if (clsFallback && Array.isArray(clsFallback.sections)) secs = clsFallback.sections;
+                                }
+                                const defaultSec = secs.length > 0 ? secs[0] : 'A';
+                                setNewStudentForm({ ...newStudentForm, classLevel: val, section: defaultSec });
+                              }}
+                            >
+                              <option value="">Select Class</option>
+                              {activeClassList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">
+                              Section <span className="text-red-500">*</span>
+                            </label>
+                            {(() => {
+                              const norm = normClassStr(newStudentForm.classLevel);
+                              const selectedClsObj = (localSchoolClasses && localSchoolClasses.length > 0 ? localSchoolClasses : (schoolClasses || []))
+                                .find(c => normClassStr(c.class_level || c.name) === norm);
+                              let availableSecs = [];
+                              if (selectedClsObj) {
+                                if (Array.isArray(selectedClsObj.sections_data) && selectedClsObj.sections_data.length > 0) {
+                                  availableSecs = selectedClsObj.sections_data.map(s => typeof s === 'string' ? s : s.name).filter(Boolean);
+                                } else if (selectedClsObj.sections) {
+                                  availableSecs = Array.isArray(selectedClsObj.sections)
+                                    ? selectedClsObj.sections
+                                    : String(selectedClsObj.sections).split(',').map(s => s.trim()).filter(Boolean);
+                                }
+                              }
+                              if (availableSecs.length === 0) {
+                                const clsFallback = (activeClassList || []).find(c => normClassStr(c.name) === norm);
+                                if (clsFallback && Array.isArray(clsFallback.sections)) availableSecs = clsFallback.sections;
+                              }
+                              if (availableSecs.length === 0) availableSecs = ['A'];
+                              const finalSecs = Array.from(new Set(availableSecs)).sort();
+
+                              return (
+                                <select 
+                                  required
+                                  className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                                  value={newStudentForm.section || finalSecs[0] || 'A'} 
+                                  onChange={e => setNewStudentForm({ ...newStudentForm, section: e.target.value })}
+                                >
+                                  {finalSecs.map(s => (
+                                    <option key={s} value={s}>Section {s}</option>
+                                  ))}
+                                </select>
+                              );
+                            })()}
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Admission ID</label>
+                            <input 
+                              type="text" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.admissionId || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, admissionId: e.target.value })} 
+                              placeholder="e.g. 2024001" 
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Roll Number</label>
+                            <input 
+                              type="text" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.rollNumber || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, rollNumber: e.target.value })} 
+                              placeholder="e.g. 01" 
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Gender</label>
+                            <select 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.gender || 'Male'} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, gender: e.target.value })}
+                            >
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Transgender">Transgender</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Date of Birth</label>
+                            <input 
+                              type="date" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.dob || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, dob: e.target.value })} 
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Blood Group</label>
+                            <select 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.bloodGroup || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, bloodGroup: e.target.value })}
+                            >
+                              <option value="">Select Blood Group</option>
+                              <option value="A+">A+</option>
+                              <option value="A-">A-</option>
+                              <option value="B+">B+</option>
+                              <option value="B-">B-</option>
+                              <option value="AB+">AB+</option>
+                              <option value="AB-">AB-</option>
+                              <option value="O+">O+</option>
+                              <option value="O-">O-</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Admission ID / Roll No</label>
-                        <input type="text" required className="w-full p-3 border rounded-xl" value={newStudentForm.rollNumber} onChange={e => setNewStudentForm({...newStudentForm, rollNumber: e.target.value})} placeholder="e.g. 2024001" />
+
+                      {/* Section 2: Parents & Contact Info */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50/80 px-3 py-1.5 rounded-lg mb-3 inline-block">
+                          2. Parents & Contact Information
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Father's Name</label>
+                            <input 
+                              type="text" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.fatherName || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, fatherName: e.target.value })} 
+                              placeholder="Father's Name" 
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Mother's Name</label>
+                            <input 
+                              type="text" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.motherName || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, motherName: e.target.value })} 
+                              placeholder="Mother's Name" 
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Guardian Name (Optional)</label>
+                            <input 
+                              type="text" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.guardianName || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, guardianName: e.target.value })} 
+                              placeholder="Leave blank if Father/Mother" 
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Contact Number (Phone)</label>
+                            <input 
+                              type="tel" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.phone || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, phone: e.target.value })} 
+                              placeholder="10-digit mobile number" 
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
+                            <input 
+                              type="email" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.email || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, email: e.target.value })} 
+                              placeholder="e.g. parent.student@example.com" 
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Father's Name</label>
-                        <input type="text" className="w-full p-3 border rounded-xl" value={newStudentForm.fatherName || ''} onChange={e => setNewStudentForm({...newStudentForm, fatherName: e.target.value})} placeholder="Father's Name" />
+
+                      {/* Section 3: Identification & Residential Address */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <div className="text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50/80 px-3 py-1.5 rounded-lg mb-3 inline-block">
+                          3. Identification & Residential Address
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">PEN Number (UDISE National PEN)</label>
+                            <input 
+                              type="text" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.penNumber || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, penNumber: e.target.value })} 
+                              placeholder="11-digit PEN number" 
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Aadhaar Number</label>
+                            <input 
+                              type="text" 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" 
+                              value={newStudentForm.aadharNumber || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, aadharNumber: e.target.value })} 
+                              placeholder="12-digit Aadhaar number" 
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-bold text-gray-700 mb-1">Residential Address</label>
+                            <textarea 
+                              rows={2} 
+                              className="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none" 
+                              value={newStudentForm.address || ''} 
+                              onChange={e => setNewStudentForm({ ...newStudentForm, address: e.target.value })} 
+                              placeholder="Street address, City, District, PIN code" 
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Mother's Name</label>
-                        <input type="text" className="w-full p-3 border rounded-xl" value={newStudentForm.motherName || ''} onChange={e => setNewStudentForm({...newStudentForm, motherName: e.target.value})} placeholder="Mother's Name" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Contact Number</label>
-                        <input type="tel" className="w-full p-3 border rounded-xl" value={newStudentForm.phone} onChange={e => setNewStudentForm({...newStudentForm, phone: e.target.value})} placeholder="10-digit number" />
-                      </div>
-                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                        <button type="button" onClick={() => setShowAddStudentModal(false)} className="px-4 py-2 font-bold text-gray-500 hover:text-gray-700">Cancel</button>
-                        <button type="submit" disabled={isAddingStudent} className="px-6 py-2 font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                          {isAddingStudent ? 'Adding...' : 'Add Student'}
+
+                      {/* Modal Footer */}
+                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 sticky bottom-0 bg-white">
+                        <button 
+                          type="button" 
+                          onClick={() => setShowAddStudentModal(false)} 
+                          className="px-5 py-2.5 font-bold text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="submit" 
+                          disabled={isAddingStudent} 
+                          className="px-6 py-2.5 font-bold text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                        >
+                          {isAddingStudent ? (
+                            <>
+                              <FaSpinner className="animate-spin text-sm" />
+                              <span>Adding Student...</span>
+                            </>
+                          ) : (
+                            <span>Add Student</span>
+                          )}
                         </button>
                       </div>
                     </form>
@@ -9571,7 +9931,7 @@ function AdminPage() {
                 </div>
               )}
 
-              {students.length === 0 ? (
+              {students.length === 0 && !serverStudentStats ? (
                 <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                   <FaUsers className="mx-auto text-gray-300 text-4xl mb-3" />
                   <p className="text-gray-500">No students found matching the current filters.</p>
@@ -9579,38 +9939,272 @@ function AdminPage() {
               ) : (
                 <div className="space-y-8">
                   {(() => {
+                    const normClassStr = (val) => {
+                      if (!val) return '';
+                      const clean = String(val).replace(/^Class\s*/i, '').trim().toUpperCase();
+                      const romanMap = {
+                        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+                        '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+                        '11': 'XI', '12': 'XII'
+                      };
+                      return romanMap[clean] || clean;
+                    };
+
                     // Summary stats table
-                    const classOrder = globalClasses?.map(c => c.name) || [];
-                    const stats = { total: 0, boys: 0, girls: 0, transgender: 0, classes: {} };
+                    const initialClassOrder = (activeClassList && activeClassList.length > 0)
+                      ? activeClassList.map(c => c.name)
+                      : (globalClasses?.map(c => c.name) || DEFAULT_SCHOOL_CLASSES);
+                    const classOrder = [...initialClassOrder];
+
+                    let stats;
+                    if (serverStudentStats) {
+                      stats = JSON.parse(JSON.stringify(serverStudentStats));
+                      Object.keys(stats.classes || {}).forEach(c => {
+                        const exists = classOrder.find(existing => normClassStr(existing) === normClassStr(c));
+                        if (!exists) {
+                          classOrder.push(c);
+                        }
+                      });
+                    } else {
+                      stats = { total: 0, boys: 0, girls: 0, transgender: 0, incomplete: 0, classes: {} };
+                    }
                     
                     classOrder.forEach(c => {
-                      stats.classes[c] = { boys: 0, girls: 0, transgender: 0, total: 0 };
+                      if (!stats.classes[c]) {
+                        stats.classes[c] = { boys: 0, girls: 0, transgender: 0, total: 0, incomplete: 0, sections: {} };
+                      }
                     });
 
-                    students.forEach(student => {
-                      stats.total++;
-                      const gender = (student.gender || '').toLowerCase();
-                      const studentClass = (student.grade || '').toUpperCase();
-                      
-                      let isBoy = gender === 'male' || gender === 'boy';
-                      let isGirl = gender === 'female' || gender === 'girl';
-                      let isTrans = gender === 'transgender';
+                    if (!serverStudentStats) {
+                      students.forEach(student => {
+                        stats.total++;
+                        const gender = (student.gender || '').toLowerCase();
+                        const studentClass = (student.grade || '').trim();
+                        const studentSec = (student.section || 'A').trim().toUpperCase() || 'A';
+                        
+                        let isBoy = gender === 'male' || gender === 'boy';
+                        let isGirl = gender === 'female' || gender === 'girl';
+                        let isTrans = gender === 'transgender';
+                        let isIncomplete = !student.penNumber || !student.aadhaarNumber || student.isCompleted === false || !student.fatherName;
 
-                      if (isBoy) stats.boys++;
-                      if (isGirl) stats.girls++;
-                      if (isTrans) stats.transgender++;
+                        if (isBoy) stats.boys++;
+                        if (isGirl) stats.girls++;
+                        if (isTrans) stats.transgender++;
 
-                      if (!stats.classes[studentClass]) {
-                        stats.classes[studentClass] = { boys: 0, girls: 0, transgender: 0, total: 0 };
-                        if (!classOrder.includes(studentClass)) {
+                        let targetClassKey = classOrder.find(c => normClassStr(c) === normClassStr(studentClass));
+                        if (!targetClassKey) {
+                          targetClassKey = studentClass;
                           classOrder.push(studentClass);
                         }
+
+                        if (!stats.classes[targetClassKey]) {
+                          stats.classes[targetClassKey] = { boys: 0, girls: 0, transgender: 0, total: 0, incomplete: 0, sections: {} };
+                        }
+                        if (!stats.classes[targetClassKey].sections[studentSec]) {
+                          stats.classes[targetClassKey].sections[studentSec] = { boys: 0, girls: 0, transgender: 0, total: 0, incomplete: 0 };
+                        }
+
+                        stats.classes[targetClassKey].total++;
+                        stats.classes[targetClassKey].sections[studentSec].total++;
+                        if (isBoy) {
+                          stats.classes[targetClassKey].boys++;
+                          stats.classes[targetClassKey].sections[studentSec].boys++;
+                        }
+                        if (isGirl) {
+                          stats.classes[targetClassKey].girls++;
+                          stats.classes[targetClassKey].sections[studentSec].girls++;
+                        }
+                        if (isTrans) {
+                          stats.classes[targetClassKey].transgender++;
+                          stats.classes[targetClassKey].sections[studentSec].transgender++;
+                        }
+                        if (isIncomplete) {
+                          stats.classes[targetClassKey].incomplete = (stats.classes[targetClassKey].incomplete || 0) + 1;
+                          stats.classes[targetClassKey].sections[studentSec].incomplete = (stats.classes[targetClassKey].sections[studentSec].incomplete || 0) + 1;
+                        }
+                      });
+                    }
+
+                    const getClassSubjectCount = (className) => {
+                      const norm = String(className).replace(/^Class\s*/i, '').trim().toLowerCase();
+                      const clsConfig = (classSubjects || []).find(c => {
+                        const cNorm = String(c.class_level || '').replace(/^Class\s*/i, '').trim().toLowerCase();
+                        return cNorm === norm;
+                      });
+
+                      if (clsConfig) {
+                        let count = 0;
+                        (clsConfig.core_subjects || []).forEach(sub => {
+                          if (sub.is_divided && Array.isArray(sub.parts) && sub.parts.length > 0) {
+                            count += sub.parts.length;
+                          } else {
+                            count += 1;
+                          }
+                        });
+                        (clsConfig.elective_groups || []).forEach(grp => {
+                          (grp.subjects || []).forEach(sub => {
+                            if (sub.is_divided && Array.isArray(sub.parts) && sub.parts.length > 0) {
+                              count += sub.parts.length;
+                            } else {
+                              count += 1;
+                            }
+                          });
+                        });
+                        if (count > 0) return count;
                       }
-                      stats.classes[studentClass].total++;
-                      if (isBoy) stats.classes[studentClass].boys++;
-                      if (isGirl) stats.classes[studentClass].girls++;
-                      if (isTrans) stats.classes[studentClass].transgender++;
-                    });
+
+                      const classAssns = (classAssignments || []).filter(a => {
+                        const aNorm = String(a.class_name || '').replace(/^Class\s*/i, '').trim().toLowerCase();
+                        return aNorm === norm;
+                      });
+                      if (classAssns.length > 0) {
+                        const distinctSubs = new Set();
+                        classAssns.forEach(a => {
+                          (a.subject_teachers || []).forEach(st => {
+                            if (st.subject) distinctSubs.add(st.subject.trim().toLowerCase());
+                          });
+                        });
+                        if (distinctSubs.size > 0) return distinctSubs.size;
+                      }
+
+                      return 0;
+                    };
+
+                    const getClassTeacherName = (className, section = null) => {
+                      const normClass = String(className).replace(/^Class\s*/i, '').trim().toLowerCase();
+                      if (section) {
+                        const normSec = String(section).trim().toLowerCase();
+                        const match = (classAssignments || []).find(a => {
+                          const aClass = String(a.class_name || '').replace(/^Class\s*/i, '').trim().toLowerCase();
+                          const aSec = String(a.section || 'A').trim().toLowerCase();
+                          return aClass === normClass && aSec === normSec;
+                        });
+                        return match?.class_teacher?.name || (match?.class_teacher_id ? 'Assigned' : 'Not Assigned');
+                      }
+
+                      const matches = (classAssignments || []).filter(a => {
+                        const aClass = String(a.class_name || '').replace(/^Class\s*/i, '').trim().toLowerCase();
+                        return aClass === normClass && (a.class_teacher?.name || a.class_teacher_id);
+                      });
+
+                      if (matches.length === 0) return 'Not Assigned';
+                      const teacherNames = Array.from(new Set(matches.map(m => m.class_teacher?.name).filter(Boolean)));
+                      if (teacherNames.length === 1) return teacherNames[0];
+                      if (teacherNames.length > 1) {
+                        return matches.map(m => `Sec ${m.section || 'A'}: ${m.class_teacher?.name || 'Assigned'}`).join(', ');
+                      }
+                      return 'Assigned';
+                    };
+
+                    const formatClassGradeDisplay = (className) => {
+                      if (!className) return '';
+                      const clean = String(className).replace(/^Class\s*/i, '').trim();
+                      const romanMap = {
+                        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+                        '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+                        '11': 'XI', '12': 'XII'
+                      };
+                      return romanMap[clean] || clean;
+                    };
+
+                    const getClassSections = (className, classData) => {
+                      const norm = normClassStr(className);
+
+                      // Look up class configuration created by admin
+                      const schoolCls = (localSchoolClasses && localSchoolClasses.length > 0 ? localSchoolClasses : (schoolClasses || []))
+                        .find(c => normClassStr(c.class_level || c.name) === norm);
+
+                      let adminSections = [];
+                      if (schoolCls) {
+                        if (Array.isArray(schoolCls.sections_data) && schoolCls.sections_data.length > 0) {
+                          adminSections = schoolCls.sections_data
+                            .map(s => (typeof s === 'string' ? s : s.name))
+                            .filter(Boolean);
+                        } else if (schoolCls.sections) {
+                          adminSections = Array.isArray(schoolCls.sections)
+                            ? schoolCls.sections
+                            : String(schoolCls.sections).split(',').map(s => s.trim()).filter(Boolean);
+                        }
+                      }
+
+                      // Check activeClassList fallback
+                      if (!adminSections || adminSections.length === 0) {
+                        const configured = (activeClassList || []).find(c => normClassStr(c.name) === norm);
+                        if (configured && Array.isArray(configured.sections) && configured.sections.length > 0) {
+                          adminSections = configured.sections;
+                        }
+                      }
+
+                      // If admin created specific sections, ONLY show those sections and no extra sections!
+                      if (adminSections && adminSections.length > 0) {
+                        return Array.from(new Set(adminSections)).sort();
+                      }
+
+                      // If no admin configuration exists, fallback to data or default 'A'
+                      const inData = Object.keys(classData?.sections || {});
+                      if (inData.length > 0) {
+                        return Array.from(new Set(inData)).sort();
+                      }
+
+                      return ['A'];
+                    };
+
+                    const getSectionDisplayName = (className, sec) => {
+                      const normClass = normClassStr(className);
+                      const clsObj = (localSchoolClasses || schoolClasses || []).find(c => 
+                        normClassStr(c.class_level || c.name) === normClass
+                      );
+                      if (clsObj && Array.isArray(clsObj.sections_data)) {
+                        const secObj = clsObj.sections_data.find(s => 
+                          (typeof s === 'object' && ((s.name || '').toUpperCase() === String(sec).toUpperCase() || s.id === sec))
+                        );
+                        if (secObj && secObj.alias) {
+                          return `${secObj.name} (${secObj.alias})`;
+                        }
+                      }
+                      return sec;
+                    };
+
+                    const handleOpenAddStudentForSection = (className, sec) => {
+                      const cleanSec = String(sec).replace(/\s*\(.*\)/, '').trim();
+                      setNewStudentForm({
+                        name: '',
+                        rollNumber: '',
+                        admissionId: '',
+                        classLevel: className,
+                        section: cleanSec,
+                        gender: 'Male',
+                        dob: '',
+                        fatherName: '',
+                        motherName: '',
+                        guardianName: '',
+                        phone: '',
+                        email: '',
+                        penNumber: '',
+                        aadharNumber: '',
+                        bloodGroup: '',
+                        address: ''
+                      });
+                      setShowAddStudentModal(true);
+                    };
+
+                    const toggleExpandClass = (className) => {
+                      setExpandedClasses(prev => ({
+                        ...prev,
+                        [className]: !prev[className]
+                      }));
+                    };
+
+                    const isAnyExpanded = classOrder.some(c => expandedClasses[c]);
+                    const toggleAllClasses = () => {
+                      if (isAnyExpanded) {
+                        setExpandedClasses({});
+                      } else {
+                        const allExp = {};
+                        classOrder.forEach(c => { allExp[c] = true; });
+                        setExpandedClasses(allExp);
+                      }
+                    };
 
                     return (
                       <div className="space-y-4">
@@ -9634,26 +10228,185 @@ function AdminPage() {
 
                         <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                           <table className="w-full text-left">
-                            <thead className="bg-[#215E8B] text-white">
+                            <thead className="bg-[#1E5E8A] text-white">
                               <tr>
-                                <th className="py-3 px-4 font-bold">Class/Grade</th>
-                                <th className="py-3 px-4 font-bold text-center">Boys</th>
-                                <th className="py-3 px-4 font-bold text-center">Girls</th>
-                                <th className="py-3 px-4 font-bold text-center">Transgender</th>
-                                <th className="py-3 px-4 font-bold text-center">Total Students</th>
+                                <th className="py-3 px-4 font-bold border-r border-white/20">Class/Grade</th>
+                                <th className="py-3 px-4 font-bold text-center border-r border-white/20">Boys</th>
+                                <th className="py-3 px-4 font-bold text-center border-r border-white/20">Girls</th>
+                                <th className="py-3 px-4 font-bold text-center border-r border-white/20">Transgender</th>
+                                <th className="py-3 px-4 font-bold text-center border-r border-white/20">Total Students</th>
+                                <th className="py-3 px-4 font-bold text-center w-44">
+                                  <button
+                                    type="button"
+                                    onClick={toggleAllClasses}
+                                    className="text-[11px] font-bold text-blue-100 hover:text-white underline underline-offset-2 transition-colors cursor-pointer"
+                                  >
+                                    {isAnyExpanded ? 'Collapse All' : 'Expand All Details'}
+                                  </button>
+                                </th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
                               {classOrder.map(className => {
-                                const classData = stats.classes[className];
+                                const classData = stats.classes[className] || { boys: 0, girls: 0, transgender: 0, total: 0, incomplete: 0, sections: {} };
+                                const isExpanded = Boolean(expandedClasses[className]);
+                                const sectionsList = getClassSections(className, classData);
+                                const subjectCount = getClassSubjectCount(className);
+                                const overallClassTeacher = getClassTeacherName(className);
+                                const formattedClass = formatClassGradeDisplay(className);
+
                                 return (
-                                  <tr key={className} className="hover:bg-gray-50 transition-colors">
-                                    <td className="py-3 px-4 text-gray-800">{className}</td>
-                                    <td className="py-3 px-4 text-center text-gray-700">{classData.boys}</td>
-                                    <td className="py-3 px-4 text-center text-gray-700">{classData.girls}</td>
-                                    <td className="py-3 px-4 text-center text-gray-700">{classData.transgender}</td>
-                                    <td className="py-3 px-4 text-center font-bold text-gray-700">{classData.total}</td>
-                                  </tr>
+                                  <React.Fragment key={className}>
+                                    <tr className={`transition-colors ${isExpanded ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}>
+                                      <td className="py-3 px-4 text-gray-800 font-bold border-r border-gray-100">{formattedClass}</td>
+                                      <td className="py-3 px-4 text-center text-gray-700 border-r border-gray-100">{classData.boys}</td>
+                                      <td className="py-3 px-4 text-center text-gray-700 border-r border-gray-100">{classData.girls}</td>
+                                      <td className="py-3 px-4 text-center text-gray-700 border-r border-gray-100">{classData.transgender}</td>
+                                      <td className="py-3 px-4 text-center font-bold text-gray-900 border-r border-gray-100">{classData.total}</td>
+                                      <td className="py-3 px-4 text-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleExpandClass(className)}
+                                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-2xs ${
+                                            isExpanded
+                                              ? 'bg-[#1E5E8A] text-white border-[#1E5E8A]'
+                                              : 'bg-blue-50 hover:bg-blue-100 text-[#1E5E8A] border-blue-200'
+                                          }`}
+                                          title={isExpanded ? `Hide Class ${formattedClass} Details` : `Show Class ${formattedClass} Details`}
+                                        >
+                                          <FaChalkboardTeacher className={isExpanded ? 'text-white' : 'text-[#1E5E8A]'} />
+                                          <span>Details</span>
+                                          <FaChevronDown className={`text-[10px] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+                                      </td>
+                                    </tr>
+
+                                    {/* Dropdown Menu / Details Panel for this Class */}
+                                    {isExpanded && (
+                                      <tr className="bg-slate-50 border-y-2 border-blue-200">
+                                        <td colSpan={6} className="p-3 sm:p-5">
+                                          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-5 space-y-4">
+                                            
+                                            {/* Header bar with Class summary, Subject count & Class Teacher */}
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-gray-100">
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-bold text-gray-900 text-sm">
+                                                  Class {formattedClass} Details
+                                                </span>
+                                                <span className="text-gray-300 hidden sm:inline">•</span>
+                                                <span className="text-xs text-gray-600">Total: <strong className="text-gray-900">{classData.total}</strong></span>
+                                                <span className="text-gray-300 hidden sm:inline">•</span>
+                                                <span className="text-xs text-gray-600">Boys: <strong className="text-blue-700">{classData.boys}</strong></span>
+                                                <span className="text-gray-300 hidden sm:inline">•</span>
+                                                <span className="text-xs text-gray-600">Girls: <strong className="text-pink-700">{classData.girls}</strong></span>
+                                                {classData.transgender > 0 && (
+                                                  <>
+                                                    <span className="text-gray-300 hidden sm:inline">•</span>
+                                                    <span className="text-xs text-gray-600">Transgender: <strong className="text-purple-700">{classData.transgender}</strong></span>
+                                                  </>
+                                                )}
+                                              </div>
+
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <span className="px-2.5 py-1 bg-amber-50 text-amber-800 font-bold text-xs rounded border border-amber-200 flex items-center gap-1.5 shadow-2xs">
+                                                  <FaBookOpen className="text-amber-600" />
+                                                  <span>{subjectCount} Subjects</span>
+                                                </span>
+                                                <span className="px-2.5 py-1 bg-purple-50 text-purple-800 font-bold text-xs rounded border border-purple-200 flex items-center gap-1.5 shadow-2xs">
+                                                  <FaUserTie className="text-purple-600" />
+                                                  <span>Teacher: {overallClassTeacher}</span>
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            {/* Section-Wise Student Details Table matching exact reference screenshot */}
+                                            <div className="overflow-x-auto rounded border border-gray-300 shadow-none">
+                                              <table className="w-full text-center text-sm bg-white border-collapse">
+                                                <thead className="bg-[#1E5E8A] text-white">
+                                                  <tr className="border-b border-[#184d72]">
+                                                    <th className="py-2.5 px-4 font-semibold text-center border-r border-white/30 tracking-wide">
+                                                      Class/Grade
+                                                    </th>
+                                                    <th className="py-2.5 px-4 font-semibold text-center border-r border-white/30 tracking-wide">
+                                                      Section (Alias)
+                                                    </th>
+                                                    <th className="py-2.5 px-4 font-semibold text-center border-r border-white/30 tracking-wide">
+                                                      Boys
+                                                    </th>
+                                                    <th className="py-2.5 px-4 font-semibold text-center border-r border-white/30 tracking-wide">
+                                                      Girls
+                                                    </th>
+                                                    <th className="py-2.5 px-4 font-semibold text-center border-r border-white/30 tracking-wide">
+                                                      Transgender
+                                                    </th>
+                                                    <th className="py-2.5 px-4 font-semibold text-center border-r border-white/30 tracking-wide">
+                                                      Total Students
+                                                    </th>
+                                                    <th className="py-2.5 px-4 font-semibold text-center border-r border-white/30 tracking-wide">
+                                                      Incomplete Students
+                                                    </th>
+                                                    <th className="py-2.5 px-4 font-semibold text-center tracking-wide">
+                                                      Action
+                                                    </th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-200">
+                                                  {sectionsList.map(sec => {
+                                                    const secStats = classData.sections?.[sec] || { total: 0, boys: 0, girls: 0, transgender: 0, incomplete: 0 };
+                                                    const secTeacher = getClassTeacherName(className, sec);
+                                                    const secAliasName = getSectionDisplayName(className, sec);
+                                                    const incompleteCount = secStats.incomplete || (secStats.total > 0 ? secStats.total : 0);
+
+                                                    return (
+                                                      <tr key={sec} className="hover:bg-gray-50/70 transition-colors border-b border-gray-200">
+                                                        <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
+                                                          {formattedClass}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
+                                                          <div>{secAliasName}</div>
+                                                          {secTeacher !== 'Not Assigned' && secTeacher !== overallClassTeacher && (
+                                                            <div className="text-[10px] text-gray-500 font-normal">
+                                                              ({secTeacher})
+                                                            </div>
+                                                          )}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
+                                                          {secStats.boys}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
+                                                          {secStats.girls}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
+                                                          {secStats.transgender}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
+                                                          {secStats.total}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
+                                                          {incompleteCount}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-center">
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => handleOpenAddStudentForSection(className, sec)}
+                                                            className="bg-[#26497F] hover:bg-[#1C3863] text-white px-3.5 py-1.5 rounded-[4px] text-xs font-semibold tracking-wide transition-colors cursor-pointer whitespace-nowrap shadow-none"
+                                                            title={`Add student to Class ${formattedClass} Section ${sec}`}
+                                                          >
+                                                            Add Student
+                                                          </button>
+                                                        </td>
+                                                      </tr>
+                                                    );
+                                                  })}
+                                                </tbody>
+                                              </table>
+                                            </div>
+
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
                                 );
                               })}
                             </tbody>
@@ -9662,115 +10415,6 @@ function AdminPage() {
                       </div>
                     );
                   })()}
-
-                  <h4 className="text-lg font-bold text-gray-800 border-b pb-2 pt-4 flex justify-between items-center">
-                    Detailed Student List
-                  </h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left bg-white border border-gray-200 rounded-lg">
-                    <thead className="bg-gray-50">
-                      <tr className="border-b border-gray-200 text-xs text-gray-500 font-bold uppercase tracking-wider">
-                        <th className="py-3 px-4 w-12 text-center">S.No</th>
-                        <th className="py-3 px-4">Basic Details</th>
-                        <th className="py-3 px-4">Student PEN/Class/Section</th>
-                        <th className="py-3 px-4">Parents Details</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {students.map((student, index) => {
-                        const sId = student._id || student.id;
-                        return (
-                        <tr key={sId} className="hover:bg-gray-50 transition-colors">
-                          <td className="py-4 px-4 text-center text-gray-500 font-medium">
-                            {index + 1}
-                          </td>
-                          <td className="py-4 px-4">
-                             <div className="flex flex-col gap-1">
-                               <span className="font-bold text-gray-800 text-base">{student.studentName || student.student_name}</span>
-                               <span className="text-xs text-gray-500">Gender: <span className="font-medium capitalize text-gray-700">{student.gender || 'N/A'}</span></span>
-                               <span className="text-xs text-gray-500">DOB: <span className="font-medium text-gray-700">{student.dateOfBirth || student.date_of_birth || 'N/A'}</span></span>
-                             </div>
-                          </td>
-                          <td className="py-4 px-4">
-                             <div className="flex flex-col gap-1">
-                               <span className="text-xs text-gray-500">PEN: <span className="font-bold text-indigo-600">{student.penNumber || student.pen_number || 'N/A'}</span></span>
-                               <span className="text-xs text-gray-500">Class: <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{student.grade}</span></span>
-                               <span className="text-xs text-gray-500">Section: <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{student.section || 'N/A'}</span></span>
-                             </div>
-                          </td>
-                          <td className="py-4 px-4">
-                             <div className="flex flex-col gap-1">
-                               <span className="text-xs text-gray-500">Father's Name: <span className="font-medium text-gray-700">{student.fatherName || student.father_name || 'N/A'}</span></span>
-                               <span className="text-xs text-gray-500">Mother's Name: <span className="font-medium text-gray-700">{student.motherName || student.mother_name || 'N/A'}</span></span>
-                               {(!student.fatherName && !student.motherName && student.guardianName) && (
-                                 <span className="text-xs text-gray-500">Guardian: <span className="font-medium text-gray-700">{student.guardianName}</span></span>
-                               )}
-                             </div>
-                          </td>
-                          <td className="py-4 px-4 text-right">
-                             <div className="flex flex-col items-end gap-2">
-                               <div className="flex gap-2">
-                                 <button 
-                                   onClick={() => setViewingProfileFor(student)}
-                                   className="text-blue-500 hover:text-blue-700 transition-colors p-1"
-                                   title="View Profile"
-                                 >
-                                   <FaUser size={16} />
-                                 </button>
-                                 <button 
-                                   onClick={() => setViewingIdCardFor(student)}
-                                   className="text-indigo-400 hover:text-indigo-600 transition-colors p-1"
-                                   title="View ID Card"
-                                 >
-                                   <FaIdBadge size={16} />
-                                 </button>
-                               </div>
-                               
-                               <select
-                                 value={student.enrollment_status || 'active'}
-                                 onChange={(e) => handleUpdateStudentStatus(sId, e.target.value)}
-                                 className="text-xs border border-gray-300 rounded p-1 font-medium mt-1 w-32"
-                               >
-                                 <option value="active">Mark Active</option>
-                                 <option value="not_progressed">Not Progressed</option>
-                                 <option value="dropbox">Move to Dropbox</option>
-                                 <option value="prev_session">Prev Session</option>
-                               </select>
-
-                               <button 
-                                 onClick={() => setStudentToDelete(student)} 
-                                 className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors mt-1 flex items-center gap-1"
-                               >
-                                 <FaTrash size={10} /> Delete
-                               </button>
-                             </div>
-                          </td>
-                        </tr>
-                      )})}
-                    </tbody>
-                  </table>
-                  </div>
-                  {/* Pagination Controls */}
-                  <div className="flex items-center justify-between p-4 border-t border-gray-100 bg-gray-50/50">
-                    <span className="text-sm text-gray-500 font-medium">Page {studentPage} of {studentTotalPages || 1}</span>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setStudentPage(p => Math.max(1, p - 1))}
-                        disabled={studentPage === 1}
-                        className="px-4 py-2 text-sm font-bold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                      >
-                        Previous
-                      </button>
-                      <button 
-                        onClick={() => setStudentPage(p => Math.min(studentTotalPages, p + 1))}
-                        disabled={studentPage >= studentTotalPages}
-                        className="px-4 py-2 text-sm font-bold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>

@@ -99,8 +99,8 @@ const BulkUpload = ({ apiUrl, endpoint, token, entityName = 'Teachers', onUpload
     } catch (err) {
       // Fallback client-side template download
       const headers = isTeachers 
-        ? 'Full Name,Email,Phone,Designation,Role\nDr. Anita Sharma,anita.sharma@school.edu,9876543210,Senior Mathematics Teacher,Teacher\nRajesh Verma,rajesh.verma@school.edu,9876543211,Physics Teacher,Teacher\nSunita Roy,sunita.roy@school.edu,9876543212,English Teacher,Teacher'
-        : 'Full Name,Roll Number,Class Level,Section,Email,Phone,Parents Name,Address\nAarav Sharma,2024001,Class 1,A,aarav.parent@example.com,9876543210,Ramesh Sharma,123 Main Street\nDiya Patel,2024002,Class 1,A,diya.parent@example.com,9876543211,Suresh Patel,456 Park Avenue';
+        ? 'Full Name,Email,Phone,Designation,Role,Gender,Joining Date\nDr. Anita Sharma,anita.sharma@school.edu,9876543210,Senior Mathematics Teacher,Teacher,Female,2024-01-15\nRajesh Verma,rajesh.verma@school.edu,9876543211,Physics Teacher,Teacher,Male,2024-02-01\nSunita Roy,sunita.roy@school.edu,9876543212,English Teacher,Teacher,Female,2024-03-01'
+        : 'Student Name,Class/Grade,Section,Admission ID,Roll Number,Gender,Date of Birth,Father Name,Mother Name,Phone,Email,PEN Number,Aadhaar Number,Blood Group,Address\nAarav Sharma,I,A,2024001,01,Male,2018-05-14,Ramesh Sharma,Sunita Sharma,9876543210,aarav.parent@example.com,18239012345,533166720088,O+,123 Main Street, Guwahati\nDiya Patel,I,B,2024002,02,Female,2018-08-22,Suresh Patel,Meena Patel,9876543211,diya.parent@example.com,18239012346,533166720089,B+,456 Park Avenue, Guwahati';
 
       const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -268,21 +268,34 @@ const BulkUpload = ({ apiUrl, endpoint, token, entityName = 'Teachers', onUpload
             </>
           ) : (
             <>
-              <span className="font-mono text-[11px] bg-white text-blue-800 border border-blue-200 px-2 py-0.5 rounded font-semibold">Full Name *</span>
-              <span className="font-mono text-[11px] bg-white text-blue-800 border border-blue-200 px-2 py-0.5 rounded font-semibold">Roll Number *</span>
-              <span className="font-mono text-[11px] bg-white text-blue-800 border border-blue-200 px-2 py-0.5 rounded font-semibold">Class Level *</span>
+              <span className="font-mono text-[11px] bg-white text-blue-800 border border-blue-200 px-2 py-0.5 rounded font-semibold">Student Name *</span>
+              <span className="font-mono text-[11px] bg-white text-blue-800 border border-blue-200 px-2 py-0.5 rounded font-semibold">Class/Grade *</span>
               <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Section</span>
-              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Email</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Admission ID</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Roll Number</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Gender</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Date of Birth</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Father Name</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Mother Name</span>
               <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Phone</span>
-              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Parents Name</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Email</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">PEN Number</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Aadhaar Number</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Blood Group</span>
+              <span className="font-mono text-[11px] bg-white text-gray-700 border border-gray-200 px-2 py-0.5 rounded">Address</span>
             </>
           )}
         </div>
 
-        {isTeachers && (
+        {isTeachers ? (
           <div className="flex items-center gap-1.5 mt-1 text-[11px] text-amber-700 bg-amber-50/80 border border-amber-200/60 p-2 rounded-lg">
             <FaKey className="text-amber-500 shrink-0" />
             <span>Default credentials for newly uploaded staff: <strong>Staff@123</strong> or their 10-digit mobile number. Staff can sign into the Teacher Portal immediately.</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 mt-1 text-[11px] text-blue-700 bg-blue-50/80 border border-blue-200/60 p-2 rounded-lg">
+            <FaKey className="text-blue-500 shrink-0" />
+            <span>Student Portal Login: Students log in using their <strong>Admission ID / Roll Number</strong> with their 10-digit mobile number, Date of Birth (DDMMYYYY), or <strong>Student@123</strong>.</span>
           </div>
         )}
       </div>

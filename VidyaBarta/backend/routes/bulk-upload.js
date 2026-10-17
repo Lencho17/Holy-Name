@@ -99,6 +99,47 @@ function cleanBloodGroup(bg) {
 }
 
 /**
+ * Clean gender string (e.g. 'M', 'Boy', 'Male' -> 'Male'; 'F', 'Girl', 'Female' -> 'Female'; 'Transgender' -> 'Transgender')
+ */
+function cleanGender(val) {
+  if (!val) return 'Male';
+  const s = String(val).trim().toUpperCase();
+  if (s.startsWith('F') || s === 'GIRL' || s === 'FEMALE') return 'Female';
+  if (s.startsWith('T') || s === 'TRANS' || s === 'TRANSGENDER') return 'Transgender';
+  return 'Male';
+}
+
+/**
+ * Standardize class grade (e.g. 'Class 1' -> 'I', '1' -> 'I', 'Class X' -> 'X')
+ */
+function cleanClassLevel(val) {
+  if (!val) return '';
+  let str = String(val).trim();
+  const romanMap = {
+    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+    '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+    '11': 'XI', '12': 'XII'
+  };
+  const match = str.match(/^(?:Class|Grade)?\s*([0-9]+|[IVXLCDM]+(?:-[a-zA-Z0-9]+)?|[a-zA-Z0-9\-_]+)$/i);
+  if (match) {
+    const raw = match[1];
+    return romanMap[raw] || raw;
+  }
+  return str;
+}
+
+/**
+ * Clean section string (e.g. 'Section A' -> 'A', 'D (TC)' -> 'D')
+ */
+function cleanSection(val) {
+  if (!val) return 'A';
+  let str = String(val).trim().toUpperCase();
+  str = str.replace(/^(?:SECTION|SEC)\s*/i, '');
+  const match = str.match(/^([A-Z0-9]+)/);
+  return match ? match[1] : (str || 'A');
+}
+
+/**
  * Flexible field extractor that inspects keys and normalized keys
  */
 function extractFlexibleField(row, patterns) {
@@ -174,24 +215,55 @@ router.get('/teachers/template', (req, res) => {
 router.get('/students/template', (req, res) => {
   const sampleData = [
     {
-      'Full Name': 'Aarav Sharma',
-      'Roll Number': '2024001',
-      'Class Level': 'Class 1',
+      'Student Name': 'Aarav Sharma',
+      'Class/Grade': 'I',
       'Section': 'A',
-      'Email': 'aarav.parent@example.com',
+      'Admission ID': '2024001',
+      'Roll Number': '01',
+      'Gender': 'Male',
+      'Date of Birth': '2018-05-14',
+      'Father Name': 'Ramesh Sharma',
+      'Mother Name': 'Sunita Sharma',
       'Phone': '9876543210',
-      'Parents Name': 'Ramesh Sharma',
-      'Address': '123 Main Street, Guwahati'
+      'Email': 'aarav.parent@example.com',
+      'PEN Number': '18239012345',
+      'Aadhaar Number': '533166720088',
+      'Blood Group': 'O+',
+      'Address': 'House No 12, Main Road, Guwahati'
     },
     {
-      'Full Name': 'Diya Patel',
-      'Roll Number': '2024002',
-      'Class Level': 'Class 1',
-      'Section': 'A',
-      'Email': 'diya.parent@example.com',
+      'Student Name': 'Diya Patel',
+      'Class/Grade': 'I',
+      'Section': 'B',
+      'Admission ID': '2024002',
+      'Roll Number': '02',
+      'Gender': 'Female',
+      'Date of Birth': '2018-08-22',
+      'Father Name': 'Suresh Patel',
+      'Mother Name': 'Meena Patel',
       'Phone': '9876543211',
-      'Parents Name': 'Suresh Patel',
-      'Address': '456 Park Avenue, Dibrugarh'
+      'Email': 'diya.parent@example.com',
+      'PEN Number': '18239012346',
+      'Aadhaar Number': '533166720089',
+      'Blood Group': 'B+',
+      'Address': 'Flat 4B, Green Park, Guwahati'
+    },
+    {
+      'Student Name': 'Rahul Borah',
+      'Class/Grade': 'I',
+      'Section': 'A',
+      'Admission ID': '2024003',
+      'Roll Number': '03',
+      'Gender': 'Male',
+      'Date of Birth': '2018-01-10',
+      'Father Name': 'Biren Borah',
+      'Mother Name': 'Rina Borah',
+      'Phone': '9876543212',
+      'Email': 'rahul.borah@example.com',
+      'PEN Number': '18239012347',
+      'Aadhaar Number': '533166720090',
+      'Blood Group': 'A+',
+      'Address': 'Zoo Road, Guwahati'
     }
   ];
 
@@ -230,36 +302,108 @@ router.post('/students', protect, upload.single('file'), async (req, res) => {
 
     const insertData = [];
     const skipped = [];
+    const defaultPasswordHash = await bcrypt.hash('Student@123', 10);
+    const schoolId = req.user ? req.user.school_id : null;
 
-    rawRows.forEach((row, index) => {
+    for (let index = 0; index < rawRows.length; index++) {
+      const row = rawRows[index];
       const rowNum = index + 2;
-      const student_name = extractFlexibleField(row, [/^name/, 'student_name', 'full_name']) || '';
-      const admission_id = extractFlexibleField(row, ['admission_id', 'roll_number', 'roll_no', 'admission_no']) || '';
-      const class_level = extractFlexibleField(row, ['class_level', 'class', 'grade']) || '';
-      const section = extractFlexibleField(row, ['section', 'sec']) || '';
-      const email = extractFlexibleField(row, ['email', 'email_address']) || null;
-      const phone = cleanPhoneNumber(extractFlexibleField(row, ['phone', 'mobile', 'contact', 'contact_number']));
-      const guardian_name = extractFlexibleField(row, ['guardian', 'guardian_name', 'parents_name', 'father_name', 'mother_name']) || null;
-      const address = extractFlexibleField(row, ['address', 'residence']) || null;
 
-      // Skip row if completely empty
-      if (!student_name && !admission_id && !class_level) return;
+      const student_name = extractFlexibleField(row, [
+        /^student_name/, /^full_name/, /^name/, 'studentname', 'fullname'
+      ]);
+      const class_level_raw = extractFlexibleField(row, [
+        'class_grade', 'class_level', 'grade', 'class', 'standard'
+      ]);
+      const section_raw = extractFlexibleField(row, [
+        'section', 'sec'
+      ]);
+      const admission_id_raw = extractFlexibleField(row, [
+        'admission_id', 'admission_no', 'admission_number', 'adm_no', 'student_id'
+      ]);
+      const roll_number_raw = extractFlexibleField(row, [
+        'roll_number', 'roll_no', 'roll'
+      ]);
+      const gender_raw = extractFlexibleField(row, [
+        'gender', 'sex'
+      ]);
+      const dob_raw = extractFlexibleField(row, [
+        'date_of_birth', 'dob', 'birth_date', 'birthdate'
+      ]);
+      const father_name = extractFlexibleField(row, [
+        'father_name', 'father', 'fathers_name'
+      ]);
+      const mother_name = extractFlexibleField(row, [
+        'mother_name', 'mother', 'mothers_name'
+      ]);
+      const guardian_name = extractFlexibleField(row, [
+        'guardian_name', 'guardian', 'parents_name', 'parent_name'
+      ]);
+      const phone = cleanPhoneNumber(extractFlexibleField(row, [
+        'phone', 'mobile', 'contact_number', 'contact', 'mobile_number', 'phone_number'
+      ]));
+      const email = extractFlexibleField(row, [
+        'email', 'email_address', 'mail'
+      ]);
+      const pen_number = extractFlexibleField(row, [
+        'pen_number', 'pen', 'pen_no', 'udise_pen', 'national_pen'
+      ]);
+      const aadhar_number = extractFlexibleField(row, [
+        'aadhar_number', 'aadhaar_number', 'aadhar', 'aadhaar', 'aadhar_no', 'aadhaar_no'
+      ]);
+      const blood_group_raw = extractFlexibleField(row, [
+        'blood_group', 'bloodgroup', 'blood'
+      ]);
+      const address = extractFlexibleField(row, [
+        'address', 'residence', 'residential_address'
+      ]);
+
+      // Silently skip completely empty row
+      if (!student_name && !admission_id_raw && !class_level_raw && !roll_number_raw) continue;
 
       if (!student_name) {
         skipped.push({ row: rowNum, reason: 'Missing student name' });
-        return;
+        continue;
       }
+
+      if (!class_level_raw) {
+        skipped.push({ row: rowNum, name: student_name, reason: 'Missing Class/Grade' });
+        continue;
+      }
+
+      const class_level = cleanClassLevel(class_level_raw);
+      const section = cleanSection(section_raw);
+      const admission_id = (admission_id_raw || roll_number_raw || `ADM-${Date.now().toString().slice(-6)}${index + 1}`).trim();
+      const roll_number = (roll_number_raw || admission_id_raw || '').trim() || null;
+      const gender = cleanGender(gender_raw);
+      const dob = parseDateValue(dob_raw);
+      const blood_group = cleanBloodGroup(blood_group_raw);
+
+      // Student password hash: if phone exists use phone, otherwise default Student@123
+      const studentPassword = phone ? await bcrypt.hash(phone, 10) : defaultPasswordHash;
 
       insertData.push({
         student_name: student_name.trim(),
-        admission_id: admission_id ? admission_id.trim() : null,
-        grade: section ? `${class_level} ${section}`.trim() : class_level.trim(),
-        email: email ? email.toLowerCase().trim() : null,
+        grade: class_level,
+        section: section,
+        admission_id: admission_id,
+        roll_number: roll_number,
+        gender: gender,
+        date_of_birth: dob,
+        father_name: father_name ? father_name.trim() : null,
+        mother_name: mother_name ? mother_name.trim() : null,
+        guardian_name: guardian_name ? guardian_name.trim() : (father_name || mother_name || null),
         contact_number: phone,
-        guardian_name: guardian_name ? guardian_name.trim() : null,
-        address
+        email: email ? email.toLowerCase().trim() : null,
+        pen_number: pen_number ? pen_number.trim() : null,
+        aadhar_number: aadhar_number ? aadhar_number.replace(/\s+/g, '') : null,
+        blood_group: blood_group,
+        address: address ? address.trim() : null,
+        password: studentPassword,
+        school_id: schoolId,
+        enrollment_status: 'active'
       });
-    });
+    }
 
     if (insertData.length === 0) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -269,18 +413,25 @@ router.post('/students', protect, upload.single('file'), async (req, res) => {
       });
     }
 
-    const { data, error } = await supabase
-      .from('students')
-      .insert(insertData);
+    // Insert in batches of 100 to avoid payload limits
+    const chunkSize = 100;
+    let insertedCount = 0;
+    for (let i = 0; i < insertData.length; i += chunkSize) {
+      const chunk = insertData.slice(i, i + chunkSize);
+      const { error: insertError } = await supabase.from('students').insert(chunk);
+      if (insertError) {
+        throw insertError;
+      }
+      insertedCount += chunk.length;
+    }
 
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
-    if (error) throw error;
-
     res.json({
       success: true,
-      message: `Successfully uploaded ${insertData.length} students.${skipped.length > 0 ? ` (${skipped.length} skipped)` : ''}`,
+      message: `Successfully uploaded ${insertedCount} students.${skipped.length > 0 ? ` (${skipped.length} skipped)` : ''}`,
       totalProcessed: insertData.length,
+      insertedCount,
       skippedCount: skipped.length,
       skipped
     });

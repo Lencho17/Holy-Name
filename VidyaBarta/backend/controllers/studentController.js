@@ -7,7 +7,10 @@ const { getEquivalentClasses } = require('../utils/classMapping');
 exports.getStudents = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    let limit = 10000;
+    if (req.query.limit && req.query.limit !== 'all') {
+      limit = parseInt(req.query.limit) || 10000;
+    }
     const offset = (page - 1) * limit;
     const search = req.query.search;
     const status = req.query.status;
@@ -19,7 +22,7 @@ exports.getStudents = async (req, res) => {
       .select('*', { count: 'exact' });
 
     if (req.user && req.user.school_id) {
-      query = query.eq('school_id', req.user.school_id);
+      query = query.or(`school_id.eq.${req.user.school_id},school_id.is.null`);
     }
 
     if (status && status !== 'all') {
@@ -77,6 +80,113 @@ exports.getStudents = async (req, res) => {
         pages: Math.ceil(count / limit)
       }
     });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get aggregated student directory stats (total, boys, girls, transgender, incomplete, class/section breakdown)
+// @route   GET /api/students/stats
+// @access  Private (Staff/Admin)
+exports.getStudentStats = async (req, res) => {
+  try {
+    const schoolId = req.user?.school_id;
+    let query = supabase
+      .from('students')
+      .select('grade, section, gender, pen_number, aadhar_number, father_name, enrollment_status');
+
+    if (schoolId) {
+      query = query.or(`school_id.eq.${schoolId},school_id.is.null`);
+    }
+
+    query = query.eq('enrollment_status', 'active');
+
+    const { data: students, error } = await query;
+    if (error) throw error;
+
+    const stats = {
+      total: (students || []).length,
+      boys: 0,
+      girls: 0,
+      transgender: 0,
+      incomplete: 0,
+      classes: {}
+    };
+
+    const normClassStr = (val) => {
+      if (!val) return '';
+      const clean = String(val).replace(/^Class\s*/i, '').trim().toUpperCase();
+      const romanMap = {
+        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+        '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+        '11': 'XI', '12': 'XII'
+      };
+      return romanMap[clean] || clean;
+    };
+
+    (students || []).forEach(student => {
+      let gender = (student.gender || '').toLowerCase().trim();
+      let rawGrade = (student.grade || 'I').trim();
+      let parts = rawGrade.split(/\s+/);
+      let studentClass = parts[0] || 'I';
+      let studentSec = student.section || parts[1] || 'A';
+      studentSec = studentSec.toUpperCase().trim();
+
+      const normalizedClass = normClassStr(studentClass);
+
+      let isBoy = gender === 'male' || gender === 'boy';
+      let isGirl = gender === 'female' || gender === 'girl';
+      let isTrans = gender === 'transgender';
+      let isIncomplete = !student.pen_number || !student.aadhar_number || !student.father_name;
+
+      if (isBoy) stats.boys++;
+      if (isGirl) stats.girls++;
+      if (isTrans) stats.transgender++;
+      if (isIncomplete) stats.incomplete++;
+
+      if (!stats.classes[normalizedClass]) {
+        stats.classes[normalizedClass] = {
+          boys: 0,
+          girls: 0,
+          transgender: 0,
+          total: 0,
+          incomplete: 0,
+          sections: {}
+        };
+      }
+
+      if (!stats.classes[normalizedClass].sections[studentSec]) {
+        stats.classes[normalizedClass].sections[studentSec] = {
+          boys: 0,
+          girls: 0,
+          transgender: 0,
+          total: 0,
+          incomplete: 0
+        };
+      }
+
+      stats.classes[normalizedClass].total++;
+      stats.classes[normalizedClass].sections[studentSec].total++;
+
+      if (isBoy) {
+        stats.classes[normalizedClass].boys++;
+        stats.classes[normalizedClass].sections[studentSec].boys++;
+      }
+      if (isGirl) {
+        stats.classes[normalizedClass].girls++;
+        stats.classes[normalizedClass].sections[studentSec].girls++;
+      }
+      if (isTrans) {
+        stats.classes[normalizedClass].transgender++;
+        stats.classes[normalizedClass].sections[studentSec].transgender++;
+      }
+      if (isIncomplete) {
+        stats.classes[normalizedClass].incomplete++;
+        stats.classes[normalizedClass].sections[studentSec].incomplete++;
+      }
+    });
+
+    res.json({ success: true, stats });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -230,21 +340,34 @@ exports.deleteStudent = async (req, res) => {
 // @access  Private (Admin)
 exports.createStudent = async (req, res) => {
   try {
+    const bcrypt = require('bcryptjs');
+    const phone = req.body.phone || req.body.contactNumber || req.body.contact_number;
+    let passwordHash = null;
+    if (phone) {
+      const digits = String(phone).replace(/[^0-9]/g, '');
+      passwordHash = await bcrypt.hash(digits.slice(-10) || 'Student@123', 10);
+    } else {
+      passwordHash = await bcrypt.hash('Student@123', 10);
+    }
+
     const studentData = {
-      student_name: req.body.name || req.body.studentName || req.body.student_name,
-      admission_id: req.body.admissionId || req.body.admission_id,
-      roll_number: req.body.rollNumber || req.body.roll_number,
-      grade: req.body.grade || req.body.classLevel,
-      section: req.body.section,
-      blood_group: req.body.bloodGroup || req.body.blood_group,
-      gender: req.body.gender,
-      guardian_name: req.body.parentsName || req.body.guardianName || req.body.parents_name || req.body.guardian_name,
-      father_name: req.body.father_name || req.body.fatherName,
-      mother_name: req.body.mother_name || req.body.motherName,
-      contact_number: req.body.phone || req.body.contactNumber || req.body.contact_number,
-      email: req.body.email,
-      address: req.body.address,
-      date_of_birth: req.body.dob || req.body.date_of_birth,
+      student_name: (req.body.name || req.body.studentName || req.body.student_name || '').trim(),
+      admission_id: (req.body.admissionId || req.body.admission_id || req.body.rollNumber || `ADM-${Date.now().toString().slice(-6)}`).trim(),
+      roll_number: req.body.rollNumber || req.body.roll_number || null,
+      grade: req.body.grade || req.body.classLevel || 'I',
+      section: (req.body.section || 'A').toUpperCase().trim(),
+      gender: req.body.gender || null,
+      date_of_birth: req.body.dob || req.body.date_of_birth || null,
+      blood_group: req.body.bloodGroup || req.body.blood_group || null,
+      father_name: req.body.fatherName || req.body.father_name || null,
+      mother_name: req.body.motherName || req.body.mother_name || null,
+      guardian_name: req.body.guardianName || req.body.guardian_name || req.body.parentsName || req.body.fatherName || null,
+      contact_number: phone ? String(phone).trim() : null,
+      email: req.body.email ? String(req.body.email).trim() : null,
+      pen_number: req.body.penNumber || req.body.pen_number || null,
+      aadhar_number: req.body.aadharNumber || req.body.aadhar_number || req.body.aadhaarNumber || null,
+      address: req.body.address ? String(req.body.address).trim() : null,
+      password: passwordHash,
       school_id: req.user ? req.user.school_id : null,
       enrollment_status: 'active'
     };

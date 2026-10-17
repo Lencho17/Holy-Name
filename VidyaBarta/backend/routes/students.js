@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getStudents,
+  getStudentStats,
   getStudentById,
   createStudent,
   updateStudent,
@@ -19,6 +20,7 @@ router.route('/')
   .post(protect, createStudent);
 
 router.get('/export', protect, exportStudents);
+router.get('/stats', protectAnyStaff, getStudentStats);
 
 router.post('/readmission-campaign', protect, issueReadmission);
 

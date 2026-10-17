@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { 
@@ -34,6 +34,11 @@ const TeachersManager = ({ apiUrl, token }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+
+  // Selection & Bulk Actions State
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const selectAllRef = useRef(null);
 
   // Manual Add Form State
   const [newStaffForm, setNewStaffForm] = useState({ name: '', email: '', phone: '', role: 'Teacher' });
@@ -148,17 +153,48 @@ const TeachersManager = ({ apiUrl, token }) => {
       await axios.delete(`${apiUrl}/staff/admin/teachers/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setTeachers(teachers.filter(t => t.id !== id));
+      setTeachers(prev => prev.filter(t => t.id !== id));
+      setSelectedTeacherIds(prev => prev.filter(i => i !== id));
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete teacher');
     }
   };
 
-  // Export visible teachers to Excel (.xlsx)
-  const handleExportExcel = () => {
-    if (teachers.length === 0) return;
+  // Bulk Delete Selected Teachers
+  const handleBulkDelete = async () => {
+    if (selectedTeacherIds.length === 0) return;
+    const count = selectedTeacherIds.length;
+    if (!window.confirm(`Are you sure you want to permanently delete the selected ${count} teacher(s)/staff member(s)?`)) return;
 
-    const exportRows = filteredTeachers.map((t, idx) => ({
+    try {
+      setIsBulkDeleting(true);
+      await axios.post(`${apiUrl}/staff/admin/teachers/bulk-delete`, {
+        ids: selectedTeacherIds
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTeachers(prev => prev.filter(t => !selectedTeacherIds.includes(t.id)));
+      setSelectedTeacherIds([]);
+    } catch (err) {
+      console.error('Failed to bulk delete:', err);
+      alert(err.response?.data?.message || 'Failed to delete selected teachers');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  // Export visible or selected teachers to Excel (.xlsx)
+  const handleExportExcel = (onlySelected = false) => {
+    const listToExport = onlySelected
+      ? filteredTeachers.filter(t => selectedTeacherIds.includes(t.id))
+      : filteredTeachers;
+
+    if (listToExport.length === 0) {
+      alert('No teachers to export');
+      return;
+    }
+
+    const exportRows = listToExport.map((t, idx) => ({
       'Sl No': idx + 1,
       'Full Name': t.name || '',
       'Email Address': t.email || '',
@@ -172,7 +208,10 @@ const TeachersManager = ({ apiUrl, token }) => {
     const ws = XLSX.utils.json_to_sheet(exportRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Teachers & Staff');
-    XLSX.writeFile(wb, `Teachers_List_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const filename = onlySelected
+      ? `Selected_Teachers_${new Date().toISOString().slice(0, 10)}.xlsx`
+      : `Teachers_List_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
   };
 
   // Filtered teachers
@@ -191,6 +230,35 @@ const TeachersManager = ({ apiUrl, token }) => {
       return matchSearch && matchRole;
     });
   }, [teachers, searchQuery, roleFilter]);
+
+  // Selection state helpers
+  const filteredTeacherIds = useMemo(() => filteredTeachers.map(t => t.id), [filteredTeachers]);
+  const isAllSelected = filteredTeacherIds.length > 0 && filteredTeacherIds.every(id => selectedTeacherIds.includes(id));
+  const isSomeSelected = filteredTeacherIds.some(id => selectedTeacherIds.includes(id)) && !isAllSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isSomeSelected;
+    }
+  }, [isSomeSelected]);
+
+  const toggleSelectTeacher = (id) => {
+    setSelectedTeacherIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedTeacherIds(prev => prev.filter(id => !filteredTeacherIds.includes(id)));
+    } else {
+      setSelectedTeacherIds(prev => Array.from(new Set([...prev, ...filteredTeacherIds])));
+    }
+  };
+
+  const deselectAll = () => {
+    setSelectedTeacherIds([]);
+  };
 
   // Statistics
   const stats = useMemo(() => {
@@ -353,7 +421,7 @@ const TeachersManager = ({ apiUrl, token }) => {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-gray-500 hidden sm:inline">Role:</span>
               <select
@@ -374,11 +442,77 @@ const TeachersManager = ({ apiUrl, token }) => {
               </select>
             </div>
 
+            {filteredTeachers.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-2 shadow-2xs cursor-pointer ${
+                  isAllSelected
+                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+                title={isAllSelected ? "Deselect all visible teachers" : "Select all visible teachers"}
+              >
+                <input
+                  type="checkbox"
+                  readOnly
+                  checked={isAllSelected}
+                  ref={el => { if (el) el.indeterminate = isSomeSelected; }}
+                  className="w-3.5 h-3.5 rounded text-blue-600 pointer-events-none accent-blue-600"
+                />
+                <span>{isAllSelected ? 'Deselect All' : 'Select All'}</span>
+              </button>
+            )}
+
             <span className="text-xs text-gray-400 font-semibold">
               Showing {filteredTeachers.length} of {teachers.length}
             </span>
           </div>
         </div>
+
+        {/* Bulk Selection Actions Bar */}
+        {selectedTeacherIds.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm border-b border-blue-700">
+            <div className="flex items-center gap-3">
+              <span className="w-6 h-6 rounded-full bg-white/20 text-white text-xs font-black flex items-center justify-center shrink-0">
+                {selectedTeacherIds.length}
+              </span>
+              <span className="text-xs sm:text-sm font-bold">
+                {selectedTeacherIds.length} {selectedTeacherIds.length === 1 ? 'teacher / staff selected' : 'teachers / staff selected'}
+              </span>
+              <button
+                type="button"
+                onClick={deselectAll}
+                className="text-xs text-blue-100 hover:text-white underline underline-offset-2 ml-1 cursor-pointer"
+              >
+                Clear Selection
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleExportExcel(true)}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Export selected teachers to Excel"
+              >
+                <FaFileExcel className="text-emerald-300" />
+                <span>Export Selected ({selectedTeacherIds.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                title="Delete selected teachers"
+              >
+                {isBulkDeleting ? <FaSpinner className="animate-spin text-xs" /> : <FaTrash className="text-xs" />}
+                <span>Delete Selected ({selectedTeacherIds.length})</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Teachers Table */}
         <div className="overflow-x-auto">
@@ -410,7 +544,25 @@ const TeachersManager = ({ apiUrl, token }) => {
           ) : (
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/70 text-gray-500 uppercase tracking-wider text-[11px] font-bold">
+                <tr className="border-b border-gray-100 bg-gray-50/80 text-gray-600 uppercase tracking-wider text-[11px] font-bold select-none">
+                  {/* Select All Checkbox */}
+                  <th className="py-3.5 px-3 w-10 text-center">
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        ref={selectAllRef}
+                        checked={isAllSelected}
+                        onChange={toggleSelectAll}
+                        title={isAllSelected ? "Deselect all visible" : "Select all visible"}
+                        aria-label="Select all teachers"
+                        className="w-4 h-4 rounded text-blue-600 bg-white border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer transition-colors accent-blue-600"
+                      />
+                    </div>
+                  </th>
+                  {/* Serial Number */}
+                  <th className="py-3.5 px-2 w-14 text-center font-bold text-gray-500 tracking-wider">
+                    #
+                  </th>
                   <th className="py-3.5 px-4">Teacher / Staff</th>
                   <th className="py-3.5 px-4">Contact Info</th>
                   <th className="py-3.5 px-4">Role & Designation</th>
@@ -419,7 +571,8 @@ const TeachersManager = ({ apiUrl, token }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredTeachers.map((t) => {
+                {filteredTeachers.map((t, index) => {
+                  const isSelected = selectedTeacherIds.includes(t.id);
                   const initials = (t.name || 'T')
                     .split(' ')
                     .map(n => n[0])
@@ -428,7 +581,32 @@ const TeachersManager = ({ apiUrl, token }) => {
                     .toUpperCase();
 
                   return (
-                    <tr key={t.id} className="hover:bg-blue-50/30 transition-colors group">
+                    <tr 
+                      key={t.id} 
+                      className={`transition-colors group ${
+                        isSelected 
+                          ? 'bg-blue-50/80 hover:bg-blue-100/70' 
+                          : 'hover:bg-blue-50/30'
+                      }`}
+                    >
+                      {/* Row Checkbox */}
+                      <td className="py-3.5 px-3 text-center">
+                        <div className="flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectTeacher(t.id)}
+                            aria-label={`Select ${t.name}`}
+                            className="w-4 h-4 rounded text-blue-600 bg-white border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer transition-colors accent-blue-600"
+                          />
+                        </div>
+                      </td>
+
+                      {/* Serial Number */}
+                      <td className="py-3.5 px-2 text-center font-mono text-xs font-bold text-gray-400 group-hover:text-blue-600">
+                        {index + 1}
+                      </td>
+
                       {/* Name & Avatar */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
@@ -546,7 +724,8 @@ const TeachersManager = ({ apiUrl, token }) => {
         {/* Footer info */}
         <div className="p-4 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500 flex flex-col sm:flex-row justify-between items-center gap-2">
           <span>
-            Showing {filteredTeachers.length} of {teachers.length} teachers and staff members.
+            Showing {filteredTeachers.length} of {teachers.length} teachers and staff members
+            {selectedTeacherIds.length > 0 && ` (${selectedTeacherIds.length} selected)`}.
           </span>
           <span className="text-gray-400">
             Bulk upload supports .csv, .xlsx, .xls spreadsheets with auto-upsert.

@@ -763,4 +763,34 @@ router.delete('/admin/teachers/:id', protect, async (req, res) => {
   }
 });
 
+// Bulk Delete Teachers / Staff members (Admin)
+router.post('/admin/teachers/bulk-delete', protect, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No teacher IDs provided' });
+    }
+
+    const { data: staffMembers } = await supabase
+      .from('staff')
+      .select('email')
+      .in('id', ids);
+
+    const emails = (staffMembers || []).map(s => s.email).filter(Boolean);
+
+    const { error } = await supabase.from('staff').delete().in('id', ids);
+    if (error) throw error;
+
+    if (emails.length > 0) {
+      await supabase.from('teachers').delete().in('email', emails);
+    }
+
+    res.json({ message: `${ids.length} staff member(s) deleted successfully` });
+  } catch (error) {
+    console.error('Error bulk deleting teachers:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;
+

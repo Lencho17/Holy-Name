@@ -279,24 +279,6 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
     setIsEditing(true);
   };
 
-  const handleSetClassTeacher = (teacherId) => {
-    if (!teacherId) {
-      setEditData(prev => ({ ...prev, class_teacher_id: '' }));
-      return;
-    }
-    const targetClassNorm = String(editData.class_level || '').replace(/^Class\s*/i, '').trim().toLowerCase();
-    const clash = assignments.find(a => 
-      a.class_teacher_id === teacherId && 
-      String(a.class_name).replace(/^Class\s*/i, '').trim().toLowerCase() !== targetClassNorm
-    );
-    if (clash) {
-      const teacher = teachers.find(t => t.id === teacherId);
-      alert(`Cannot assign ${teacher?.name || 'this teacher'}: Already assigned as Class Teacher for Class ${clash.class_name} (${clash.section || 'A'}). A single teacher can be the class teacher of only 1 class (Rule 9).`);
-      return;
-    }
-    setEditData(prev => ({ ...prev, class_teacher_id: teacherId }));
-  };
-
   const handleSave = async () => {
     if (!editData.core_subjects || editData.core_subjects.length === 0) {
       if (!window.confirm("You have not configured any Core Subjects. Are you sure you want to proceed?")) {
@@ -445,21 +427,6 @@ const ClassSubjectConfig = ({ API_URL, onNavigateToClasses }) => {
             <h2 className="text-xl font-bold text-gray-800 mb-1">Manage class subject</h2>
             <div className="flex flex-col gap-1 mt-4">
               <span className="text-sm font-semibold text-gray-700">Class : {editData.class_level}</span>
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                  <FaCrown className="text-amber-500 text-xs" /> Class Teacher :
-                </span>
-                <select 
-                  className="border border-gray-300 rounded text-xs p-1.5 bg-white font-medium outline-none focus:border-teal-500 text-gray-700 min-w-[200px]"
-                  value={editData.class_teacher_id || ''}
-                  onChange={(e) => handleSetClassTeacher(e.target.value)}
-                >
-                  <option value="">-- No Class Teacher Assigned --</option>
-                  {teachers.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.role || 'Teacher'})</option>
-                  ))}
-                </select>
-              </div>
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mt-1">
                 Semester included : 
                 <select className="bg-transparent border-none focus:ring-0 text-sm font-semibold p-0 ml-1" value={editData.has_semester ? 'Yes' : 'No'} onChange={e => setEditData({...editData, has_semester: e.target.value === 'Yes'})}>

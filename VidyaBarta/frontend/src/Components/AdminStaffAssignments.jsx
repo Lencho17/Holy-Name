@@ -56,7 +56,6 @@ const AdminStaffAssignments = () => {
   const [newCustomSubject, setNewCustomSubject] = useState('');
   const [newCustomTeacherId, setNewCustomTeacherId] = useState('');
   const [newCustomSecondaryTeacherId, setNewCustomSecondaryTeacherId] = useState('');
-  const [newCustomIsClassTeacher, setNewCustomIsClassTeacher] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -235,21 +234,6 @@ const AdminStaffAssignments = () => {
     );
   };
 
-  const handleToggleClassTeacher = (teacherId) => {
-    if (!teacherId) return;
-    if (assignForm.class_teacher_id === teacherId) {
-      // Toggle off / unassign
-      setAssignForm(prev => ({ ...prev, class_teacher_id: '' }));
-      return;
-    }
-    const clash = getOtherClassTeacherAssignment(teacherId);
-    if (clash) {
-      const teacher = staffList.find(s => s.id === teacherId);
-      alert(`Cannot assign ${teacher?.name || 'this teacher'}: Already assigned as Class Teacher for Class ${clash.class_name} (${clash.section || 'A'}). A single teacher can be the class teacher of only 1 class (Rule 9).`);
-      return;
-    }
-    setAssignForm(prev => ({ ...prev, class_teacher_id: teacherId }));
-  };
 
   const handleSubjectTeacherSlotChange = (subjectName, slotIndex, teacherId) => {
     const updated = assignForm.subject_teachers.map(st => {
@@ -334,21 +318,9 @@ const AdminStaffAssignments = () => {
       return;
     }
 
-    let designatedCT = assignForm.class_teacher_id;
-    if (newCustomIsClassTeacher && newCustomTeacherId) {
-      const clash = getOtherClassTeacherAssignment(newCustomTeacherId);
-      if (clash) {
-        const teacher = staffList.find(s => s.id === newCustomTeacherId);
-        alert(`Cannot assign ${teacher?.name || 'this teacher'} as Class Teacher: Already assigned for Class ${clash.class_name} (${clash.section || 'A'}). A teacher can only be class teacher of 1 class.`);
-      } else {
-        designatedCT = newCustomTeacherId;
-      }
-    }
-
     const customIds = [newCustomTeacherId, newCustomSecondaryTeacherId].filter(Boolean);
     setAssignForm({
       ...assignForm,
-      class_teacher_id: designatedCT,
       subject_teachers: [
         ...assignForm.subject_teachers,
         { 
@@ -362,7 +334,6 @@ const AdminStaffAssignments = () => {
     setNewCustomSubject('');
     setNewCustomTeacherId('');
     setNewCustomSecondaryTeacherId('');
-    setNewCustomIsClassTeacher(false);
   };
 
   const handleAssignSubmit = async (e) => {
@@ -884,37 +855,6 @@ const AdminStaffAssignments = () => {
                     ))}
                   </select>
                 </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                      <FaCrown className="text-amber-500" /> Designated Class Teacher
-                    </label>
-                    <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                      1 Teacher = 1 Class Only
-                    </span>
-                  </div>
-                  <select 
-                    className="w-full p-2.5 border rounded-lg bg-white text-sm font-medium outline-none focus:border-teal-500" 
-                    value={assignForm.class_teacher_id} 
-                    onChange={e => setAssignForm({...assignForm, class_teacher_id: e.target.value})}
-                  >
-                    <option value="">-- No Class Teacher Assigned (Or select from subjects below) --</option>
-                    {staffList.map(s => {
-                      const otherAssignment = getOtherClassTeacherAssignment(s.id);
-                      const isCurrent = s.id === assignForm.class_teacher_id;
-                      const isBusy = !!otherAssignment && !isCurrent;
-                      return (
-                        <option key={s.id} value={s.id} disabled={isBusy} className={isBusy ? 'text-gray-400 bg-gray-50' : ''}>
-                          {s.name} ({s.role || 'Teacher'}) {isCurrent ? '👑 [Current Class Teacher]' : ''} {isBusy ? `— [Already Class Teacher: ${otherAssignment.class_name} ${otherAssignment.section || 'A'}]` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    Rule 9: A single teacher can be class teacher of only 1 class and will always have the first period everyday.
-                  </p>
-                </div>
               </div>
 
               {/* Subject Table with Teacher Dropdown against each subject */}
@@ -924,9 +864,6 @@ const AdminStaffAssignments = () => {
                     <FaBookOpen className="text-teal-600" />
                     Subjects Configured for Class {assignForm.class_name || '...'} ({assignForm.subject_teachers.length})
                   </div>
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <FaCrown className="text-amber-500" /> Click "Set as Class Teacher" on any subject to designate the class teacher
-                  </span>
                 </div>
 
                 <div className="divide-y divide-gray-100 max-h-[460px] overflow-y-auto">
@@ -1010,30 +947,6 @@ const AdminStaffAssignments = () => {
                                     {slotLabel}
                                   </label>
                                   <div className="flex items-center gap-1">
-                                    {teacherId && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleToggleClassTeacher(teacherId)}
-                                        disabled={isBusy}
-                                        title={
-                                          isBusy
-                                            ? `Already Class Teacher of ${otherAssignment.class_name} (${otherAssignment.section || 'A'})`
-                                            : isCT
-                                            ? 'Currently Class Teacher. Click to unassign.'
-                                            : `Set as Class Teacher for Class ${assignForm.class_name || ''} (Rule 9: Period 1 everyday)`
-                                        }
-                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition border cursor-pointer ${
-                                          isCT
-                                            ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs ring-1 ring-amber-400'
-                                            : isBusy
-                                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-75'
-                                            : 'bg-white hover:bg-amber-50 text-gray-600 hover:text-amber-800 border-gray-300'
-                                        }`}
-                                      >
-                                        <FaCrown className={isCT ? 'text-amber-600 text-[10px]' : 'text-gray-400 text-[10px]'} />
-                                        <span>{isCT ? 'Class Teacher' : isBusy ? 'CT Elsewhere' : 'Make CT'}</span>
-                                      </button>
-                                    )}
                                     {currentSlots.length > 1 && (
                                       <button
                                         type="button"
@@ -1124,17 +1037,6 @@ const AdminStaffAssignments = () => {
                     ))}
                   </select>
 
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 cursor-pointer bg-white px-2.5 py-2 rounded-lg border border-gray-200 hover:border-amber-300 whitespace-nowrap self-stretch md:self-auto">
-                    <input
-                      type="checkbox"
-                      checked={newCustomIsClassTeacher}
-                      onChange={e => setNewCustomIsClassTeacher(e.target.checked)}
-                      disabled={!newCustomTeacherId}
-                      className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
-                    />
-                    <FaCrown className={newCustomIsClassTeacher ? 'text-amber-500 text-xs' : 'text-gray-400 text-xs'} />
-                    <span>Set as Class Teacher</span>
-                  </label>
 
                   <button
                     type="button"

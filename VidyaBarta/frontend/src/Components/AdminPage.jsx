@@ -35,6 +35,7 @@ import CommunicationHub from './CommunicationHub';
 import WalletDashboard from './WalletDashboard';
 import DomainManager from './DomainManager';
 import ClassSubjectConfig from './ClassSubjectConfig';
+import ClassSubjectTeacher from './ClassSubjectTeacher';
 import ManageSchoolClasses from './ManageSchoolClasses';
 import ConfirmModal from './ConfirmModal';
 import SystemLogs from './SystemLogs';
@@ -104,7 +105,34 @@ function AdminPage() {
   useEffect(() => {
     localStorage.setItem('adminActiveTab', activeTab);
   }, [activeTab]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 1024) return false;
+      const saved = localStorage.getItem('adminSidebarOpen');
+      if (saved !== null) return saved === 'true';
+      return true;
+    }
+    return true;
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(prev => {
+      const next = !prev;
+      if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+        try {
+          localStorage.setItem('adminSidebarOpen', String(next));
+        } catch (e) {}
+      }
+      return next;
+    });
+  };
+
+  const navigateToTab = (tab) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  };
   const [openDropdown, setOpenDropdown] = useState(null); // 'content', 'data', 'system', etc.
 
   useEffect(() => {
@@ -8847,122 +8875,154 @@ function AdminPage() {
         />
       )}
 
-      <aside className={"fixed lg:sticky top-0 h-screen w-72 bg-surface border-r border-outline-variant flex flex-col z-50 transition-transform duration-300 " + (isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')}>
-        <div className="p-6 flex items-center justify-center border-b border-outline-variant gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center border border-primary/20 overflow-hidden bg-white shrink-0">
+      <aside 
+        className={`fixed lg:sticky top-0 h-screen bg-surface flex flex-col z-50 overflow-hidden transition-all duration-300 ease-in-out ${
+          isSidebarOpen 
+            ? 'w-72 translate-x-0 border-r border-outline-variant shadow-lg lg:shadow-none' 
+            : 'w-72 -translate-x-full border-r border-outline-variant lg:w-0 lg:translate-x-0 lg:border-r-0'
+        }`}
+      >
+        <div className="w-72 flex flex-col h-full shrink-0">
+          <div className="p-6 flex items-center justify-center border-b border-outline-variant gap-3 shrink-0">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center border border-primary/20 overflow-hidden bg-white shrink-0 shadow-sm">
               {schoolProfile?.logo ? (
                 <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-1" />
               ) : (
                 <FaGraduationCap className="text-primary text-lg" />
               )}
             </div>
-            <div className="flex flex-col justify-center items-start overflow-hidden">
-              <h2 className="text-sm font-bold text-neutral leading-none tracking-wide mb-0.5 truncate w-full">
+            <div className="flex flex-col justify-center items-start overflow-hidden min-w-0 flex-1">
+              <h2 className="text-sm font-bold text-neutral leading-none tracking-wide mb-1 truncate w-full" title={schoolProfile?.name || "School"}>
                 {schoolProfile?.name || "School"}
               </h2>
               <span className="text-[10px] text-primary/80 font-bold uppercase tracking-[0.2em] leading-none">Admin Console</span>
             </div>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          {adminUser?.role === 'developer' && (
-             <SidebarItem active={activeTab === 'activity'} onClick={() => { setActiveTab('activity'); setIsSidebarOpen(false); }} icon={FiMonitor} label="Activity Logs" />
-          )}
-          {(adminUser?.role === 'developer' || adminUser?.role === 'principal') && (
-            <SidebarItem active={activeTab === 'systemLogs' || activeTab === 'onlineUsers'} icon={FiMonitor} label="System Monitoring">
-              <SubItem active={activeTab === 'systemLogs'} onClick={() => { setActiveTab('systemLogs'); setIsSidebarOpen(false); }} label="Audit Logs" />
-              <SubItem active={activeTab === 'onlineUsers'} onClick={() => { setActiveTab('onlineUsers'); setIsSidebarOpen(false); }} label="Online Users" />
-            </SidebarItem>
-          )}
-
-          <SidebarItem active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} icon={FiHome} label="Dashboard" />
+          </div>
           
-          <SidebarItem active={isContentActive} icon={FiLayers} label="Content">
-            <SubItem active={activeTab === 'schoolProfile'} onClick={() => { setActiveTab('schoolProfile'); setIsSidebarOpen(false); }} label="School Profile" />
-            <SubItem active={activeTab === 'faculty'} onClick={() => { setActiveTab('faculty'); setIsSidebarOpen(false); }} label="Faculty" />
-            <SubItem active={activeTab === 'alumni'} onClick={() => { setActiveTab('alumni'); setIsSidebarOpen(false); }} label="Alumni" />
-            <SubItem active={activeTab === 'excellence'} onClick={() => { setActiveTab('excellence'); setIsSidebarOpen(false); }} label="Excellence" />
-            <SubItem active={activeTab === 'emeritus'} onClick={() => { setActiveTab('emeritus'); setIsSidebarOpen(false); }} label="Alumestron" />
-            <SubItem active={activeTab === 'careerAds'} onClick={() => { setActiveTab('careerAds'); setIsSidebarOpen(false); }} label="Career Ads" />
-            <SubItem active={activeTab === 'socialMedia'} onClick={() => { setActiveTab('socialMedia'); setIsSidebarOpen(false); }} label="Social Media" />
-            <SubItem active={activeTab === 'about'} onClick={() => { setActiveTab('about'); setIsSidebarOpen(false); }} label="About Page" />
-            <SubItem active={activeTab === 'courses'} onClick={() => { setActiveTab('courses'); setIsSidebarOpen(false); }} label="Courses Page" />
-            <SubItem active={activeTab === 'faqs'} onClick={() => { setActiveTab('faqs'); setIsSidebarOpen(false); }} label="FAQs" />
-          </SidebarItem>
-
-          <SidebarItem active={isFinanceActive} icon={FaMoneyCheckAlt} label="Finance & Fees">
-            <SubItem active={activeTab === 'fees'} onClick={() => { setActiveTab('fees'); setIsSidebarOpen(false); }} label="Fee Dashboard" />
-
-            <SubItem active={activeTab === 'fines'} onClick={() => { setActiveTab('fines'); setIsSidebarOpen(false); }} label="Late Fees & Fines" />
-            {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
-              <SubItem active={activeTab === 'wallet'} onClick={() => { setActiveTab('wallet'); setIsSidebarOpen(false); }} label="Escrow Wallet & Payouts" />
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            {adminUser?.role === 'developer' && (
+               <SidebarItem active={activeTab === 'activity'} onClick={() => navigateToTab('activity')} icon={FiMonitor} label="Activity Logs" />
             )}
-          </SidebarItem>
-
-          <SidebarItem active={activeTab === 'classesSections'} onClick={() => { setActiveTab('classesSections'); setIsSidebarOpen(false); }} icon={FaLayerGroup} label="Classes & Sections" />
-          <SidebarItem active={activeTab === 'classSubjects'} onClick={() => { setActiveTab('classSubjects'); setIsSidebarOpen(false); }} icon={FaBookOpen} label="Subject Selection" />
-          <SidebarItem active={isAcademicsActive} icon={FaGraduationCap} label="Exams & Academics">
-            <SubItem active={activeTab === 'timetables'} onClick={() => { setActiveTab('timetables'); setIsSidebarOpen(false); }} label="Class Timetables" />
-            <SubItem active={activeTab === 'exams'} onClick={() => { setActiveTab('exams'); setIsSidebarOpen(false); }} label="Exam Management" />
-            <SubItem active={activeTab === 'admitCards'} onClick={() => { setActiveTab('admitCards'); setIsSidebarOpen(false); }} label="Admit Cards & Concessions" />
-            <SubItem active={activeTab === 'seats'} onClick={() => { setActiveTab('seats'); setIsSidebarOpen(false); }} label="Exam Duties & Seats" />
-            <SubItem active={activeTab === 'results'} onClick={() => { setActiveTab('results'); setIsSidebarOpen(false); }} label="Results & Marksheets" />
-            {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
-              <SubItem active={activeTab === 'certificates'} onClick={() => { setActiveTab('certificates'); setIsSidebarOpen(false); }} label="Certificates (TC/Character)" />
+            {(adminUser?.role === 'developer' || adminUser?.role === 'principal') && (
+              <SidebarItem active={activeTab === 'systemLogs' || activeTab === 'onlineUsers'} icon={FiMonitor} label="System Monitoring">
+                <SubItem active={activeTab === 'systemLogs'} onClick={() => navigateToTab('systemLogs')} label="Audit Logs" />
+                <SubItem active={activeTab === 'onlineUsers'} onClick={() => navigateToTab('onlineUsers')} label="Online Users" />
+              </SidebarItem>
             )}
-          </SidebarItem>
 
-          {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
-            <SidebarItem active={isCommunicationActive} icon={FaPaperPlane} label="Communication">
-              <SubItem active={activeTab === 'communication'} onClick={() => { setActiveTab('communication'); setIsSidebarOpen(false); }} label="Broadcast Hub (WhatsApp/SMS)" />
+            <SidebarItem active={activeTab === 'dashboard'} onClick={() => navigateToTab('dashboard')} icon={FiHome} label="Dashboard" />
+            
+            <SidebarItem active={isContentActive} icon={FiLayers} label="Content">
+              <SubItem active={activeTab === 'schoolProfile'} onClick={() => navigateToTab('schoolProfile')} label="School Profile" />
+              <SubItem active={activeTab === 'faculty'} onClick={() => navigateToTab('faculty')} label="Faculty" />
+              <SubItem active={activeTab === 'alumni'} onClick={() => navigateToTab('alumni')} label="Alumni" />
+              <SubItem active={activeTab === 'excellence'} onClick={() => navigateToTab('excellence')} label="Excellence" />
+              <SubItem active={activeTab === 'emeritus'} onClick={() => navigateToTab('emeritus')} label="Alumestron" />
+              <SubItem active={activeTab === 'careerAds'} onClick={() => navigateToTab('careerAds')} label="Career Ads" />
+              <SubItem active={activeTab === 'socialMedia'} onClick={() => navigateToTab('socialMedia')} label="Social Media" />
+              <SubItem active={activeTab === 'about'} onClick={() => navigateToTab('about')} label="About Page" />
+              <SubItem active={activeTab === 'courses'} onClick={() => navigateToTab('courses')} label="Courses Page" />
+              <SubItem active={activeTab === 'faqs'} onClick={() => navigateToTab('faqs')} label="FAQs" />
             </SidebarItem>
-          )}
 
-          <SidebarItem active={isDataActive} icon={FiUsers} label="Data">
-             <SubItem active={activeTab === 'admission'} onClick={() => { setActiveTab('admission'); setIsSidebarOpen(false); }} label="Admission" />
-             {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
-               <>
-                 <SubItem active={activeTab === 'appointments'} onClick={() => { setActiveTab('appointments'); setIsSidebarOpen(false); }} label="Appointments" />
-                 <SubItem active={activeTab === 'inquiries'} onClick={() => { setActiveTab('inquiries'); setIsSidebarOpen(false); }} label="Inquiries" />
-                 <SubItem active={activeTab === 'jobApplications'} onClick={() => { setActiveTab('jobApplications'); setIsSidebarOpen(false); }} label="Recruitment" />
-                 <SubItem active={activeTab === 'staffLeaves'} onClick={() => { setActiveTab('staffLeaves'); setIsSidebarOpen(false); }} label="Staff Leaves" />
-                 <SubItem active={activeTab === 'staffRequests'} onClick={() => { setActiveTab('staffRequests'); setIsSidebarOpen(false); }} label="Staff Requests" />
-                 <SubItem active={activeTab === 'staffPayroll'} onClick={() => { setActiveTab('staffPayroll'); setIsSidebarOpen(false); }} label="Payroll" />
-                 <SubItem active={activeTab === 'tenders'} onClick={() => { setActiveTab('tenders'); setIsSidebarOpen(false); }} label="Tenders" />
-               </>
-             )}
-             <SubItem active={activeTab === 'staffAssignments'} onClick={() => { setActiveTab('staffAssignments'); setIsSidebarOpen(false); }} label="Staff Assignments" />
-             <SubItem active={activeTab === 'staffAnnouncements'} onClick={() => { setActiveTab('staffAnnouncements'); setIsSidebarOpen(false); }} label="Announcements" />
-             <SubItem active={activeTab === 'platformNotices'} onClick={() => { setActiveTab('platformNotices'); setIsSidebarOpen(false); }} label={unreadSchoolNotifCount > 0 ? `VidyaBarta Notices (${unreadSchoolNotifCount})` : 'VidyaBarta Notices'} />
-             <SubItem active={activeTab === 'teachers'} onClick={() => { setActiveTab('teachers'); setIsSidebarOpen(false); }} label="Teachers Database" />
-             <SubItem active={activeTab === 'students'} onClick={() => { setActiveTab('students'); setIsSidebarOpen(false); }} label="Students" />
-             <SubItem active={activeTab === 'studentAttendance'} onClick={() => { setActiveTab('studentAttendance'); setIsSidebarOpen(false); }} label="Student Attendance" />
-             <SubItem active={activeTab === 'staffAttendance'} onClick={() => { setActiveTab('staffAttendance'); setIsSidebarOpen(false); }} label="Staff Attendance" />
-          </SidebarItem>
+            <SidebarItem active={isFinanceActive} icon={FaMoneyCheckAlt} label="Finance & Fees">
+              <SubItem active={activeTab === 'fees'} onClick={() => navigateToTab('fees')} label="Fee Dashboard" />
 
-          <SidebarItem active={isSystemActive} icon={FiSettings} label="System">
+              <SubItem active={activeTab === 'fines'} onClick={() => navigateToTab('fines')} label="Late Fees & Fines" />
+              {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+                <SubItem active={activeTab === 'wallet'} onClick={() => navigateToTab('wallet')} label="Escrow Wallet & Payouts" />
+              )}
+            </SidebarItem>
+
+            <SidebarItem active={activeTab === 'classesSections'} onClick={() => navigateToTab('classesSections')} icon={FaLayerGroup} label="Classes & Sections" />
+            <SidebarItem active={activeTab === 'classSubjects'} onClick={() => navigateToTab('classSubjects')} icon={FaBookOpen} label="Subject Selection" />
+            <SidebarItem active={activeTab === 'classSubjectTeacher'} onClick={() => navigateToTab('classSubjectTeacher')} icon={FaChalkboardTeacher} label="Class Subject Teacher" />
+            <SidebarItem active={isAcademicsActive} icon={FaGraduationCap} label="Exams & Academics">
+              <SubItem active={activeTab === 'timetables'} onClick={() => navigateToTab('timetables')} label="Class Timetables" />
+              <SubItem active={activeTab === 'exams'} onClick={() => navigateToTab('exams')} label="Exam Management" />
+              <SubItem active={activeTab === 'admitCards'} onClick={() => navigateToTab('admitCards')} label="Admit Cards & Concessions" />
+              <SubItem active={activeTab === 'seats'} onClick={() => navigateToTab('seats')} label="Exam Duties & Seats" />
+              <SubItem active={activeTab === 'results'} onClick={() => navigateToTab('results')} label="Results & Marksheets" />
+              {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+                <SubItem active={activeTab === 'certificates'} onClick={() => navigateToTab('certificates')} label="Certificates (TC/Character)" />
+              )}
+            </SidebarItem>
+
             {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
-              <>
-                <SubItem active={activeTab === 'pendingAdmins'} onClick={() => { setActiveTab('pendingAdmins'); setIsSidebarOpen(false); }} label="Access Requests" />
-                <SubItem active={activeTab === 'status'} onClick={() => { setActiveTab('status'); setIsSidebarOpen(false); }} label="Portal Status" />
-              </>
+              <SidebarItem active={isCommunicationActive} icon={FaPaperPlane} label="Communication">
+                <SubItem active={activeTab === 'communication'} onClick={() => navigateToTab('communication')} label="Broadcast Hub (WhatsApp/SMS)" />
+              </SidebarItem>
             )}
-            <SubItem active={activeTab === 'bulk'} onClick={() => { setActiveTab('bulk'); setIsSidebarOpen(false); }} label="Bulk Upload" />
-            <SubItem active={activeTab === 'holidays'} onClick={() => { setActiveTab('holidays'); setIsSidebarOpen(false); }} label="Holiday Calendar" />
-            <SubItem active={activeTab === 'idCardViewer'} onClick={() => { setActiveTab('idCardViewer'); setIsSidebarOpen(false); }} label="ID Card Template Viewer" />
-            <SubItem active={activeTab === 'domains'} onClick={() => { setActiveTab('domains'); setIsSidebarOpen(false); }} label="Custom Domains" />
-          </SidebarItem>
+
+            <SidebarItem active={isDataActive} icon={FiUsers} label="Data">
+               <SubItem active={activeTab === 'admission'} onClick={() => navigateToTab('admission')} label="Admission" />
+               {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+                 <>
+                   <SubItem active={activeTab === 'appointments'} onClick={() => navigateToTab('appointments')} label="Appointments" />
+                   <SubItem active={activeTab === 'inquiries'} onClick={() => navigateToTab('inquiries')} label="Inquiries" />
+                   <SubItem active={activeTab === 'jobApplications'} onClick={() => navigateToTab('jobApplications')} label="Recruitment" />
+                   <SubItem active={activeTab === 'staffLeaves'} onClick={() => navigateToTab('staffLeaves')} label="Staff Leaves" />
+                   <SubItem active={activeTab === 'staffRequests'} onClick={() => navigateToTab('staffRequests')} label="Staff Requests" />
+                   <SubItem active={activeTab === 'staffPayroll'} onClick={() => navigateToTab('staffPayroll')} label="Payroll" />
+                   <SubItem active={activeTab === 'tenders'} onClick={() => navigateToTab('tenders')} label="Tenders" />
+                 </>
+               )}
+               <SubItem active={activeTab === 'staffAssignments'} onClick={() => navigateToTab('staffAssignments')} label="Staff Assignments" />
+               <SubItem active={activeTab === 'staffAnnouncements'} onClick={() => navigateToTab('staffAnnouncements')} label="Announcements" />
+               <SubItem active={activeTab === 'platformNotices'} onClick={() => navigateToTab('platformNotices')} label={unreadSchoolNotifCount > 0 ? `VidyaBarta Notices (${unreadSchoolNotifCount})` : 'VidyaBarta Notices'} />
+               <SubItem active={activeTab === 'teachers'} onClick={() => navigateToTab('teachers')} label="Teachers Database" />
+               <SubItem active={activeTab === 'students'} onClick={() => navigateToTab('students')} label="Students" />
+               <SubItem active={activeTab === 'studentAttendance'} onClick={() => navigateToTab('studentAttendance')} label="Student Attendance" />
+               <SubItem active={activeTab === 'staffAttendance'} onClick={() => navigateToTab('staffAttendance')} label="Staff Attendance" />
+            </SidebarItem>
+
+            <SidebarItem active={isSystemActive} icon={FiSettings} label="System">
+              {(adminUser?.role === 'principal' || adminUser?.role === 'developer') && (
+                <>
+                  <SubItem active={activeTab === 'pendingAdmins'} onClick={() => navigateToTab('pendingAdmins')} label="Access Requests" />
+                  <SubItem active={activeTab === 'status'} onClick={() => navigateToTab('status')} label="Portal Status" />
+                </>
+              )}
+              <SubItem active={activeTab === 'bulk'} onClick={() => navigateToTab('bulk')} label="Bulk Upload" />
+              <SubItem active={activeTab === 'holidays'} onClick={() => navigateToTab('holidays')} label="Holiday Calendar" />
+              <SubItem active={activeTab === 'idCardViewer'} onClick={() => navigateToTab('idCardViewer')} label="ID Card Template Viewer" />
+              <SubItem active={activeTab === 'domains'} onClick={() => navigateToTab('domains')} label="Custom Domains" />
+            </SidebarItem>
+          </div>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header className="h-20 bg-surface border-b border-outline-variant flex items-center justify-between px-6 shrink-0 shadow-sm">
-          <button 
-            className="lg:hidden text-on-surface-variant p-2 rounded-lg hover:bg-surface-variant"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <FiMenu className="text-2xl" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              type="button"
+              className="text-on-surface-variant hover:text-primary p-2.5 rounded-xl hover:bg-surface-variant/80 transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/20"
+              onClick={toggleSidebar}
+              title={isSidebarOpen ? "Hide sidebar menu" : "Show sidebar menu"}
+              aria-label="Toggle sidebar menu"
+            >
+              <FiMenu className="text-2xl" />
+            </button>
+
+            {!isSidebarOpen && (
+              <div className="hidden sm:flex items-center gap-2.5 pl-1 animate-fadeIn">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center border border-primary/20 overflow-hidden bg-white shrink-0 shadow-xs">
+                  {schoolProfile?.logo ? (
+                    <img src={schoolProfile.logo} alt="School Logo" className="w-full h-full object-contain p-0.5" />
+                  ) : (
+                    <FaGraduationCap className="text-primary text-sm" />
+                  )}
+                </div>
+                <span className="text-sm font-bold text-neutral truncate max-w-[200px] xl:max-w-xs">
+                  {schoolProfile?.name || "School"}
+                </span>
+                <span className="text-[10px] text-primary font-bold uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-md">
+                  Admin
+                </span>
+              </div>
+            )}
+          </div>
           
           <div className="flex-1" />
           
@@ -9220,6 +9280,14 @@ function AdminPage() {
 
           {activeTab === 'classSubjects' && (
             <ClassSubjectConfig API_URL={API_URL} onNavigateToClasses={() => setActiveTab('classesSections')} />
+          )}
+
+          {activeTab === 'classSubjectTeacher' && (
+            <ClassSubjectTeacher 
+              API_URL={API_URL} 
+              onNavigateToClasses={() => setActiveTab('classesSections')} 
+              onNavigateToSubjects={() => setActiveTab('classSubjects')} 
+            />
           )}
 
           {activeTab === 'settings' && (adminUser?.role === 'superadmin' || adminUser?.role === 'developer') && renderSettingsTab()}

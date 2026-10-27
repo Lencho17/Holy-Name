@@ -112,7 +112,7 @@ const StudentProfileViewer = ({ student, onClose, onEditSubjects, onUpdate, apiU
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden animate-scaleIn flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
           <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">

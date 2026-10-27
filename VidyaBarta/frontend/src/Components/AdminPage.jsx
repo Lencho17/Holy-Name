@@ -103,6 +103,36 @@ const normClassStr = (val) => {
   return romanMap[clean] || clean;
 };
 
+const formatClassGradeDisplay = (className) => {
+  if (!className) return '';
+  const clean = String(className).replace(/^Class\s*/i, '').trim();
+  const romanMap = {
+    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+    '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+    '11': 'XI', '12': 'XII'
+  };
+  return romanMap[clean] || clean;
+};
+
+const formatDateDDMMYYYY = (val) => {
+  if (!val) return 'N/A';
+  const str = String(val).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
+  const ymdMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+  }
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+  return str;
+};
+
 function AdminPage() {
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('adminActiveTab');
@@ -325,6 +355,28 @@ function AdminPage() {
     bloodGroup: '',
     address: ''
   });
+  const [sectionViewModal, setSectionViewModal] = useState({
+    isOpen: false,
+    className: '',
+    section: '',
+    students: [],
+    loading: false,
+    searchQuery: '',
+    statusFilter: 'all'
+  });
+  const [studentDirectoryViewMode, setStudentDirectoryViewMode] = useState('summary'); // 'summary' | 'classList'
+  const [selectedClassListGrade, setSelectedClassListGrade] = useState('');
+  const [selectedClassListSection, setSelectedClassListSection] = useState('A');
+  const [classListSearchQuery, setClassListSearchQuery] = useState('');
+
+  const handleOpenClassStudentList = (className, sec) => {
+    const cleanCls = className || (activeClassList[0]?.name || 'I');
+    const cleanSec = String(sec || 'A').replace(/\s*\(.*\)/, '').trim();
+    setSelectedClassListGrade(cleanCls);
+    setSelectedClassListSection(cleanSec);
+    setClassListSearchQuery('');
+    setStudentDirectoryViewMode('classList');
+  };
   const [newStaffForm, setNewStaffForm] = useState({ name: '', email: '', phone: '', role: 'Teacher' });
   const [newStaffPassword, setNewStaffPassword] = useState('');
   const [isAddingStaff, setIsAddingStaff] = useState(false);
@@ -1362,6 +1414,18 @@ function AdminPage() {
       if (res.ok) {
         toast.success(`Student status updated to ${status}`);
         fetchStudents();
+        setSectionViewModal(prev => {
+          if (!prev.isOpen) return prev;
+          return {
+            ...prev,
+            students: prev.students.map(s => {
+              if ((s._id || s.id) === studentId) {
+                return { ...s, enrollment_status: status, enrollmentStatus: status };
+              }
+              return s;
+            })
+          };
+        });
       } else {
         const err = await res.json();
         toast.error(`Failed to update status: ${err.message}`);
@@ -1369,6 +1433,161 @@ function AdminPage() {
     } catch (e) {
       toast.error(`Error: ${e.message}`);
     }
+  };
+
+  const getClassTeacherName = (className, section = null) => {
+    const normClass = String(className).replace(/^Class\s*/i, '').trim().toLowerCase();
+    if (section) {
+      const normSec = String(section).trim().toLowerCase();
+      const match = (classAssignments || []).find(a => {
+        const aClass = String(a.class_name || '').replace(/^Class\s*/i, '').trim().toLowerCase();
+        const aSec = String(a.section || 'A').trim().toLowerCase();
+        return aClass === normClass && aSec === normSec;
+      });
+      return match?.class_teacher?.name || (match?.class_teacher_id ? 'Assigned' : 'Not Assigned');
+    }
+
+    const matches = (classAssignments || []).filter(a => {
+      const aClass = String(a.class_name || '').replace(/^Class\s*/i, '').trim().toLowerCase();
+      return aClass === normClass && (a.class_teacher?.name || a.class_teacher_id);
+    });
+
+    if (matches.length === 0) return 'Not Assigned';
+    const teacherNames = Array.from(new Set(matches.map(m => m.class_teacher?.name).filter(Boolean)));
+    if (teacherNames.length === 1) return teacherNames[0];
+    if (teacherNames.length > 1) {
+      return matches.map(m => `Sec ${m.section || 'A'}: ${m.class_teacher?.name || 'Assigned'}`).join(', ');
+    }
+    return 'Assigned';
+  };
+
+  const handleOpenAddStudentForSection = (className, sec) => {
+    const cleanSec = String(sec).replace(/\s*\(.*\)/, '').trim();
+    setNewStudentForm({
+      name: '',
+      rollNumber: '',
+      admissionId: '',
+      classLevel: className,
+      section: cleanSec,
+      gender: 'Male',
+      dob: '',
+      fatherName: '',
+      motherName: '',
+      guardianName: '',
+      phone: '',
+      email: '',
+      penNumber: '',
+      aadharNumber: '',
+      bloodGroup: '',
+      address: ''
+    });
+    setShowAddStudentModal(true);
+  };
+
+  const handleOpenSectionStudentsModal = async (className, sec) => {
+    const cleanSec = String(sec).replace(/\s*\(.*\)/, '').trim();
+    setSectionViewModal({
+      isOpen: true,
+      className,
+      section: cleanSec,
+      students: [],
+      loading: true,
+      searchQuery: '',
+      statusFilter: 'all'
+    });
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams();
+      params.append('class_level', className);
+      params.append('section', cleanSec);
+      params.append('status', 'all');
+      params.append('limit', '1000');
+      params.append('sortBy', 'name_asc');
+
+      const res = await fetch(`${API_URL}/students?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.status === 401) return handleLogout();
+      if (res.ok) {
+        const result = await res.json();
+        const rawStudents = result.data || result || [];
+        const mapped = mapSupabaseToLegacy(rawStudents);
+        setSectionViewModal(prev => ({
+          ...prev,
+          students: mapped,
+          loading: false
+        }));
+      } else {
+        setSectionViewModal(prev => ({ ...prev, loading: false }));
+        toast.error('Failed to load students for this section');
+      }
+    } catch (err) {
+      console.error('Error fetching section students:', err);
+      setSectionViewModal(prev => ({ ...prev, loading: false }));
+      toast.error('Error loading students');
+    }
+  };
+
+  const refreshSectionViewModal = async (className, section) => {
+    if (!className || !section) return;
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams();
+      params.append('class_level', className);
+      params.append('section', section);
+      params.append('status', 'all');
+      params.append('limit', '1000');
+      params.append('sortBy', 'name_asc');
+
+      const res = await fetch(`${API_URL}/students?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const result = await res.json();
+        const rawStudents = result.data || result || [];
+        const mapped = mapSupabaseToLegacy(rawStudents);
+        setSectionViewModal(prev => ({
+          ...prev,
+          students: mapped,
+          loading: false
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleExportSectionStudents = (studentsList, className, sec) => {
+    if (!studentsList || studentsList.length === 0) {
+      toast.error('No students to export in this section');
+      return;
+    }
+    const headers = ['Roll No', 'Student Name', 'Gender', 'DOB', 'Class', 'Section', 'PEN Number', 'Aadhaar Number', 'Admission ID', "Father's Name", "Mother's Name", 'Contact Number', 'Status'];
+    const rows = studentsList.map((s, idx) => [
+      s.rollNumber || s.roll_number || (idx + 1),
+      s.studentName || s.student_name || '',
+      s.gender || '',
+      s.dateOfBirth || s.date_of_birth || '',
+      s.grade || className || '',
+      s.section || sec || '',
+      s.penNumber || s.pen_number || '',
+      s.aadharNumber || s.aadhar_number || '',
+      s.admissionId || s.admission_id || '',
+      s.fatherName || s.father_name || '',
+      s.motherName || s.mother_name || '',
+      s.phone || s.contactNumber || s.contact_number || '',
+      s.enrollment_status || s.enrollmentStatus || 'active'
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Students_Class_${className}_Sec_${sec}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${studentsList.length} students to CSV`);
   };
 
   const handleGlobalSearch = async (e) => {
@@ -1434,6 +1653,14 @@ function AdminPage() {
       if(res.ok) {
         setStudents(students.filter(s => (s._id || s.id) !== sId));
         setStudentToDelete(null);
+        fetchStudentStats();
+        setSectionViewModal(prev => {
+          if (!prev.isOpen) return prev;
+          return {
+            ...prev,
+            students: prev.students.filter(s => (s._id || s.id) !== sId)
+          };
+        });
       }
     } catch(err) {
       toast.error("Failed to delete student: " + err.message);
@@ -2168,6 +2395,9 @@ function AdminPage() {
         });
         setShowAddStudentModal(false);
         fetchStudents();
+        if (sectionViewModal.isOpen && sectionViewModal.className && sectionViewModal.section) {
+          refreshSectionViewModal(sectionViewModal.className, sectionViewModal.section);
+        }
       } else {
         throw new Error(data.message || 'Error adding student');
       }
@@ -9387,11 +9617,42 @@ function AdminPage() {
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 border-b pb-4">
                 <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
                   <h3 className="text-xl font-bold text-gray-800">Student Directory</h3>
+
+                  <div className="flex items-center bg-gray-100 p-1 rounded-lg border border-gray-200 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setStudentDirectoryViewMode('summary')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                        studentDirectoryViewMode === 'summary'
+                          ? 'bg-[#1E5E8A] text-white shadow-xs'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Class Summary
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedClassListGrade) {
+                          setSelectedClassListGrade(activeClassList[0]?.name || 'I');
+                          setSelectedClassListSection('A');
+                        }
+                        setStudentDirectoryViewMode('classList');
+                      }}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                        studentDirectoryViewMode === 'classList'
+                          ? 'bg-[#1E5E8A] text-white shadow-xs'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Class Student List
+                    </button>
+                  </div>
                   
                   <select 
                     value={studentViewStatus}
                     onChange={(e) => setStudentViewStatus(e.target.value)}
-                    className="border border-gray-300 rounded-lg p-2 font-semibold text-gray-700 bg-gray-50 focus:ring-2 focus:ring-primary outline-none"
+                    className="border border-gray-300 rounded-lg p-2 font-semibold text-gray-700 bg-gray-50 focus:ring-2 focus:ring-primary outline-none text-xs"
                   >
                     <option value="active">Active Students</option>
                     <option value="not_progressed">Not Progressed Students</option>
@@ -10206,6 +10467,289 @@ function AdminPage() {
                       }
                     };
 
+                    // If Class Student List view is active, render exact UDISE Class Student List matching user screenshot
+                    if (studentDirectoryViewMode === 'classList') {
+                      const activeGrade = selectedClassListGrade || (classOrder.length > 0 ? classOrder[0] : 'I');
+                      const availableSections = getClassSections(activeGrade, stats.classes[activeGrade] || {});
+                      const activeSection = selectedClassListSection && availableSections.includes(selectedClassListSection)
+                        ? selectedClassListSection
+                        : (availableSections[0] || 'A');
+
+                      const normTargetGrade = normClassStr(activeGrade);
+                      const normTargetSec = String(activeSection).trim().toUpperCase();
+                      const q = (classListSearchQuery || '').toLowerCase().trim();
+
+                      const targetStudents = (students || []).filter(s => {
+                        const sGrade = normClassStr(s.grade);
+                        const sSec = String(s.section || 'A').trim().toUpperCase();
+                        if (sGrade !== normTargetGrade || sSec !== normTargetSec) return false;
+                        if (q) {
+                          const name = (s.studentName || s.student_name || '').toLowerCase();
+                          const pen = (s.penNumber || s.pen_number || '').toLowerCase();
+                          const adm = (s.admissionId || s.admission_id || '').toLowerCase();
+                          return name.includes(q) || pen.includes(q) || adm.includes(q);
+                        }
+                        return true;
+                      });
+
+                      return (
+                        <div className="space-y-4 animate-fadeIn">
+                          {/* Top Controls matching exact screenshot: Class : [ II v ]  Section : [ A v ] */}
+                          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex flex-wrap items-center gap-4 sm:gap-8">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-800 text-sm">Class :</span>
+                                <select
+                                  value={activeGrade}
+                                  onChange={(e) => {
+                                    const newGrade = e.target.value;
+                                    setSelectedClassListGrade(newGrade);
+                                    const secs = getClassSections(newGrade, stats.classes[newGrade] || {});
+                                    if (!secs.includes(activeSection)) {
+                                      setSelectedClassListSection(secs[0] || 'A');
+                                    }
+                                  }}
+                                  className="border border-gray-300 rounded-md px-3.5 py-1.5 text-sm font-semibold text-gray-800 bg-white shadow-2xs outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[90px]"
+                                >
+                                  {classOrder.map(c => (
+                                    <option key={c} value={c}>{formatClassGradeDisplay(c)}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-800 text-sm">Section :</span>
+                                <select
+                                  value={activeSection}
+                                  onChange={(e) => setSelectedClassListSection(e.target.value)}
+                                  className="border border-gray-300 rounded-md px-3.5 py-1.5 text-sm font-semibold text-gray-800 bg-white shadow-2xs outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[80px]"
+                                >
+                                  {availableSections.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <span className="text-xs text-gray-500 font-semibold hidden md:inline">
+                                Total Students: <strong className="text-gray-900">{targetStudents.length}</strong>
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              <div className="relative">
+                                <FaSearch className="absolute left-3 top-2.5 text-gray-400 text-xs" />
+                                <input
+                                  type="text"
+                                  placeholder="Search name, PEN..."
+                                  value={classListSearchQuery}
+                                  onChange={(e) => setClassListSearchQuery(e.target.value)}
+                                  className="pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs bg-white w-40 sm:w-52 outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setStudentDirectoryViewMode('summary')}
+                                className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-md transition-colors border border-gray-300 cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                              >
+                                <span>← Back to Summary</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAddStudentForSection(activeGrade, activeSection)}
+                                className="px-3.5 py-1.5 bg-[#26497F] hover:bg-[#1C3863] text-white text-xs font-semibold rounded-[4px] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                              >
+                                <FaPlus className="text-[10px]" /> Add Student
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleExportSectionStudents(targetStudents, activeGrade, activeSection)}
+                                className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-[4px] transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                              >
+                                <FaDownload className="text-[10px]" /> Export
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Table matching exact reference screenshot (media_1793121340469.png) */}
+                          <div className="overflow-x-auto border border-gray-300 bg-white shadow-2xs rounded-sm">
+                            <table className="w-full text-left border-collapse">
+                              <thead className="bg-[#E9ECEF] text-[#1E3A5F] border-b border-gray-300">
+                                <tr className="text-xs font-bold divide-x divide-gray-300">
+                                  <th className="py-3.5 px-4 text-left font-bold text-[#1E3A5F] w-36">
+                                    Class/Grade
+                                  </th>
+                                  <th className="py-3.5 px-4 text-left w-48">
+                                    <div className="font-bold text-[#1E3A5F]">PEN</div>
+                                    <div className="text-[10px] text-gray-500 font-normal mt-0.5">
+                                      (Permanent Education Number)
+                                    </div>
+                                  </th>
+                                  <th className="py-3.5 px-4 text-left">
+                                    <div className="font-bold text-[#1E3A5F]">Student's Name</div>
+                                    <div className="text-[10px] text-gray-500 font-normal mt-0.5">
+                                      (as Per School record/School Admission Register)
+                                    </div>
+                                  </th>
+                                  <th className="py-3.5 px-4 text-left w-36">
+                                    <div className="font-bold text-[#1E4273]">Gender</div>
+                                    <div className="text-[10px] text-gray-500 font-normal mt-0.5">
+                                      (as Per School record/School Admission Register)
+                                    </div>
+                                  </th>
+                                  <th className="py-3.5 px-4 text-left w-44">
+                                    <div className="font-bold text-[#1E4273]">Date of Birth</div>
+                                    <div className="text-[10px] text-gray-500 font-normal mt-0.5">
+                                      (as Per School record/School Admission Register)<br />(DD/MM/YYYY)
+                                    </div>
+                                  </th>
+                                  <th className="py-3.5 px-4 text-center w-36">
+                                    <div className="font-bold text-[#1E3A5F]">Entry Status</div>
+                                  </th>
+                                  <th className="py-3.5 px-4 text-center w-32">
+                                    <div className="font-bold text-[#1E3A5F]">Action</div>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200">
+                                {targetStudents.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={7} className="py-16 text-center text-gray-500">
+                                      <FaUsers className="mx-auto text-gray-300 text-4xl mb-3" />
+                                      <p className="font-bold text-base text-gray-800">
+                                        No students found in Class {formatClassGradeDisplay(activeGrade)} Section {activeSection}
+                                      </p>
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        {classListSearchQuery
+                                          ? 'No students matched your search query in this section.'
+                                          : 'Click the button below to add students to this section.'}
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenAddStudentForSection(activeGrade, activeSection)}
+                                        className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer inline-flex items-center gap-1.5"
+                                      >
+                                        <FaPlus /> Add Student to Class {formatClassGradeDisplay(activeGrade)} Section {activeSection}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  targetStudents.map((student, idx) => {
+                                    const sId = student._id || student.id;
+                                    const isIncomplete = !student.penNumber || !student.aadhaarNumber || student.isCompleted === false || !student.fatherName;
+
+                                    return (
+                                      <tr key={sId} className="hover:bg-gray-50/70 transition-colors border-b border-gray-200 divide-x divide-gray-300">
+                                        {/* Class/Grade */}
+                                        <td className="py-4 px-4 text-xs text-gray-600">
+                                          <div className="leading-tight">
+                                            Class - <strong className="text-gray-900 font-bold">{formatClassGradeDisplay(student.grade || activeGrade)}</strong>
+                                          </div>
+                                          <div className="mt-1 leading-tight">
+                                            Section - <strong className="text-gray-900 font-bold">{student.section || activeSection || 'A'}</strong>
+                                          </div>
+                                        </td>
+
+                                        {/* PEN */}
+                                        <td className="py-4 px-4 font-bold text-gray-900 text-sm font-mono tracking-tight">
+                                          {student.penNumber || student.pen_number || 'N/A'}
+                                        </td>
+
+                                        {/* Student's Name with green checkmark */}
+                                        <td className="py-4 px-4">
+                                          <div className="flex items-center gap-1.5 font-bold text-gray-900 text-sm uppercase">
+                                            <span>{student.studentName || student.student_name}</span>
+                                            <FaCheckCircle className="text-emerald-500 text-base flex-shrink-0" title="Verified Name Record" />
+                                          </div>
+                                          {student.admissionId && (
+                                            <div className="text-[11px] text-gray-400 font-normal mt-0.5">
+                                              Adm ID: {student.admissionId}
+                                            </div>
+                                          )}
+                                        </td>
+
+                                        {/* Gender */}
+                                        <td className="py-4 px-4 text-sm text-gray-700 capitalize">
+                                          {student.gender || 'N/A'}
+                                        </td>
+
+                                        {/* Date of Birth (DD/MM/YYYY) */}
+                                        <td className="py-4 px-4 text-sm text-gray-700">
+                                          {formatDateDDMMYYYY(student.dateOfBirth || student.date_of_birth)}
+                                        </td>
+
+                                        {/* Entry Status */}
+                                        <td className="py-4 px-4 text-center">
+                                          {isIncomplete ? (
+                                            <span 
+                                              onClick={() => setViewingProfileFor(student)}
+                                              className="inline-block px-3 py-1 bg-[#FFF9E6] text-[#B45309] border border-[#FDE047] rounded-[4px] text-xs font-bold tracking-wide shadow-2xs cursor-pointer hover:bg-amber-100 transition-colors"
+                                              title="Click to view and complete profile"
+                                            >
+                                              In-Progress
+                                            </span>
+                                          ) : (
+                                            <span 
+                                              onClick={() => setViewingProfileFor(student)}
+                                              className="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-[4px] text-xs font-bold tracking-wide shadow-2xs cursor-pointer hover:bg-emerald-100 transition-colors"
+                                              title="Profile Completed"
+                                            >
+                                              Completed
+                                            </span>
+                                          )}
+                                        </td>
+
+                                        {/* Action */}
+                                        <td className="py-4 px-4 text-center">
+                                          <div className="flex items-center justify-center gap-1.5">
+                                            <button
+                                              type="button"
+                                              onClick={() => setViewingProfileFor(student)}
+                                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                                              title="View Student Profile (GP/EP/SF)"
+                                            >
+                                              <FaUser size={14} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => setViewingIdCardFor(student)}
+                                              className="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
+                                              title="View Student ID Card"
+                                            >
+                                              <FaIdBadge size={14} />
+                                            </button>
+                                            <select
+                                              value={student.enrollment_status || student.enrollmentStatus || 'active'}
+                                              onChange={(e) => handleUpdateStudentStatus(sId, e.target.value)}
+                                              className="text-[11px] border border-gray-300 rounded px-1.5 py-1 font-medium bg-white outline-none cursor-pointer"
+                                              title="Change Enrollment Status"
+                                            >
+                                              <option value="active">Active</option>
+                                              <option value="not_progressed">Not Progressed</option>
+                                              <option value="dropbox">Dropbox</option>
+                                              <option value="prev_session">Prev Session</option>
+                                            </select>
+                                            <button
+                                              type="button"
+                                              onClick={() => setStudentToDelete(student)}
+                                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                              title="Delete Student"
+                                            >
+                                              <FaTrash size={12} />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div className="space-y-4">
                         <div className="flex flex-wrap items-center gap-6 bg-white p-4 border-b border-gray-100">
@@ -10380,20 +10924,42 @@ function AdminPage() {
                                                           {secStats.transgender}
                                                         </td>
                                                         <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
-                                                          {secStats.total}
+                                                          {secStats.total > 0 ? (
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => handleOpenClassStudentList(className, sec)}
+                                                              className="font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                                                              title={`Click to view ${secStats.total} students in Class ${formattedClass} Section ${sec}`}
+                                                            >
+                                                              {secStats.total}
+                                                            </button>
+                                                          ) : (
+                                                            <span>0</span>
+                                                          )}
                                                         </td>
                                                         <td className="py-3 px-4 text-center text-sm text-gray-800 border-r border-gray-200">
                                                           {incompleteCount}
                                                         </td>
                                                         <td className="py-3 px-4 text-center">
-                                                          <button
-                                                            type="button"
-                                                            onClick={() => handleOpenAddStudentForSection(className, sec)}
-                                                            className="bg-[#26497F] hover:bg-[#1C3863] text-white px-3.5 py-1.5 rounded-[4px] text-xs font-semibold tracking-wide transition-colors cursor-pointer whitespace-nowrap shadow-none"
-                                                            title={`Add student to Class ${formattedClass} Section ${sec}`}
-                                                          >
-                                                            Add Student
-                                                          </button>
+                                                          <div className="flex items-center justify-center gap-2">
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => handleOpenAddStudentForSection(className, sec)}
+                                                              className="bg-[#26497F] hover:bg-[#1C3863] text-white px-3 py-1.5 rounded-[4px] text-xs font-semibold tracking-wide transition-colors cursor-pointer whitespace-nowrap shadow-none"
+                                                              title={`Add student to Class ${formattedClass} Section ${sec}`}
+                                                            >
+                                                              Add Student
+                                                            </button>
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => handleOpenClassStudentList(className, sec)}
+                                                              className="bg-[#00796B] hover:bg-[#004D40] text-white px-3 py-1.5 rounded-[4px] text-xs font-semibold tracking-wide transition-colors cursor-pointer whitespace-nowrap shadow-none flex items-center gap-1.5"
+                                                              title={`Open list of students from Class ${formattedClass} Section ${sec}`}
+                                                            >
+                                                              <FaEye className="text-[11px]" />
+                                                              <span>View Students</span>
+                                                            </button>
+                                                          </div>
                                                         </td>
                                                       </tr>
                                                     );
@@ -10415,8 +10981,462 @@ function AdminPage() {
                       </div>
                     );
                   })()}
+
+                  {/* Restored Detailed Student Directory Table */}
+                  <div className="pt-6 border-t border-gray-200 space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div>
+                        <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                          <FaUsers className="text-blue-600" />
+                          <span>Detailed Student Directory</span>
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Showing enrolled students {studentClassFilter ? `for Class ${formatClassGradeDisplay(studentClassFilter)}` : 'across all classes'} {studentSectionFilter ? `Section ${studentSectionFilter}` : ''}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                        <span>Showing {students.length} students</span>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto border border-gray-200 rounded-xl bg-white shadow-2xs">
+                      <table className="w-full text-left bg-white border-collapse">
+                        <thead className="bg-[#1E5E8A] text-white">
+                          <tr className="text-xs font-semibold tracking-wider">
+                            <th className="py-3 px-4 w-12 text-center border-r border-white/20">S.No</th>
+                            <th className="py-3 px-4 border-r border-white/20">Basic Details</th>
+                            <th className="py-3 px-4 border-r border-white/20">Student PEN / Class / Sec</th>
+                            <th className="py-3 px-4 border-r border-white/20">Parents Details</th>
+                            <th className="py-3 px-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-sm">
+                          {students.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="py-10 text-center text-gray-500">
+                                <FaUsers className="mx-auto text-gray-300 text-3xl mb-2" />
+                                <p className="font-semibold text-sm">No students found matching current filters.</p>
+                                <p className="text-xs text-gray-400 mt-1">Try selecting a different class or section above, or click Add Student.</p>
+                              </td>
+                            </tr>
+                          ) : (
+                            students.map((student, index) => {
+                              const sId = student._id || student.id;
+                              return (
+                                <tr key={sId} className="hover:bg-blue-50/40 transition-colors">
+                                  <td className="py-3.5 px-4 text-center text-gray-500 font-medium border-r border-gray-100">
+                                    {(studentPage - 1) * 100 + index + 1}
+                                  </td>
+                                  <td className="py-3.5 px-4 border-r border-gray-100">
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="font-bold text-gray-800 text-sm">{student.studentName || student.student_name}</span>
+                                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        <span>Gender: <strong className="capitalize text-gray-700">{student.gender || 'N/A'}</strong></span>
+                                        <span>•</span>
+                                        <span>DOB: <strong className="text-gray-700">{student.dateOfBirth || student.date_of_birth || 'N/A'}</strong></span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-3.5 px-4 border-r border-gray-100">
+                                    <div className="flex flex-col gap-0.5 text-xs text-gray-500">
+                                      <span>PEN: <strong className="text-indigo-600 font-mono">{student.penNumber || student.pen_number || 'N/A'}</strong></span>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded text-[11px]">
+                                          Class {formatClassGradeDisplay(student.grade)}
+                                        </span>
+                                        <span className="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded text-[11px]">
+                                          Sec {student.section || 'A'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-3.5 px-4 border-r border-gray-100">
+                                    <div className="flex flex-col gap-0.5 text-xs text-gray-600">
+                                      <span>Father: <strong className="text-gray-800">{student.fatherName || student.father_name || 'N/A'}</strong></span>
+                                      <span>Mother: <strong className="text-gray-800">{student.motherName || student.mother_name || 'N/A'}</strong></span>
+                                      {(student.phone || student.contactNumber) && (
+                                        <span className="text-gray-500">Ph: <strong className="text-gray-700">{student.phone || student.contactNumber}</strong></span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-right">
+                                    <div className="flex flex-col items-end gap-1.5">
+                                      <div className="flex items-center gap-2">
+                                        <button 
+                                          type="button"
+                                          onClick={() => setViewingProfileFor(student)}
+                                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1.5 rounded transition-colors cursor-pointer"
+                                          title="View Full Profile"
+                                        >
+                                          <FaUser size={14} />
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          onClick={() => setViewingIdCardFor(student)}
+                                          className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 p-1.5 rounded transition-colors cursor-pointer"
+                                          title="View ID Card"
+                                        >
+                                          <FaIdBadge size={14} />
+                                        </button>
+                                      </div>
+                                      
+                                      <select
+                                        value={student.enrollment_status || 'active'}
+                                        onChange={(e) => handleUpdateStudentStatus(sId, e.target.value)}
+                                        className="text-xs border border-gray-300 rounded p-1 font-medium bg-white outline-none cursor-pointer"
+                                      >
+                                        <option value="active">Active</option>
+                                        <option value="not_progressed">Not Progressed</option>
+                                        <option value="dropbox">Dropbox</option>
+                                        <option value="prev_session">Prev Session</option>
+                                      </select>
+
+                                      <button 
+                                        type="button"
+                                        onClick={() => setStudentToDelete(student)} 
+                                        className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <FaTrash size={10} /> Delete
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {students.length > 0 && (
+                      <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50/70">
+                        <span className="text-xs font-semibold text-gray-600">
+                          Page {studentPage} of {studentTotalPages || 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            type="button"
+                            onClick={() => setStudentPage(p => Math.max(1, p - 1))}
+                            disabled={studentPage === 1}
+                            className="px-3.5 py-1.5 text-xs font-bold bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            Previous
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setStudentPage(p => Math.min(studentTotalPages, p + 1))}
+                            disabled={studentPage >= studentTotalPages}
+                            className="px-3.5 py-1.5 text-xs font-bold bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Dedicated Section Students Modal */}
+          {sectionViewModal.isOpen && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-5 backdrop-blur-xs animate-fadeIn">
+              <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[92vh]">
+                {/* Modal Header */}
+                <div className="bg-[#1E5E8A] text-white p-4 sm:p-5 flex flex-wrap justify-between items-center gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                        Class Section Roster
+                      </span>
+                      <span className="text-blue-100 text-xs">UDISE+ Synchronized</span>
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
+                      Class {formatClassGradeDisplay(sectionViewModal.className)} — Section {sectionViewModal.section}
+                    </h3>
+                    <p className="text-xs text-blue-100 mt-1 flex items-center gap-1.5">
+                      <FaUserTie className="text-amber-300 text-sm" />
+                      <span>Class Teacher: <strong className="text-white">{getClassTeacherName(sectionViewModal.className, sectionViewModal.section)}</strong></span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="hidden sm:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/20 text-xs">
+                      <span>Total: <strong>{sectionViewModal.students.length}</strong></span>
+                      <span className="text-white/40">•</span>
+                      <span className="text-blue-200">Boys: <strong>{sectionViewModal.students.filter(s => (s.gender || '').toLowerCase() === 'male' || (s.gender || '').toLowerCase() === 'boy').length}</strong></span>
+                      <span className="text-white/40">•</span>
+                      <span className="text-pink-200">Girls: <strong>{sectionViewModal.students.filter(s => (s.gender || '').toLowerCase() === 'female' || (s.gender || '').toLowerCase() === 'girl').length}</strong></span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSectionViewModal(prev => ({ ...prev, isOpen: false }))}
+                      className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+                      title="Close"
+                    >
+                      <FaTimes className="text-base" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-header Controls Bar */}
+                <div className="p-3.5 sm:p-4 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+                  <div className="relative flex-1 min-w-[220px]">
+                    <FaSearch className="absolute left-3.5 top-3 text-gray-400 text-xs" />
+                    <input
+                      type="text"
+                      placeholder={`Filter Section ${sectionViewModal.section} students by name, roll no, PEN, parent...`}
+                      value={sectionViewModal.searchQuery}
+                      onChange={(e) => setSectionViewModal(prev => ({ ...prev, searchQuery: e.target.value }))}
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={sectionViewModal.statusFilter}
+                      onChange={(e) => setSectionViewModal(prev => ({ ...prev, statusFilter: e.target.value }))}
+                      className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs font-semibold text-gray-700 outline-none cursor-pointer"
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="active">Active Only</option>
+                      <option value="dropbox">Dropbox</option>
+                      <option value="not_progressed">Not Progressed</option>
+                      <option value="prev_session">Prev Session</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const filtered = sectionViewModal.students
+                          .filter(s => {
+                            if (sectionViewModal.statusFilter !== 'all') {
+                              const sStatus = s.enrollment_status || s.enrollmentStatus || 'active';
+                              if (sStatus !== sectionViewModal.statusFilter) return false;
+                            }
+                            if (sectionViewModal.searchQuery.trim()) {
+                              const q = sectionViewModal.searchQuery.toLowerCase();
+                              const name = (s.studentName || s.student_name || '').toLowerCase();
+                              const roll = String(s.rollNumber || s.roll_number || '').toLowerCase();
+                              const pen = (s.penNumber || s.pen_number || '').toLowerCase();
+                              const adm = (s.admissionId || s.admission_id || '').toLowerCase();
+                              const father = (s.fatherName || s.father_name || '').toLowerCase();
+                              const mother = (s.motherName || s.mother_name || '').toLowerCase();
+                              return name.includes(q) || roll.includes(q) || pen.includes(q) || adm.includes(q) || father.includes(q) || mother.includes(q);
+                            }
+                            return true;
+                          });
+                        handleExportSectionStudents(filtered, sectionViewModal.className, sectionViewModal.section);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
+                      title="Export CSV for this section"
+                    >
+                      <FaDownload className="text-xs" />
+                      <span className="hidden sm:inline">Export CSV</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddStudentForSection(sectionViewModal.className, sectionViewModal.section)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-[#26497F] hover:bg-[#1C3863] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
+                    >
+                      <FaUserPlus className="text-xs" />
+                      <span>Add Student</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Table / Content */}
+                <div className="overflow-y-auto max-h-[60vh] flex-1">
+                  {sectionViewModal.loading ? (
+                    <div className="py-16 text-center text-gray-500 flex flex-col items-center justify-center gap-3">
+                      <FaSpinner className="animate-spin text-3xl text-blue-600" />
+                      <p className="text-sm font-semibold">Loading students for Class {formatClassGradeDisplay(sectionViewModal.className)} Section {sectionViewModal.section}...</p>
+                    </div>
+                  ) : (() => {
+                    const filtered = sectionViewModal.students
+                      .filter(s => {
+                        if (sectionViewModal.statusFilter !== 'all') {
+                          const sStatus = s.enrollment_status || s.enrollmentStatus || 'active';
+                          if (sStatus !== sectionViewModal.statusFilter) return false;
+                        }
+                        if (sectionViewModal.searchQuery.trim()) {
+                          const q = sectionViewModal.searchQuery.toLowerCase();
+                          const name = (s.studentName || s.student_name || '').toLowerCase();
+                          const roll = String(s.rollNumber || s.roll_number || '').toLowerCase();
+                          const pen = (s.penNumber || s.pen_number || '').toLowerCase();
+                          const adm = (s.admissionId || s.admission_id || '').toLowerCase();
+                          const father = (s.fatherName || s.father_name || '').toLowerCase();
+                          const mother = (s.motherName || s.mother_name || '').toLowerCase();
+                          return name.includes(q) || roll.includes(q) || pen.includes(q) || adm.includes(q) || father.includes(q) || mother.includes(q);
+                        }
+                        return true;
+                      });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="py-16 text-center text-gray-500">
+                          <FaUsers className="mx-auto text-gray-300 text-4xl mb-3" />
+                          <p className="font-bold text-base text-gray-700">No students found</p>
+                          <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                            {sectionViewModal.searchQuery || sectionViewModal.statusFilter !== 'all'
+                              ? 'No students match your filter criteria in this section.'
+                              : `There are currently no students enrolled in Class ${formatClassGradeDisplay(sectionViewModal.className)} Section ${sectionViewModal.section}.`}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAddStudentForSection(sectionViewModal.className, sectionViewModal.section)}
+                            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer inline-flex items-center gap-1.5"
+                          >
+                            <FaUserPlus /> Add Student to Section {sectionViewModal.section}
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <table className="w-full text-left bg-white text-xs border-collapse">
+                        <thead className="bg-gray-100/90 sticky top-0 text-gray-700 font-bold border-b border-gray-200 shadow-2xs z-10">
+                          <tr>
+                            <th className="py-3 px-3 w-12 text-center border-r border-gray-200">#</th>
+                            <th className="py-3 px-3 border-r border-gray-200">Student Name</th>
+                            <th className="py-3 px-3 border-r border-gray-200">Gender / DOB</th>
+                            <th className="py-3 px-3 border-r border-gray-200">PEN / Admission ID</th>
+                            <th className="py-3 px-3 border-r border-gray-200">Parents & Contact</th>
+                            <th className="py-3 px-3 text-center border-r border-gray-200">Status</th>
+                            <th className="py-3 px-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {filtered.map((student, idx) => {
+                            const sId = student._id || student.id;
+                            const gender = (student.gender || '').toLowerCase();
+                            const isBoy = gender === 'male' || gender === 'boy';
+                            const isGirl = gender === 'female' || gender === 'girl';
+                            const status = student.enrollment_status || student.enrollmentStatus || 'active';
+
+                            return (
+                              <tr key={sId} className="hover:bg-blue-50/40 transition-colors">
+                                <td className="py-3 px-3 text-center text-gray-500 font-medium border-r border-gray-100">
+                                  {student.rollNumber || student.roll_number || idx + 1}
+                                </td>
+                                <td className="py-3 px-3 border-r border-gray-100">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-gray-900 text-sm">{student.studentName || student.student_name}</span>
+                                    {student.bloodGroup && (
+                                      <span className="text-[10px] text-gray-500 font-medium">Blood: {student.bloodGroup}</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3 border-r border-gray-100">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className={`inline-block font-semibold capitalize text-[11px] ${
+                                      isBoy ? 'text-blue-700' : isGirl ? 'text-pink-700' : 'text-purple-700'
+                                    }`}>
+                                      {student.gender || 'N/A'}
+                                    </span>
+                                    <span className="text-[11px] text-gray-500">{student.dateOfBirth || student.date_of_birth || 'N/A'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3 border-r border-gray-100">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="font-mono font-bold text-indigo-700 text-[11px]">
+                                      {student.penNumber || student.pen_number || 'N/A'}
+                                    </span>
+                                    {student.admissionId || student.admission_id ? (
+                                      <span className="text-[10px] text-gray-500">
+                                        Adm: {student.admissionId || student.admission_id}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3 border-r border-gray-100">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-gray-800 font-medium">F: {student.fatherName || student.father_name || 'N/A'}</span>
+                                    {student.motherName && (
+                                      <span className="text-gray-500 text-[10px]">M: {student.motherName || student.mother_name}</span>
+                                    )}
+                                    {(student.phone || student.contactNumber) && (
+                                      <span className="text-blue-600 text-[11px] font-semibold">{student.phone || student.contactNumber}</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3 text-center border-r border-gray-100">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                    status === 'active'
+                                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                      : status === 'dropbox'
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                      : status === 'not_progressed'
+                                      ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                                      : 'bg-gray-100 text-gray-700 border border-gray-200'
+                                  }`}>
+                                    {status.replace('_', ' ')}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingProfileFor(student)}
+                                      className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                                      title="View Student Profile"
+                                    >
+                                      <FaUser size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingIdCardFor(student)}
+                                      className="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
+                                      title="View ID Card"
+                                    >
+                                      <FaIdBadge size={13} />
+                                    </button>
+                                    <select
+                                      value={status}
+                                      onChange={(e) => handleUpdateStudentStatus(sId, e.target.value)}
+                                      className="text-[11px] border border-gray-300 rounded px-1.5 py-1 font-medium bg-white outline-none cursor-pointer"
+                                      title="Change Enrollment Status"
+                                    >
+                                      <option value="active">Active</option>
+                                      <option value="not_progressed">Not Progressed</option>
+                                      <option value="dropbox">Dropbox</option>
+                                      <option value="prev_session">Prev Session</option>
+                                    </select>
+                                    <button
+                                      type="button"
+                                      onClick={() => setStudentToDelete(student)}
+                                      className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                      title="Delete Student"
+                                    >
+                                      <FaTrash size={11} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-3 bg-gray-50 border-t border-gray-200 flex justify-between items-center text-xs text-gray-500">
+                  <span>Class {formatClassGradeDisplay(sectionViewModal.className)} Section {sectionViewModal.section}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSectionViewModal(prev => ({ ...prev, isOpen: false }))}
+                    className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-lg transition-colors cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

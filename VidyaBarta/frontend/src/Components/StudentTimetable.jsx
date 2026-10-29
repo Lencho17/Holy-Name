@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { SiteDataContext } from '../context/SiteDataContext';
 import { StudentAuthContext } from '../context/StudentAuthContext';
-import { FaCalendarAlt, FaFilePdf, FaSpinner } from 'react-icons/fa';
+import { FaCalendarAlt, FaFilePdf, FaSpinner, FaUtensils, FaCoffee } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -16,6 +16,31 @@ const StudentTimetable = () => {
   const [maxPeriod, setMaxPeriod] = useState(7);
   const [periodColumns, setPeriodColumns] = useState([]);
   const [gridData, setGridData] = useState([]);
+
+  // Recess / Tiffin Breaks Configuration (loaded from school setup)
+  const [breakConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('school_timetable_break_config');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      count: 1,
+      break1: { afterPeriod: 4, label: 'Recess / Tiffin Break', start: '11:15', end: '11:45' },
+      break2: { afterPeriod: 2, label: 'Short Break', start: '10:15', end: '10:30' }
+    };
+  });
+
+  const getActiveBreaks = (maxP) => {
+    if (!breakConfig || breakConfig.count === 0) return [];
+    const list = [];
+    if (breakConfig.break1 && breakConfig.break1.afterPeriod < maxP) {
+      list.push({ ...breakConfig.break1, id: 'break1', defaultLabel: 'Recess / Tiffin Break' });
+    }
+    if (breakConfig.count === 2 && breakConfig.break2 && breakConfig.break2.afterPeriod < maxP) {
+      list.push({ ...breakConfig.break2, id: 'break2', defaultLabel: 'Short Break' });
+    }
+    return list.sort((a, b) => a.afterPeriod - b.afterPeriod);
+  };
 
   const getParsedClass = () => {
     let grade = student.grade || '';
@@ -87,7 +112,24 @@ const StudentTimetable = () => {
     doc.setFontSize(18);
     doc.text(`${student.name} - Class ${grade} (${sec}) Timetable`, 14, 20);
     
-    const head = [['Day', ...Array.from({length: maxPeriod}, (_, i) => `Period ${i+1}`)]];
+    const activeBreaks = getActiveBreaks(maxPeriod);
+    const headRow = ['Day'];
+    const breakColIndices = [];
+    let currentIdx = 0;
+
+    for (let i = 1; i <= maxPeriod; i++) {
+      headRow.push(`Period ${i}`);
+      currentIdx++;
+      const brk = activeBreaks.find(b => b.afterPeriod === i);
+      if (brk) {
+        const timeStr = brk.start && brk.end ? `\n(${brk.start} - ${brk.end})` : '';
+        headRow.push(`${(brk.label || 'RECESS').toUpperCase()}${timeStr}`);
+        currentIdx++;
+        breakColIndices.push(currentIdx);
+      }
+    }
+
+    const head = [headRow];
     const body = days.map(day => {
       const row = [day];
       for (let i = 1; i <= maxPeriod; i++) {
@@ -99,8 +141,19 @@ const StudentTimetable = () => {
         } else {
           row.push('-');
         }
+
+        const brk = activeBreaks.find(b => b.afterPeriod === i);
+        if (brk) {
+          const timeStr = brk.start && brk.end ? `\n(${brk.start} - ${brk.end})` : '';
+          row.push(`RECESS / BREAK${timeStr}`);
+        }
       }
       return row;
+    });
+
+    const columnStyles = {};
+    breakColIndices.forEach(idx => {
+      columnStyles[idx] = { fillColor: [254, 243, 199], textColor: [146, 64, 14], fontStyle: 'bold' };
     });
 
     autoTable(doc, {
@@ -108,7 +161,8 @@ const StudentTimetable = () => {
       body,
       startY: 30,
       styles: { fontSize: 8, halign: 'center', cellPadding: 3 },
-      headStyles: { fillColor: [79, 70, 229] } // indigo-600
+      headStyles: { fillColor: [79, 70, 229] }, // indigo-600
+      columnStyles
     });
 
     doc.save(`Timetable_${grade}_${sec}.pdf`);
@@ -161,18 +215,46 @@ const StudentTimetable = () => {
             <thead>
               <tr className="bg-indigo-50 border-b border-indigo-100 text-indigo-900">
                 <th className="p-4 font-bold w-24 sticky left-0 bg-indigo-50 z-10 border-r border-indigo-100">Day</th>
-                {periodColumns.map((col) => (
-                  <th key={col.period_number} className="p-4 border-r border-indigo-100 min-w-[160px]">
-                    <div className="text-center">
-                      <div className="font-bold">Period {col.period_number}</div>
-                      {col.start && (
-                        <div className="text-xs text-indigo-600/80 font-medium mt-1">
-                          {col.start} - {col.end}
+                {periodColumns.map((col) => {
+                  const activeBreaks = getActiveBreaks(periodColumns.length);
+                  const brk = activeBreaks.find(b => b.afterPeriod === col.period_number);
+                  return (
+                    <React.Fragment key={col.period_number}>
+                      <th className="p-4 border-r border-indigo-100 min-w-[160px]">
+                        <div className="text-center">
+                          <div className="font-bold">Period {col.period_number}</div>
+                          {col.start && (
+                            <div className="text-xs text-indigo-600/80 font-medium mt-1">
+                              {col.start} - {col.end}
+                            </div>
+                          )}
                         </div>
+                      </th>
+                      {brk && (
+                        <th
+                          key={`break-th-${brk.id}-${col.period_number}`}
+                          className={`p-3 border-x-2 min-w-[145px] text-center ${
+                            brk.id === 'break2'
+                              ? 'border-orange-300 bg-orange-100/90 text-orange-950'
+                              : 'border-amber-300 bg-amber-100/90 text-amber-950'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wide">
+                              {brk.id === 'break2' ? <FaCoffee className="text-orange-600" /> : <FaUtensils className="text-amber-600" />}
+                              <span>{brk.label || 'Tiffin Break'}</span>
+                            </div>
+                            {brk.start && brk.end && (
+                              <span className="text-[10px] text-amber-800 font-mono font-medium">
+                                {brk.start} - {brk.end}
+                              </span>
+                            )}
+                          </div>
+                        </th>
                       )}
-                    </div>
-                  </th>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -182,20 +264,50 @@ const StudentTimetable = () => {
                     {row.day}
                   </td>
                   {periodColumns.map((col) => {
+                    const activeBreaks = getActiveBreaks(periodColumns.length);
+                    const brk = activeBreaks.find(b => b.afterPeriod === col.period_number);
                     const entry = row[`p${col.period_number}`];
                     return (
-                      <td key={col.period_number} className="p-3 border-r border-gray-100 align-top">
-                        {entry && entry.subject ? (
-                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 h-full flex flex-col justify-center text-center">
-                            <span className="font-bold text-gray-800">{entry.subject}</span>
-                            {entry.subject !== 'Recess' && entry.staff?.name && (
-                              <span className="text-xs text-indigo-600 font-medium mt-1.5">{entry.staff.name}</span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center text-gray-300 text-xs py-4">-</div>
+                      <React.Fragment key={col.period_number}>
+                        <td className="p-3 border-r border-gray-100 align-top">
+                          {entry && entry.subject ? (
+                            <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 h-full flex flex-col justify-center text-center">
+                              <span className="font-bold text-gray-800">{entry.subject}</span>
+                              {entry.subject !== 'Recess' && entry.staff?.name && (
+                                <span className="text-xs text-indigo-600 font-medium mt-1.5">{entry.staff.name}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center text-gray-300 text-xs py-4">-</div>
+                          )}
+                        </td>
+                        {brk && (
+                          <td
+                            key={`break-td-${brk.id}-${col.period_number}`}
+                            className={`p-2 border-x-2 text-center align-middle ${
+                              brk.id === 'break2'
+                                ? 'border-orange-300/80 bg-orange-50/70'
+                                : 'border-amber-300/80 bg-amber-50/70'
+                            }`}
+                          >
+                            <div className="flex flex-col items-center justify-center py-3 px-2 rounded-xl bg-white/80 border border-amber-200/80 shadow-2xs">
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs mb-1 ${
+                                brk.id === 'break2' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {brk.id === 'break2' ? <FaCoffee size={12} /> : <FaUtensils size={12} />}
+                              </div>
+                              <span className="text-[11px] font-black tracking-wider text-amber-950 uppercase">
+                                {brk.label || 'RECESS'}
+                              </span>
+                              {brk.start && brk.end && (
+                                <span className="text-[10px] text-amber-800 font-mono font-bold mt-0.5">
+                                  {brk.start} – {brk.end}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                         )}
-                      </td>
+                      </React.Fragment>
                     );
                   })}
                 </tr>

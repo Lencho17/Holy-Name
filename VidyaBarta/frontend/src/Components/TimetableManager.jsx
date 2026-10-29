@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaCalendarAlt, FaSpinner, FaSave, FaPlus, FaClock, FaTrash, FaExclamationTriangle, FaFilePdf, FaUpload, FaBolt } from 'react-icons/fa';
+import { FaCalendarAlt, FaSpinner, FaSave, FaPlus, FaClock, FaTrash, FaExclamationTriangle, FaFilePdf, FaUpload, FaBolt, FaCoffee, FaUtensils } from 'react-icons/fa';
 import { FiEdit2, FiX } from 'react-icons/fi';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -22,6 +22,62 @@ const TimetableManager = ({ apiUrl, token }) => {
   const [periodColumns, setPeriodColumns] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Recess / Tiffin Breaks Configuration (Supports 0, 1, or 2 breaks)
+  const [breakConfig, setBreakConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('school_timetable_break_config');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      count: 1, // 0: No breaks, 1: 1 Break, 2: 2 Breaks
+      break1: {
+        afterPeriod: 4,
+        label: 'Recess / Tiffin Break',
+        start: '11:15',
+        end: '11:45'
+      },
+      break2: {
+        afterPeriod: 2,
+        label: 'Short Break',
+        start: '10:15',
+        end: '10:30'
+      }
+    };
+  });
+
+  const updateBreakConfig = (breakKey, field, value) => {
+    setBreakConfig(prev => {
+      let updated;
+      if (breakKey === 'count') {
+        updated = { ...prev, count: parseInt(value, 10) };
+      } else {
+        updated = {
+          ...prev,
+          [breakKey]: {
+            ...prev[breakKey],
+            [field]: field === 'afterPeriod' ? parseInt(value, 10) : value
+          }
+        };
+      }
+      try {
+        localStorage.setItem('school_timetable_break_config', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const getActiveBreaks = (maxPeriod) => {
+    if (breakConfig.count === 0) return [];
+    const list = [];
+    if (breakConfig.break1 && breakConfig.break1.afterPeriod < maxPeriod) {
+      list.push({ ...breakConfig.break1, id: 'break1', defaultLabel: 'Recess / Tiffin Break' });
+    }
+    if (breakConfig.count === 2 && breakConfig.break2 && breakConfig.break2.afterPeriod < maxPeriod) {
+      list.push({ ...breakConfig.break2, id: 'break2', defaultLabel: 'Short Break' });
+    }
+    return list.sort((a, b) => a.afterPeriod - b.afterPeriod);
+  };
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -460,7 +516,25 @@ const TimetableManager = ({ apiUrl, token }) => {
     let maxP = 1;
     clsTimetable.forEach(t => { if(t.period_number > maxP) maxP = t.period_number; });
     
-    const head = [['Day', ...Array.from({length: maxP}, (_, i) => `Period ${i+1}`)]];
+    // Retrieve break configuration
+    const activeBreaks = getActiveBreaks(maxP);
+    const headRow = ['Day'];
+    const breakColIndices = [];
+    let currentIdx = 0;
+
+    for (let i = 1; i <= maxP; i++) {
+      headRow.push(`Period ${i}`);
+      currentIdx++;
+      const brk = activeBreaks.find(b => b.afterPeriod === i);
+      if (brk) {
+        const timeStr = brk.start && brk.end ? `\n(${brk.start} - ${brk.end})` : '';
+        headRow.push(`${(brk.label || 'RECESS').toUpperCase()}${timeStr}`);
+        currentIdx++;
+        breakColIndices.push(currentIdx);
+      }
+    }
+
+    const head = [headRow];
     const body = days.map(day => {
       const row = [day];
       for (let i = 1; i <= maxP; i++) {
@@ -475,8 +549,19 @@ const TimetableManager = ({ apiUrl, token }) => {
         } else {
           row.push('-');
         }
+
+        const brk = activeBreaks.find(b => b.afterPeriod === i);
+        if (brk) {
+          const timeStr = brk.start && brk.end ? `\n(${brk.start} - ${brk.end})` : '';
+          row.push(`RECESS / BREAK${timeStr}`);
+        }
       }
       return row;
+    });
+
+    const columnStyles = {};
+    breakColIndices.forEach(idx => {
+      columnStyles[idx] = { fillColor: [254, 243, 199], textColor: [146, 64, 14], fontStyle: 'bold' };
     });
 
     autoTable(doc, {
@@ -484,7 +569,8 @@ const TimetableManager = ({ apiUrl, token }) => {
       body,
       startY: 30,
       styles: { fontSize: 8, halign: 'center', cellPadding: 3 },
-      headStyles: { fillColor: [13, 148, 136] }
+      headStyles: { fillColor: [13, 148, 136] },
+      columnStyles
     });
 
     doc.save(`Timetable_Class_${cls.class_level}_${targetSection}.pdf`);
@@ -690,232 +776,500 @@ const TimetableManager = ({ apiUrl, token }) => {
                   <FaSpinner className="animate-spin text-4xl mx-auto mb-4" />
                 </div>
               ) : (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto pb-4">
-                  <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="p-4 font-bold text-gray-700 w-24 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">Day</th>
-                        {periodColumns.map((col, idx) => (
-                          <th key={col.period_number} className="p-3 border-r border-gray-200 min-w-[200px] bg-teal-50/30">
-                            <div className="flex flex-col gap-2">
-                              <div className="font-bold text-teal-800 text-center flex justify-between items-center">
-                                <span>Period {col.period_number}</span>
-                                {idx === periodColumns.length - 1 && (
-                                  <button onClick={removeColumn} className="text-red-400 hover:text-red-600 p-1 rounded" title="Remove Column">
-                                    <FaTrash size={12} />
-                                  </button>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1 bg-white p-1 rounded border border-gray-200 focus-within:border-teal-400">
-                                <FaClock className="text-gray-400 text-xs ml-1" />
-                                <input 
-                                  type="time" 
-                                  value={col.start} 
-                                  onChange={e => updateColumnTime(idx, 'start', e.target.value)}
-                                  className="w-full text-xs outline-none bg-transparent"
+                <div className="space-y-4">
+                  {/* Recess & Tiffin Break Settings Toolbar */}
+                  <div className="bg-white rounded-xl border border-amber-200/90 shadow-2xs p-3.5 bg-gradient-to-r from-amber-50/70 via-orange-50/30 to-white">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-base shadow-2xs font-bold">
+                          <FaUtensils />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-gray-800 text-sm">Recess & Tiffin Breaks Separator</h4>
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                              {breakConfig.count === 0 ? 'No Break' : breakConfig.count === 1 ? '1 Break Active' : '2 Breaks Active'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Set up 1 or 2 visual tiffin/recess break spaces between teaching periods.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Break Count Switcher */}
+                      <div className="flex items-center bg-gray-100/90 p-1 rounded-xl border border-gray-200 shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => updateBreakConfig('count', null, 0)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                            breakConfig.count === 0 ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          No Break
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateBreakConfig('count', null, 1)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                            breakConfig.count === 1 ? 'bg-amber-600 text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <FaUtensils size={10} /> 1 Tiffin Break
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateBreakConfig('count', null, 2)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                            breakConfig.count === 2 ? 'bg-orange-600 text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <FaCoffee size={11} /> 2 Tiffin Breaks
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Active Break Controls */}
+                    {breakConfig.count > 0 && (
+                      <div className="mt-3 pt-3 border-t border-amber-200/60 grid grid-cols-1 md:grid-cols-2 gap-3 animate-fadeIn">
+                        {/* Break 1 Configuration */}
+                        <div className="bg-white/90 p-3 rounded-xl border border-amber-200 shadow-2xs">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-black text-amber-900 uppercase flex items-center gap-1.5">
+                              <FaUtensils className="text-amber-600 text-[11px]" />
+                              {breakConfig.count === 2 ? '1st Break (e.g. Short Break / Snack)' : 'Tiffin / Recess Break'}
+                            </span>
+                            <span className="text-[10px] text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                              After Period {breakConfig.break1.afterPeriod}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Position</label>
+                              <select
+                                value={breakConfig.break1.afterPeriod}
+                                onChange={e => updateBreakConfig('break1', 'afterPeriod', e.target.value)}
+                                className="w-full p-1.5 border border-gray-300 rounded-lg text-xs font-bold bg-white text-gray-800 outline-none focus:ring-1 focus:ring-amber-500"
+                              >
+                                {periodColumns.slice(0, -1).map(c => (
+                                  <option key={c.period_number} value={c.period_number}>
+                                    After Period {c.period_number}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Break Label</label>
+                              <input
+                                type="text"
+                                value={breakConfig.break1.label}
+                                onChange={e => updateBreakConfig('break1', 'label', e.target.value)}
+                                placeholder="e.g. Recess / Tiffin Break"
+                                className="w-full p-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white text-gray-800 outline-none focus:ring-1 focus:ring-amber-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Time (Start - End)</label>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="time"
+                                  value={breakConfig.break1.start || ''}
+                                  onChange={e => updateBreakConfig('break1', 'start', e.target.value)}
+                                  className="w-full p-1 border border-gray-300 rounded text-xs text-center font-mono outline-none"
                                 />
-                                <span className="text-gray-400">-</span>
-                                <input 
-                                  type="time" 
-                                  value={col.end} 
-                                  onChange={e => updateColumnTime(idx, 'end', e.target.value)}
-                                  className="w-full text-xs outline-none bg-transparent"
+                                <span className="text-gray-400 text-xs">-</span>
+                                <input
+                                  type="time"
+                                  value={breakConfig.break1.end || ''}
+                                  onChange={e => updateBreakConfig('break1', 'end', e.target.value)}
+                                  className="w-full p-1 border border-gray-300 rounded text-xs text-center font-mono outline-none"
                                 />
                               </div>
                             </div>
-                          </th>
-                        ))}
-                        <th className="p-3 bg-gray-50 w-16 text-center">
-                          <button onClick={addColumn} className="bg-teal-100 text-teal-600 hover:bg-teal-200 p-2 rounded-lg" title="Add Column">
-                            <FaPlus />
-                          </button>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {timetableData.map((row, dayIdx) => (
-                        <tr key={row.day} className="hover:bg-gray-50/50">
-                          <td className="p-4 font-bold text-gray-700 sticky left-0 bg-white border-r border-gray-200 z-10">
-                            {row.day}
-                          </td>
-                          {periodColumns.map((col) => {
-                            const cell = row[`p${col.period_number}`];
-                            
-                            // Check for clash for Teacher 1 (Primary)
-                            let clashWarning1 = null;
-                            let teacher1ClassesToday = 0;
-                            let isOverDailyLimit1 = false;
+                          </div>
+                        </div>
 
-                            const currentSections = editingSection === 'ALL' 
-                              ? (editingClass.sections ? editingClass.sections.split(',') : ['A'])
-                              : [editingSection];
+                        {/* Break 2 Configuration (only when count === 2) */}
+                        {breakConfig.count === 2 && (
+                          <div className="bg-white/90 p-3 rounded-xl border border-orange-200 shadow-2xs">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-black text-orange-900 uppercase flex items-center gap-1.5">
+                                <FaCoffee className="text-orange-600 text-[11px]" />
+                                2nd Break (e.g. Lunch / Tiffin Break)
+                              </span>
+                              <span className="text-[10px] text-orange-800 font-bold bg-orange-50 border border-orange-200 px-2 py-0.5 rounded">
+                                After Period {breakConfig.break2.afterPeriod}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Position</label>
+                                <select
+                                  value={breakConfig.break2.afterPeriod}
+                                  onChange={e => updateBreakConfig('break2', 'afterPeriod', e.target.value)}
+                                  className="w-full p-1.5 border border-gray-300 rounded-lg text-xs font-bold bg-white text-gray-800 outline-none focus:ring-1 focus:ring-orange-500"
+                                >
+                                  {periodColumns.slice(0, -1).map(c => (
+                                    <option key={c.period_number} value={c.period_number}>
+                                      After Period {c.period_number}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Break Label</label>
+                                <input
+                                  type="text"
+                                  value={breakConfig.break2.label}
+                                  onChange={e => updateBreakConfig('break2', 'label', e.target.value)}
+                                  placeholder="e.g. Lunch Break"
+                                  className="w-full p-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white text-gray-800 outline-none focus:ring-1 focus:ring-orange-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Time (Start - End)</label>
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="time"
+                                    value={breakConfig.break2.start || ''}
+                                    onChange={e => updateBreakConfig('break2', 'start', e.target.value)}
+                                    className="w-full p-1 border border-gray-300 rounded text-xs text-center font-mono outline-none"
+                                  />
+                                  <span className="text-gray-400 text-xs">-</span>
+                                  <input
+                                    type="time"
+                                    value={breakConfig.break2.end || ''}
+                                    onChange={e => updateBreakConfig('break2', 'end', e.target.value)}
+                                    className="w-full p-1 border border-gray-300 rounded text-xs text-center font-mono outline-none"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                            if (cell?.staff_id) {
-                              teacher1ClassesToday = getTeacherDayClassCount(cell.staff_id, row.day);
-                              if (teacher1ClassesToday > 6) {
-                                isOverDailyLimit1 = true;
-                              }
-
-                              currentSections.forEach(sec => {
-                                if (!clashWarning1) {
-                                  const clash = allTimetables.find(t => 
-                                    t.day_of_week === row.day && 
-                                    t.period_number === col.period_number && 
-                                    t.staff_id === cell.staff_id &&
-                                    !(t.class_level === editingClass.class_level && t.section === sec)
-                                  );
-                                  if (clash) clashWarning1 = clash;
-                                }
-                              });
-                            }
-
-                            // Check for clash for Teacher 2 (Co-Teacher)
-                            let clashWarning2 = null;
-                            let teacher2ClassesToday = 0;
-                            let isOverDailyLimit2 = false;
-
-                            if (cell?.secondary_staff_id) {
-                              teacher2ClassesToday = getTeacherDayClassCount(cell.secondary_staff_id, row.day);
-                              if (teacher2ClassesToday > 6) {
-                                isOverDailyLimit2 = true;
-                              }
-
-                              currentSections.forEach(sec => {
-                                if (!clashWarning2) {
-                                  const clash = allTimetables.find(t => 
-                                    t.day_of_week === row.day && 
-                                    t.period_number === col.period_number && 
-                                    t.staff_id === cell.secondary_staff_id &&
-                                    !(t.class_level === editingClass.class_level && t.section === sec)
-                                  );
-                                  if (clash) clashWarning2 = clash;
-                                }
-                              });
-                            }
-
-                            const isSameTeacherTwice = cell?.staff_id && cell?.secondary_staff_id && cell.staff_id === cell.secondary_staff_id;
-                            const hasConflict = clashWarning1 || clashWarning2 || isOverDailyLimit1 || isOverDailyLimit2 || isSameTeacherTwice;
-                            const isDualTeaching = cell?.staff_id && cell?.secondary_staff_id && !isSameTeacherTwice;
+                  {/* Timetable Table with Break Separators */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto pb-4">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="p-4 font-bold text-gray-700 w-24 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">Day</th>
+                          {periodColumns.map((col, idx) => {
+                            const activeBreaks = getActiveBreaks(periodColumns.length);
+                            const brk = activeBreaks.find(b => b.afterPeriod === col.period_number);
 
                             return (
-                              <td key={col.period_number} className={`p-2 border-r border-gray-100 align-top ${hasConflict ? 'bg-red-50/60' : isDualTeaching ? 'bg-indigo-50/20' : ''}`}>
-                                <div className="flex flex-col gap-1.5">
-                                  {/* Subject Dropdown */}
-                                  <select
-                                    value={cell.subject || ''}
-                                    onChange={(e) => handleSubjectChange(dayIdx, col.period_number, e.target.value)}
-                                    className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${hasConflict ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-teal-500'}`}
+                              <React.Fragment key={col.period_number}>
+                                <th className="p-3 border-r border-gray-200 min-w-[200px] bg-teal-50/30">
+                                  <div className="flex flex-col gap-2">
+                                    <div className="font-bold text-teal-800 text-center flex justify-between items-center">
+                                      <span>Period {col.period_number}</span>
+                                      {idx === periodColumns.length - 1 && (
+                                        <button onClick={removeColumn} className="text-red-400 hover:text-red-600 p-1 rounded" title="Remove Column">
+                                          <FaTrash size={12} />
+                                        </button>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1 bg-white p-1 rounded border border-gray-200 focus-within:border-teal-400">
+                                      <FaClock className="text-gray-400 text-xs ml-1" />
+                                      <input 
+                                        type="time" 
+                                        value={col.start} 
+                                        onChange={e => updateColumnTime(idx, 'start', e.target.value)}
+                                        className="w-full text-xs outline-none bg-transparent"
+                                      />
+                                      <span className="text-gray-400">-</span>
+                                      <input 
+                                        type="time" 
+                                        value={col.end} 
+                                        onChange={e => updateColumnTime(idx, 'end', e.target.value)}
+                                        className="w-full text-xs outline-none bg-transparent"
+                                      />
+                                    </div>
+                                  </div>
+                                </th>
+
+                                {/* Break Separator Header */}
+                                {brk && (
+                                  <th
+                                    key={`break-th-${brk.id}-${col.period_number}`}
+                                    className={`p-3 border-x-2 min-w-[155px] text-center shadow-2xs ${
+                                      brk.id === 'break2'
+                                        ? 'border-orange-300 bg-gradient-to-b from-orange-100/90 via-orange-50/80 to-amber-50/70 text-orange-950'
+                                        : 'border-amber-300 bg-gradient-to-b from-amber-100/90 via-amber-50/80 to-yellow-50/70 text-amber-950'
+                                    }`}
                                   >
-                                    <option value="">-- Select Subject --</option>
-                                    <option value="Recess">Recess / Break</option>
-                                    {getAvailableSubjects(editingClass).map((sub, i) => (
-                                      <option key={i} value={sub}>{sub}</option>
-                                    ))}
-                                  </select>
-                                  
-                                  {/* Primary Teacher Dropdown */}
-                                  <div>
-                                    <select
-                                      value={cell.staff_id || ''}
-                                      onChange={(e) => updateCell(dayIdx, col.period_number, 'staff_id', e.target.value)}
-                                      className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${
-                                        clashWarning1 || isOverDailyLimit1 || isSameTeacherTwice
-                                          ? 'border-red-400 bg-white text-red-700 font-bold' 
-                                          : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-emerald-500'
-                                      }`}
-                                    >
-                                      <option value="">-- Primary Teacher --</option>
-                                      {teachers.map(t => {
-                                        const count = getTeacherDayClassCount(t.id, row.day, col.period_number);
-                                        const reachedMax = count >= 6 && cell.staff_id !== t.id;
-                                        const isCoTeacher = t.id === cell.secondary_staff_id;
-                                        return (
-                                          <option key={t.id} value={t.id} disabled={reachedMax || isCoTeacher}>
-                                            {t.name} ({count}/6 today){reachedMax ? ' — MAX 6' : ''}{isCoTeacher ? ' [Selected as Co-Teacher]' : ''}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                  </div>
-
-                                  {/* Co-Teacher / 2nd Teacher Dropdown */}
-                                  <div>
-                                    <select
-                                      value={cell.secondary_staff_id || ''}
-                                      onChange={(e) => updateCell(dayIdx, col.period_number, 'secondary_staff_id', e.target.value)}
-                                      className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${
-                                        clashWarning2 || isOverDailyLimit2 || isSameTeacherTwice
-                                          ? 'border-red-400 bg-white text-red-700 font-bold' 
-                                          : cell.secondary_staff_id
-                                            ? 'border-indigo-300 bg-indigo-50/50 text-indigo-900 font-medium'
-                                            : 'border-gray-200 bg-gray-50/80 focus:bg-white focus:border-indigo-500'
-                                      }`}
-                                    >
-                                      <option value="">-- 2nd Teacher (Optional) --</option>
-                                      {teachers.map(t => {
-                                        const count = getTeacherDayClassCount(t.id, row.day, col.period_number);
-                                        const reachedMax = count >= 6 && cell.secondary_staff_id !== t.id;
-                                        const isPrimary = t.id === cell.staff_id;
-                                        return (
-                                          <option key={t.id} value={t.id} disabled={reachedMax || isPrimary}>
-                                            {t.name} ({count}/6 today){reachedMax ? ' — MAX 6' : ''}{isPrimary ? ' [Primary Teacher]' : ''}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                  </div>
-
-                                  {/* Dual Teaching Badge */}
-                                  {isDualTeaching && (
-                                    <div className="flex items-center justify-center gap-1 text-[10px] text-indigo-800 font-bold bg-indigo-100 py-0.5 px-1 rounded border border-indigo-200">
-                                      <span>👥 2 Teachers (Co-Teaching)</span>
+                                    <div className="flex flex-col gap-1.5">
+                                      <div className="flex items-center justify-center gap-1.5 font-bold text-xs uppercase tracking-wide">
+                                        {brk.id === 'break2' ? (
+                                          <FaCoffee className="text-orange-600 text-xs flex-shrink-0" />
+                                        ) : (
+                                          <FaUtensils className="text-amber-600 text-xs flex-shrink-0" />
+                                        )}
+                                        <span className="truncate max-w-[125px]" title={brk.label}>{brk.label}</span>
+                                      </div>
+                                      <div className="flex items-center justify-center gap-1 text-[10px] font-semibold opacity-85">
+                                        <span className="bg-white/80 px-1.5 py-0.5 rounded font-bold shadow-2xs">Break</span>
+                                        <span>After P{brk.afterPeriod}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1 bg-white px-1.5 py-1 rounded border border-gray-300 focus-within:border-amber-500 shadow-2xs">
+                                        <FaClock className="text-gray-400 text-xs flex-shrink-0" />
+                                        <input
+                                          type="time"
+                                          value={brk.start || ''}
+                                          onChange={e => updateBreakConfig(brk.id, 'start', e.target.value)}
+                                          className="w-full text-xs outline-none bg-transparent font-mono text-center"
+                                          title="Break Start Time"
+                                        />
+                                        <span className="text-gray-400 font-bold">-</span>
+                                        <input
+                                          type="time"
+                                          value={brk.end || ''}
+                                          onChange={e => updateBreakConfig(brk.id, 'end', e.target.value)}
+                                          className="w-full text-xs outline-none bg-transparent font-mono text-center"
+                                          title="Break End Time"
+                                        />
+                                      </div>
                                     </div>
-                                  )}
-
-                                  {/* Warnings */}
-                                  {isSameTeacherTwice && (
-                                    <div className="flex items-center gap-1 text-[10px] text-red-700 font-bold bg-red-100 p-1 rounded border border-red-300">
-                                      <FaExclamationTriangle className="flex-shrink-0" />
-                                      <span>Same teacher selected twice</span>
-                                    </div>
-                                  )}
-
-                                  {clashWarning1 && (
-                                    <div className="flex items-center gap-1 text-[10px] text-red-600 font-bold bg-red-100/70 p-1 rounded border border-red-200">
-                                      <FaExclamationTriangle className="flex-shrink-0" />
-                                      <span>T1 Clashes: Class {clashWarning1.class_level}-{clashWarning1.section}</span>
-                                    </div>
-                                  )}
-
-                                  {clashWarning2 && (
-                                    <div className="flex items-center gap-1 text-[10px] text-red-600 font-bold bg-red-100/70 p-1 rounded border border-red-200">
-                                      <FaExclamationTriangle className="flex-shrink-0" />
-                                      <span>T2 Clashes: Class {clashWarning2.class_level}-{clashWarning2.section}</span>
-                                    </div>
-                                  )}
-
-                                  {isOverDailyLimit1 && (
-                                    <div className="flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-100/80 p-1 rounded border border-amber-300">
-                                      <FaExclamationTriangle className="flex-shrink-0 text-amber-600" />
-                                      <span>T1 Limit: {teacher1ClassesToday}/6 classes today</span>
-                                    </div>
-                                  )}
-
-                                  {isOverDailyLimit2 && (
-                                    <div className="flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-100/80 p-1 rounded border border-amber-300">
-                                      <FaExclamationTriangle className="flex-shrink-0 text-amber-600" />
-                                      <span>T2 Limit: {teacher2ClassesToday}/6 classes today</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
+                                  </th>
+                                )}
+                              </React.Fragment>
                             );
                           })}
-                          <td className="bg-gray-50"></td>
+                          <th className="p-3 bg-gray-50 w-16 text-center">
+                            <button onClick={addColumn} className="bg-teal-100 text-teal-600 hover:bg-teal-200 p-2 rounded-lg" title="Add Column">
+                              <FaPlus />
+                            </button>
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {timetableData.map((row, dayIdx) => (
+                          <tr key={row.day} className="hover:bg-gray-50/50">
+                            <td className="p-4 font-bold text-gray-700 sticky left-0 bg-white border-r border-gray-200 z-10">
+                              {row.day}
+                            </td>
+                            {periodColumns.map((col) => {
+                              const activeBreaks = getActiveBreaks(periodColumns.length);
+                              const brk = activeBreaks.find(b => b.afterPeriod === col.period_number);
+                              const cell = row[`p${col.period_number}`];
+                              
+                              // Check for clash for Teacher 1 (Primary)
+                              let clashWarning1 = null;
+                              let teacher1ClassesToday = 0;
+                              let isOverDailyLimit1 = false;
+
+                              const currentSections = editingSection === 'ALL' 
+                                ? (editingClass.sections ? editingClass.sections.split(',') : ['A'])
+                                : [editingSection];
+
+                              if (cell?.staff_id) {
+                                teacher1ClassesToday = getTeacherDayClassCount(cell.staff_id, row.day);
+                                if (teacher1ClassesToday > 6) {
+                                  isOverDailyLimit1 = true;
+                                }
+
+                                currentSections.forEach(sec => {
+                                  if (!clashWarning1) {
+                                    const clash = allTimetables.find(t => 
+                                      t.day_of_week === row.day && 
+                                      t.period_number === col.period_number && 
+                                      t.staff_id === cell.staff_id &&
+                                      !(t.class_level === editingClass.class_level && t.section === sec)
+                                    );
+                                    if (clash) clashWarning1 = clash;
+                                  }
+                                });
+                              }
+
+                              // Check for clash for Teacher 2 (Co-Teacher)
+                              let clashWarning2 = null;
+                              let teacher2ClassesToday = 0;
+                              let isOverDailyLimit2 = false;
+
+                              if (cell?.secondary_staff_id) {
+                                teacher2ClassesToday = getTeacherDayClassCount(cell.secondary_staff_id, row.day);
+                                if (teacher2ClassesToday > 6) {
+                                  isOverDailyLimit2 = true;
+                                }
+
+                                currentSections.forEach(sec => {
+                                  if (!clashWarning2) {
+                                    const clash = allTimetables.find(t => 
+                                      t.day_of_week === row.day && 
+                                      t.period_number === col.period_number && 
+                                      t.staff_id === cell.secondary_staff_id &&
+                                      !(t.class_level === editingClass.class_level && t.section === sec)
+                                    );
+                                    if (clash) clashWarning2 = clash;
+                                  }
+                                });
+                              }
+
+                              const isSameTeacherTwice = cell?.staff_id && cell?.secondary_staff_id && cell.staff_id === cell.secondary_staff_id;
+                              const hasConflict = clashWarning1 || clashWarning2 || isOverDailyLimit1 || isOverDailyLimit2 || isSameTeacherTwice;
+                              const isDualTeaching = cell?.staff_id && cell?.secondary_staff_id && !isSameTeacherTwice;
+
+                              return (
+                                <React.Fragment key={col.period_number}>
+                                  <td className={`p-2 border-r border-gray-100 align-top ${hasConflict ? 'bg-red-50/60' : isDualTeaching ? 'bg-indigo-50/20' : ''}`}>
+                                    <div className="flex flex-col gap-1.5">
+                                      {/* Subject Dropdown */}
+                                      <select
+                                        value={cell.subject || ''}
+                                        onChange={(e) => handleSubjectChange(dayIdx, col.period_number, e.target.value)}
+                                        className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${hasConflict ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-teal-500'}`}
+                                      >
+                                        <option value="">-- Select Subject --</option>
+                                        <option value="Recess">Recess / Break</option>
+                                        {getAvailableSubjects(editingClass).map((sub, i) => (
+                                          <option key={i} value={sub}>{sub}</option>
+                                        ))}
+                                      </select>
+                                      
+                                      {/* Primary Teacher Dropdown */}
+                                      <div>
+                                        <select
+                                          value={cell.staff_id || ''}
+                                          onChange={(e) => updateCell(dayIdx, col.period_number, 'staff_id', e.target.value)}
+                                          className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${
+                                            clashWarning1 || isOverDailyLimit1 || isSameTeacherTwice
+                                              ? 'border-red-400 bg-white text-red-700 font-bold' 
+                                              : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-emerald-500'
+                                          }`}
+                                        >
+                                          <option value="">-- Primary Teacher --</option>
+                                          {teachers.map(t => {
+                                            const count = getTeacherDayClassCount(t.id, row.day, col.period_number);
+                                            const reachedMax = count >= 6 && cell.staff_id !== t.id;
+                                            const isCoTeacher = t.id === cell.secondary_staff_id;
+                                            return (
+                                              <option key={t.id} value={t.id} disabled={reachedMax || isCoTeacher}>
+                                                {t.name} ({count}/6 today){reachedMax ? ' — MAX 6' : ''}{isCoTeacher ? ' [Selected as Co-Teacher]' : ''}
+                                              </option>
+                                            );
+                                          })}
+                                        </select>
+                                      </div>
+
+                                      {/* Co-Teacher / 2nd Teacher Dropdown */}
+                                      <div>
+                                        <select
+                                          value={cell.secondary_staff_id || ''}
+                                          onChange={(e) => updateCell(dayIdx, col.period_number, 'secondary_staff_id', e.target.value)}
+                                          className={`w-full p-1.5 border rounded-lg text-xs outline-none transition-colors ${
+                                            clashWarning2 || isOverDailyLimit2 || isSameTeacherTwice
+                                              ? 'border-red-400 bg-white text-red-700 font-bold' 
+                                              : cell.secondary_staff_id
+                                                ? 'border-indigo-300 bg-indigo-50/50 text-indigo-900 font-medium'
+                                                : 'border-gray-200 bg-gray-50/80 focus:bg-white focus:border-indigo-500'
+                                          }`}
+                                        >
+                                          <option value="">-- 2nd Teacher (Optional) --</option>
+                                          {teachers.map(t => {
+                                            const count = getTeacherDayClassCount(t.id, row.day, col.period_number);
+                                            const reachedMax = count >= 6 && cell.secondary_staff_id !== t.id;
+                                            const isPrimary = t.id === cell.staff_id;
+                                            return (
+                                              <option key={t.id} value={t.id} disabled={reachedMax || isPrimary}>
+                                                {t.name} ({count}/6 today){reachedMax ? ' — MAX 6' : ''}{isPrimary ? ' [Primary Teacher]' : ''}
+                                              </option>
+                                            );
+                                          })}
+                                        </select>
+                                      </div>
+
+                                      {/* Dual Teaching Badge */}
+                                      {isDualTeaching && (
+                                        <div className="flex items-center justify-center gap-1 text-[10px] text-indigo-800 font-bold bg-indigo-100 py-0.5 px-1 rounded border border-indigo-200">
+                                          <span>👥 2 Teachers (Co-Teaching)</span>
+                                        </div>
+                                      )}
+
+                                      {/* Warnings */}
+                                      {isSameTeacherTwice && (
+                                        <div className="flex items-center gap-1 text-[10px] text-red-700 font-bold bg-red-100 p-1 rounded border border-red-300">
+                                          <FaExclamationTriangle className="flex-shrink-0" />
+                                          <span>Same teacher selected twice</span>
+                                        </div>
+                                      )}
+
+                                      {clashWarning1 && (
+                                        <div className="flex items-center gap-1 text-[10px] text-red-600 font-bold bg-red-100/70 p-1 rounded border border-red-200">
+                                          <FaExclamationTriangle className="flex-shrink-0" />
+                                          <span>T1 Clashes: Class {clashWarning1.class_level}-{clashWarning1.section}</span>
+                                        </div>
+                                      )}
+
+                                      {clashWarning2 && (
+                                        <div className="flex items-center gap-1 text-[10px] text-red-600 font-bold bg-red-100/70 p-1 rounded border border-red-200">
+                                          <FaExclamationTriangle className="flex-shrink-0" />
+                                          <span>T2 Clashes: Class {clashWarning2.class_level}-{clashWarning2.section}</span>
+                                        </div>
+                                      )}
+
+                                      {isOverDailyLimit1 && (
+                                        <div className="flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-100/80 p-1 rounded border border-amber-300">
+                                          <FaExclamationTriangle className="flex-shrink-0 text-amber-600" />
+                                          <span>T1 Limit: {teacher1ClassesToday}/6 classes today</span>
+                                        </div>
+                                      )}
+
+                                      {isOverDailyLimit2 && (
+                                        <div className="flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-100/80 p-1 rounded border border-amber-300">
+                                          <FaExclamationTriangle className="flex-shrink-0 text-amber-600" />
+                                          <span>T2 Limit: {teacher2ClassesToday}/6 classes today</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* Recess Break Separator Column Cell */}
+                                  {brk && (
+                                    <td
+                                      key={`break-td-${brk.id}-${col.period_number}`}
+                                      className={`p-2 border-x-2 text-center align-middle ${
+                                        brk.id === 'break2'
+                                          ? 'border-orange-300/90 bg-gradient-to-b from-orange-50/80 via-amber-50/50 to-orange-50/60'
+                                          : 'border-amber-300/90 bg-gradient-to-b from-amber-50/80 via-yellow-50/50 to-amber-50/60'
+                                      }`}
+                                    >
+                                      <div className="flex flex-col items-center justify-center py-3.5 px-2 rounded-xl bg-white/85 border border-amber-200/80 shadow-2xs group hover:bg-white transition-all">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs mb-1.5 shadow-2xs group-hover:scale-110 transition-transform ${
+                                          brk.id === 'break2' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'
+                                        }`}>
+                                          {brk.id === 'break2' ? <FaCoffee size={13} /> : <FaUtensils size={13} />}
+                                        </div>
+                                        <span className="text-[11px] font-black tracking-wider text-amber-950 uppercase text-center leading-tight">
+                                          {brk.label || 'RECESS'}
+                                        </span>
+                                        {brk.start && brk.end ? (
+                                          <span className="text-[10px] text-amber-800 font-mono font-bold bg-amber-100/70 px-2 py-0.5 rounded-md mt-1 border border-amber-200 shadow-2xs">
+                                            {brk.start} – {brk.end}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] text-amber-600 font-semibold mt-1">
+                                            Tiffin Break
+                                          </span>
+                                        )}
+                                        <span className="text-[8px] uppercase tracking-widest text-gray-400 font-bold mt-1">
+                                          No Class
+                                        </span>
+                                      </div>
+                                    </td>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                            <td className="bg-gray-50"></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>

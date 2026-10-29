@@ -7,7 +7,7 @@ import {
 } from 'react-icons/fa';
 import { 
   FiMove, FiCalendar, FiClock, FiLayers, FiInfo, FiCheck, FiRefreshCw, 
-  FiAlignLeft, FiAlertCircle, FiAlertTriangle, FiBookOpen 
+  FiAlignLeft, FiAlertCircle, FiAlertTriangle, FiBookOpen, FiAward, FiZap 
 } from 'react-icons/fi';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -298,11 +298,27 @@ const ExamManagement = ({ apiUrl, token }) => {
 
   // Timetable State
   const [timetableData, setTimetableData] = useState([]);
+  const [writtenTimetableData, setWrittenTimetableData] = useState([]);
+  const [gradingTimetableData, setGradingTimetableData] = useState([]);
+  const [routineScope, setRoutineScope] = useState('written'); // 'written' | 'grading'
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [savingTimetable, setSavingTimetable] = useState(false);
   const [finalizingTimetable, setFinalizingTimetable] = useState(false);
   const [autoReorderDates, setAutoReorderDates] = useState(true);
   const [finalizeError, setFinalizeError] = useState(null);
+
+  // Auto-Generate Grading Routine Modal State
+  const [showAutoGradingModal, setShowAutoGradingModal] = useState(false);
+  const [autoGradingConfig, setAutoGradingConfig] = useState({
+    start_date: '',
+    subjects_per_day: 2,
+    start_time: '08:30',
+    end_time: '10:00',
+    second_start_time: '10:15',
+    second_end_time: '11:45',
+    apply_to_all_classes: true
+  });
+  const [generatingGrading, setGeneratingGrading] = useState(false);
 
   // Create Modal State
   const [showCreate, setShowCreate] = useState(false);
@@ -316,7 +332,9 @@ const ExamManagement = ({ apiUrl, token }) => {
     start_date: '',
     default_exam_id: '',
     single_start_time: '08:30',
-    single_end_time: '10:30'
+    single_end_time: '10:30',
+    auto_generate_grading: true,
+    grading_start_date: ''
   });
 
   const [classSelectionMode, setClassSelectionMode] = useState('all'); // 'all' | 'custom'
@@ -448,7 +466,10 @@ const ExamManagement = ({ apiUrl, token }) => {
           default_exam_id: newExam.default_exam_id,
           category: selectedTemplate?.category || 'periodic_assessment',
           single_start_time: newExam.single_start_time,
-          single_end_time: newExam.single_end_time
+          single_end_time: newExam.single_end_time,
+          auto_generate_grading_routine: newExam.auto_generate_grading !== false,
+          separate_grading_routine: true,
+          grading_start_date: newExam.grading_start_date || undefined
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -506,6 +527,44 @@ const ExamManagement = ({ apiUrl, token }) => {
     setView('timetable');
   };
 
+  const isTerminalExam = selectedClassExam?.category === 'terminal_examination';
+
+  // Active timetable data for current tab
+  const activeTimetableData = useMemo(() => {
+    if (!isTerminalExam) return timetableData;
+    return routineScope === 'grading' ? gradingTimetableData : writtenTimetableData;
+  }, [isTerminalExam, routineScope, timetableData, writtenTimetableData, gradingTimetableData]);
+
+  // Filtered available subjects for dropdown based on routine scope
+  const filteredAvailableSubjects = useMemo(() => {
+    if (!isTerminalExam) return availableSubjects;
+    if (routineScope === 'grading') {
+      return availableSubjects.filter((s) => s.is_grading);
+    }
+    return availableSubjects.filter((s) => !s.is_grading);
+  }, [availableSubjects, isTerminalExam, routineScope]);
+
+  // Unified updater for active scope
+  const setActiveList = (updater) => {
+    if (isTerminalExam) {
+      if (routineScope === 'grading') {
+        setGradingTimetableData((prev) => {
+          const next = typeof updater === 'function' ? updater(prev) : updater;
+          setTimetableData([...writtenTimetableData, ...next]);
+          return next;
+        });
+      } else {
+        setWrittenTimetableData((prev) => {
+          const next = typeof updater === 'function' ? updater(prev) : updater;
+          setTimetableData([...next, ...gradingTimetableData]);
+          return next;
+        });
+      }
+    } else {
+      setTimetableData(updater);
+    }
+  };
+
   // Switch Active Class in the Timetable Editor
   const switchClass = async (targetExam) => {
     setSelectedClassExam(targetExam);
@@ -529,19 +588,17 @@ const ExamManagement = ({ apiUrl, token }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      const grouped = [];
-      (tt || []).forEach((item, idx) => {
-        let existing = grouped.find((g) => g.subject === item.subject);
-        if (existing) {
-          // Do not duplicate subject cards for sub_subjects
-          return;
-        }
+      const written = [];
+      const grading = [];
 
+      (tt || []).forEach((item, idx) => {
         const matchedMeta = (eligibleSubs || []).find((s) => s.name === item.subject);
-        grouped.push({
+        const isGrading = !!item.is_grading || !!matchedMeta?.is_grading || false;
+
+        const card = {
           _dragId: `item-${idx}-${item.subject || 'sub'}-${Date.now()}`,
           subject: item.subject,
-          is_grading: item.is_grading || !!matchedMeta?.is_grading || false,
+          is_grading: isGrading,
           total_marks: item.total_marks || (targetExam.category === 'periodic_assessment' ? 50 : 100),
           passing_marks: item.passing_marks || (targetExam.category === 'periodic_assessment' ? 20 : 40),
           has_practical: item.has_practical || false,
@@ -551,23 +608,35 @@ const ExamManagement = ({ apiUrl, token }) => {
           practical_passing_marks: item.practical_passing_marks || '',
           exam_date: item.exam_date ? item.exam_date.substring(0, 10) : '',
           start_time: item.start_time?.substring(0, 5) || '08:30',
-          end_time: item.end_time?.substring(0, 5) || '10:30',
+          end_time: item.end_time?.substring(0, 5) || (isGrading ? '10:00' : '10:30'),
           is_divided: matchedMeta?.is_divided || false,
           subjectMeta: matchedMeta || null
-        });
+        };
+
+        if (isGrading) {
+          if (!grading.some(g => g.subject === item.subject)) grading.push(card);
+        } else {
+          if (!written.some(w => w.subject === item.subject)) written.push(card);
+        }
       });
-      setTimetableData(grouped);
+
+      setWrittenTimetableData(written);
+      setGradingTimetableData(grading);
+      setTimetableData([...written, ...grading]);
     } catch (err) {
       console.error('Error loading timetable:', err);
+      setWrittenTimetableData([]);
+      setGradingTimetableData([]);
       setTimetableData([]);
     }
   };
 
-  // Add a new row to the timetable editor
+  // Add a new row to the active timetable editor
   const addTimetableRow = () => {
     let nextDate = '';
-    if (timetableData.length > 0) {
-      const lastDate = timetableData[timetableData.length - 1].exam_date;
+    const list = activeTimetableData;
+    if (list.length > 0) {
+      const lastDate = list[list.length - 1].exam_date;
       if (lastDate) {
         const d = new Date(lastDate);
         if (!isNaN(d.getTime())) {
@@ -579,43 +648,45 @@ const ExamManagement = ({ apiUrl, token }) => {
     }
 
     const cat = selectedClassExam?.category || 'periodic_assessment';
-    setTimetableData([
-      ...timetableData,
-      {
-        _dragId: `new-row-${Date.now()}-${timetableData.length}`,
-        subject: '',
-        is_grading: false,
-        total_marks: cat === 'periodic_assessment' ? 50 : 100,
-        passing_marks: cat === 'periodic_assessment' ? 20 : 40,
-        has_practical: false,
-        theory_marks: '',
-        theory_passing_marks: '',
-        practical_marks: '',
-        practical_passing_marks: '',
-        exam_date: nextDate,
-        start_time: '08:30',
-        end_time: '10:30',
-        is_divided: false,
-        subjectMeta: null
-      }
-    ]);
+    const isGrading = isTerminalExam && routineScope === 'grading';
+    const newRow = {
+      _dragId: `new-row-${Date.now()}-${list.length}`,
+      subject: '',
+      is_grading: isGrading,
+      total_marks: cat === 'periodic_assessment' ? 50 : 100,
+      passing_marks: cat === 'periodic_assessment' ? 20 : 40,
+      has_practical: false,
+      theory_marks: '',
+      theory_passing_marks: '',
+      practical_marks: '',
+      practical_passing_marks: '',
+      exam_date: nextDate,
+      start_time: '08:30',
+      end_time: isGrading ? '10:00' : '10:30',
+      is_divided: false,
+      subjectMeta: null
+    };
+
+    setActiveList((prev) => [...prev, newRow]);
   };
 
   const handleUpdateField = (index, updates) => {
-    const updated = [...timetableData];
-    updated[index] = { ...updated[index], ...updates };
-    setTimetableData(updated);
+    setActiveList((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...updates };
+      return updated;
+    });
   };
 
   const handleRemoveRow = (index) => {
-    setTimetableData(timetableData.filter((_, i) => i !== index));
+    setActiveList((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Drag-and-drop handler
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (active && over && active.id !== over.id) {
-      setTimetableData((items) => {
+      setActiveList((items) => {
         const oldIndex = items.findIndex((i) => i._dragId === active.id);
         const newIndex = items.findIndex((i) => i._dragId === over.id);
         if (oldIndex === -1 || newIndex === -1) return items;
@@ -642,7 +713,8 @@ const ExamManagement = ({ apiUrl, token }) => {
 
   // One-click date re-aligner
   const handleAlignDatesChronologically = () => {
-    const sortedDates = timetableData
+    const list = activeTimetableData;
+    const sortedDates = list
       .map((it) => it.exam_date)
       .filter(Boolean)
       .sort();
@@ -652,20 +724,21 @@ const ExamManagement = ({ apiUrl, token }) => {
       return;
     }
 
-    setTimetableData(
-      timetableData.map((it, idx) => ({
+    setActiveList(
+      list.map((it, idx) => ({
         ...it,
         exam_date: sortedDates[idx] || it.exam_date
       }))
     );
   };
 
-  // Save Timetable Draft
+  // Save Timetable Draft with Scoped Preservation
   const handleSaveTimetable = async () => {
     if (!selectedClassExam) return;
     setSavingTimetable(true);
     try {
-      const flatData = timetableData.map((g) => ({
+      const listToSave = activeTimetableData;
+      const flatData = listToSave.map((g) => ({
         class_level: selectedClassExam.class_level,
         subject: g.subject,
         is_grading: g.is_grading || false,
@@ -679,17 +752,25 @@ const ExamManagement = ({ apiUrl, token }) => {
         sub_subject: null,
         exam_date: g.exam_date || null,
         start_time: g.start_time || '08:30',
-        end_time: g.end_time || '10:30',
+        end_time: g.end_time || (g.is_grading ? '10:00' : '10:30'),
         room_number: ''
       }));
 
+      const currentScope = isTerminalExam ? routineScope : 'all';
+
       await axios.post(
         `${apiUrl}/exams/${selectedClassExam.id}/timetable`,
-        { timetableData: flatData },
+        { timetableData: flatData, scope: currentScope },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      alert(`Routine for Class ${selectedClassExam.class_level} saved successfully!`);
+      const routineLabel = isTerminalExam
+        ? routineScope === 'grading'
+          ? 'Grading Routine'
+          : 'Written Routine'
+        : 'Routine';
+
+      alert(`${routineLabel} for Class ${selectedClassExam.class_level} saved successfully!`);
       setTimetablesMap((prev) => ({
         ...prev,
         [selectedClassExam.id]: { created: true, finalized: false }
@@ -705,9 +786,15 @@ const ExamManagement = ({ apiUrl, token }) => {
   // Finalize Timetable (Strict Server-Side Validation Gate)
   const handleFinalizeTimetable = async () => {
     if (!selectedClassExam) return;
+    const routineLabel = isTerminalExam
+      ? routineScope === 'grading'
+        ? 'Grading Routine'
+        : 'Written Routine'
+      : 'Timetable';
+
     if (
       !window.confirm(
-        `Are you sure you want to finalize the timetable for Class ${selectedClassExam.class_level}? This will lock it from further editing.`
+        `Are you sure you want to finalize the ${routineLabel} for Class ${selectedClassExam.class_level}? This will lock it from further editing.`
       )
     ) {
       return;
@@ -716,9 +803,10 @@ const ExamManagement = ({ apiUrl, token }) => {
     setFinalizingTimetable(true);
     setFinalizeError(null);
     try {
+      const currentScope = isTerminalExam ? routineScope : 'all';
       await axios.put(
         `${apiUrl}/exams/${selectedClassExam.id}/timetable/finalize`,
-        { class_level: selectedClassExam.class_level },
+        { class_level: selectedClassExam.class_level, scope: currentScope },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -726,7 +814,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         ...prev,
         [selectedClassExam.id]: { created: true, finalized: true }
       }));
-      alert(`Class ${selectedClassExam.class_level} timetable finalized successfully!`);
+      alert(`Class ${selectedClassExam.class_level} ${routineLabel} finalized successfully!`);
     } catch (error) {
       console.error('Finalization rejection:', error);
       const errMsg = error.response?.data?.message || 'Failed to finalize timetable due to validation errors.';
@@ -736,8 +824,40 @@ const ExamManagement = ({ apiUrl, token }) => {
     }
   };
 
-  // Download PDF for a single class
-  const downloadClassPDF = async (examRecord) => {
+  // Auto-generate grading routine for terminal examination
+  const handleAutoGenerateGradingRoutine = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!selectedClassExam) return;
+
+    try {
+      setGeneratingGrading(true);
+      const res = await axios.post(
+        `${apiUrl}/exams/${selectedClassExam.id}/grading-timetable/auto-generate`,
+        {
+          start_date: autoGradingConfig.start_date || undefined,
+          subjects_per_day: autoGradingConfig.subjects_per_day || 2,
+          start_time: autoGradingConfig.start_time || '08:30',
+          end_time: autoGradingConfig.end_time || '10:00',
+          second_start_time: autoGradingConfig.second_start_time || '10:15',
+          second_end_time: autoGradingConfig.second_end_time || '11:45',
+          apply_to_all_classes: autoGradingConfig.apply_to_all_classes
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setShowAutoGradingModal(false);
+      alert(res.data?.message || 'Grading routine auto-generated successfully!');
+      await switchClass(selectedClassExam);
+    } catch (err) {
+      console.error('Error auto-generating grading routine:', err);
+      alert(err.response?.data?.message || 'Failed to auto-generate grading routine');
+    } finally {
+      setGeneratingGrading(false);
+    }
+  };
+
+  // Download PDF for a single class (supports 'written' and 'grading' routine scopes)
+  const downloadClassPDF = async (examRecord, scope = 'written') => {
     try {
       const { data: ttData } = await axios.get(`${apiUrl}/exams/${examRecord.id}/timetable`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -746,33 +866,63 @@ const ExamManagement = ({ apiUrl, token }) => {
         alert('No timetable created yet to download.');
         return;
       }
+
+      const { data: eligibleSubs } = await axios.get(`${apiUrl}/exams/${examRecord.id}/eligible-subjects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => ({ data: [] }));
+
+      const gradingSet = new Set((eligibleSubs || []).filter(s => s.is_grading).map(s => s.name.toUpperCase()));
+
+      const isTerminal = examRecord.category === 'terminal_examination';
+      const isGradingScope = scope === 'grading';
+
+      const filteredRows = isTerminal
+        ? ttData.filter(r => isGradingScope ? (r.is_grading || gradingSet.has(r.subject?.toUpperCase())) : (!r.is_grading && !gradingSet.has(r.subject?.toUpperCase())))
+        : ttData;
+
+      if (filteredRows.length === 0) {
+        alert(`No ${isGradingScope ? 'grading' : 'written'} subjects found in this timetable to download.`);
+        return;
+      }
+
       const doc = new jsPDF();
-      doc.setFontSize(18);
-      doc.text(`Exam Routine: ${examRecord.name} - Class ${examRecord.class_level}`, 14, 22);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text(schoolProfile?.name || 'HOLY NAME HIGHER SECONDARY SCHOOL', 14, 18);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        `${examRecord.name} - Class ${examRecord.class_level} ${isTerminal ? (isGradingScope ? '(Grading Subjects Routine)' : '(Written Examination Routine)') : ''}`,
+        14,
+        26
+      );
 
       const tableColumn = ['Date', 'Time', 'Subject', 'Total Marks', 'Pass Marks', 'Type'];
       const tableRows = [];
 
-      ttData.forEach((row) => {
+      filteredRows.forEach((row) => {
         const subjectName = `${row.subject} ${row.sub_subject ? `(${row.sub_subject})` : ''}`;
         const timeStr = `${row.start_time?.substring(0, 5) || '--:--'} - ${row.end_time?.substring(0, 5) || '--:--'}`;
+        const isGrading = row.is_grading || gradingSet.has(row.subject?.toUpperCase());
         tableRows.push([
           row.exam_date || '-',
           timeStr,
           subjectName,
           row.total_marks || (row.theory_marks || 0) + (row.practical_marks || 0),
           row.passing_marks || '-',
-          row.is_grading ? 'Grading' : 'Standard'
+          isGrading ? 'Grading' : 'Written'
         ]);
       });
 
       autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
-        startY: 30
+        startY: 32,
+        theme: 'grid',
+        headStyles: { fillColor: isGradingScope ? [126, 34, 206] : [79, 70, 229] }
       });
 
-      doc.save(`Timetable_${examRecord.name}_Class_${examRecord.class_level}.pdf`);
+      doc.save(`${isGradingScope ? 'Grading' : 'Written'}_Routine_${examRecord.name}_Class_${examRecord.class_level}.pdf`);
     } catch (error) {
       console.error(error);
       alert('Failed to download PDF');
@@ -780,7 +930,7 @@ const ExamManagement = ({ apiUrl, token }) => {
   };
 
   // Download Master Routine for all classes in single A4 landscape PDF
-  const exportMasterRoutinePDF = async (logicalGroup) => {
+  const exportMasterRoutinePDF = async (logicalGroup, scope = 'all') => {
     try {
       const res = await axios.get(`${apiUrl}/exams/logical/${logicalGroup.logical_exam_id}/timetable`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -789,6 +939,17 @@ const ExamManagement = ({ apiUrl, token }) => {
 
       if (!allTtRows || allTtRows.length === 0) {
         alert('No routine data available to download for this exam.');
+        return;
+      }
+
+      const filteredRows = (scope === 'written')
+        ? allTtRows.filter((r) => !r.is_grading)
+        : (scope === 'grading')
+        ? allTtRows.filter((r) => r.is_grading)
+        : allTtRows;
+
+      if (filteredRows.length === 0) {
+        alert(`No ${scope} routine entries found for this exam.`);
         return;
       }
 
@@ -804,7 +965,7 @@ const ExamManagement = ({ apiUrl, token }) => {
       });
 
       // Chronological sort of dates
-      const dateSet = new Set(allTtRows.map((r) => r.exam_date).filter(Boolean));
+      const dateSet = new Set(filteredRows.map((r) => r.exam_date).filter(Boolean));
       const sortedDates = Array.from(dateSet).sort();
 
       if (sortedDates.length === 0) {
@@ -821,7 +982,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         });
       });
 
-      allTtRows.forEach((r) => {
+      filteredRows.forEach((r) => {
         if (r.exam_date && matrix[r.exam_date] && matrix[r.exam_date][r.class_level]) {
           const subTitle = r.sub_subject ? `${r.subject} (${r.sub_subject})` : r.subject;
           matrix[r.exam_date][r.class_level].push(subTitle);
@@ -838,11 +999,14 @@ const ExamManagement = ({ apiUrl, token }) => {
       const pageWidth = 297;
       const schoolName = schoolProfile?.name || 'HOLY NAME HIGHER SECONDARY SCHOOL';
       const schoolAddress = schoolProfile?.officeAddress || 'Sivasagar, Assam - 785640';
-      const examName = `${logicalGroup.name.toUpperCase()} - EXAMINATION ROUTINE`;
+      const routineScopeLabel = scope === 'grading'
+        ? 'GRADING SUBJECTS ROUTINE'
+        : (scope === 'written' ? 'WRITTEN EXAMINATION ROUTINE' : 'EXAMINATION ROUTINE');
+      const examName = `${logicalGroup.name.toUpperCase()} - ${routineScopeLabel}`;
       const startDate = logicalGroup.start_date || sortedDates[0];
       const endDate = logicalGroup.end_date || sortedDates[sortedDates.length - 1];
-      const examTiming = (allTtRows[0]?.start_time && allTtRows[0]?.end_time)
-        ? `${allTtRows[0].start_time.substring(0, 5)} - ${allTtRows[0].end_time.substring(0, 5)}`
+      const examTiming = (filteredRows[0]?.start_time && filteredRows[0]?.end_time)
+        ? `${filteredRows[0].start_time.substring(0, 5)} - ${filteredRows[0].end_time.substring(0, 5)}`
         : '08:30 AM - 10:30 AM';
 
       let currentY = 8;
@@ -893,14 +1057,14 @@ const ExamManagement = ({ apiUrl, token }) => {
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
-      doc.setTextColor(49, 46, 129);
+      doc.setTextColor(scope === 'grading' ? 126 : 49, scope === 'grading' ? 34 : 46, scope === 'grading' ? 206 : 129);
       doc.text(examName, pageWidth / 2, currentY, { align: 'center' });
       currentY += 5;
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(51, 65, 85);
-      const subInfo = `Exam Period: ${startDate} to ${endDate}   |   Exam Timings: ${examTiming} (1-Shift Session)   |   Total Classes: ${sortedClasses.length}`;
+      const subInfo = `Exam Period: ${startDate} to ${endDate}   |   Exam Timings: ${examTiming}   |   Total Classes: ${sortedClasses.length}`;
       doc.text(subInfo, pageWidth / 2, currentY, { align: 'center' });
       currentY += 4.5;
 
@@ -956,7 +1120,7 @@ const ExamManagement = ({ apiUrl, token }) => {
           textColor: [15, 23, 42]
         },
         headStyles: {
-          fillColor: [30, 41, 59],
+          fillColor: scope === 'grading' ? [126, 34, 206] : [30, 41, 59],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'center',
@@ -984,7 +1148,8 @@ const ExamManagement = ({ apiUrl, token }) => {
         doc.deletePage(doc.internal.getNumberOfPages());
       }
 
-      doc.save(`Exam_Routine_${logicalGroup.name}_Master.pdf`);
+      const fileSuffix = scope === 'written' ? '_Written_Master' : (scope === 'grading' ? '_Grading_Master' : '_Master');
+      doc.save(`Exam_Routine_${logicalGroup.name}${fileSuffix}.pdf`);
     } catch (err) {
       console.error('[EXPORT MASTER PDF ERROR]:', err);
       alert('Failed to generate Master PDF: ' + (err.message || 'Unknown error'));
@@ -992,7 +1157,7 @@ const ExamManagement = ({ apiUrl, token }) => {
   };
 
   // Download Master Routine for all classes in Excel (.xlsx) format
-  const exportMasterRoutineExcel = async (logicalGroup) => {
+  const exportMasterRoutineExcel = async (logicalGroup, scope = 'all') => {
     try {
       const res = await axios.get(`${apiUrl}/exams/logical/${logicalGroup.logical_exam_id}/timetable`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1001,6 +1166,17 @@ const ExamManagement = ({ apiUrl, token }) => {
 
       if (!allTtRows || allTtRows.length === 0) {
         alert('No routine data available to download for this exam.');
+        return;
+      }
+
+      const filteredRows = (scope === 'written')
+        ? allTtRows.filter((r) => !r.is_grading)
+        : (scope === 'grading')
+        ? allTtRows.filter((r) => r.is_grading)
+        : allTtRows;
+
+      if (filteredRows.length === 0) {
+        alert(`No ${scope} routine entries found for this exam.`);
         return;
       }
 
@@ -1015,7 +1191,7 @@ const ExamManagement = ({ apiUrl, token }) => {
         return a.localeCompare(b);
       });
 
-      const dateSet = new Set(allTtRows.map((r) => r.exam_date).filter(Boolean));
+      const dateSet = new Set(filteredRows.map((r) => r.exam_date).filter(Boolean));
       const sortedDates = Array.from(dateSet).sort();
 
       const matrix = {};
@@ -1026,21 +1202,25 @@ const ExamManagement = ({ apiUrl, token }) => {
         });
       });
 
-      allTtRows.forEach((r) => {
+      filteredRows.forEach((r) => {
         if (r.exam_date && matrix[r.exam_date] && matrix[r.exam_date][r.class_level]) {
           const subTitle = r.sub_subject ? `${r.subject} (${r.sub_subject})` : r.subject;
           matrix[r.exam_date][r.class_level].push(subTitle);
         }
       });
 
+      const fileSuffix = scope === 'written' ? '_Written' : (scope === 'grading' ? '_Grading' : '');
       await exportExamRoutineExcelWithImage({
         schoolProfile,
-        logicalGroup,
+        logicalGroup: {
+          ...logicalGroup,
+          name: scope !== 'all' ? `${logicalGroup.name} (${scope === 'written' ? 'Written' : 'Grading'})` : logicalGroup.name
+        },
         sortedDates,
         sortedClasses,
         matrix,
-        allTtRows,
-        filename: `Exam_Routine_${(logicalGroup.name || 'Exam').replace(/\s+/g, '_')}_Master.xlsx`
+        allTtRows: filteredRows,
+        filename: `Exam_Routine_${(logicalGroup.name || 'Exam').replace(/\s+/g, '_')}${fileSuffix}_Master.xlsx`
       });
     } catch (err) {
       console.error('[EXPORT MASTER EXCEL ERROR]:', err);
@@ -1183,13 +1363,32 @@ const ExamManagement = ({ apiUrl, token }) => {
                         >
                           <FaCalendarAlt size={11} /> Manage
                         </button>
-                        <button
-                          onClick={() => exportMasterRoutinePDF(grp)}
-                          className="bg-rose-600 hover:bg-rose-700 text-white px-2.5 h-8 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"
-                          title="Download Landscape A4 Master Routine PDF (All Classes)"
-                        >
-                          <FaFilePdf size={11} /> PDF
-                        </button>
+                        {grp.category === 'terminal_examination' ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => exportMasterRoutinePDF(grp, 'written')}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 h-8 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold shadow-sm"
+                              title="Download Written Master Routine Landscape A4 PDF"
+                            >
+                              <FaFilePdf size={10} /> Written
+                            </button>
+                            <button
+                              onClick={() => exportMasterRoutinePDF(grp, 'grading')}
+                              className="bg-purple-600 hover:bg-purple-700 text-white px-2 h-8 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold shadow-sm"
+                              title="Download Grading Subjects Master Routine Landscape A4 PDF"
+                            >
+                              <FaFilePdf size={10} /> Grading
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => exportMasterRoutinePDF(grp, 'all')}
+                            className="bg-rose-600 hover:bg-rose-700 text-white px-2.5 h-8 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"
+                            title="Download Landscape A4 Master Routine PDF (All Classes)"
+                          >
+                            <FaFilePdf size={11} /> PDF
+                          </button>
+                        )}
                         <button
                           onClick={() => exportMasterRoutineExcel(grp)}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 h-8 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold shadow-sm"
@@ -1253,14 +1452,35 @@ const ExamManagement = ({ apiUrl, token }) => {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => exportMasterRoutinePDF(currentLogicalGroup)}
-                className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
-                title="Download Master Routine Landscape A4 PDF (All Classes)"
-              >
-                <FaFilePdf size={12} /> Master PDF (A4 Landscape)
-              </button>
+              {selectedClassExam.category === 'terminal_examination' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => exportMasterRoutinePDF(currentLogicalGroup, 'written')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+                    title="Download Master Written Routine Landscape A4 PDF (All Classes)"
+                  >
+                    <FaFilePdf size={12} /> Master Written PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => exportMasterRoutinePDF(currentLogicalGroup, 'grading')}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+                    title="Download Master Grading Routine Landscape A4 PDF (All Classes)"
+                  >
+                    <FaFilePdf size={12} /> Master Grading PDF
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => exportMasterRoutinePDF(currentLogicalGroup, 'all')}
+                  className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+                  title="Download Master Routine Landscape A4 PDF (All Classes)"
+                >
+                  <FaFilePdf size={12} /> Master PDF (A4 Landscape)
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => exportMasterRoutineExcel(currentLogicalGroup)}
@@ -1315,12 +1535,85 @@ const ExamManagement = ({ apiUrl, token }) => {
             </div>
           )}
 
-          {/* Notice for Grading Priority in Terminal Examination */}
+          {/* Sub-Routine Switcher Tabs for Half Yearly / Annual Exams */}
           {selectedClassExam.category === 'terminal_examination' && (
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-3.5 mb-6 text-xs text-purple-900 flex items-start gap-2.5">
-              <FiInfo className="text-purple-600 text-base shrink-0 mt-0.5" />
+            <div className="bg-white p-2.5 rounded-2xl border border-gray-200 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRoutineScope('written')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition ${
+                    routineScope === 'written'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  <FiEdit3 className="text-sm" />
+                  <span>Written Exams Routine (Theory)</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                    routineScope === 'written' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
+                  }`}>
+                    {writtenTimetableData.length} Subjects
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRoutineScope('grading')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition ${
+                    routineScope === 'grading'
+                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  <FiAward className="text-sm" />
+                  <span>Grading Subjects Routine</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                    routineScope === 'grading' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
+                  }`}>
+                    {gradingTimetableData.length} Subjects
+                  </span>
+                </button>
+              </div>
+
+              {routineScope === 'grading' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!autoGradingConfig.start_date && selectedClassExam.start_date) {
+                      setAutoGradingConfig((prev) => ({
+                        ...prev,
+                        start_date: selectedClassExam.start_date
+                      }));
+                    }
+                    setShowAutoGradingModal(true);
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <FiZap className="text-amber-300" /> Auto-Generate Grading Routine
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Explanatory Notice for Terminal Examination */}
+          {selectedClassExam.category === 'terminal_examination' && (
+            <div className={`rounded-xl p-3.5 mb-6 text-xs flex items-start gap-2.5 border ${
+              routineScope === 'grading'
+                ? 'bg-purple-50 border-purple-200 text-purple-900'
+                : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+            }`}>
+              <FiInfo className="text-base shrink-0 mt-0.5" />
               <div>
-                <strong>Terminal Examination Rule:</strong> All grading subjects (e.g. Moral Science, Computer, Physical Education) must be conducted before any non-grading subjects. The finalization gate will enforce this ordering.
+                {routineScope === 'written' ? (
+                  <span>
+                    <strong>Written Examination Routine:</strong> Conducted 1 theory subject per day starting on {selectedClassExam.start_date || 'start date'}. Grading subjects are managed separately in the <strong>Grading Subjects Routine</strong> tab to prevent timetable congestion.
+                  </span>
+                ) : (
+                  <span>
+                    <strong>Grading Subjects Routine (Separate Timetable):</strong> Grading subjects (Moral Science, Conversation, Art, Craft, Reading, Dictation, etc.) can be scheduled on dedicated dates or morning shifts (1 or 2 subjects/day) without clashing with written exams.
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -1356,16 +1649,39 @@ const ExamManagement = ({ apiUrl, token }) => {
 
           {/* DRAGGABLE CARDS LIST */}
           <div className="mb-8">
-            {timetableData.length === 0 ? (
+            {activeTimetableData.length === 0 ? (
               <div className="bg-white p-8 text-center border-2 border-dashed border-gray-200 rounded-xl">
-                <p className="text-sm text-gray-500 mb-3">No subjects in this exam timetable yet.</p>
-                <button
-                  type="button"
-                  onClick={addTimetableRow}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm"
-                >
-                  <FaPlus className="inline mr-1" /> Add Subject
-                </button>
+                <p className="text-sm text-gray-500 mb-3">
+                  {isTerminalExam && routineScope === 'grading'
+                    ? 'No grading subjects scheduled in this separate timetable yet.'
+                    : 'No subjects scheduled in this timetable yet.'}
+                </p>
+                <div className="flex items-center justify-center gap-3">
+                  {isTerminalExam && routineScope === 'grading' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!autoGradingConfig.start_date && selectedClassExam.start_date) {
+                          setAutoGradingConfig((prev) => ({
+                            ...prev,
+                            start_date: selectedClassExam.start_date
+                          }));
+                        }
+                        setShowAutoGradingModal(true);
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5"
+                    >
+                      <FiZap className="text-amber-300" /> Auto-Generate Grading Routine
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={addTimetableRow}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm"
+                  >
+                    <FaPlus className="inline mr-1" /> {isTerminalExam && routineScope === 'grading' ? 'Add Grading Subject' : 'Add Subject'}
+                  </button>
+                </div>
               </div>
             ) : (
               <DndContext
@@ -1374,16 +1690,16 @@ const ExamManagement = ({ apiUrl, token }) => {
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={timetableData.map((g) => g._dragId)}
+                  items={activeTimetableData.map((g) => g._dragId)}
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-4">
-                    {timetableData.map((group, idx) => (
+                    {activeTimetableData.map((group, idx) => (
                       <SortableTimetableCard
                         key={group._dragId}
                         group={group}
                         idx={idx}
-                        availableSubjects={availableSubjects}
+                        availableSubjects={filteredAvailableSubjects}
                         examCategory={selectedClassExam.category}
                         onUpdateField={handleUpdateField}
                         onRemove={handleRemoveRow}
@@ -1402,13 +1718,13 @@ const ExamManagement = ({ apiUrl, token }) => {
                 onClick={addTimetableRow}
                 className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-emerald-700 transition shadow-sm flex items-center gap-2"
               >
-                <FaPlus /> Add Subject Day
+                <FaPlus /> {isTerminalExam && routineScope === 'grading' ? 'Add Grading Subject Day' : 'Add Subject Day'}
               </button>
               <button
-                onClick={() => downloadClassPDF(selectedClassExam)}
+                onClick={() => downloadClassPDF(selectedClassExam, isTerminalExam ? routineScope : 'all')}
                 className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-sm"
               >
-                <FaDownload /> Download Class PDF
+                <FaDownload /> {isTerminalExam && routineScope === 'grading' ? 'Download Grading PDF' : 'Download Class PDF'}
               </button>
             </div>
 
@@ -1418,7 +1734,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                 disabled={savingTimetable}
                 className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-indigo-700 transition shadow-md shadow-indigo-600/20 disabled:opacity-50"
               >
-                {savingTimetable ? 'Saving Draft...' : 'Save Draft Routine'}
+                {savingTimetable ? 'Saving...' : `Save ${isTerminalExam && routineScope === 'grading' ? 'Grading Routine' : 'Routine'} Draft`}
               </button>
 
               <button
@@ -1427,7 +1743,7 @@ const ExamManagement = ({ apiUrl, token }) => {
                 className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2.5 rounded-xl font-bold text-xs transition shadow-md shadow-teal-600/20 flex items-center gap-2 disabled:opacity-50"
               >
                 <FaCheckCircle />
-                {finalizingTimetable ? 'Finalizing...' : 'Finalize Timetable'}
+                {finalizingTimetable ? 'Finalizing...' : `Finalize ${isTerminalExam && routineScope === 'grading' ? 'Grading Routine' : 'Timetable'}`}
               </button>
             </div>
           </div>
@@ -1674,6 +1990,29 @@ const ExamManagement = ({ apiUrl, token }) => {
                 </div>
               </div>
 
+              {/* Terminal Examination Separate Grading Routine Option */}
+              {selectedTemplate?.category === 'terminal_examination' && (
+                <div className="p-3.5 bg-purple-50/80 rounded-xl border border-purple-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-purple-950 select-none">
+                      <input
+                        type="checkbox"
+                        checked={newExam.auto_generate_grading !== false}
+                        onChange={(e) => setNewExam({ ...newExam, auto_generate_grading: e.target.checked })}
+                        className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Auto-Generate Separate Grading Routine</span>
+                    </label>
+                    <span className="text-[10px] font-bold bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full">
+                      Recommended
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-purple-700 leading-relaxed pl-6">
+                    Schedules grading subjects (Moral Science, Conversation, Art, Craft, Reading, etc.) into an independent timetable. Keeps the written theory routine strictly 1 exam/day without clashing or exceeding working days.
+                  </p>
+                </div>
+              )}
+
               {/* Auto-Scheduling Rules Banner */}
               <div className="text-[11px] bg-indigo-50/70 p-4 rounded-xl border border-indigo-100 text-slate-700 space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-indigo-800 text-xs">
@@ -1681,8 +2020,8 @@ const ExamManagement = ({ apiUrl, token }) => {
                   <span>Automated 20 Working Days Scheduler</span>
                 </div>
                 <ul className="list-disc list-inside text-slate-600 space-y-0.5 pl-1">
-                  <li><strong>1-Shift System:</strong> Exactly 1 non-grading subject per day (no double shifts).</li>
-                  <li><strong>Grading Subjects:</strong> Conducted within at most 2 working dates (Day 1 & Day 2) before non-grading subjects.</li>
+                  <li><strong>1-Shift Written System:</strong> Exactly 1 written subject per day starting on the starting exam date.</li>
+                  <li><strong>Separate Grading Timetable:</strong> Grading subjects (Moral Science, Conversation, Art, Craft, Reading) managed in a dedicated timetable.</li>
                   <li><strong>Class IX–XII MIL:</strong> Conducted on 1 unified day labeled as "MIL" in the routine.</li>
                   <li><strong>Duration:</strong> Routine auto-ends within 20 working days (excluding Sundays).</li>
                 </ul>
@@ -1703,6 +2042,171 @@ const ExamManagement = ({ apiUrl, token }) => {
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold text-xs transition shadow-md shadow-indigo-600/20 disabled:opacity-50"
                 >
                   {submittingExam ? 'Scheduling...' : 'Create Exam & Auto-Schedule'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================= AUTO-GENERATE GRADING ROUTINE MODAL ======================= */}
+      {showAutoGradingModal && selectedClassExam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-gray-100 max-h-[92vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowAutoGradingModal(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition"
+            >
+              ✕
+            </button>
+
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                <FiAward size={18} />
+              </div>
+              <h2 className="text-xl font-black text-gray-800">
+                Auto-Generate Grading Routine
+              </h2>
+            </div>
+            <p className="text-xs text-gray-500 mb-5">
+              Generate a separate, conflict-free timetable for grading subjects (Moral Science, Conversation, Art, Craft, Reading, etc.) for Half Yearly / Annual Exams.
+            </p>
+
+            <form onSubmit={handleAutoGenerateGradingRoutine} className="space-y-4">
+              {/* Start Date */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                  Grading Exams Start Date *
+                </label>
+                <input
+                  required
+                  type="date"
+                  value={autoGradingConfig.start_date}
+                  onChange={(e) => setAutoGradingConfig({ ...autoGradingConfig, start_date: e.target.value })}
+                  className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 text-sm font-medium shadow-sm cursor-pointer"
+                />
+                <span className="text-[11px] text-gray-400 mt-1 block">
+                  Grading subjects can be conducted on or prior to the written examination start date.
+                </span>
+              </div>
+
+              {/* Subjects Per Day */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                  Subjects Per Day
+                </label>
+                <select
+                  value={autoGradingConfig.subjects_per_day}
+                  onChange={(e) => setAutoGradingConfig({ ...autoGradingConfig, subjects_per_day: parseInt(e.target.value, 10) })}
+                  className="w-full border border-slate-300 bg-white text-slate-900 p-3 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 text-sm font-semibold shadow-sm"
+                >
+                  <option value={1}>1 Subject Per Day (Standard single shift)</option>
+                  <option value={2}>2 Subjects Per Day (Split morning slots - Recommended)</option>
+                  <option value={3}>3 Subjects Per Day (Rapid evaluation)</option>
+                </select>
+              </div>
+
+              {/* Slot 1 Timing */}
+              <div className="p-3.5 bg-purple-50/60 rounded-xl border border-purple-100">
+                <label className="block text-xs font-bold text-purple-900 uppercase mb-2">
+                  Slot 1 Timing (First Subject)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-purple-700 font-medium mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      value={autoGradingConfig.start_time}
+                      onChange={(e) => setAutoGradingConfig({ ...autoGradingConfig, start_time: e.target.value })}
+                      className="w-full border border-purple-200 bg-white text-slate-900 p-2.5 rounded-lg text-xs font-semibold shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-purple-700 font-medium mb-1">End Time</label>
+                    <input
+                      type="time"
+                      value={autoGradingConfig.end_time}
+                      onChange={(e) => setAutoGradingConfig({ ...autoGradingConfig, end_time: e.target.value })}
+                      className="w-full border border-purple-200 bg-white text-slate-900 p-2.5 rounded-lg text-xs font-semibold shadow-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Slot 2 Timing (if 2+ subjects/day) */}
+              {autoGradingConfig.subjects_per_day >= 2 && (
+                <div className="p-3.5 bg-purple-50/60 rounded-xl border border-purple-100">
+                  <label className="block text-xs font-bold text-purple-900 uppercase mb-2">
+                    Slot 2 Timing (Second Subject)
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] text-purple-700 font-medium mb-1">Start Time</label>
+                      <input
+                        type="time"
+                        value={autoGradingConfig.second_start_time}
+                        onChange={(e) => setAutoGradingConfig({ ...autoGradingConfig, second_start_time: e.target.value })}
+                        className="w-full border border-purple-200 bg-white text-slate-900 p-2.5 rounded-lg text-xs font-semibold shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-purple-700 font-medium mb-1">End Time</label>
+                      <input
+                        type="time"
+                        value={autoGradingConfig.second_end_time}
+                        onChange={(e) => setAutoGradingConfig({ ...autoGradingConfig, second_end_time: e.target.value })}
+                        className="w-full border border-purple-200 bg-white text-slate-900 p-2.5 rounded-lg text-xs font-semibold shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Target Scope */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Target Classes
+                </label>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
+                    <input
+                      type="radio"
+                      name="grading_scope"
+                      checked={autoGradingConfig.apply_to_all_classes}
+                      onChange={() => setAutoGradingConfig({ ...autoGradingConfig, apply_to_all_classes: true })}
+                      className="text-purple-600 focus:ring-purple-500"
+                    />
+                    <span>All Classes in this Exam Event ({currentLogicalGroup?.totalClasses || 'All'} Classes)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
+                    <input
+                      type="radio"
+                      name="grading_scope"
+                      checked={!autoGradingConfig.apply_to_all_classes}
+                      onChange={() => setAutoGradingConfig({ ...autoGradingConfig, apply_to_all_classes: false })}
+                      className="text-purple-600 focus:ring-purple-500"
+                    />
+                    <span>Selected Class Only (Class {selectedClassExam.class_level})</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAutoGradingModal(false)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={generatingGrading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-xl font-bold text-xs transition shadow-md shadow-purple-600/20 flex items-center gap-2 disabled:opacity-50"
+                >
+                  <FiZap className="text-amber-300" />
+                  {generatingGrading ? 'Generating Grading Routine...' : 'Generate Grading Routine'}
                 </button>
               </div>
             </form>

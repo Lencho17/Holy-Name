@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { detectPlaceholderType, categorizeSubjects, mapClassSubjectsToTemplate } = require('../utils/templateRoutineMapper');
+const { detectPlaceholderType, categorizeSubjects, mapClassSubjectsToTemplate, generateGradingTimetable } = require('../utils/templateRoutineMapper');
 const { getWorkingDatesCount } = require('../routes/exams');
 
 console.log('======================================================================');
@@ -183,6 +183,81 @@ it('Maps Terminal Assessment grading placeholders into at most 2 dates', () => {
   assert(gradingDates.length <= 2, 'Grading subjects scheduled within at most 2 dates');
   assert.strictEqual(gradingDates[0], '2026-10-01');
   assert.strictEqual(gradingDates[1], '2026-10-02');
+});
+
+// 5. Separate Written Routine for Terminal Assessment (Excludes Grading Subjects)
+it('Terminal Assessment in written-only mode maps strictly written subjects starting on day 0', () => {
+  const workingDates = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-05', '2026-10-06'];
+  const templateRows = [
+    { subject: 'Grading 1', day_offset: 0, order_index: 0, total_marks: 100, passing_marks: 40 },
+    { subject: 'Grading 2', day_offset: 1, order_index: 1, total_marks: 100, passing_marks: 40 },
+    { subject: 'Core 1', day_offset: 2, order_index: 2, total_marks: 100, passing_marks: 40 },
+    { subject: 'Core 2', day_offset: 3, order_index: 3, total_marks: 100, passing_marks: 40 }
+  ];
+
+  const classISubjects = [
+    { name: 'ENGLISH', is_core: true, is_grading: false },
+    { name: 'MATHEMATICS', is_core: true, is_grading: false },
+    { name: 'ART', is_core: false, is_grading: true },
+    { name: 'CONVERSATION', is_core: false, is_grading: true },
+    { name: 'READING', is_core: false, is_grading: true }
+  ];
+
+  const mapped = mapClassSubjectsToTemplate({
+    examId: 'exam-written-only',
+    schoolId: 'school-1',
+    classLevel: 'I',
+    templateRows,
+    classSubjects: classISubjects,
+    workingDates,
+    templateCategory: 'terminal_examination',
+    routineType: 'written'
+  });
+
+  // Exactly 2 written subjects (ENGLISH, MATHEMATICS)
+  assert.strictEqual(mapped.length, 2, 'Only written subjects are scheduled in written routine');
+  assert.strictEqual(mapped[0].subject, 'ENGLISH');
+  // Day 0 because unused grading slots are collapsed
+  assert.strictEqual(mapped[0].exam_date, '2026-10-01', 'Written exam starts directly on Day 0');
+  assert.strictEqual(mapped[1].subject, 'MATHEMATICS');
+  assert.strictEqual(mapped[1].exam_date, '2026-10-02', 'Next written exam is Day 1');
+  const hasGrading = mapped.some(m => ['ART', 'CONVERSATION', 'READING'].includes(m.subject));
+  assert.strictEqual(hasGrading, false, 'No grading subjects in written routine');
+});
+
+// 6. Dedicated Grading Timetable Generator
+it('Generates separate grading routine across dedicated dates and slots without conflict', () => {
+  const gradingDates = ['2026-09-28', '2026-09-29', '2026-09-30'];
+  const gradingSubjects = [
+    { name: 'CONVERSATION', is_grading: true },
+    { name: 'ART', is_grading: true },
+    { name: 'READING', is_grading: true },
+    { name: 'HANDWRITING', is_grading: true },
+    { name: 'CRAFT', is_grading: true }
+  ];
+
+  const gradingTt = generateGradingTimetable({
+    examId: 'exam-grading-only',
+    schoolId: 'school-1',
+    classLevel: 'I',
+    gradingSubjects,
+    workingDates: gradingDates,
+    subjectsPerDay: 2,
+    startTime: '08:30',
+    endTime: '10:00',
+    secondSlotStartTime: '10:15',
+    secondSlotEndTime: '11:45'
+  });
+
+  assert.strictEqual(gradingTt.length, 5, 'All 5 grading subjects scheduled');
+  assert.strictEqual(gradingTt[0].subject, 'CONVERSATION');
+  assert.strictEqual(gradingTt[0].exam_date, '2026-09-28');
+  assert.strictEqual(gradingTt[0].start_time, '08:30');
+  assert.strictEqual(gradingTt[1].subject, 'ART');
+  assert.strictEqual(gradingTt[1].exam_date, '2026-09-28');
+  assert.strictEqual(gradingTt[1].start_time, '10:15');
+  assert.strictEqual(gradingTt[2].subject, 'READING');
+  assert.strictEqual(gradingTt[2].exam_date, '2026-09-29');
 });
 
 console.log('\n======================================================================');

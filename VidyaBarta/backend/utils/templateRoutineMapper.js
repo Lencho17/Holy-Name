@@ -136,9 +136,11 @@ function mapClassSubjectsToTemplate({
   workingDates = [],
   singleStart = '08:30',
   singleEnd = '10:30',
-  templateCategory = 'periodic_assessment'
+  templateCategory = 'periodic_assessment',
+  routineType = 'all' // 'written' | 'grading' | 'all'
 }) {
   const isPeriodic = templateCategory === 'periodic_assessment';
+  const isWrittenOnly = routineType === 'written';
   const categoryDefaultTotal = isPeriodic ? 50 : 100;
   const categoryDefaultPass = isPeriodic ? 20 : 40;
 
@@ -167,7 +169,7 @@ function mapClassSubjectsToTemplate({
   let gradingSlotIndex = 0;
 
   // Calculate actual grading days needed to avoid dead gap days if grading slots are unused
-  const actualGradingDaysUsed = (isPeriodic || gradingPool.length === 0)
+  const actualGradingDaysUsed = (isPeriodic || isWrittenOnly || gradingPool.length === 0)
     ? 0
     : (totalGradingSlots > 1 && gradingPool.length === 1 ? 1 : Math.min(totalGradingSlots, 2));
   const unusedGradingSlots = Math.max(0, totalGradingSlots - actualGradingDaysUsed);
@@ -195,8 +197,8 @@ function mapClassSubjectsToTemplate({
     const slotPracticalPass = row.practical_passing_marks || null;
 
     if (placeholder.type === 'GRADING') {
-      // In periodic assessment, grading subjects are excluded
-      if (isPeriodic) continue;
+      // In periodic assessment or written-only routine, grading subjects are excluded
+      if (isPeriodic || isWrittenOnly) continue;
 
       // In terminal examination, distribute grading subjects across grading slots (at most 2 dates)
       const unassignedGrading = gradingPool.filter(s => !isAssigned(s));
@@ -327,7 +329,17 @@ function mapClassSubjectsToTemplate({
   }
 
   // Remaining unassigned subjects: schedule on following working days
-  const remainingSubjects = classSubjects.filter(s => !isAssigned(s) && !CO_SCHOLASTIC_NON_EXAM_SUBJECTS.has((s.name || '').trim().toUpperCase()));
+  const remainingSubjects = classSubjects.filter(s => {
+    if (isAssigned(s)) return false;
+    const subNameUpper = (s.name || '').trim().toUpperCase();
+    if (CO_SCHOLASTIC_NON_EXAM_SUBJECTS.has(subNameUpper)) return false;
+    if (isWrittenOnly) {
+      const isGrading = s.is_grading || s.marking_system === 'Grade' || (s.group_name || '').toUpperCase() === 'GRADING SETS';
+      if (isGrading) return false;
+    }
+    return true;
+  });
+
   if (remainingSubjects.length > 0) {
     let nextOffset = maxDayOffsetUsed + 1;
     for (const remSub of remainingSubjects) {
@@ -363,8 +375,68 @@ function mapClassSubjectsToTemplate({
   return timetableInserts;
 }
 
+/**
+ * Dedicated timetable generator for all grading subjects for Half Yearly & Annual exams.
+ * Allows schools to conduct grading subjects on separate dates (e.g. preceding written exams).
+ */
+function generateGradingTimetable({
+  examId,
+  schoolId,
+  classLevel,
+  gradingSubjects = [],
+  workingDates = [],
+  subjectsPerDay = 2,
+  startTime = '08:30',
+  endTime = '10:00',
+  secondSlotStartTime = '10:15',
+  secondSlotEndTime = '11:45'
+}) {
+  const timetableInserts = [];
+  if (!gradingSubjects || gradingSubjects.length === 0 || !workingDates || workingDates.length === 0) {
+    return timetableInserts;
+  }
+
+  const perDay = Math.max(1, parseInt(subjectsPerDay, 10) || 2);
+  let dayIdx = 0;
+  let slotInDay = 0;
+
+  for (let i = 0; i < gradingSubjects.length; i++) {
+    const sub = gradingSubjects[i];
+    const examDate = workingDates[dayIdx] || workingDates[workingDates.length - 1];
+    const isFirst = slotInDay === 0;
+
+    timetableInserts.push({
+      exam_id: examId,
+      school_id: schoolId,
+      class_level: classLevel,
+      subject: sub.name,
+      sub_subject: null,
+      exam_date: examDate,
+      start_time: isFirst ? (startTime || '08:30').substring(0, 5) : (secondSlotStartTime || '10:15').substring(0, 5),
+      end_time: isFirst ? (endTime || '10:00').substring(0, 5) : (secondSlotEndTime || '11:45').substring(0, 5),
+      total_marks: sub.total_marks || 100,
+      passing_marks: sub.passing_marks || 40,
+      has_practical: false,
+      theory_marks: null,
+      theory_passing_marks: null,
+      practical_marks: null,
+      practical_passing_marks: null,
+      is_finalized: false
+    });
+
+    slotInDay++;
+    if (slotInDay >= perDay) {
+      slotInDay = 0;
+      dayIdx++;
+    }
+  }
+
+  return timetableInserts;
+}
+
 module.exports = {
   detectPlaceholderType,
   categorizeSubjects,
-  mapClassSubjectsToTemplate
+  mapClassSubjectsToTemplate,
+  generateGradingTimetable
 };

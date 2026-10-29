@@ -45,7 +45,7 @@ router.get('/default-templates', protectAnyStaff, async (req, res) => {
 
 const crypto = require('crypto');
 const { normalizeClassLevel, getHolyNameDefaultSubjects } = require('../utils/defaultClassSubjects');
-const { mapClassSubjectsToTemplate } = require('../utils/templateRoutineMapper');
+const { mapClassSubjectsToTemplate, generateGradingTimetable } = require('../utils/templateRoutineMapper');
 
 // Helper to generate working dates (Monday to Saturday, skipping Sundays)
 const getWorkingDates = (startDateStr, endDateStr) => {
@@ -77,6 +77,23 @@ const getWorkingDatesCount = (startDateStr, maxWorkingDays = 20) => {
       dates.push(curr.toISOString().split('T')[0]);
     }
     curr.setDate(curr.getDate() + 1);
+  }
+  return dates;
+};
+
+// Helper to generate N working dates (skipping Sundays) preceding startDateStr
+const getWorkingDatesBefore = (startDateStr, count = 2) => {
+  const dates = [];
+  if (!startDateStr || count <= 0) return dates;
+  let curr = new Date(startDateStr);
+  if (isNaN(curr.getTime())) return dates;
+
+  curr.setDate(curr.getDate() - 1);
+  while (dates.length < count) {
+    if (curr.getDay() !== 0) { // Skip Sunday
+      dates.unshift(curr.toISOString().split('T')[0]);
+    }
+    curr.setDate(curr.getDate() - 1);
   }
   return dates;
 };
@@ -380,20 +397,16 @@ router.post('/', protect, async (req, res) => {
       }
     }
 
-    // Grading subjects rule: All grading subjects conducted within at most 2 dates
-    const gradingDaysCount = maxGradingCountAcrossClasses === 0 ? 0 : (maxGradingCountAcrossClasses === 1 ? 1 : 2);
-
-    // Validate that every class's routine fits within 20 working days
+    // Validate that every class's written routine fits within 20 working days
     for (const c of targetClasses) {
       const nonGradingCount = (classSubjectsMap[c] || []).filter(s => !s.is_grading).length;
-      const totalDaysNeeded = gradingDaysCount + nonGradingCount;
 
-      if (totalDaysNeeded > 20) {
+      if (nonGradingCount > 20) {
         return res.status(400).json({
           code: 'EXCEEDS_20_WORKING_DAYS',
-          message: `Class ${c} requires ${totalDaysNeeded} working days (${gradingDaysCount} grading days + ${nonGradingCount} non-grading subjects), exceeding the 20 working days limit.`,
+          message: `Class ${c} requires ${nonGradingCount} working days for written subjects, exceeding the 20 working days limit.`,
           class_level: c,
-          total_days_needed: totalDaysNeeded,
+          total_days_needed: nonGradingCount,
           max_allowed: 20
         });
       }
@@ -406,10 +419,16 @@ router.post('/', protect, async (req, res) => {
       .eq('default_exam_id', template.id)
       .order('order_index', { ascending: true });
 
+    const isTerminal = templateCategory === 'terminal_examination';
+
     // Calculate actual end date across all classes (within 20 working days) using placeholder mapping
     let maxAssignedDate = start_date;
     for (const c of targetClasses) {
-      const subs = [...(classSubjectsMap[c] || [])];
+      // In terminal exams, written routine maps strictly non-grading subjects (1 exam/day)
+      const subs = isTerminal
+        ? (classSubjectsMap[c] || []).filter(s => !s.is_grading)
+        : [...(classSubjectsMap[c] || [])];
+
       const previewTt = mapClassSubjectsToTemplate({
         examId: 'preview',
         schoolId,
@@ -419,7 +438,8 @@ router.post('/', protect, async (req, res) => {
         workingDates,
         singleStart: single_start_time || '08:30',
         singleEnd: single_end_time || (templateCategory === 'periodic_assessment' ? '10:30' : '11:30'),
-        templateCategory
+        templateCategory,
+        routineType: isTerminal ? 'written' : 'all'
       });
 
       previewTt.forEach(t => {
@@ -457,23 +477,62 @@ router.post('/', protect, async (req, res) => {
     if (examError) throw examError;
     createdExams = insertedExams;
 
+    // Determine if separate grading routine should be auto-generated for terminal examinations
+    const shouldAutoGenerateGrading = isTerminal && 
+      (req.body.auto_generate_grading_routine !== false && req.body.separate_grading_routine !== false);
+
+    let gradingDates = [];
+    if (shouldAutoGenerateGrading && maxGradingCountAcrossClasses > 0) {
+      const perDay = Math.max(1, parseInt(req.body.grading_subjects_per_day, 10) || 2);
+      const gradingDaysNeeded = Math.ceil(maxGradingCountAcrossClasses / perDay);
+      if (req.body.grading_start_date) {
+        gradingDates = getWorkingDatesCount(req.body.grading_start_date, gradingDaysNeeded);
+      } else {
+        gradingDates = getWorkingDatesBefore(start_date, gradingDaysNeeded);
+      }
+    }
+
     // Generate timetable rows per class using placeholder mapping
     const timetableInserts = [];
 
     for (const ex of createdExams) {
-      const subs = [...(classSubjectsMap[ex.class_level] || [])];
+      const writtenSubs = isTerminal
+        ? (classSubjectsMap[ex.class_level] || []).filter(s => !s.is_grading)
+        : [...(classSubjectsMap[ex.class_level] || [])];
+
       const classTt = mapClassSubjectsToTemplate({
         examId: ex.id,
         schoolId,
         classLevel: ex.class_level,
         templateRows: defaultTimetableRows || [],
-        classSubjects: subs,
+        classSubjects: writtenSubs,
         workingDates,
         singleStart,
         singleEnd,
-        templateCategory
+        templateCategory,
+        routineType: isTerminal ? 'written' : 'all'
       });
       timetableInserts.push(...classTt);
+
+      // Separate Grading Routine auto-generation
+      if (shouldAutoGenerateGrading) {
+        const classGradingSubs = (classSubjectsMap[ex.class_level] || []).filter(s => s.is_grading);
+        if (classGradingSubs.length > 0 && gradingDates.length > 0) {
+          const classGradingTt = generateGradingTimetable({
+            examId: ex.id,
+            schoolId,
+            classLevel: ex.class_level,
+            gradingSubjects: classGradingSubs,
+            workingDates: gradingDates,
+            subjectsPerDay: parseInt(req.body.grading_subjects_per_day, 10) || 2,
+            startTime: req.body.grading_start_time || '08:30',
+            endTime: req.body.grading_end_time || '10:00',
+            secondSlotStartTime: req.body.grading_second_start_time || '10:15',
+            secondSlotEndTime: req.body.grading_second_end_time || '11:45'
+          });
+          timetableInserts.push(...classGradingTt);
+        }
+      }
     }
 
     if (timetableInserts.length > 0) {
@@ -856,10 +915,109 @@ router.get('/:id/timetable', protectAnyUser, async (req, res) => {
   }
 });
 
-// Save exam timetable (Bulk Draft Save)
+// Dedicated endpoint to auto-generate grading timetable for a class or all classes in a logical exam
+router.post('/:id/grading-timetable/auto-generate', protect, async (req, res) => {
+  try {
+    const { school_id } = req.user;
+    const {
+      start_date,
+      subjects_per_day = 2,
+      start_time = '08:30',
+      end_time = '10:00',
+      second_start_time = '10:15',
+      second_end_time = '11:45',
+      apply_to_all_classes = false
+    } = req.body;
+
+    const { data: targetExam, error: exErr } = await supabase
+      .from('exams')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('school_id', school_id)
+      .single();
+
+    if (exErr || !targetExam) {
+      return res.status(404).json({ message: 'Exam not found or access denied' });
+    }
+
+    let examsToUpdate = [targetExam];
+    if (apply_to_all_classes && targetExam.logical_exam_id) {
+      const { data: groupExams } = await supabase
+        .from('exams')
+        .select('*')
+        .eq('logical_exam_id', targetExam.logical_exam_id)
+        .eq('school_id', school_id);
+      if (groupExams && groupExams.length > 0) {
+        examsToUpdate = groupExams;
+      }
+    }
+
+    let totalInserted = 0;
+
+    for (const ex of examsToUpdate) {
+      const eligibleSubs = await getClassEligibleSubjects(school_id, ex.class_level, ex.category || 'terminal_examination');
+      const gradingSubs = eligibleSubs.filter(s => s.is_grading);
+      if (gradingSubs.length === 0) continue;
+
+      const perDay = Math.max(1, parseInt(subjects_per_day, 10) || 2);
+      const daysNeeded = Math.ceil(gradingSubs.length / perDay);
+
+      let gradingDates = [];
+      if (start_date) {
+        gradingDates = getWorkingDatesCount(start_date, daysNeeded);
+      } else {
+        gradingDates = getWorkingDatesBefore(ex.start_date, daysNeeded);
+      }
+
+      const gradingInserts = generateGradingTimetable({
+        examId: ex.id,
+        schoolId: school_id,
+        classLevel: ex.class_level,
+        gradingSubjects: gradingSubs,
+        workingDates: gradingDates,
+        subjectsPerDay: perDay,
+        startTime: start_time,
+        endTime: end_time,
+        secondSlotStartTime: second_start_time,
+        secondSlotEndTime: second_end_time
+      });
+
+      // Delete existing grading rows for this exam
+      const { data: currentRows } = await supabase
+        .from('exam_timetable')
+        .select('id, subject')
+        .eq('exam_id', ex.id);
+
+      const gradingNamesSet = new Set(gradingSubs.map(s => s.name.toUpperCase()));
+      const toDeleteIds = (currentRows || [])
+        .filter(r => gradingNamesSet.has((r.subject || '').toUpperCase()))
+        .map(r => r.id);
+
+      if (toDeleteIds.length > 0) {
+        await supabase.from('exam_timetable').delete().in('id', toDeleteIds);
+      }
+
+      if (gradingInserts.length > 0) {
+        const { error: insErr } = await supabase.from('exam_timetable').insert(gradingInserts);
+        if (insErr) throw insErr;
+        totalInserted += gradingInserts.length;
+      }
+    }
+
+    res.json({
+      message: 'Grading subjects routine auto-generated successfully!',
+      totalInserted
+    });
+  } catch (err) {
+    console.error('[AUTO-GENERATE GRADING ERROR]:', err);
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+// Save exam timetable (Bulk Draft Save with Scoped Preservation)
 router.post('/:id/timetable', protect, async (req, res) => {
   try {
-    const { timetableData } = req.body;
+    const { timetableData, scope = 'all' } = req.body;
     const { school_id } = req.user;
     
     // 1. Verify exam ownership
@@ -874,6 +1032,9 @@ router.post('/:id/timetable', protect, async (req, res) => {
       return res.status(404).json({ message: 'Exam not found or access denied' });
     }
 
+    const eligibleSubs = await getClassEligibleSubjects(school_id, exam.class_level, exam.category);
+    const gradingSet = new Set(eligibleSubs.filter(s => s.is_grading).map(s => s.name.toUpperCase()));
+
     if (timetableData && timetableData.length > 0) {
       // Validate dates
       const dailyCounts = {};
@@ -883,18 +1044,43 @@ router.post('/:id/timetable', protect, async (req, res) => {
           if (d.getDay() === 0) {
             return res.status(400).json({ message: `Cannot schedule exam on Sunday (${t.exam_date})` });
           }
-          if (exam.start_date && exam.end_date && (t.exam_date < exam.start_date || t.exam_date > exam.end_date)) {
-            return res.status(400).json({ message: `Date ${t.exam_date} is outside the exam period (${exam.start_date} to ${exam.end_date})` });
+          const isGrading = t.is_grading || gradingSet.has((t.subject || '').toUpperCase());
+          // For written non-grading exams, enforce exam period
+          if (!isGrading && exam.start_date && exam.end_date && (t.exam_date < exam.start_date || t.exam_date > exam.end_date)) {
+            return res.status(400).json({ message: `Date ${t.exam_date} for '${t.subject}' is outside the exam period (${exam.start_date} to ${exam.end_date})` });
           }
           dailyCounts[t.exam_date] = (dailyCounts[t.exam_date] || 0) + 1;
-          if (dailyCounts[t.exam_date] > 2) {
-            return res.status(400).json({ message: `Maximum 2 exams allowed on ${t.exam_date}` });
+          if (!isGrading && dailyCounts[t.exam_date] > 1) {
+            return res.status(400).json({ message: `Maximum 1 written exam allowed on ${t.exam_date}` });
+          } else if (dailyCounts[t.exam_date] > 3) {
+            return res.status(400).json({ message: `Maximum exams per day exceeded on ${t.exam_date}` });
           }
         }
       }
 
-      // First, delete existing timetable for this exam
-      await supabase.from('exam_timetable').delete().eq('exam_id', req.params.id);
+      // Scoped deletion: keep the other scope intact!
+      const { data: currentRows } = await supabase
+        .from('exam_timetable')
+        .select('id, subject')
+        .eq('exam_id', req.params.id);
+
+      if (scope === 'written') {
+        const nonGradingIds = (currentRows || [])
+          .filter(r => !gradingSet.has((r.subject || '').toUpperCase()))
+          .map(r => r.id);
+        if (nonGradingIds.length > 0) {
+          await supabase.from('exam_timetable').delete().in('id', nonGradingIds);
+        }
+      } else if (scope === 'grading') {
+        const gradingIds = (currentRows || [])
+          .filter(r => gradingSet.has((r.subject || '').toUpperCase()))
+          .map(r => r.id);
+        if (gradingIds.length > 0) {
+          await supabase.from('exam_timetable').delete().in('id', gradingIds);
+        }
+      } else {
+        await supabase.from('exam_timetable').delete().eq('exam_id', req.params.id);
+      }
 
       const inserts = timetableData.map(t => ({
         exam_id: req.params.id,
@@ -919,7 +1105,17 @@ router.post('/:id/timetable', protect, async (req, res) => {
       const { error } = await supabase.from('exam_timetable').insert(inserts);
       if (error) throw error;
     } else {
-      await supabase.from('exam_timetable').delete().eq('exam_id', req.params.id);
+      if (scope === 'written') {
+        const { data: currentRows } = await supabase.from('exam_timetable').select('id, subject').eq('exam_id', req.params.id);
+        const nonGradingIds = (currentRows || []).filter(r => !gradingSet.has((r.subject || '').toUpperCase())).map(r => r.id);
+        if (nonGradingIds.length > 0) await supabase.from('exam_timetable').delete().in('id', nonGradingIds);
+      } else if (scope === 'grading') {
+        const { data: currentRows } = await supabase.from('exam_timetable').select('id, subject').eq('exam_id', req.params.id);
+        const gradingIds = (currentRows || []).filter(r => gradingSet.has((r.subject || '').toUpperCase())).map(r => r.id);
+        if (gradingIds.length > 0) await supabase.from('exam_timetable').delete().in('id', gradingIds);
+      } else {
+        await supabase.from('exam_timetable').delete().eq('exam_id', req.params.id);
+      }
     }
     
     res.json({ message: 'Timetable saved successfully' });
@@ -933,7 +1129,7 @@ router.post('/:id/timetable', protect, async (req, res) => {
 router.put('/:id/timetable/finalize', protect, async (req, res) => {
   try {
     const { school_id } = req.user;
-    const { class_level } = req.body;
+    const { class_level, scope } = req.body;
 
     // 1. Verify exam ownership
     const { data: exam, error: exErr } = await supabase
@@ -969,11 +1165,26 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
 
     // 3. Fetch class eligible subjects
     const eligibleSubs = await getClassEligibleSubjects(school_id, targetClass, exam.category);
-    const eligibleNames = new Set(eligibleSubs.map(s => s.name.toUpperCase()));
+    const gradingSubsMap = new Map(eligibleSubs.map(s => [s.name.toUpperCase(), !!s.is_grading]));
     const scheduledNames = new Set(ttRows.map(r => r.subject.toUpperCase()));
 
-    // Validation 1: Completeness - All required eligible subjects must be scheduled
-    const missing = [...eligibleNames].filter(name => !scheduledNames.has(name));
+    // Validation 1: Completeness
+    // For terminal examinations, written routine and grading routine are separate systems.
+    // If scope is 'written' or if the current timetable contains exclusively written subjects,
+    // only non-grading subjects are required for written routine finalization.
+    const isTerminal = exam.category === 'terminal_examination';
+    const isWrittenScope = scope === 'written' || (isTerminal && ttRows.every(r => !gradingSubsMap.get(r.subject.toUpperCase())));
+    const isGradingScope = scope === 'grading';
+
+    let requiredSubs = eligibleSubs;
+    if (isWrittenScope) {
+      requiredSubs = eligibleSubs.filter(s => !s.is_grading);
+    } else if (isGradingScope) {
+      requiredSubs = eligibleSubs.filter(s => s.is_grading);
+    }
+
+    const requiredNames = new Set(requiredSubs.map(s => s.name.toUpperCase()));
+    const missing = [...requiredNames].filter(name => !scheduledNames.has(name));
     if (missing.length > 0) {
       return res.status(400).json({
         code: 'MISSING_SUBJECTS',
@@ -983,7 +1194,8 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
     }
 
     // Validation 2: Subject Eligibility - No forbidden subjects outside the category pool
-    const forbidden = [...scheduledNames].filter(name => !eligibleNames.has(name));
+    const eligibleNamesAll = new Set(eligibleSubs.map(s => s.name.toUpperCase()));
+    const forbidden = [...scheduledNames].filter(name => !eligibleNamesAll.has(name));
     if (forbidden.length > 0) {
       return res.status(400).json({
         code: 'FORBIDDEN_SUBJECTS',
@@ -1010,7 +1222,9 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
         });
       }
 
-      if (exam.start_date && exam.end_date && (r.exam_date < exam.start_date || r.exam_date > exam.end_date)) {
+      const isGrading = gradingSubsMap.get(r.subject.toUpperCase());
+      // For non-grading written subjects, verify within exam period
+      if (!isGrading && exam.start_date && exam.end_date && (r.exam_date < exam.start_date || r.exam_date > exam.end_date)) {
         return res.status(400).json({
           code: 'DATE_OUT_OF_RANGE',
           message: `Cannot finalize: Date ${r.exam_date} for '${r.subject}' is outside the exam period (${exam.start_date} to ${exam.end_date}).`
@@ -1018,10 +1232,10 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
       }
 
       dailyCounts[r.exam_date] = (dailyCounts[r.exam_date] || 0) + 1;
-      if (dailyCounts[r.exam_date] > 2) {
+      if (dailyCounts[r.exam_date] > 3) {
         return res.status(400).json({
           code: 'DAILY_LIMIT_EXCEEDED',
-          message: `Cannot finalize: More than 2 exams scheduled on ${r.exam_date}.`
+          message: `Cannot finalize: More than 3 exams scheduled on ${r.exam_date}.`
         });
       }
 
@@ -1034,20 +1248,10 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
     }
 
     // Validation 4: Grading Subjects Constraints & Priority Rule
-    const gradingSubsMap = new Map(eligibleSubs.map(s => [s.name.toUpperCase(), !!s.is_grading]));
     const gradingRows = ttRows.filter(r => gradingSubsMap.get(r.subject.toUpperCase()));
     const nonGradingRows = ttRows.filter(r => !gradingSubsMap.get(r.subject.toUpperCase()));
 
-    // Rule A: All grading subjects must be conducted within at most 2 distinct dates
-    const gradingDates = new Set(gradingRows.map(r => r.exam_date));
-    if (gradingDates.size > 2) {
-      return res.status(400).json({
-        code: 'GRADING_DATES_EXCEEDED',
-        message: `Cannot finalize: All grading subjects must be conducted within at most 2 dates. Currently scheduled across ${gradingDates.size} dates: ${[...gradingDates].join(', ')}.`
-      });
-    }
-
-    // Rule B: For non-grading subjects, max 1 exam per day in 1-shift system
+    // Rule A: For non-grading subjects, max 1 exam per day in 1-shift system
     const nonGradingDailyCounts = {};
     for (const r of nonGradingRows) {
       nonGradingDailyCounts[r.exam_date] = (nonGradingDailyCounts[r.exam_date] || 0) + 1;
@@ -1059,11 +1263,11 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
       }
     }
 
-    // Rule C: 20 working days limit from exam start_date
-    if (exam.start_date) {
+    // Rule B: 20 working days limit for written exams from exam start_date
+    if (exam.start_date && nonGradingRows.length > 0) {
       const allowedWorkingDates = getWorkingDatesCount(exam.start_date, 20);
       const maxAllowedDate = allowedWorkingDates[allowedWorkingDates.length - 1];
-      for (const r of ttRows) {
+      for (const r of nonGradingRows) {
         if (r.exam_date > maxAllowedDate) {
           return res.status(400).json({
             code: 'EXCEEDS_20_WORKING_DAYS',
@@ -1073,8 +1277,8 @@ router.put('/:id/timetable/finalize', protect, async (req, res) => {
       }
     }
 
-    // Rule D: Grading Priority Rule for terminal_examination
-    if (exam.category === 'terminal_examination') {
+    // Rule C: Grading Priority Rule for legacy combined terminal routines
+    if (exam.category === 'terminal_examination' && !isWrittenScope) {
       if (gradingRows.length > 0 && nonGradingRows.length > 0) {
         let latestGradingTime = null;
         let latestGradingSubject = '';
